@@ -1,6 +1,6 @@
 package org.exemplo.bellory.controller;
 
-import org.exemplo.bellory.model.entity.User;
+import org.exemplo.bellory.model.entity.users.User;
 import org.exemplo.bellory.service.TokenService;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;

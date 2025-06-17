@@ -1,4 +1,4 @@
-package org.exemplo.bellory.model.entity;
+package org.exemplo.bellory.model.entity.users;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -9,15 +9,21 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
-import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
 
+/**
+ * Classe base para todos os tipos de utilizadores do sistema.
+ * Utiliza a estratégia de herança JOINED, onde os dados comuns ficam na tabela 'tb_users'
+ * e os dados específicos de cada tipo de utilizador ficam em tabelas separadas.
+ */
 @Entity
-// CORREÇÃO: Especifica um nome de tabela que não é uma palavra reservada.
 @Table(name = "tb_users")
+@Inheritance(strategy = InheritanceType.JOINED)
 @Getter
 @Setter
-@NoArgsConstructor
 @AllArgsConstructor
+@NoArgsConstructor
 public class User implements UserDetails {
 
     @Id
@@ -30,11 +36,25 @@ public class User implements UserDetails {
     @Column(nullable = false)
     private String password;
 
-    // Métodos da interface UserDetails implementados abaixo.
+    @Column(unique = true, nullable = false)
+    private String email;
+
+    private boolean enabled = true;
+
+    // Um utilizador pode ter várias roles, e uma role pode pertencer a vários utilizadores.
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(
+            name = "user_roles",
+            joinColumns = @JoinColumn(name = "user_id"),
+            inverseJoinColumns = @JoinColumn(name = "role_id")
+    )
+    private Set<Role> roles = new HashSet<>();
+
+    // Métodos da interface UserDetails
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return Collections.emptyList();
+        return this.roles;
     }
 
     @Override
@@ -64,6 +84,6 @@ public class User implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return true;
+        return this.enabled;
     }
 }

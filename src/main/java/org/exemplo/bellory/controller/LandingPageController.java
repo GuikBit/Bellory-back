@@ -2,8 +2,8 @@ package org.exemplo.bellory.controller;
 
 import lombok.Getter;
 import lombok.Setter;
-import org.exemplo.bellory.model.entity.LandingPage;
-import org.exemplo.bellory.model.entity.Section;
+import org.exemplo.bellory.model.entity.landingPage.LandingPage;
+import org.exemplo.bellory.model.entity.landingPage.Section;
 import org.exemplo.bellory.model.repository.LandingPageRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;

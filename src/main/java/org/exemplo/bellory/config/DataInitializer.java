@@ -1,50 +1,97 @@
 package org.exemplo.bellory.config;
 
-import org.exemplo.bellory.model.entity.ContentBlock;
-import org.exemplo.bellory.model.entity.LandingPage;
-import org.exemplo.bellory.model.entity.Section;
-import org.exemplo.bellory.model.entity.User;
-import org.exemplo.bellory.model.repository.LandingPageRepository;
-import org.exemplo.bellory.model.repository.UserRepository;
+import org.exemplo.bellory.model.entity.*;
+import org.exemplo.bellory.model.entity.landingPage.ContentBlock;
+import org.exemplo.bellory.model.entity.landingPage.LandingPage;
+import org.exemplo.bellory.model.entity.landingPage.Section;
+import org.exemplo.bellory.model.entity.users.*;
+import org.exemplo.bellory.model.repository.*;
+import org.exemplo.bellory.model.repository.users.*;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Set;
 
 @Configuration
 public class DataInitializer {
 
-    // @Transactional é importante aqui para garantir que todas as operações
-    // com o banco de dados ocorram dentro de uma única transação.
     @Bean
     @Transactional
     public CommandLineRunner loadData(
+            RoleRepository roleRepository,
             UserRepository userRepository,
+            AdminRepository adminRepository,
+            FuncionarioRepository funcionarioRepository,
+            ClienteRepository clienteRepository,
             LandingPageRepository landingPageRepository,
             PasswordEncoder passwordEncoder) {
 
         return args -> {
-            // --- 1. Cria o Usuário de Teste ---
-            User adminUser = userRepository.findByUsername("admin").orElseGet(() -> {
-                User newUser = new User();
-                newUser.setUsername("admin");
-                newUser.setPassword(passwordEncoder.encode("password"));
-                userRepository.save(newUser);
-                System.out.println("Usuário de teste 'admin' criado.");
-                return newUser;
-            });
+            // --- 1. Cria as Roles Básicas se não existirem ---
+            Role roleAdmin = roleRepository.findByNome("ROLE_ADMIN")
+                    .orElseGet(() -> roleRepository.save(new Role("ROLE_ADMIN")));
 
-            // --- 2. Cria a Landing Page "home" se ela não existir ---
+            Role roleFuncionario = roleRepository.findByNome("ROLE_FUNCIONARIO")
+                    .orElseGet(() -> roleRepository.save(new Role("ROLE_FUNCIONARIO")));
+
+            Role roleCliente = roleRepository.findByNome("ROLE_CLIENTE")
+                    .orElseGet(() -> roleRepository.save(new Role("ROLE_CLIENTE")));
+
+            System.out.println("Roles básicas verificadas/criadas.");
+
+            // --- 2. Cria os Utilizadores de Teste com as suas Roles ---
+
+            // Utilizador Admin
+            if (userRepository.findByUsername("admin").isEmpty()) {
+                Admin admin = new Admin();
+                admin.setUsername("admin");
+                admin.setEmail("admin@bellory.com");
+                admin.setPassword(passwordEncoder.encode("password"));
+                admin.setRoles(Set.of(roleAdmin));
+                adminRepository.save(admin);
+                System.out.println("Utilizador Admin criado.");
+            }
+
+            // Utilizador Funcionário
+            if (userRepository.findByUsername("funcionario").isEmpty()) {
+                Funcionario funcionario = new Funcionario();
+                funcionario.setUsername("funcionario");
+                funcionario.setEmail("func@bellory.com");
+                funcionario.setPassword(passwordEncoder.encode("password"));
+                funcionario.setCargo("Cabeleireiro");
+                funcionario.setRoles(Set.of(roleFuncionario));
+                funcionarioRepository.save(funcionario);
+                System.out.println("Utilizador Funcionário criado.");
+            }
+
+            // Utilizador Cliente
+            if (userRepository.findByUsername("cliente").isEmpty()) {
+                Cliente cliente = new Cliente();
+                cliente.setUsername("cliente");
+                cliente.setEmail("cliente@email.com");
+                cliente.setPassword(passwordEncoder.encode("password"));
+                cliente.setNomeCompleto("Ana Silva");
+                cliente.setTelefone("99999-8888");
+                cliente.setDataNascimento(LocalDate.of(1995, 5, 15));
+                cliente.setRoles(Set.of(roleCliente));
+                clienteRepository.save(cliente);
+                System.out.println("Utilizador Cliente criado.");
+            }
+
+            // --- 3. Cria a Landing Page "home" associada ao Admin ---
+            User adminUser = userRepository.findByUsername("admin").get();
             if (landingPageRepository.findBySlug("home").isEmpty()) {
                 System.out.println("Criando landing page de exemplo para o slug 'home'...");
 
                 LandingPage homePage = new LandingPage();
                 homePage.setSlug("home");
                 homePage.setInternalTitle("Página Principal");
-                homePage.setUser(adminUser);
+                homePage.setUser(adminUser); // Associa ao Admin
 
                 // --- Seção 1: HERO ---
                 Section heroSection = new Section();

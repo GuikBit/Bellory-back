@@ -45,6 +45,8 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/login", "/api/test/**", "/api/pages/**").permitAll()
+                        .requestMatchers("/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/servicos/**").hasAnyRole("ADMIN", "FUNCIONARIO")
                         .anyRequest().authenticated()
                 )
                 // Adiciona o nosso filtro customizado ANTES do filtro padrão de username/password

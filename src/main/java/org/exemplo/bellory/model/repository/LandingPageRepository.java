@@ -1,6 +1,6 @@
 package org.exemplo.bellory.model.repository;
 
-import org.exemplo.bellory.model.entity.LandingPage;
+import org.exemplo.bellory.model.entity.landingPage.LandingPage;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

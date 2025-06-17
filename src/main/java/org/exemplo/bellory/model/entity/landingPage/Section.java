@@ -1,4 +1,4 @@
-package org.exemplo.bellory.model.entity;
+package org.exemplo.bellory.model.entity.landingPage;
 
 import jakarta.persistence.*;
 import lombok.Getter;

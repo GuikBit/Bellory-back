@@ -1,6 +1,6 @@
 package org.exemplo.bellory.service;
 
-import org.exemplo.bellory.model.repository.UserRepository;
+import org.exemplo.bellory.model.repository.users.UserRepository;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;

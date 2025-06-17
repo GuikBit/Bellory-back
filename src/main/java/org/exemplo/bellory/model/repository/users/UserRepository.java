@@ -1,6 +1,6 @@
-package org.exemplo.bellory.model.repository;
+package org.exemplo.bellory.model.repository.users;
 
-import org.exemplo.bellory.model.entity.User;
+import org.exemplo.bellory.model.entity.users.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
