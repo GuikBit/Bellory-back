@@ -1,6 +1,5 @@
 package org.exemplo.bellory.config;
 
-import org.exemplo.bellory.model.entity.*;
 import org.exemplo.bellory.model.entity.landingPage.ContentBlock;
 import org.exemplo.bellory.model.entity.landingPage.LandingPage;
 import org.exemplo.bellory.model.entity.landingPage.Section;
@@ -25,7 +24,7 @@ public class DataInitializer {
     public CommandLineRunner loadData(
             RoleRepository roleRepository,
             UserRepository userRepository,
-            AdminRepository adminRepository,
+            //AdminRepository adminRepository,
             FuncionarioRepository funcionarioRepository,
             ClienteRepository clienteRepository,
             LandingPageRepository landingPageRepository,
@@ -47,15 +46,15 @@ public class DataInitializer {
             // --- 2. Cria os Utilizadores de Teste com as suas Roles ---
 
             // Utilizador Admin
-            if (userRepository.findByUsername("admin").isEmpty()) {
-                Admin admin = new Admin();
-                admin.setUsername("admin");
-                admin.setEmail("admin@bellory.com");
-                admin.setPassword(passwordEncoder.encode("password"));
-                admin.setRoles(Set.of(roleAdmin));
-                adminRepository.save(admin);
-                System.out.println("Utilizador Admin criado.");
-            }
+//            if (userRepository.findByUsername("admin").isEmpty()) {
+//                Admin admin = new Admin();
+//                admin.setUsername("admin");
+//                admin.setEmail("admin@bellory.com");
+//                admin.setPassword(passwordEncoder.encode("password"));
+//                admin.setRoles(Set.of(roleAdmin));
+//                adminRepository.save(admin);
+//                System.out.println("Utilizador Admin criado.");
+//            }
 
             // Utilizador Funcionário
             if (userRepository.findByUsername("funcionario").isEmpty()) {
@@ -64,10 +63,21 @@ public class DataInitializer {
                 funcionario.setEmail("func@bellory.com");
                 funcionario.setPassword(passwordEncoder.encode("password"));
                 funcionario.setCargo("Cabeleireiro");
-                funcionario.setRoles(Set.of(roleFuncionario));
+                funcionario.setRoles(Set.of(roleAdmin));
                 funcionarioRepository.save(funcionario);
                 System.out.println("Utilizador Funcionário criado.");
             }
+
+//            if (userRepository.findByUsername("admin").isEmpty()) {
+//                Funcionario funcionario = new Funcionario();
+//                funcionario.setUsername("admin");
+//                funcionario.setEmail("func@bellory.com");
+//                funcionario.setPassword(passwordEncoder.encode("password"));
+//                funcionario.setCargo("Cabeleireiro");
+//                funcionario.setRoles(Set.of(roleFuncionario));
+//                funcionarioRepository.save(funcionario);
+//                System.out.println("Utilizador Funcionário criado.");
+//            }
 
             // Utilizador Cliente
             if (userRepository.findByUsername("cliente").isEmpty()) {
@@ -84,7 +94,8 @@ public class DataInitializer {
             }
 
             // --- 3. Cria a Landing Page "home" associada ao Admin ---
-            User adminUser = userRepository.findByUsername("admin").get();
+            User adminUser = userRepository.findByUsername("funcionario").get();
+
             if (landingPageRepository.findBySlug("home").isEmpty()) {
                 System.out.println("Criando landing page de exemplo para o slug 'home'...");
 
