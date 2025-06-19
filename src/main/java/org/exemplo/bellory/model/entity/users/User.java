@@ -30,8 +30,14 @@ public class User implements UserDetails {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false)
+    private int organizacao_id;
+
     @Column(unique = true, nullable = false)
     private String username;
+
+    @Column(nullable = false)
+    private String nomeCompleto;
 
     @Column(nullable = false)
     private String password;
@@ -39,7 +45,7 @@ public class User implements UserDetails {
     @Column(unique = true, nullable = false)
     private String email;
 
-    private boolean enabled = true;
+    private boolean ativo = true;
 
     // Um utilizador pode ter várias roles, e uma role pode pertencer a vários utilizadores.
     @ManyToMany(fetch = FetchType.EAGER)
@@ -84,6 +90,6 @@ public class User implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return this.enabled;
+        return this.ativo;
     }
 }

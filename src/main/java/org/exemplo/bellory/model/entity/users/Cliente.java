@@ -9,13 +9,11 @@ import lombok.Setter;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "tb_clientes")
+@Table(name = "cliente")
 @Getter
 @Setter
 public class Cliente extends User {
 
-    // Exemplo de campos específicos para Cliente
-    private String nomeCompleto;
 
     @Column(length = 15)
     private String telefone;

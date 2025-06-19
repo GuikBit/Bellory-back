@@ -44,10 +44,19 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/login", "/api/test/**", "/api/pages/**").permitAll()
+                        .requestMatchers(
+                                "/api/auth/login",
+                                "/api/test/**",
+                                "/api/servico/**",
+                                "/api/pages/**",
+                                 "/api/funcionario/**",
+                                "/api/agendamento/**"
+                                // "/api/funcionario/agendamento"
+                        ).permitAll()
+                        // Adicione regras específicas para /api/funcionario/agendamento se necessário
+                        //.requestMatchers("/api/funcionario/agendamento").hasAnyRole("FUNCIONARIO", "ADMIN") // Exemplo
                         .requestMatchers("/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/servicos/**").hasAnyRole("ADMIN", "FUNCIONARIO")
-                        .anyRequest().authenticated()
+                        .anyRequest().authenticated() // Garante que o restante seja autenticado
                 )
                 // Adiciona o nosso filtro customizado ANTES do filtro padrão de username/password
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)

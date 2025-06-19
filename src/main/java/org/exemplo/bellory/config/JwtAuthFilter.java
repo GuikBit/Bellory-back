@@ -28,6 +28,20 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
+
+        //String path = request.getRequestURI();
+
+//        // Ignorar rotas públicas
+//        if (path.startsWith("/api/auth") ||
+//                // Mude para "/api/funcionario/"
+//                path.startsWith("/api/funcionario/") ||
+//                path.startsWith("/api/servico") ||
+//                path.startsWith("/api/pages") ||
+//                path.startsWith("/api/test")) {
+//            filterChain.doFilter(request, response);
+//            return;
+//        }
+
         String token = recoverToken(request);
         if (token != null) {
             String subject = tokenService.validateToken(token);
@@ -39,6 +53,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 }
             }
         }
+
         filterChain.doFilter(request, response);
     }
 

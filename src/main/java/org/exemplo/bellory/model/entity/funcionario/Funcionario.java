@@ -1,16 +1,19 @@
-package org.exemplo.bellory.model.entity.users;
+package org.exemplo.bellory.model.entity.funcionario;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
+import org.exemplo.bellory.model.entity.users.User;
 
 @Entity
-@Table(name = "tb_funcionarios")
+@Table(name = "funcionario")
 @Getter
 @Setter
 public class Funcionario extends User {
 
-    // Exemplo de um campo específico para Funcionário
     private String cargo;
+
+
+
 }

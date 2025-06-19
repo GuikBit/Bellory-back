@@ -20,8 +20,10 @@ import java.util.UUID;
 @Setter
 public class Produto {
 
+
     @Id
-    private String id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
     @Column(nullable = false)
     private String nome;
@@ -106,10 +108,10 @@ public class Produto {
      * Este método é chamado automaticamente pelo JPA antes de a entidade ser guardada
      * pela primeira vez. Ele garante que cada produto tenha um ID único.
      */
-    @PrePersist
-    public void prePersist() {
-        if (id == null || id.isEmpty()) {
-            id = UUID.randomUUID().toString();
-        }
-    }
+//    @PrePersist
+//    public void prePersist() {
+//        if (id == null || id.isEmpty()) {
+//            id = UUID.randomUUID().toString();
+//        }
+//    }
 }
