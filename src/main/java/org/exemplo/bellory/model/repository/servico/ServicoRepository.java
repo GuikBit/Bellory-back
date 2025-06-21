@@ -11,4 +11,8 @@ import java.util.List;
 public interface ServicoRepository extends JpaRepository<Servico, Long> {
 
     List<ServicoAgendamento> findAllProjectedBy();
+
+    boolean existsByNome(String nome);
+
+    List<Servico> findAllByOrderByNomeAsc();
 }
