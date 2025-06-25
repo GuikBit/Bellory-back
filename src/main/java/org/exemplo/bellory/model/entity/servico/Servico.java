@@ -18,9 +18,9 @@ import java.util.UUID;
 @Table(name = "servico")
 @Getter
 @Setter
- @NoArgsConstructor
- @AllArgsConstructor
- @Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class Servico {
 
     @Id
