@@ -32,6 +32,7 @@ public class ServicoService {
         // Validação de campos obrigatórios e básicos
         if (servico.getOrganizacao_id() <= 0) {
             throw new IllegalArgumentException("O ID da organização é obrigatório e deve ser maior que zero.");
+
         }
         if (servico.getNome() == null || servico.getNome().trim().isEmpty()) {
             throw new IllegalArgumentException("O nome do serviço é obrigatório.");

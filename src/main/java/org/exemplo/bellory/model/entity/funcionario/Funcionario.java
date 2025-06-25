@@ -14,6 +14,4 @@ public class Funcionario extends User {
 
     private String cargo;
 
-
-
 }
