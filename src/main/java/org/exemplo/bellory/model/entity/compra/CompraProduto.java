@@ -2,12 +2,20 @@ package org.exemplo.bellory.model.entity.compra;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 import org.exemplo.bellory.model.entity.produto.Produto;
 
 import java.math.BigDecimal;
 
 @Entity
 @Table(name = "compra_produto")
+@Getter
+@Setter
+@AllArgsConstructor
+@NoArgsConstructor
 public class CompraProduto {
 
     @EmbeddedId

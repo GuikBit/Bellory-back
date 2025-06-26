@@ -10,10 +10,12 @@ import java.time.LocalDateTime;
 import java.util.Collection;
 
 @Repository
-public interface  AgendamentoRepository extends JpaRepository<Agendamento, Long> {
+public interface AgendamentoRepository extends JpaRepository<Agendamento, Long> {
 
+    // CORRIGIDO: O nome da propriedade é "dtAgendamento"
+    Collection<Agendamento> findByClienteAndDtAgendamento(Cliente cliente, LocalDateTime dtAgendamento);
 
-    Collection<Object> findByClienteAndDataHoraAgendamento(Cliente cliente, LocalDateTime dataHoraAgendamento);
+    // CORRIGIDO: O nome da propriedade é "dtAgendamento"
+    Collection<Agendamento> findByFuncionariosContainingAndDtAgendamento(Funcionario funcionario, LocalDateTime dtAgendamento);
 
-    Collection<Object> findByFuncionarioAndDtAgendamento(Funcionario funcionario1, LocalDateTime dataHoraAgendamento);
 }

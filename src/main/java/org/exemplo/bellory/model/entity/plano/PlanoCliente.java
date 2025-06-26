@@ -1,6 +1,10 @@
 package org.exemplo.bellory.model.entity.plano;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 import org.exemplo.bellory.model.entity.cobranca.Cobranca;
 import org.exemplo.bellory.model.entity.users.Cliente;
 
@@ -8,6 +12,10 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "plano_cliente")
+@Getter
+@Setter
+@AllArgsConstructor
+@NoArgsConstructor
 public class PlanoCliente {
 
     @Id

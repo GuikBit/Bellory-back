@@ -5,38 +5,33 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "plano_servico")
+@Table(name = "plano")
 @Getter
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class PlanoServico {
+public class Plano {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "organizacao_id", nullable = false)
-    private Organizacao organizacao;
-
-    @Column(nullable = false, length = 100)
+    @Column(nullable = false, unique = true, length = 100)
     private String nome;
 
     @Column(columnDefinition = "TEXT")
     private String descricao;
 
-    @Column(nullable = false, precision = 10, scale = 2)
-    private BigDecimal preco;
+    @Column(nullable = false, length = 50)
+    private String recorrencia; // Ex: "Mensal", "Anual"
 
-    @Column(name = "validade_dias")
-    private Integer validadeDias;
+    @Column(name = "valor_unitario", nullable = false, precision = 10, scale = 2)
+    private BigDecimal valorUnitario;
 
     @Column(name = "dt_criacao", columnDefinition = "TIMESTAMP DEFAULT now()")
     private LocalDateTime dtCriacao;
@@ -46,6 +41,4 @@ public class PlanoServico {
 
     @Column(nullable = false)
     private boolean ativo = true;
-
-    // Getters e Setters
 }

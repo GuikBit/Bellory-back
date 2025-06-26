@@ -4,12 +4,14 @@ import org.exemplo.bellory.model.entity.agendamento.Agendamento;
 import org.exemplo.bellory.model.entity.agendamento.Status;
 import org.exemplo.bellory.model.entity.funcionario.*;
 import org.exemplo.bellory.model.entity.organizacao.Organizacao; // Importe a entidade Organizacao
+import org.exemplo.bellory.model.entity.plano.Plano;
 import org.exemplo.bellory.model.entity.servico.Servico;
 import org.exemplo.bellory.model.entity.users.*;
 import org.exemplo.bellory.model.repository.agendamento.AgendamentoRepository;
 import org.exemplo.bellory.model.repository.funcionario.BloqueioAgendaRepository; // Nome corrigido
 import org.exemplo.bellory.model.repository.funcionario.FuncionarioRepository;
 import org.exemplo.bellory.model.repository.organizacao.OrganizacaoRepository; // Importe o repositório da Organizacao
+import org.exemplo.bellory.model.repository.organizacao.PlanoRepository;
 import org.exemplo.bellory.model.repository.servico.ServicoRepository;
 import org.exemplo.bellory.model.repository.users.*;
 import org.springframework.boot.CommandLineRunner;
@@ -38,15 +40,35 @@ public class DataInitializer {
             ServicoRepository servicoRepository,
             AgendamentoRepository agendamentoRepository,
             BloqueioAgendaRepository bloqueioAgendaRepository,
+            PlanoRepository planoRepository,
             PasswordEncoder passwordEncoder) {
 
         return args -> {
+
+            Plano planoPadrao = planoRepository.findByNome("Plano Básico")
+                    .orElseGet(() -> {
+                        Plano p = new Plano();
+                        p.setNome("Plano Básico");
+                        p.setDescricao("Plano de funcionalidades essenciais.");
+                        p.setValorUnitario(BigDecimal.valueOf(99.90));
+                        p.setRecorrencia("mensal");
+                        p.setAtivo(true);
+                        return planoRepository.save(p);
+                    });
+
             // --- 1. Cria a Organização Principal ---
             Organizacao organizacaoPrincipal = organizacaoRepository.findByNome("Bellory Salon")
                     .orElseGet(() -> {
                         Organizacao org = new Organizacao();
                         org.setNome("Bellory Salon");
                         org.setNomeFantasia("Bellory Salon & Spa");
+
+                        org.setCnpj("00.000.000/0001-00"); // Exemplo
+                        org.setNomeResponsavel("Admin do Sistema");
+                        org.setEmailResponsavel("admin@bellory.com");
+                        org.setCpfResponsavel("000.000.000-00"); // Exemplo
+                        org.setPlano(planoPadrao); // Associando o plano obrigatório
+                        org.setDtCadastro(LocalDateTime.now());
                         // Preencha outros campos obrigatórios da organização
                         return organizacaoRepository.save(org);
                     });
@@ -85,7 +107,7 @@ public class DataInitializer {
             // --- 6. Cria um Agendamento de Teste ---
             LocalDateTime dataHoraAgendamento = LocalDateTime.now().plusDays(2).withHour(10).withMinute(0).withSecond(0).withNano(0);
 
-            if (agendamentoRepository.findByFuncionarioAndDtAgendamento(funcionario1, dataHoraAgendamento).isEmpty()) {
+            if (agendamentoRepository.findByFuncionariosContainingAndDtAgendamento(funcionario1, dataHoraAgendamento).isEmpty()) {
                 System.out.println("Criando agendamento de teste...");
 
                 // 1. Cria o Agendamento

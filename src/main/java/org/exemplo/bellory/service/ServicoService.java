@@ -30,7 +30,7 @@ public class ServicoService {
 
     public Servico createServico(Servico servico) {
         // Validação de campos obrigatórios e básicos
-        if (servico.getOrganizacao_id() <= 0) {
+        if (servico.getOrganizacao().getId() <= 0) {
             throw new IllegalArgumentException("O ID da organização é obrigatório e deve ser maior que zero.");
 
         }
@@ -43,7 +43,7 @@ public class ServicoService {
         if (servico.getPreco() == null || servico.getPreco().compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("O preço do serviço é obrigatório e deve ser maior que zero.");
         }
-        if (servico.getDuracaoEstimadaMinutos() == null || servico.getDuracaoEstimadaMinutos() <= 0) {
+        if (servico.getTempoEstimadoMinutos() == null || servico.getTempoEstimadoMinutos() <= 0) {
             throw new IllegalArgumentException("A duração estimada do serviço é obrigatória e deve ser maior que zero.");
         }
 
@@ -71,8 +71,8 @@ public class ServicoService {
 
         // 2. Aplicar as atualizações nos campos
         // Você pode escolher quais campos podem ser atualizados
-        if (servicoDetalhes.getOrganizacao_id() > 0) { // Exemplo: só atualiza se for um ID válido
-            servicoExistente.setOrganizacao_id(servicoDetalhes.getOrganizacao_id());
+        if (servicoDetalhes.getOrganizacao().getId() > 0) { // Exemplo: só atualiza se for um ID válido
+            servicoExistente.setOrganizacao(servicoDetalhes.getOrganizacao());
         }
         if (servicoDetalhes.getNome() != null && !servicoDetalhes.getNome().trim().isEmpty()) {
             // Verifique se o novo nome já existe e não é o nome do próprio serviço que está sendo atualizado
@@ -90,8 +90,8 @@ public class ServicoService {
         if (servicoDetalhes.getDescricao() != null) { // Descrição pode ser nula ou vazia
             servicoExistente.setDescricao(servicoDetalhes.getDescricao());
         }
-        if (servicoDetalhes.getDuracaoEstimadaMinutos() != null && servicoDetalhes.getDuracaoEstimadaMinutos() > 0) {
-            servicoExistente.setDuracaoEstimadaMinutos(servicoDetalhes.getDuracaoEstimadaMinutos());
+        if (servicoDetalhes.getTempoEstimadoMinutos() != null && servicoDetalhes.getTempoEstimadoMinutos() > 0) {
+            servicoExistente.setTempoEstimadoMinutos(servicoDetalhes.getTempoEstimadoMinutos());
         }
         if (servicoDetalhes.getPreco() != null && servicoDetalhes.getPreco().compareTo(BigDecimal.ZERO) > 0) {
             servicoExistente.setPreco(servicoDetalhes.getPreco());

@@ -57,23 +57,23 @@ public class AgendamentoService {
     @Transactional
     public Agendamento criarAgendamento(Agendamento novoAgendamento) {
         // 1. Validar a Data e Hora do Agendamento
-        if (novoAgendamento.getDataHoraAgendamento().isBefore(LocalDateTime.now())) {
+        if (novoAgendamento.getDtAgendamento().isBefore(LocalDateTime.now())) {
             throw new IllegalArgumentException("Não é possível agendar para o passado.");
         }
 
         // 2. Calcular a Duração Total dos Serviços
         int duracaoTotalMinutos = novoAgendamento.getServicos().stream()
-                .mapToInt(Servico::getDuracaoEstimadaMinutos)
+                .mapToInt(Servico::getTempoEstimadoMinutos)
                 .sum();
 
         // 3. Definir o Horário de Término do Agendamento
-        LocalDateTime dataHoraFimAgendamento = novoAgendamento.getDataHoraAgendamento().plusMinutes(duracaoTotalMinutos);
+        LocalDateTime dataHoraFimAgendamento = novoAgendamento.getDtAgendamento().plusMinutes(duracaoTotalMinutos);
 
         // 4. Para cada funcionário envolvido no agendamento:
         for (Funcionario funcionario : novoAgendamento.getFuncionarios()) {
             // a. Verificar a Jornada de Trabalho do Funcionário
-            DayOfWeek diaSemanaAgendamento = novoAgendamento.getDataHoraAgendamento().getDayOfWeek();
-            LocalTime horaInicioAgendamento = novoAgendamento.getDataHoraAgendamento().toLocalTime();
+            DayOfWeek diaSemanaAgendamento = novoAgendamento.getDtAgendamento().getDayOfWeek();
+            LocalTime horaInicioAgendamento = novoAgendamento.getDtAgendamento().toLocalTime();
             LocalTime horaFimAgendamento = dataHoraFimAgendamento.toLocalTime();
 
             // Encontre a jornada de trabalho para o dia específico
@@ -93,13 +93,13 @@ public class AgendamentoService {
             // b. Verificar Conflitos de Bloqueio na Agenda do Funcionário
             List<BloqueioAgenda> bloqueiosConflitantes = disponibilidadeRepository.findByFuncionarioAndInicioBloqueioBetween(
                     funcionario,
-                    novoAgendamento.getDataHoraAgendamento(),
+                    novoAgendamento.getDtAgendamento(),
                     dataHoraFimAgendamento
             );
 
             // Filtra bloqueios que realmente se sobrepõem
             boolean temConflito = bloqueiosConflitantes.stream().anyMatch(bloqueio ->
-                    (novoAgendamento.getDataHoraAgendamento().isBefore(bloqueio.getFimBloqueio()) &&
+                    (novoAgendamento.getDtAgendamento().isBefore(bloqueio.getFimBloqueio()) &&
                             dataHoraFimAgendamento.isAfter(bloqueio.getInicioBloqueio()))
             );
 
@@ -115,7 +115,7 @@ public class AgendamentoService {
         for (Funcionario funcionario : novoAgendamento.getFuncionarios()) {
             BloqueioAgenda bloqueio = new BloqueioAgenda(
                     funcionario,
-                    novoAgendamento.getDataHoraAgendamento(),
+                    novoAgendamento.getDtAgendamento(),
                     dataHoraFimAgendamento,
                     "Agendamento de Serviço",
                     TipoBloqueio.AGENDAMENTO,
@@ -181,7 +181,7 @@ public class AgendamentoService {
                 .map(servicoRepository::findById)
                 .filter(Optional::isPresent)
                 .map(Optional::get)
-                .mapToInt(Servico::getDuracaoEstimadaMinutos)
+                .mapToInt(Servico::getTempoEstimadoMinutos)
                 .sum();
 
         int duracaoTotalNecessaria = duracaoServicos + TOLERANCIA_MINUTOS; // Adiciona a tolerância

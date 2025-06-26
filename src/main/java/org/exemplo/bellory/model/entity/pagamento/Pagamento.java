@@ -2,6 +2,10 @@ package org.exemplo.bellory.model.entity.pagamento;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 import org.exemplo.bellory.model.entity.cobranca.Cobranca;
 
 import java.math.BigDecimal;
@@ -9,6 +13,10 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "pagamento")
+@Getter
+@Setter
+@AllArgsConstructor
+@NoArgsConstructor
 public class Pagamento {
 
     @Id

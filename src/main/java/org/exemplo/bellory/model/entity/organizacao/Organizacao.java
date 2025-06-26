@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.*;
 import org.exemplo.bellory.model.entity.config.ConfigSistema;
-import org.exemplo.bellory.model.entity.config.Plano;
+import org.exemplo.bellory.model.entity.plano.Plano;
 import org.exemplo.bellory.model.entity.endereco.Endereco;
 import org.exemplo.bellory.model.entity.funcionario.Funcionario;
 import org.exemplo.bellory.model.entity.landingPage.ConfigLandingPage;
@@ -57,12 +57,10 @@ public class Organizacao {
     @JoinColumn(name = "plano_id", nullable = false)
     private Plano plano;
 
-    @OneToOne(mappedBy = "organizacao", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    @JsonManagedReference("organizacao-landingpage")
+    @OneToOne(mappedBy = "organizacao", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private ConfigLandingPage configLandingpage;
 
-    @OneToOne(mappedBy = "organizacao", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    @JsonManagedReference("organizacao-configsistema")
+    @OneToOne(mappedBy = "organizacao", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private ConfigSistema configSistema;
 
     @Column(name = "dt_cadastro", columnDefinition = "TIMESTAMP DEFAULT now()")

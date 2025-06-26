@@ -2,21 +2,29 @@ package org.exemplo.bellory.model.entity.landingPage;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "config_landingpage")
+@Table(name = "config_landing_page")
+@Getter
+@Setter
+@AllArgsConstructor
+@NoArgsConstructor
+
 public class ConfigLandingPage {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "organizacao_id", nullable = false, unique = true)
-    @JsonBackReference("organizacao-landingpage")
+    @OneToOne
+    @JoinColumn(name = "organizacao_id", referencedColumnName = "id")
     private Organizacao organizacao;
 
     @Column(name = "template_id")
