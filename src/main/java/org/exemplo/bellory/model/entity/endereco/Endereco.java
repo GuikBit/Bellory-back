@@ -16,13 +16,10 @@ public class Endereco {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
-    private int organizacao_id;
-
     @Column(nullable = false, length = 255)
     private String logradouro;
 
-    @Column(nullable = false, length = 10)
+    @Column(nullable = false, length = 20)
     private String numero;
 
     @Column(nullable = false, length = 100)
@@ -37,9 +34,10 @@ public class Endereco {
     @Column(nullable = false, length = 2)
     private String uf;
 
-    @Column(nullable = true)
+    @Column(columnDefinition = "TEXT")
     private String referencia;
 
-    @Column(nullable = true, length = 255)
+    @Column(length = 255)
     private String complemento;
+
 }

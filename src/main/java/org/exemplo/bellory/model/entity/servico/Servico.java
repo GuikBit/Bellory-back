@@ -2,6 +2,7 @@ package org.exemplo.bellory.model.entity.servico;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -27,21 +28,23 @@ public class Servico {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
-    private int organizacao_id;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "organizacao_id", nullable = false)
+    private Organizacao organizacao;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 255)
     private String nome;
 
-    @Column(nullable = false)
+    @Column(length = 100)
     private String categoria;
 
     private String genero;
 
-    @Column(length = 1000)
-    private String descricao;
+    @Column(columnDefinition = "TEXT")
+    private String descricao;;
 
-    private Integer duracaoEstimadaMinutos; // Ex: "90 min", "1 hora"
+    @Column(name = "tempo_estimado_minutos", nullable = false)
+    private Integer tempoEstimadoMinutos; // Ex: "90 min", "1 hora"
 
     // Usamos BigDecimal para preços para garantir a precisão monetária.
     @Column(nullable = false, precision = 10, scale = 2)
@@ -60,13 +63,14 @@ public class Servico {
     @Column(name = "url_imagem", nullable = false, length = 1000)
     private List<String> urlsImagens;
 
-    private boolean ativo;
-
-    @CreationTimestamp
+    @Column(name = "dt_criacao", columnDefinition = "TIMESTAMP DEFAULT now()")
     private LocalDateTime dtCriacao;
 
-    @UpdateTimestamp
+    @Column(name = "dt_atualizacao")
     private LocalDateTime dtAtualizacao;
+
+    @Column(nullable = false)
+    private boolean ativo = true;
 
     private String usuarioAtualizacao;
 

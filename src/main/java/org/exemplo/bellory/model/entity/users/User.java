@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
@@ -18,25 +19,28 @@ import java.util.Set;
  * e os dados específicos de cada tipo de utilizador ficam em tabelas separadas.
  */
 @Entity
-@Table(name = "tb_users")
+@Table(name = "usuarios")
 @Inheritance(strategy = InheritanceType.JOINED)
 @Getter
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class User implements UserDetails {
+public abstract class User implements UserDetails { // Tornada abstrata, pois um User sempre será um tipo específico
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
-    private int organizacao_id;
+    // --- CORREÇÃO PRINCIPAL ---
+    // Substituído int por um relacionamento real para garantir a integridade dos dados.
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "organizacao_id", nullable = false)
+    private Organizacao organizacao;
 
     @Column(unique = true, nullable = false)
     private String username;
 
-    @Column(nullable = false)
+    @Column(name="nome_completo", nullable = false)
     private String nomeCompleto;
 
     @Column(nullable = false)
@@ -47,7 +51,6 @@ public class User implements UserDetails {
 
     private boolean ativo = true;
 
-    // Um utilizador pode ter várias roles, e uma role pode pertencer a vários utilizadores.
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
             name = "user_roles",
@@ -56,8 +59,16 @@ public class User implements UserDetails {
     )
     private Set<Role> roles = new HashSet<>();
 
-    // Métodos da interface UserDetails
 
+    public User(Organizacao organizacao, String username, String nomeCompleto, String password, String email) {
+        this.organizacao = organizacao;
+        this.username = username;
+        this.nomeCompleto = nomeCompleto;
+        this.password = password;
+        this.email = email;
+    }
+
+    // Métodos da interface UserDetails (sem alterações)
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return this.roles;

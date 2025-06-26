@@ -1,18 +1,15 @@
 package org.exemplo.bellory.config;
 
-import org.exemplo.bellory.model.entity.agendamento.Agendamento; // Importar Agendamento
-import org.exemplo.bellory.model.entity.agendamento.Status; // Importar Status
+import org.exemplo.bellory.model.entity.agendamento.Agendamento;
+import org.exemplo.bellory.model.entity.agendamento.Status;
 import org.exemplo.bellory.model.entity.funcionario.*;
-import org.exemplo.bellory.model.entity.landingPage.ContentBlock;
-import org.exemplo.bellory.model.entity.landingPage.LandingPage;
-import org.exemplo.bellory.model.entity.landingPage.Section;
+import org.exemplo.bellory.model.entity.organizacao.Organizacao; // Importe a entidade Organizacao
 import org.exemplo.bellory.model.entity.servico.Servico;
 import org.exemplo.bellory.model.entity.users.*;
-import org.exemplo.bellory.model.repository.*;
-import org.exemplo.bellory.model.repository.agendamento.AgendamentoRepository; // Novo repositório
-import org.exemplo.bellory.model.repository.funcionario.DisponibilidadeRepository;
+import org.exemplo.bellory.model.repository.agendamento.AgendamentoRepository;
+import org.exemplo.bellory.model.repository.funcionario.BloqueioAgendaRepository; // Nome corrigido
 import org.exemplo.bellory.model.repository.funcionario.FuncionarioRepository;
-import org.exemplo.bellory.model.repository.funcionario.JornadaTrabalhoRepository;
+import org.exemplo.bellory.model.repository.organizacao.OrganizacaoRepository; // Importe o repositório da Organizacao
 import org.exemplo.bellory.model.repository.servico.ServicoRepository;
 import org.exemplo.bellory.model.repository.users.*;
 import org.springframework.boot.CommandLineRunner;
@@ -22,11 +19,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.DayOfWeek;
 import java.time.LocalDate;
-import java.time.LocalDateTime; // Para agendamentos
-import java.time.LocalTime;    // Para jornada de trabalho
-import java.util.List;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.Set;
 
 @Configuration
@@ -35,297 +30,152 @@ public class DataInitializer {
     @Bean
     @Transactional
     public CommandLineRunner loadData(
+            OrganizacaoRepository organizacaoRepository,
             RoleRepository roleRepository,
             UserRepository userRepository,
-            ServicoRepository servicoRepository,
-            //AdminRepository adminRepository,
             FuncionarioRepository funcionarioRepository,
             ClienteRepository clienteRepository,
-            LandingPageRepository landingPageRepository,
-            AgendamentoRepository agendamentoRepository, // <-- NOVO: Repositório de Agendamento
-            JornadaTrabalhoRepository jornadaTrabalhoRepository, // <-- NOVO: Repositório de Jornada de Trabalho
-            DisponibilidadeRepository bloqueioAgendaRepository, // <-- NOVO: Repositório de Bloqueio de Agenda
+            ServicoRepository servicoRepository,
+            AgendamentoRepository agendamentoRepository,
+            BloqueioAgendaRepository bloqueioAgendaRepository,
             PasswordEncoder passwordEncoder) {
 
         return args -> {
-            // --- 1. Cria as Roles Básicas se não existirem ---
-            Role roleAdmin = roleRepository.findByNome("ROLE_ADMIN")
-                    .orElseGet(() -> roleRepository.save(new Role("ROLE_ADMIN")));
+            // --- 1. Cria a Organização Principal ---
+            Organizacao organizacaoPrincipal = organizacaoRepository.findByNome("Bellory Salon")
+                    .orElseGet(() -> {
+                        Organizacao org = new Organizacao();
+                        org.setNome("Bellory Salon");
+                        org.setNomeFantasia("Bellory Salon & Spa");
+                        // Preencha outros campos obrigatórios da organização
+                        return organizacaoRepository.save(org);
+                    });
+            System.out.println("Organização principal verificada/criada.");
 
-            Role roleFuncionario = roleRepository.findByNome("ROLE_FUNCIONARIO")
-                    .orElseGet(() -> roleRepository.save(new Role("ROLE_FUNCIONARIO")));
-
-            Role roleCliente = roleRepository.findByNome("ROLE_CLIENTE")
-                    .orElseGet(() -> roleRepository.save(new Role("ROLE_CLIENTE")));
-
+            // --- 2. Cria as Roles Básicas se não existirem ---
+            Role roleAdmin = roleRepository.findByNome("ROLE_ADMIN").orElseGet(() -> roleRepository.save(new Role("ROLE_ADMIN")));
+            Role roleFuncionario = roleRepository.findByNome("ROLE_FUNCIONARIO").orElseGet(() -> roleRepository.save(new Role("ROLE_FUNCIONARIO")));
+            Role roleCliente = roleRepository.findByNome("ROLE_CLIENTE").orElseGet(() -> roleRepository.save(new Role("ROLE_CLIENTE")));
             System.out.println("Roles básicas verificadas/criadas.");
 
-            // --- 2. Cria os Utilizadores de Teste com as suas Roles ---
-
-            // Utilizador Funcionário (ajustado para ter nomeCompleto)
-            Funcionario funcionario1;
-            if (userRepository.findByUsername("funcionario").isEmpty()) {
-                funcionario1 = new Funcionario();
-                funcionario1.setUsername("funcionario");
-                funcionario1.setNomeCompleto("Julia Almeida"); // Nome completo para o funcionário
-                funcionario1.setEmail("func@bellory.com");
-                funcionario1.setPassword(passwordEncoder.encode("password"));
-                funcionario1.setCargo("Cabeleireira");
-                funcionario1.setRoles(Set.of(roleFuncionario, roleAdmin)); // Pode ser ROLE_FUNCIONARIO ou ambos
-                funcionarioRepository.save(funcionario1);
-                System.out.println("Utilizador Funcionário criado.");
-            } else {
-                funcionario1 = (Funcionario) userRepository.findByUsername("funcionario").get();
-            }
-
-            // Outro Funcionário (opcional)
-            Funcionario funcionario2;
-            if (userRepository.findByUsername("funcionario2").isEmpty()) {
-                funcionario2 = new Funcionario();
-                funcionario2.setUsername("funcionario2");
-                funcionario2.setNomeCompleto("Carlos Mendes");
-                funcionario2.setEmail("func2@bellory.com");
-                funcionario2.setPassword(passwordEncoder.encode("password2"));
-                funcionario2.setCargo("Manicure");
-                funcionario2.setRoles(Set.of(roleFuncionario));
-                funcionarioRepository.save(funcionario2);
-                System.out.println("Utilizador Funcionário 2 criado.");
-            } else {
-                funcionario2 = (Funcionario) userRepository.findByUsername("funcionario2").get();
-            }
-
-
-            // Utilizador Cliente
-            Cliente cliente1;
-            if (userRepository.findByUsername("cliente").isEmpty()) {
-                cliente1 = new Cliente();
-                cliente1.setUsername("cliente");
-                cliente1.setEmail("cliente@email.com");
-                cliente1.setPassword(passwordEncoder.encode("password"));
-                cliente1.setNomeCompleto("Ana Silva");
-                cliente1.setTelefone("99999-8888");
-                cliente1.setDataNascimento(LocalDate.of(1995, 5, 15));
-                cliente1.setRoles(Set.of(roleCliente));
-                clienteRepository.save(cliente1);
-                System.out.println("Utilizador Cliente criado.");
-            } else {
-                cliente1 = (Cliente) userRepository.findByUsername("cliente").get();
-            }
-
-            // --- 3. Cria a Landing Page "home" associada ao Admin ---
-            User adminUser = userRepository.findByUsername("funcionario").get(); // Assumindo que 'funcionario' também tem ROLE_ADMIN para gerenciar LP
-
-            if (landingPageRepository.findBySlug("home").isEmpty()) {
-                System.out.println("Criando landing page de exemplo para o slug 'home'...");
-
-                LandingPage homePage = new LandingPage();
-                homePage.setSlug("home");
-                homePage.setInternalTitle("Página Principal");
-                homePage.setUser(adminUser);
-
-                Section heroSection = new Section();
-                heroSection.setLandingPage(homePage);
-                heroSection.setSectionType("HERO");
-                heroSection.setDisplayOrder(0);
-
-                ContentBlock heroTitle = new ContentBlock();
-                heroTitle.setSection(heroSection);
-                heroTitle.setContentKey("title");
-                heroTitle.setContentValue("Bem-vindo ao Bellory!");
-
-                ContentBlock heroSubtitle = new ContentBlock();
-                heroSubtitle.setSection(heroSection);
-                heroSubtitle.setContentKey("subtitle");
-                heroSubtitle.setContentValue("A sua plataforma completa para criar páginas incríveis.");
-
-                ContentBlock heroButton = new ContentBlock();
-                heroButton.setSection(heroSection);
-                heroButton.setContentKey("buttonText");
-                heroButton.setContentValue("Começar Agora");
-
-                heroSection.setContentBlocks(List.of(heroTitle, heroSubtitle, heroButton));
-
-                Section featuresSection = new Section();
-                featuresSection.setLandingPage(homePage);
-                featuresSection.setSectionType("FEATURES_GRID");
-                featuresSection.setDisplayOrder(1);
-
-                ContentBlock feature1Title = new ContentBlock();
-                feature1Title.setSection(featuresSection);
-                feature1Title.setContentKey("feature1_title");
-                feature1Title.setContentValue("Editor Visual");
-
-                ContentBlock feature1Text = new ContentBlock();
-                feature1Text.setSection(featuresSection);
-                feature1Text.setContentKey("feature1_text");
-                feature1Text.setContentValue("Crie e personalize as suas páginas com um editor de arrastar e soltar.");
-
-                ContentBlock feature2Title = new ContentBlock();
-                feature2Title.setSection(featuresSection);
-                feature2Title.setContentKey("feature2_title");
-                feature2Title.setContentValue("Modelos Prontos");
-
-                ContentBlock feature2Text = new ContentBlock();
-                feature2Text.setSection(featuresSection);
-                feature2Text.setContentKey("feature2_text");
-                feature2Text.setContentValue("Comece rapidamente com a nossa biblioteca de modelos profissionais.");
-
-                featuresSection.setContentBlocks(List.of(feature1Title, feature1Text, feature2Title, feature2Text));
-
-                homePage.setSections(List.of(heroSection, featuresSection));
-
-                landingPageRepository.save(homePage);
-                System.out.println("Landing page 'home' criada com sucesso.");
-            }
+            // --- 3. Cria os Usuários de Teste ---
+            Funcionario funcionario1 = criarFuncionarioSeNaoExistir("funcionario1", "Julia Almeida", "julia@bellory.com", "Cabeleireira", Set.of(roleFuncionario, roleAdmin), organizacaoPrincipal, userRepository, passwordEncoder);
+            Funcionario funcionario2 = criarFuncionarioSeNaoExistir("funcionario2", "Carlos Mendes", "carlos@bellory.com", "Manicure", Set.of(roleFuncionario), organizacaoPrincipal, userRepository, passwordEncoder);
+            Cliente cliente1 = criarClienteSeNaoExistir("cliente1", "Ana Silva", "ana.silva@email.com", "99999-8888", LocalDate.of(1995, 5, 15), Set.of(roleCliente), organizacaoPrincipal, userRepository, passwordEncoder);
 
             // --- 4. Cria os Serviços de Teste ---
-            Servico servicoCorteFeminino = new Servico();
-            servicoCorteFeminino.setNome("Corte Feminino");
-            servicoCorteFeminino.setOrganizacao_id(1); // Use Long para organizacaoId
-            servicoCorteFeminino.setCategoria("Cabelo");
-            servicoCorteFeminino.setGenero("Feminino");
-            servicoCorteFeminino.setDescricao("Corte personalizado com técnicas modernas e acabamento impecável. Inclui lavagem e styling.");
-            servicoCorteFeminino.setDuracaoEstimadaMinutos(90);
-            servicoCorteFeminino.setPreco(BigDecimal.valueOf(129.90));
-            servicoCorteFeminino.setProdutos(List.of("Shampoo L'Oréal Professionnel", "Condicionador Kerastase", "Sérum Moroccanoil"));
-            servicoCorteFeminino.setUrlsImagens(List.of("https://images.unsplash.com/photo-1560066984-138dadb4c035?q=80&w=1000&auto=format&fit=crop"));
-            servicoCorteFeminino.setAtivo(true);
-            servicoRepository.save(servicoCorteFeminino);
+            Servico servicoCorte = criarServicoSeNaoExistir("Corte Feminino", "Cabelo", "Corte personalizado...", 60, BigDecimal.valueOf(129.90), organizacaoPrincipal, servicoRepository);
+            Servico servicoManicure = criarServicoSeNaoExistir("Manicure Completa", "Mãos", "Cutilagem, esmaltação...", 45, BigDecimal.valueOf(45.00), organizacaoPrincipal, servicoRepository);
 
-            Servico servicoColoracaoPremium = new Servico();
-            servicoColoracaoPremium.setNome("Coloração Premium");
-            servicoColoracaoPremium.setOrganizacao_id(1);
-            servicoColoracaoPremium.setCategoria("Pintura");
-            servicoColoracaoPremium.setGenero("Feminino");
-            servicoColoracaoPremium.setDescricao("Coloração profissional com produtos de alta qualidade. Cores vibrantes e duradouras.");
-            servicoColoracaoPremium.setDuracaoEstimadaMinutos(180);
-            servicoColoracaoPremium.setPreco(BigDecimal.valueOf(249.90));
-            servicoColoracaoPremium.setProdutos(List.of("Tintura Wella Professionals", "Oxidante Schwarzkopf", "Tratamento Olaplex"));
-            servicoColoracaoPremium.setUrlsImagens(List.of("https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?q=80&w=1000&auto=format&fit=crop"));
-            servicoColoracaoPremium.setAtivo(true);
-            servicoRepository.save(servicoColoracaoPremium);
-
-            Servico servicoPenteadoEventos = new Servico();
-            servicoPenteadoEventos.setNome("Penteado para Eventos");
-            servicoPenteadoEventos.setOrganizacao_id(1);
-            servicoPenteadoEventos.setCategoria("Penteados");
-            servicoPenteadoEventos.setGenero("Feminino");
-            servicoPenteadoEventos.setDescricao("Penteados sofisticados para ocasiões especiais. Elegância e charme garantidos.");
-            servicoPenteadoEventos.setDuracaoEstimadaMinutos(120);
-            servicoPenteadoEventos.setPreco(BigDecimal.valueOf(199.90));
-            servicoPenteadoEventos.setProdutos(List.of("Spray Fixador Tresemmé", "Mousse Volumizador", "Acessórios Exclusivos"));
-            servicoPenteadoEventos.setUrlsImagens(List.of("https://images.unsplash.com/photo-1487412947147-5cebf100ffc2?q=80&w=1000&auto=format&fit=crop"));
-            servicoPenteadoEventos.setAtivo(true);
-            servicoRepository.save(servicoPenteadoEventos);
-
-            // --- 5. Cria as Jornadas de Trabalho para o Funcionário 1 (Julia Almeida) ---
-            if (jornadaTrabalhoRepository.findByFuncionarioAndDiaSemana(funcionario1, DiaSemana.SEGUNDA).isEmpty()) {
-                jornadaTrabalhoRepository.save(new JornadaTrabalho(funcionario1, DiaSemana.SEGUNDA, LocalTime.of(8, 0), LocalTime.of(14, 0)));
-                jornadaTrabalhoRepository.save(new JornadaTrabalho(funcionario1, DiaSemana.TERCA, LocalTime.of(8, 0), LocalTime.of(14, 0)));
-                jornadaTrabalhoRepository.save(new JornadaTrabalho(funcionario1, DiaSemana.QUARTA, LocalTime.of(8, 0), LocalTime.of(14, 0)));
-                jornadaTrabalhoRepository.save(new JornadaTrabalho(funcionario1, DiaSemana.QUINTA, LocalTime.of(8, 0), LocalTime.of(18, 0)));
-                jornadaTrabalhoRepository.save(new JornadaTrabalho(funcionario1, DiaSemana.SEXTA, LocalTime.of(8, 0), LocalTime.of(18, 0)));
-                System.out.println("Jornada de trabalho para Funcionário 1 criada.");
+            // --- 5. Define Jornada de Trabalho e Bloqueios ---
+            // Usando a relação na entidade Funcionario para gerenciar a jornada e os bloqueios
+            if (funcionario1.getJornadaDeTrabalho().isEmpty()) {
+                criarJornadaParaFuncionario(funcionario1);
+                criarBloqueiosAlmocoParaFuncionario(funcionario1);
+                funcionarioRepository.save(funcionario1); // Salva o funcionário com sua nova jornada e bloqueios
+                System.out.println("Jornada e bloqueios de almoço para " + funcionario1.getNomeCompleto() + " criados.");
+            }
+            if (funcionario2.getJornadaDeTrabalho().isEmpty()) {
+                criarJornadaParaFuncionario(funcionario2);
+                criarBloqueiosAlmocoParaFuncionario(funcionario2);
+                funcionarioRepository.save(funcionario2); // Salva o funcionário com sua nova jornada e bloqueios
+                System.out.println("Jornada e bloqueios de almoço para " + funcionario2.getNomeCompleto() + " criados.");
             }
 
-            // --- 6. Cria Bloqueios de Agenda (Ex: Almoço, Reunião) ---
-            // Exemplo de almoço diário para o funcionário 1
-            if (bloqueioAgendaRepository.findByFuncionarioAndInicioBloqueioBetween(
-                    funcionario1,
-                    LocalDateTime.of(LocalDate.now(), LocalTime.of(12, 0)),
-                    LocalDateTime.of(LocalDate.now().plusDays(1), LocalTime.of(13, 0)) // Procura na proxima 24h
-            ).isEmpty()) {
-                for (int i = 0; i < 7; i++) { // Bloqueia almoço para os próximos 7 dias
-                    LocalDate today = LocalDate.now().plusDays(i);
-                    // Apenas bloqueia se for um dia de trabalho da Julia (Seg-Sex)
-                    DayOfWeek dayOfWeek = today.getDayOfWeek();
-                    if (dayOfWeek != DayOfWeek.SATURDAY && dayOfWeek != DayOfWeek.SUNDAY) {
-                        bloqueioAgendaRepository.save(new BloqueioAgenda(
-                                funcionario1,
-                                LocalDateTime.of(today, LocalTime.of(12, 0)),
-                                LocalDateTime.of(today, LocalTime.of(13, 0)),
-                                "Horário de Almoço",
-                                TipoBloqueio.ALMOCO,
-                                null // Não associado a um agendamento específico
-                        ));
-                    }
-                }
-                System.out.println("Bloqueios de almoço para Funcionário 1 criados para os próximos 7 dias úteis.");
-            }
+            // --- 6. Cria um Agendamento de Teste ---
+            LocalDateTime dataHoraAgendamento = LocalDateTime.now().plusDays(2).withHour(10).withMinute(0).withSecond(0).withNano(0);
 
-            // --- 5. Cria as Jornadas de Trabalho para o Funcionário 1 (Julia Almeida) ---
-            if (jornadaTrabalhoRepository.findByFuncionarioAndDiaSemana(funcionario1, DiaSemana.SEGUNDA).isEmpty()) {
-                jornadaTrabalhoRepository.save(new JornadaTrabalho(funcionario2, DiaSemana.SEGUNDA, LocalTime.of(8, 0), LocalTime.of(14, 0)));
-                jornadaTrabalhoRepository.save(new JornadaTrabalho(funcionario2, DiaSemana.TERCA, LocalTime.of(8, 0), LocalTime.of(14, 0)));
-                jornadaTrabalhoRepository.save(new JornadaTrabalho(funcionario2, DiaSemana.QUARTA, LocalTime.of(8, 0), LocalTime.of(14, 0)));
-                jornadaTrabalhoRepository.save(new JornadaTrabalho(funcionario2, DiaSemana.QUINTA, LocalTime.of(8, 0), LocalTime.of(18, 0)));
-                jornadaTrabalhoRepository.save(new JornadaTrabalho(funcionario2, DiaSemana.SEXTA, LocalTime.of(8, 0), LocalTime.of(18, 0)));
-                System.out.println("Jornada de trabalho para Funcionário 1 criada.");
-            }
+            if (agendamentoRepository.findByFuncionarioAndDtAgendamento(funcionario1, dataHoraAgendamento).isEmpty()) {
+                System.out.println("Criando agendamento de teste...");
 
-            // --- 6. Cria Bloqueios de Agenda (Ex: Almoço, Reunião) ---
-            // Exemplo de almoço diário para o funcionário 1
-            if (bloqueioAgendaRepository.findByFuncionarioAndInicioBloqueioBetween(
-                    funcionario2,
-                    LocalDateTime.of(LocalDate.now(), LocalTime.of(12, 0)),
-                    LocalDateTime.of(LocalDate.now().plusDays(1), LocalTime.of(13, 0)) // Procura na proxima 24h
-            ).isEmpty()) {
-                for (int i = 0; i < 7; i++) { // Bloqueia almoço para os próximos 7 dias
-                    LocalDate today = LocalDate.now().plusDays(i);
-                    // Apenas bloqueia se for um dia de trabalho da Julia (Seg-Sex)
-                    DayOfWeek dayOfWeek = today.getDayOfWeek();
-                    if (dayOfWeek != DayOfWeek.SATURDAY && dayOfWeek != DayOfWeek.SUNDAY) {
-                        bloqueioAgendaRepository.save(new BloqueioAgenda(
-                                funcionario2,
-                                LocalDateTime.of(today, LocalTime.of(12, 0)),
-                                LocalDateTime.of(today, LocalTime.of(13, 0)),
-                                "Horário de Almoço",
-                                TipoBloqueio.ALMOCO,
-                                null // Não associado a um agendamento específico
-                        ));
-                    }
-                }
-                System.out.println("Bloqueios de almoço para Funcionário 2 criados para os próximos 7 dias úteis.");
-            }
+                // 1. Cria o Agendamento
+                Agendamento agendamento = new Agendamento();
+                agendamento.setOrganizacao(organizacaoPrincipal);
+                agendamento.setCliente(cliente1);
+                agendamento.adicionarFuncionario(funcionario1);
+                agendamento.adicionarServico(servicoCorte);
+                agendamento.setDtAgendamento(dataHoraAgendamento);
+                agendamento.setStatus(Status.AGENDADO);
 
-
-            // --- 7. Cria um Agendamento de Teste ---
-            // Agendamento para amanhã, 10:00 (ajuste a data/hora para um horário livre)
-            LocalDateTime dataHoraAgendamentoExemplo = LocalDateTime.now().plusDays(1).withHour(10).withMinute(0).withSecond(0).withNano(0);
-
-            // Verifique se já existe um agendamento para evitar duplicidade
-            if (agendamentoRepository.findByClienteAndDataHoraAgendamento(cliente1, dataHoraAgendamentoExemplo).isEmpty()) {
-
-                // Crie o Agendamento
-                Agendamento agendamentoExemplo = new Agendamento(
-                        1L, // organizacaoId
-                        cliente1,
-                        List.of(servicoCorteFeminino, servicoPenteadoEventos), // Serviços para o agendamento
-                        List.of(funcionario1), // Funcionário responsável
-                        dataHoraAgendamentoExemplo,
-                        "Agendamento de teste para corte e penteado."
-                );
-                agendamentoExemplo.setStatus(Status.AGENDADO); // Define o status
-                agendamentoRepository.save(agendamentoExemplo);
-                System.out.println("Agendamento de teste criado.");
-
-                // Crie o Bloqueio de Agenda correspondente ao agendamento
-                // Calcule a duração total do agendamento
-                int duracaoTotalAgendamento = agendamentoExemplo.getServicos().stream()
-                        .mapToInt(Servico::getDuracaoEstimadaMinutos)
-                        .sum();
-                LocalDateTime fimAgendamentoExemplo = dataHoraAgendamentoExemplo.plusMinutes(duracaoTotalAgendamento);
-
-                bloqueioAgendaRepository.save(new BloqueioAgenda(
+                // 2. Cria o Bloqueio correspondente
+                LocalDateTime fimAgendamento = dataHoraAgendamento.plusMinutes(servicoCorte.getTempoEstimadoMinutos());
+                BloqueioAgenda bloqueio = new BloqueioAgenda(
                         funcionario1,
-                        dataHoraAgendamentoExemplo,
-                        fimAgendamentoExemplo,
-                        "Agendamento de Serviço: " + cliente1.getNomeCompleto(),
+                        dataHoraAgendamento,
+                        fimAgendamento,
+                        "Agendamento: " + cliente1.getNomeCompleto(),
                         TipoBloqueio.AGENDAMENTO,
-                        agendamentoExemplo
-                ));
-                System.out.println("Bloqueio de agenda para o agendamento de teste criado.");
+                        null // O vínculo será feito pelo agendamento
+                );
+
+                // 3. Vincula o agendamento e o bloqueio de forma bidirecional
+                agendamento.setBloqueioAgenda(bloqueio);
+
+                // 4. Salva o Agendamento (o Bloqueio será salvo em cascata)
+                agendamentoRepository.save(agendamento);
+                System.out.println("Agendamento de teste e bloqueio correspondente criados com sucesso.");
             }
         };
+    }
+
+    // --- MÉTODOS AUXILIARES PARA ORGANIZAÇÃO ---
+
+    private Funcionario criarFuncionarioSeNaoExistir(String username, String nomeCompleto, String email, String cargo, Set<Role> roles, Organizacao org, UserRepository userRepo, PasswordEncoder encoder) {
+        return (Funcionario) userRepo.findByUsername(username).orElseGet(() -> {
+            Funcionario f = new Funcionario();
+            f.setUsername(username);
+            f.setNomeCompleto(nomeCompleto);
+            f.setEmail(email);
+            f.setPassword(encoder.encode("password"));
+            f.setCargo(cargo);
+            f.setRoles(roles);
+            f.setOrganizacao(org);
+            System.out.println("Criado Funcionario: " + nomeCompleto);
+            return userRepo.save(f);
+        });
+    }
+
+    private Cliente criarClienteSeNaoExistir(String username, String nomeCompleto, String email, String telefone, LocalDate dtNasc, Set<Role> roles, Organizacao org, UserRepository userRepo, PasswordEncoder encoder) {
+        return (Cliente) userRepo.findByUsername(username).orElseGet(() -> {
+            Cliente c = new Cliente();
+            c.setUsername(username);
+            c.setNomeCompleto(nomeCompleto);
+            c.setEmail(email);
+            c.setPassword(encoder.encode("password"));
+            c.setTelefone(telefone);
+            c.setDataNascimento(dtNasc);
+            c.setRoles(roles);
+            c.setOrganizacao(org);
+            System.out.println("Criado Cliente: " + nomeCompleto);
+            return userRepo.save(c);
+        });
+    }
+
+    private Servico criarServicoSeNaoExistir(String nome, String categoria, String descricao, int duracao, BigDecimal preco, Organizacao org, ServicoRepository repo) {
+        return repo.findByNomeAndOrganizacao(nome, org).orElseGet(() -> {
+            Servico s = new Servico();
+            s.setNome(nome);
+            s.setCategoria(categoria);
+            s.setDescricao(descricao);
+            s.setTempoEstimadoMinutos(duracao);
+            s.setPreco(preco);
+            s.setOrganizacao(org);
+            s.setAtivo(true);
+            System.out.println("Criado Serviço: " + nome);
+            return repo.save(s);
+        });
+    }
+
+    private void criarJornadaParaFuncionario(Funcionario funcionario) {
+        funcionario.addJornada(new JornadaTrabalho(null, funcionario, DiaSemana.SEGUNDA, LocalTime.of(9, 0), LocalTime.of(18, 0), true));
+        funcionario.addJornada(new JornadaTrabalho(null, funcionario, DiaSemana.TERCA, LocalTime.of(9, 0), LocalTime.of(18, 0), true));
+        funcionario.addJornada(new JornadaTrabalho(null, funcionario, DiaSemana.QUARTA, LocalTime.of(9, 0), LocalTime.of(18, 0), true));
+        funcionario.addJornada(new JornadaTrabalho(null, funcionario, DiaSemana.QUINTA, LocalTime.of(10, 0), LocalTime.of(20, 0), true));
+        funcionario.addJornada(new JornadaTrabalho(null, funcionario, DiaSemana.SEXTA, LocalTime.of(10, 0), LocalTime.of(20, 0), true));
+        funcionario.addJornada(new JornadaTrabalho(null, funcionario, DiaSemana.SABADO, LocalTime.of(8, 0), LocalTime.of(14, 0), true));
+    }
+
+    private void criarBloqueiosAlmocoParaFuncionario(Funcionario funcionario) {
+        funcionario.addBloqueio(new BloqueioAgenda(funcionario, null, null, "Horário de Almoço", TipoBloqueio.ALMOCO, null));
     }
 }

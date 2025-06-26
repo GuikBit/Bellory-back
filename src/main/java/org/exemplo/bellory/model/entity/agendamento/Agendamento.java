@@ -1,12 +1,14 @@
 package org.exemplo.bellory.model.entity.agendamento;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.exemplo.bellory.model.entity.cobranca.Cobranca;
+import org.exemplo.bellory.model.entity.funcionario.BloqueioAgenda;
+import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 import org.exemplo.bellory.model.entity.users.Cliente;
 import org.exemplo.bellory.model.entity.funcionario.Funcionario;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp; // Importe para @UpdateTimestamp
 
 import java.time.LocalDateTime;
 import java.util.List; // Importe para List
@@ -24,8 +26,9 @@ public class Agendamento {
     private Long id;
 
 
-    @Column(name = "organizacao_id", nullable = false)
-    private Long organizacaoId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "organizacao_id", nullable = false)
+    private Organizacao organizacao;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cliente_id", nullable = false)
@@ -47,48 +50,55 @@ public class Agendamento {
     )
     private List<Funcionario> funcionarios;
 
+    @OneToOne(mappedBy = "agendamento")
+    @JsonIgnore // Evita recursão com Cobranca
+    private Cobranca cobranca;
 
-    @Column(name = "data_hora_agendamento", nullable = false)
-    private LocalDateTime dataHoraAgendamento;
 
-    @Column(name = "observacao", length = 500)
+    @Column(name = "dt_agendamento", nullable = false)
+    private LocalDateTime dtAgendamento;
+
+    @Column(columnDefinition = "TEXT")
     private String observacao;
 
+    // --- NOVO RELACIONAMENTO BIDIRECIONAL ---
+    // Mapeia a relação com BloqueioAgenda, onde BloqueioAgenda possui a chave estrangeira (agendamento_id).
+    // Cascade.ALL garante que ao salvar um Agendamento, o Bloqueio associado também será salvo.
+    @OneToOne(mappedBy = "agendamento", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private BloqueioAgenda bloqueioAgenda;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     private Status status;
 
-    @CreationTimestamp
-    @Column(name = "dt_criacao", nullable = false, updatable = false)
+    @Column(name = "dt_criacao", columnDefinition = "TIMESTAMP DEFAULT now()")
     private LocalDateTime dtCriacao;
 
-    @UpdateTimestamp
-    @Column(name = "dt_atualizacao", nullable = false)
+    @Column(name = "dt_atualizacao")
     private LocalDateTime dtAtualizacao;
 
     public Agendamento() {
         this.status = Status.PENDENTE;
     }
 
-    public Agendamento(Long organizacaoId, Cliente cliente, List<Servico> servicos, List<Funcionario> funcionarios, LocalDateTime dataHoraAgendamento, String observacao, Status status, LocalDateTime dtCriacao, LocalDateTime dtAtualizacao) {
-        this.organizacaoId = organizacaoId;
+    public Agendamento(Organizacao organizacao, Cliente cliente, List<Servico> servicos, List<Funcionario> funcionarios, LocalDateTime dtAgendamento, String observacao, Status status, LocalDateTime dtCriacao, LocalDateTime dtAtualizacao) {
+        this.organizacao = organizacao;
         this.cliente = cliente;
         this.servicos = servicos;
         this.funcionarios = funcionarios;
-        this.dataHoraAgendamento = dataHoraAgendamento;
+        this.dtAgendamento = dtAgendamento;
         this.observacao = observacao;
         this.status = status;
         this.dtCriacao = dtCriacao;
         this.dtAtualizacao = dtAtualizacao;
     }
 
-    public <E> Agendamento(Long organizacaoId, Cliente cliente, List<Servico> servicos, List<Funcionario> funcionarios, LocalDateTime dataHoraAgendamento, String observacao) {
-        this.organizacaoId = organizacaoId;
+    public <E> Agendamento(Organizacao organizacao, Cliente cliente, List<Servico> servicos, List<Funcionario> funcionarios, LocalDateTime dtAgendamento, String observacao) {
+        this.organizacao = organizacao;
         this.cliente = cliente;
         this.servicos = servicos;
         this.funcionarios = funcionarios;
-        this.dataHoraAgendamento = dataHoraAgendamento;
+        this.dtAgendamento = dtAgendamento;
         this.observacao = observacao;
 
     }
@@ -152,6 +162,14 @@ public class Agendamento {
     public void removerFuncionario(Funcionario funcionario) {
         if (this.funcionarios != null) {
             this.funcionarios.remove(funcionario);
+        }
+    }
+
+    // Método auxiliar para manter a sincronia
+    public void setBloqueioAgenda(BloqueioAgenda bloqueio) {
+        this.bloqueioAgenda = bloqueio;
+        if (bloqueio != null) {
+            bloqueio.setAgendamento(this);
         }
     }
 }

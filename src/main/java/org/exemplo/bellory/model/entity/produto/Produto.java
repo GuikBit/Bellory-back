@@ -1,117 +1,162 @@
 package org.exemplo.bellory.model.entity.produto;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.exemplo.bellory.model.entity.compra.CompraProduto;
+import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
+import java.util.Set;
+import java.util.HashSet; // Importar HashSet
 
-/**
- * Entidade que representa os detalhes completos de um produto.
- * Esta estrutura é flexível para acomodar vários tipos de informações de produto,
- * desde textos simples a listas e especificações técnicas.
- */
 @Entity
 @Table(name = "produto")
 @Getter
 @Setter
+@AllArgsConstructor
+@NoArgsConstructor
 public class Produto {
-
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "organizacao_id", nullable = false)
+    @JsonIgnore // Evita serialização em loop e exposição desnecessária
+    private Organizacao organizacao;
+
+    @Column(nullable = false, length = 255)
     private String nome;
 
-    // Usamos BigDecimal para preços para evitar problemas de arredondamento de ponto flutuante.
+    @Lob // @Lob é uma forma padrão JPA de indicar um objeto grande, geralmente mapeado para TEXT ou BLOB.
+    @Column(name = "descricao", columnDefinition = "TEXT")
+    private String descricao;
+
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal preco;
 
-    @Column(length = 1000)
-    private String descricao;
+    @Column(name = "qtd_estoque", nullable = false)
+    private int qtdEstoque = 0;
 
-    @Lob // Para textos muito longos
-    @Column(columnDefinition = "TEXT")
-    private String descricaoCompleta;
-
-    // @ElementCollection mapeia uma coleção de tipos básicos (como String)
-    // para uma tabela separada no banco de dados.
-    @ElementCollection(fetch = FetchType.LAZY)
-    @CollectionTable(name = "produto_imagens", joinColumns = @JoinColumn(name = "produto_id"))
-    @Column(name = "imagem_url", nullable = false, length = 1000)
-    private List<String> imagens;
-
+    @Column(length = 100)
     private String categoria;
+
+    @Column(length = 100)
     private String genero;
+
+    @Column(length = 100)
     private String marca;
 
-    private double avaliacao;
+    // Nota: Avaliações são idealmente gerenciadas em uma entidade separada (ex: AvaliacaoProduto)
+    // para evitar problemas de concorrência. A média pode ser calculada via query.
+    @Column(name = "avaliacao", precision = 3, scale = 2)
+    private BigDecimal avaliacao;
+
+    @Column(name = "total_avaliacoes")
     private int totalAvaliacoes;
-    private Integer desconto;
-    private Boolean destaque;
-    private boolean emEstoque = true;
+
+    @Column(name = "desconto_percentual")
+    private Integer descontoPercentual;
+
+    @Column(nullable = false)
+    private boolean destaque = false;
+
+    @Column(nullable = false)
+    private boolean ativo = true;
+
+    // --- COLEÇÕES DE ELEMENTOS SIMPLES ---
 
     @ElementCollection(fetch = FetchType.LAZY)
-    @CollectionTable(name = "produto_como_usar", joinColumns = @JoinColumn(name = "produto_id"))
-    @Lob
-    @Column(name = "passo", nullable = false, columnDefinition = "TEXT")
-    private List<String> comoUsar;
-
-    @ElementCollection(fetch = FetchType.LAZY)
-    @CollectionTable(name = "produto_informacoes_importantes", joinColumns = @JoinColumn(name = "produto_id"))
-    @Lob
-    @Column(name = "informacao", nullable = false, columnDefinition = "TEXT")
-    private List<String> informacoesImportantes;
-
-    @ElementCollection(fetch = FetchType.LAZY)
-    @CollectionTable(name = "produto_ingredientes", joinColumns = @JoinColumn(name = "produto_id"))
-    @Lob
-    @Column(name = "ingrediente", nullable = false, columnDefinition = "TEXT")
-    private List<String> ingredientes;
-
-    // Mapeia um mapa de Chave-Valor para uma tabela de especificações
-    @ElementCollection(fetch = FetchType.LAZY)
-    @CollectionTable(name = "produto_especificacoes", joinColumns = @JoinColumn(name = "produto_id"))
-    @MapKeyColumn(name = "chave")
-    @Lob
-    @Column(name = "valor", columnDefinition = "TEXT")
-    private Map<String, String> especificacoes;
-
-    @ElementCollection(fetch = FetchType.LAZY)
-    @CollectionTable(name = "produto_relacionados", joinColumns = @JoinColumn(name = "produto_id"))
-    @Column(name = "produto_relacionado_id")
-    private List<String> produtosRelacionados;
-
-    @ElementCollection(fetch = FetchType.LAZY)
-    @CollectionTable(name = "produto_utilizados", joinColumns = @JoinColumn(name = "produto_id"))
-    @Column(name = "produto_utilizado_id")
-    private List<String> produtosUtilizados;
+    @CollectionTable(name = "produto_imagens", joinColumns = @JoinColumn(name = "produto_id"))
+    @Column(name = "url_imagem", nullable = false)
+    private List<String> urlsImagens;
 
     @ElementCollection(fetch = FetchType.LAZY)
     @CollectionTable(name = "produto_beneficios", joinColumns = @JoinColumn(name = "produto_id"))
-    @Lob
     @Column(name = "beneficio", nullable = false, columnDefinition = "TEXT")
     private List<String> beneficios;
 
     @ElementCollection(fetch = FetchType.LAZY)
-    @CollectionTable(name = "produto_resultados", joinColumns = @JoinColumn(name = "produto_id"))
-    @Lob
-    @Column(name = "resultado", nullable = false, columnDefinition = "TEXT")
-    private List<String> resultados;
+    @CollectionTable(name = "produto_ingredientes", joinColumns = @JoinColumn(name = "produto_id"))
+    @Column(name = "ingrediente", nullable = false, columnDefinition = "TEXT")
+    private List<String> ingredientes;
+
+    @ElementCollection(fetch = FetchType.LAZY)
+    @CollectionTable(name = "produto_como_usar", joinColumns = @JoinColumn(name = "produto_id"))
+    @Column(name = "passo", nullable = false, columnDefinition = "TEXT")
+    @OrderColumn(name = "passo_ordem") // Mantém a ordem da lista
+    private List<String> comoUsar;
+
+    // Mapeia um mapa de Chave-Valor. Ótimo caso de uso para @ElementCollection.
+    @ElementCollection(fetch = FetchType.LAZY)
+    @CollectionTable(name = "produto_especificacoes", joinColumns = @JoinColumn(name = "produto_id"))
+    @MapKeyColumn(name = "chave", length = 100)
+    @Column(name = "valor", columnDefinition = "TEXT")
+    private Map<String, String> especificacoes;
+
+    // --- RELACIONAMENTOS COM OUTRAS ENTIDADES ---
+
+    @OneToMany(mappedBy = "produto")
+    @JsonIgnore // Essencial para evitar loop de serialização na API
+    private Set<CompraProduto> compras = new HashSet<>();
 
     /**
-     * Este método é chamado automaticamente pelo JPA antes de a entidade ser guardada
-     * pela primeira vez. Ele garante que cada produto tenha um ID único.
+     * Relacionamento Muitos-para-Muitos com a própria entidade Produto.
+     * O JPA criará uma tabela de associação (ex: produto_relacionados_assoc)
+     * para armazenar os pares de IDs, garantindo a integridade referencial.
      */
-//    @PrePersist
-//    public void prePersist() {
-//        if (id == null || id.isEmpty()) {
-//            id = UUID.randomUUID().toString();
-//        }
-//    }
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "produto_relacionados_assoc",
+            joinColumns = @JoinColumn(name = "produto_id"),
+            inverseJoinColumns = @JoinColumn(name = "relacionado_id")
+    )
+    @JsonIgnore
+    private Set<Produto> produtosRelacionados = new HashSet<>();
+
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "produto_utilizados_assoc",
+            joinColumns = @JoinColumn(name = "produto_id"),
+            inverseJoinColumns = @JoinColumn(name = "utilizado_id")
+    )
+    @JsonIgnore
+    private Set<Produto> produtosUtilizados = new HashSet<>();
+
+    // --- TIMESTAMPS E CALLBACKS DE CICLO DE VIDA ---
+
+    @Column(name = "dt_criacao", nullable = false, updatable = false)
+    private LocalDateTime dtCriacao;
+
+    @Column(name = "dt_atualizacao")
+    private LocalDateTime dtAtualizacao;
+
+    @PrePersist
+    protected void onCreate() {
+        dtCriacao = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        dtAtualizacao = LocalDateTime.now();
+    }
+
+    // --- MÉTODOS AUXILIARES (GETTERS DERIVADOS) ---
+
+    /**
+     * Verifica se o produto está em estoque com base na quantidade.
+     * Este valor não é persistido, evitando inconsistência de dados.
+     * @return true se qtdEstoque for maior que zero.
+     */
+    public boolean isEmEstoque() {
+        return this.qtdEstoque > 0;
+    }
 }
