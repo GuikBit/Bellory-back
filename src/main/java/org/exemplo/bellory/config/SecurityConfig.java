@@ -50,7 +50,8 @@ public class SecurityConfig {
                                 "/api/servico/**",
                                 "/api/pages/**",
                                  "/api/funcionario/**",
-                                "/api/agendamento/**"
+                                "/api/agendamento/**",
+                                "/api/produto/**"
                                 // "/api/funcionario/agendamento"
                         ).permitAll()
                         // Adicione regras específicas para /api/funcionario/agendamento se necessário

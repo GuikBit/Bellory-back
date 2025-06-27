@@ -8,4 +8,6 @@ public interface ServicoAgendamento {
     String getNome();
     BigDecimal getPreco();
     List<String> getUrlsImagens();
+    String getTempoEstimadoMinutos();
+    String getDescricao();
 }

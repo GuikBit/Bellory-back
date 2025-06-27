@@ -1,5 +1,6 @@
 package org.exemplo.bellory.model.entity.servico;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import org.exemplo.bellory.model.entity.organizacao.Organizacao;
@@ -8,6 +9,8 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 
@@ -30,14 +33,16 @@ public class Servico {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "organizacao_id", nullable = false)
+    @JsonIgnore
     private Organizacao organizacao;
 
     @Column(nullable = false, length = 255)
     private String nome;
 
-    @Column(length = 100)
+    @Column(nullable = false, length = 100)
     private String categoria;
 
+    @Column(nullable = false)
     private String genero;
 
     @Column(columnDefinition = "TEXT")
@@ -80,8 +85,24 @@ public class Servico {
      */
 //    @PrePersist
 //    public void prePersist() {
-//        if (id == null || id.isEmpty()) {
-//            id = UUID.randomUUID().toString();
+//        if (dtCriacao == null ) {
+//            dtCriacao = new DateTime();
 //        }
+//    }
+
+
+
+    public void adicionarUrlImagem(String imagem) {
+        if (this.urlsImagens == null) {
+            this.urlsImagens = new ArrayList<>();
+        }
+        this.urlsImagens.add(imagem);
+    }
+
+//    public void adicionarProdutos(String imagem) {
+//        if (this.urlsImagens == null) {
+//            this.urlsImagens = new ArrayList<>();
+//        }
+//        this.urlsImagens.add(imagem);
 //    }
 }

@@ -11,10 +11,7 @@ import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.HashSet; // Importar HashSet
+import java.util.*;
 
 @Entity
 @Table(name = "produto")
@@ -158,5 +155,16 @@ public class Produto {
      */
     public boolean isEmEstoque() {
         return this.qtdEstoque > 0;
+    }
+
+
+
+    public void adicionarUrlImagem(List<String> imagem) {
+        if (this.urlsImagens == null) {
+            this.urlsImagens = new ArrayList<>();
+        }
+        for (String url : imagem) {
+            this.urlsImagens.add(url);
+        }
     }
 }
