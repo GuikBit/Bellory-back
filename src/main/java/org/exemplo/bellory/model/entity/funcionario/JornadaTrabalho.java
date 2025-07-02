@@ -1,5 +1,6 @@
 package org.exemplo.bellory.model.entity.funcionario; // Ou onde você preferir organizar
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -24,6 +25,7 @@ public class JornadaTrabalho {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "funcionario_id", nullable = false)
+    @JsonIgnore
     private Funcionario funcionario; // Relaciona com o funcionário
 
     @Enumerated(EnumType.STRING)

@@ -1,5 +1,6 @@
 package org.exemplo.bellory.model.entity.organizacao;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.*;
@@ -55,6 +56,7 @@ public class Organizacao {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "plano_id", nullable = false)
+    @JsonIgnore
     private Plano plano;
 
     @OneToOne(mappedBy = "organizacao", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)

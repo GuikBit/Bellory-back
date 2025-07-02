@@ -28,10 +28,12 @@ public class Agendamento {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "organizacao_id", nullable = false)
+    @JsonIgnore
     private Organizacao organizacao;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cliente_id", nullable = false)
+    @JsonIgnore
     private Cliente cliente;
 
     @ManyToMany(fetch = FetchType.LAZY)
@@ -48,6 +50,7 @@ public class Agendamento {
             joinColumns = @JoinColumn(name = "agendamento_id"),
             inverseJoinColumns = @JoinColumn(name = "funcionario_id")
     )
+    @JsonIgnore
     private List<Funcionario> funcionarios;
 
     @OneToOne(mappedBy = "agendamento")
@@ -65,6 +68,7 @@ public class Agendamento {
     // Mapeia a relação com BloqueioAgenda, onde BloqueioAgenda possui a chave estrangeira (agendamento_id).
     // Cascade.ALL garante que ao salvar um Agendamento, o Bloqueio associado também será salvo.
     @OneToOne(mappedBy = "agendamento", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JsonIgnore
     private BloqueioAgenda bloqueioAgenda;
 
     @Enumerated(EnumType.STRING)

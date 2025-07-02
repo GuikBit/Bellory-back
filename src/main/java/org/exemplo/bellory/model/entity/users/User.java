@@ -1,5 +1,6 @@
 package org.exemplo.bellory.model.entity.users;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -35,6 +36,7 @@ public abstract class User implements UserDetails { // Tornada abstrata, pois um
     // Substituído int por um relacionamento real para garantir a integridade dos dados.
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "organizacao_id", nullable = false)
+    @JsonIgnore
     private Organizacao organizacao;
 
     @Column(unique = true, nullable = false)

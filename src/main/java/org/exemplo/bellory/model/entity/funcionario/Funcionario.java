@@ -1,5 +1,6 @@
 package org.exemplo.bellory.model.entity.funcionario;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -15,7 +16,7 @@ import java.util.Set;
 public class Funcionario extends User {
 
     private String cargo;
-    
+
     // --- NOVO RELACIONAMENTO: Jornada de Trabalho ---
     // Um funcionário tem um conjunto de jornadas de trabalho (uma para cada dia da semana que trabalha).
     // Cascade.ALL: Se salvar o funcionário, salva a jornada junto.

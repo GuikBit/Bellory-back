@@ -1,5 +1,6 @@
 package org.exemplo.bellory.model.entity.funcionario; // Ou onde você preferir organizar
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -25,6 +26,7 @@ public class BloqueioAgenda {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "funcionario_id", nullable = false)
+    @JsonIgnore
     private Funcionario funcionario; // O funcionário cujo tempo está sendo bloqueado
 
     @Column(name = "inicio_bloqueio", nullable = false)
@@ -43,7 +45,8 @@ public class BloqueioAgenda {
     // Relacionamento opcional com Agendamento
     // Se este bloqueio for resultado de um Agendamento, você pode ligá-los
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "agendamento_id") // A coluna que referencia a entidade Agendamento
+    @JoinColumn(name = "agendamento_id")// A coluna que referencia a entidade Agendamento
+    @JsonIgnore
     private Agendamento agendamento; // Pode ser nulo se for um bloqueio manual
 
 
