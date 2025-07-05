@@ -75,6 +75,7 @@
 
     <build>
         <plugins>
+            <!-- spring-boot-maven-plugin mantido -->
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
@@ -87,6 +88,8 @@
                     </excludes>
                 </configuration>
             </plugin>
+
+            <!-- Plugin de compilação mantido -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -96,6 +99,17 @@
                     <compilerArgs>--enable-preview</compilerArgs>
                 </configuration>
             </plugin>
+
+            <!-- ✅ Plugin para garantir encoding UTF-8 ao filtrar resources -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <version>3.3.1</version>
+                <configuration>
+                    <encoding>UTF-8</encoding>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
+
 </project>
