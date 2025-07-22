@@ -26,7 +26,7 @@ import java.util.Set;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public abstract class User implements UserDetails { // Tornada abstrata, pois um User sempre será um tipo específico
+public abstract class User{ // Tornada abstrata, pois um User sempre será um tipo específico
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -69,40 +69,40 @@ public abstract class User implements UserDetails { // Tornada abstrata, pois um
         this.password = password;
         this.email = email;
     }
-
-    // Métodos da interface UserDetails (sem alterações)
-    @Override
-    public Collection<? extends GrantedAuthority> getAuthorities() {
-        return this.roles;
-    }
-
-    @Override
-    public String getPassword() {
-        return this.password;
-    }
-
-    @Override
-    public String getUsername() {
-        return this.username;
-    }
-
-    @Override
-    public boolean isAccountNonExpired() {
-        return true;
-    }
-
-    @Override
-    public boolean isAccountNonLocked() {
-        return true;
-    }
-
-    @Override
-    public boolean isCredentialsNonExpired() {
-        return true;
-    }
-
-    @Override
-    public boolean isEnabled() {
-        return this.ativo;
-    }
+//
+//    // Métodos da interface UserDetails (sem alterações)
+//    @Override
+//    public Collection<? extends GrantedAuthority> getAuthorities() {
+//        return this.roles;
+//    }
+//
+//    @Override
+//    public String getPassword() {
+//        return this.password;
+//    }
+//
+//    @Override
+//    public String getUsername() {
+//        return this.username;
+//    }
+//
+//    @Override
+//    public boolean isAccountNonExpired() {
+//        return true;
+//    }
+//
+//    @Override
+//    public boolean isAccountNonLocked() {
+//        return true;
+//    }
+//
+//    @Override
+//    public boolean isCredentialsNonExpired() {
+//        return true;
+//    }
+//
+//    @Override
+//    public boolean isEnabled() {
+//        return this.ativo;
+//    }
 }

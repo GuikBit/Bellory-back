@@ -3,12 +3,11 @@ package org.exemplo.bellory.controller;
 import org.exemplo.bellory.model.dto.FuncionarioAgendamento;
 import org.exemplo.bellory.model.entity.error.ResponseAPI;
 import org.exemplo.bellory.model.entity.funcionario.Funcionario;
+import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 import org.exemplo.bellory.service.FuncionarioService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -65,6 +64,29 @@ public class FuncionarioController {
                         .success(true)
                         .message("Lista de serviços recuperada com sucesso.")
                         .dados(funcionarios)
+                        .build());
+    }
+
+    @PostMapping
+    public ResponseEntity<ResponseAPI<Funcionario>> postFuncionario(@RequestBody Funcionario funcionario) {
+        Funcionario func = funcionarioService.postNewFuncionario(funcionario);
+
+        if (func.getId() == null) {
+            return ResponseEntity
+                    .status(HttpStatus.NO_CONTENT) // Ou HttpStatus.NO_CONTENT, dependendo da sua regra
+                    .body(ResponseAPI.<Funcionario>builder()
+                            .success(true)
+                            .message("Nenhum serviço encontrado.")
+                            .dados(func) // Ainda envia a lista vazia
+                            .build());
+        }
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(ResponseAPI.<Funcionario>builder()
+                        .success(true)
+                        .message("Lista de serviços recuperada com sucesso.")
+                        .dados(func)
                         .build());
     }
 }

@@ -45,13 +45,14 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
-                                "/api/auth/login",
+                                "/api/auth/**",
                                 "/api/test/**",
                                 "/api/servico/**",
                                 "/api/pages/**",
                                  "/api/funcionario/**",
                                 "/api/agendamento/**",
-                                "/api/produto/**"
+                                "/api/produto/**",
+                                "/api/cliente/**"
                                 // "/api/funcionario/agendamento"
                         ).permitAll()
                         // Adicione regras específicas para /api/funcionario/agendamento se necessário

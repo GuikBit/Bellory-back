@@ -4,11 +4,11 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.exemplo.bellory.model.entity.users.User;
 import org.exemplo.bellory.model.repository.users.UserRepository;
 import org.exemplo.bellory.service.TokenService;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -29,26 +29,15 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
 
-        //String path = request.getRequestURI();
-
-//        // Ignorar rotas públicas
-//        if (path.startsWith("/api/auth") ||
-//                // Mude para "/api/funcionario/"
-//                path.startsWith("/api/funcionario/") ||
-//                path.startsWith("/api/servico") ||
-//                path.startsWith("/api/pages") ||
-//                path.startsWith("/api/test")) {
-//            filterChain.doFilter(request, response);
-//            return;
-//        }
-
         String token = recoverToken(request);
         if (token != null) {
             String subject = tokenService.validateToken(token);
             if (subject != null && !subject.isEmpty()) {
-                UserDetails user = userRepository.findByUsername(subject).orElse(null);
+                // Busca a sua entidade User diretamente
+                User user = userRepository.findByUsername(subject).orElse(null);
                 if (user != null) {
-                    var authentication = new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
+                    // O principal da autenticação agora é a sua própria entidade User
+                    var authentication = new UsernamePasswordAuthenticationToken(user, null, user.getRoles());
                     SecurityContextHolder.getContext().setAuthentication(authentication);
                 }
             }
