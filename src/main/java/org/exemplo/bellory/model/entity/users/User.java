@@ -19,21 +19,17 @@ import java.util.Set;
  * Utiliza a estratégia de herança JOINED, onde os dados comuns ficam na tabela 'tb_users'
  * e os dados específicos de cada tipo de utilizador ficam em tabelas separadas.
  */
-@Entity
-@Table(name = "usuarios")
-@Inheritance(strategy = InheritanceType.JOINED)
+@MappedSuperclass
 @Getter
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public abstract class User{ // Tornada abstrata, pois um User sempre será um tipo específico
+public abstract class User {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // --- CORREÇÃO PRINCIPAL ---
-    // Substituído int por um relacionamento real para garantir a integridade dos dados.
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "organizacao_id", nullable = false)
     @JsonIgnore
@@ -61,7 +57,6 @@ public abstract class User{ // Tornada abstrata, pois um User sempre será um ti
     )
     private Set<Role> roles = new HashSet<>();
 
-
     public User(Organizacao organizacao, String username, String nomeCompleto, String password, String email) {
         this.organizacao = organizacao;
         this.username = username;
@@ -69,40 +64,4 @@ public abstract class User{ // Tornada abstrata, pois um User sempre será um ti
         this.password = password;
         this.email = email;
     }
-//
-//    // Métodos da interface UserDetails (sem alterações)
-//    @Override
-//    public Collection<? extends GrantedAuthority> getAuthorities() {
-//        return this.roles;
-//    }
-//
-//    @Override
-//    public String getPassword() {
-//        return this.password;
-//    }
-//
-//    @Override
-//    public String getUsername() {
-//        return this.username;
-//    }
-//
-//    @Override
-//    public boolean isAccountNonExpired() {
-//        return true;
-//    }
-//
-//    @Override
-//    public boolean isAccountNonLocked() {
-//        return true;
-//    }
-//
-//    @Override
-//    public boolean isCredentialsNonExpired() {
-//        return true;
-//    }
-//
-//    @Override
-//    public boolean isEnabled() {
-//        return this.ativo;
-//    }
 }
