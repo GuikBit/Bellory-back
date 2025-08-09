@@ -1,12 +1,10 @@
 package org.exemplo.bellory.controller;
 
 import org.exemplo.bellory.model.entity.users.User;
-import org.exemplo.bellory.model.repository.users.UserRepository; // Importar o repositório
 import org.exemplo.bellory.service.TokenService;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.userdetails.UserDetails; // Importar UserDetails
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -18,12 +16,12 @@ public class AuthController {
 
     private final TokenService tokenService;
     private final AuthenticationManager authenticationManager;
-    private final UserRepository userRepository; // Adicionar o repositório
+    // O UserRepository foi removido daqui.
 
-    public AuthController(TokenService tokenService, AuthenticationManager authenticationManager, UserRepository userRepository) { // Adicionar no construtor
+    // O construtor foi atualizado para remover a injeção do UserRepository.
+    public AuthController(TokenService tokenService, AuthenticationManager authenticationManager) {
         this.tokenService = tokenService;
         this.authenticationManager = authenticationManager;
-        this.userRepository = userRepository; // Atribuir
     }
 
     // DTO (Data Transfer Object) para receber os dados do login
@@ -33,21 +31,19 @@ public class AuthController {
 
     @PostMapping("/login")
     public LoginResponse login(@RequestBody LoginRequest request) {
-        // Cria o objeto de autenticação com o usuário e senha
+        // 1. Cria o objeto de autenticação com o usuário e senha.
         UsernamePasswordAuthenticationToken authenticationToken =
                 new UsernamePasswordAuthenticationToken(request.username(), request.password());
 
-        // O AuthenticationManager irá validar o usuário e senha.
+        // 2. O AuthenticationManager (usando o seu CustomUserDetailsService) valida o usuário e senha.
         Authentication authentication = this.authenticationManager.authenticate(authenticationToken);
 
-        // --- CORREÇÃO APLICADA AQUI ---
-        // 1. Pega o UserDetails do Spring Security que está no "principal"
-        UserDetails userDetails = (UserDetails) authentication.getPrincipal();
-        // 2. Usa o username para buscar a SUA entidade User completa no banco
-        var user = userRepository.findByUsername(userDetails.getUsername())
-                .orElseThrow(() -> new RuntimeException("Usuário não encontrado após autenticação")); // Lança exceção se não encontrar
+        // --- LÓGICA ATUALIZADA ---
+        // 3. Após a autenticação, o "principal" é a própria entidade User que foi carregada.
+        //    Fazemos um cast seguro para o nosso tipo User.
+        var user = (User) authentication.getPrincipal();
 
-        // 3. Gera o token com a sua entidade User
+        // 4. Geramos o token JWT diretamente com o objeto User completo.
         String token = tokenService.generateToken(user);
 
         return new LoginResponse(token);

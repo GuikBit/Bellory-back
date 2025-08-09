@@ -17,7 +17,6 @@ import org.exemplo.bellory.model.repository.produtos.ProdutoRepository;
 import org.exemplo.bellory.model.repository.servico.ServicoRepository;
 import org.exemplo.bellory.model.repository.users.ClienteRepository;
 import org.exemplo.bellory.model.repository.users.RoleRepository;
-import org.exemplo.bellory.model.repository.users.UserRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,7 +32,6 @@ public class DatabaseSeederService {
 
     private final OrganizacaoRepository organizacaoRepository;
     private final RoleRepository roleRepository;
-    private final UserRepository userRepository;
     private final FuncionarioRepository funcionarioRepository;
     private final ClienteRepository clienteRepository;
     private final ServicoRepository servicoRepository;
@@ -43,10 +41,13 @@ public class DatabaseSeederService {
     private final PasswordEncoder passwordEncoder;
 
     // Injeção de dependência via construtor (boa prática)
-    public DatabaseSeederService(OrganizacaoRepository organizacaoRepository, RoleRepository roleRepository, UserRepository userRepository, FuncionarioRepository funcionarioRepository, ClienteRepository clienteRepository, ServicoRepository servicoRepository, AgendamentoRepository agendamentoRepository, PlanoRepository planoRepository, ProdutoRepository produtoRepository, PasswordEncoder passwordEncoder) {
+    public DatabaseSeederService(OrganizacaoRepository organizacaoRepository, RoleRepository roleRepository,
+                                 FuncionarioRepository funcionarioRepository, ClienteRepository clienteRepository,
+                                 ServicoRepository servicoRepository, AgendamentoRepository agendamentoRepository,
+                                 PlanoRepository planoRepository, ProdutoRepository produtoRepository,
+                                 PasswordEncoder passwordEncoder) {
         this.organizacaoRepository = organizacaoRepository;
         this.roleRepository = roleRepository;
-        this.userRepository = userRepository;
         this.funcionarioRepository = funcionarioRepository;
         this.clienteRepository = clienteRepository;
         this.servicoRepository = servicoRepository;
@@ -92,9 +93,9 @@ public class DatabaseSeederService {
         Role roleCliente = criarRoleSeNaoExistir(roleRepository, "ROLE_CLIENTE");
 
         // --- 4. Cria os Usuários de Teste ---
-        Funcionario funcionario1 = criarFuncionarioSeNaoExistir(userRepository, funcionarioRepository, "funcionario1", "Julia Almeida", "julia@bellory.com", "Cabeleireira", new HashSet<>(Set.of(roleFuncionario, roleAdmin)), organizacaoPrincipal, passwordEncoder);
-        Funcionario funcionario2 = criarFuncionarioSeNaoExistir(userRepository, funcionarioRepository, "funcionario2", "Carlos Mendes", "carlos@bellory.com", "Manicure", new HashSet<>(Set.of(roleFuncionario)), organizacaoPrincipal, passwordEncoder);
-        Cliente cliente1 = criarClienteSeNaoExistir(userRepository, clienteRepository, "cliente1", "Ana Silva", "ana.silva@email.com", "99999-8888", LocalDate.of(1995, 5, 15), new HashSet<>(Set.of(roleCliente)), organizacaoPrincipal, passwordEncoder);
+        Funcionario funcionario1 = criarFuncionarioSeNaoExistir(funcionarioRepository, "funcionario1", "Julia Almeida", "julia@bellory.com", "Cabeleireira", new HashSet<>(Set.of(roleFuncionario, roleAdmin)), organizacaoPrincipal, passwordEncoder);
+        Funcionario funcionario2 = criarFuncionarioSeNaoExistir(funcionarioRepository, "funcionario2", "Carlos Mendes", "carlos@bellory.com", "Manicure", new HashSet<>(Set.of(roleFuncionario)), organizacaoPrincipal, passwordEncoder);
+        Cliente cliente1 = criarClienteSeNaoExistir(clienteRepository, "cliente1", "Ana Silva", "ana.silva@email.com", "99999-8888", LocalDate.of(1995, 5, 15), new HashSet<>(Set.of(roleCliente)), organizacaoPrincipal, passwordEncoder);
 
         // --- 5. Cria os Serviços de Teste ---
         Servico servicoCorte = criarServicoSeNaoExistir(servicoRepository, "Corte Feminino", "Cabelo", "Corte personalizado...", 60, new BigDecimal("129.90"), "Feminino","https://images.unsplash.com/photo-1647140655214-e4a2d914971f?q=80&w=1965&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D", organizacaoPrincipal);
@@ -154,25 +155,26 @@ public class DatabaseSeederService {
         });
     }
 
-    private Funcionario criarFuncionarioSeNaoExistir(UserRepository userRepository, FuncionarioRepository funcionarioRepository, String username, String nomeCompleto, String email, String cargo, Set<Role> roles, Organizacao org, PasswordEncoder encoder) {
-        Optional<Funcionario> funcionarioExistente = funcionarioRepository.findByUsername(username).map(user -> (Funcionario) user);
-        return funcionarioExistente.orElseGet(() -> {
-            Funcionario f = new Funcionario();
-            f.setUsername(username);
-            f.setNomeCompleto(nomeCompleto);
-            f.setEmail(email);
-            f.setPassword(encoder.encode("password"));
-            f.setCargo(cargo);
-            f.setRoles(roles);
-            f.setOrganizacao(org);
-            f.setAtivo(true);
-            System.out.println("Criado Funcionario: " + nomeCompleto);
-            return funcionarioRepository.save(f);
-        });
+    private Funcionario criarFuncionarioSeNaoExistir(FuncionarioRepository funcionarioRepository, String username, String nomeCompleto, String email, String cargo, Set<Role> roles, Organizacao org, PasswordEncoder encoder) {
+        return funcionarioRepository.findByUsername(username)
+                .map(user -> (Funcionario) user)
+                .orElseGet(() -> {
+                    Funcionario f = new Funcionario();
+                    f.setUsername(username);
+                    f.setNomeCompleto(nomeCompleto);
+                    f.setEmail(email);
+                    f.setPassword(encoder.encode("password"));
+                    f.setCargo(cargo);
+                    f.setRoles(roles);
+                    f.setOrganizacao(org);
+                    f.setAtivo(true);
+                    System.out.println("Criado Funcionario: " + nomeCompleto);
+                    return funcionarioRepository.save(f);
+                });
     }
 
-    private Cliente criarClienteSeNaoExistir(UserRepository userRepository, ClienteRepository clienteRepository, String username, String nomeCompleto, String email, String telefone, LocalDate dtNasc, Set<Role> roles, Organizacao org, PasswordEncoder encoder) {
-        return (Cliente) userRepository.findByUsername(username).orElseGet(() -> {
+    private Cliente criarClienteSeNaoExistir(ClienteRepository clienteRepository, String username, String nomeCompleto, String email, String telefone, LocalDate dtNasc, Set<Role> roles, Organizacao org, PasswordEncoder encoder) {
+        return clienteRepository.findByUsername(username).orElseGet(() -> {
             Cliente c = new Cliente();
             c.setUsername(username);
             c.setNomeCompleto(nomeCompleto);
