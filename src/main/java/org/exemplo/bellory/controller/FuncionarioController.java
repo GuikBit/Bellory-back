@@ -1,6 +1,7 @@
 package org.exemplo.bellory.controller;
 
 import org.exemplo.bellory.model.dto.FuncionarioAgendamento;
+import org.exemplo.bellory.model.dto.FuncionarioCreateDTO;
 import org.exemplo.bellory.model.dto.FuncionarioDTO; // Importar o DTO
 import org.exemplo.bellory.model.entity.error.ResponseAPI;
 import org.exemplo.bellory.model.entity.funcionario.Funcionario;
@@ -69,37 +70,34 @@ public class FuncionarioController {
     }
 
     @PostMapping
-    public ResponseEntity<ResponseAPI<Funcionario>> postFuncionario(@RequestBody FuncionarioDTO funcionario) {
+    public ResponseEntity<ResponseAPI<Funcionario>> postFuncionario(@RequestBody FuncionarioCreateDTO funcionarioDTO) { // <-- MUDANÇA AQUI
         try {
-            Funcionario novoFuncionario = funcionarioService.postNewFuncionario(funcionario);
+            Funcionario novoFuncionario = funcionarioService.postNewFuncionario(funcionarioDTO); // <-- MUDANÇA AQUI
             return ResponseEntity
-                    .status(HttpStatus.CREATED) // Status 201 para criação bem-sucedida
+                    .status(HttpStatus.CREATED)
                     .body(ResponseAPI.<Funcionario>builder()
                             .success(true)
                             .message("Funcionário criado com sucesso.")
                             .dados(novoFuncionario)
                             .build());
         } catch (IllegalArgumentException e) {
-            // Captura exceções de validação do serviço
             return ResponseEntity
-                    .status(HttpStatus.BAD_REQUEST) // Status 400 para erros de requisição
+                    .status(HttpStatus.BAD_REQUEST)
                     .body(ResponseAPI.<Funcionario>builder()
                             .success(false)
-                            .message(e.getMessage()) // Mensagem de erro vinda do service
+                            .message(e.getMessage())
                             .errorCode(400)
                             .build());
         } catch (Exception e) {
-            // Captura outras exceções inesperadas
             return ResponseEntity
-                    .status(HttpStatus.INTERNAL_SERVER_ERROR) // Status 500 para erros internos
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ResponseAPI.<Funcionario>builder()
                             .success(false)
-                            .message("Ocorreu um erro interno ao criar o funcionário.")
+                            .message("Ocorreu um erro interno ao criar o funcionário: " + e.getMessage())
                             .errorCode(500)
                             .build());
         }
     }
-
 
 //    @PatchMapping
 //    public ResponseEntity<ResponseAPI<Funcionario>> pachtFuncionario(@RequestBody FuncionarioDTO funcionario) {
