@@ -95,7 +95,7 @@ public class DatabaseSeederService {
 
         // --- 4. Cria os Usuários de Teste ---
         Funcionario funcionario1 = criarFuncionarioSeNaoExistir(funcionarioRepository, "funcionario1", "Julia Almeida", "julia@bellory.com", "Cabeleireira", "ROLE_ADMIN", organizacaoPrincipal, passwordEncoder, LocalDate.now().toString());
-        Funcionario funcionario2 = criarFuncionarioSeNaoExistir(funcionarioRepository, "funcionario2", "Carlos Mendes", "carlos@bellory.com", "Manicure", "ROLE_FUNCIONARIO", organizacaoPrincipal, passwordEncoder, LocalDate.now().toString());
+        Funcionario funcionario2 = criarFuncionarioSeNaoExistir(funcionarioRepository, "funcionario2", "Carlos Mendes", "carlos@bellory.com", "Barbeiro", "ROLE_FUNCIONARIO", organizacaoPrincipal, passwordEncoder, LocalDate.now().toString());
         Cliente cliente1 = criarClienteSeNaoExistir(clienteRepository, "cliente1", "Ana Silva", "ana.silva@email.com", "99999-8888", LocalDate.of(1995, 5, 15), "ROLE_CLIENTE", organizacaoPrincipal, passwordEncoder);
 
         // --- 5. Cria os Serviços de Teste ---

@@ -120,6 +120,9 @@ public class Funcionario extends User {
     @Column(name = "is_comissao")
     private boolean isComissao = false;
 
+    @Column(name = "isVisivelExterno")
+    private boolean isVisivelExterno = false;
+
     // A comissão pode ser um percentual ou valor fixo, por isso String
     @Column(length = 50)
     private String comissao;

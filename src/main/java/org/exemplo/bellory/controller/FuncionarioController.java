@@ -69,25 +69,40 @@ public class FuncionarioController {
     }
 
     @PostMapping
-    public ResponseEntity<ResponseAPI<Funcionario>> postFuncionario(@RequestBody Funcionario funcionario) {
-        Funcionario func = funcionarioService.postNewFuncionario(funcionario);
-
-        if (func.getId() == null) {
+    public ResponseEntity<ResponseAPI<Funcionario>> postFuncionario(@RequestBody FuncionarioDTO funcionario) {
+        try {
+            Funcionario novoFuncionario = funcionarioService.postNewFuncionario(funcionario);
             return ResponseEntity
-                    .status(HttpStatus.BAD_REQUEST)
+                    .status(HttpStatus.CREATED) // Status 201 para criação bem-sucedida
+                    .body(ResponseAPI.<Funcionario>builder()
+                            .success(true)
+                            .message("Funcionário criado com sucesso.")
+                            .dados(novoFuncionario)
+                            .build());
+        } catch (IllegalArgumentException e) {
+            // Captura exceções de validação do serviço
+            return ResponseEntity
+                    .status(HttpStatus.BAD_REQUEST) // Status 400 para erros de requisição
                     .body(ResponseAPI.<Funcionario>builder()
                             .success(false)
-                            .message("Erro ao criar funcionário.")
-                            .dados(null)
+                            .message(e.getMessage()) // Mensagem de erro vinda do service
+                            .errorCode(400)
+                            .build());
+        } catch (Exception e) {
+            // Captura outras exceções inesperadas
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR) // Status 500 para erros internos
+                    .body(ResponseAPI.<Funcionario>builder()
+                            .success(false)
+                            .message("Ocorreu um erro interno ao criar o funcionário.")
+                            .errorCode(500)
                             .build());
         }
-
-        return ResponseEntity
-                .status(HttpStatus.CREATED)
-                .body(ResponseAPI.<Funcionario>builder()
-                        .success(true)
-                        .message("Funcionário criado com sucesso.")
-                        .dados(func)
-                        .build());
     }
+
+
+//    @PatchMapping
+//    public ResponseEntity<ResponseAPI<Funcionario>> pachtFuncionario(@RequestBody FuncionarioDTO funcionario) {
+//
+//    }
 }

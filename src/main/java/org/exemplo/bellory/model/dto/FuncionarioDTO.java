@@ -20,9 +20,11 @@ import java.util.stream.Collectors;
 public class FuncionarioDTO {
 
     private Long id;
+    private Long idOrganizacao;
     private String foto;
     private String nomeCompleto; // Mantido de 'nome'
     private String username; // Mantido de 'login'
+    private String password;
     private String cpf;
     private String email;
     private String telefone;
@@ -66,6 +68,7 @@ public class FuncionarioDTO {
     private String operacao;
     private String jornadaSemanal;
     private boolean ativo;
+    private boolean isVisivelExterno;
     private String role;
 
     // As listas agora usam os novos DTOs
@@ -74,6 +77,7 @@ public class FuncionarioDTO {
 
     public FuncionarioDTO(Funcionario funcionario, List<BloqueioAgendaDTO> bloqueiosDTO,  List<JornadaTrabalhoDTO> jornadaDTO) {
         this.id = funcionario.getId();
+        this.idOrganizacao = funcionario.getOrganizacao().getId();
         this.foto = funcionario.getFoto();
         this.nomeCompleto = funcionario.getNomeCompleto();
         this.username = funcionario.getUsername();
