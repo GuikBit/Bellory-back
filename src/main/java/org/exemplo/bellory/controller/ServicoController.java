@@ -1,6 +1,8 @@
 package org.exemplo.bellory.controller;
 
 import org.exemplo.bellory.model.dto.ServicoAgendamento;
+import org.exemplo.bellory.model.dto.ServicoCreateDTO;
+import org.exemplo.bellory.model.dto.ServicoDTO;
 import org.exemplo.bellory.model.entity.error.ResponseAPI;
 import org.exemplo.bellory.model.entity.servico.Servico;
 import org.exemplo.bellory.service.ServicoService;
@@ -9,122 +11,112 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/servico")
 public class ServicoController {
 
-    ServicoService servicoService;
+    private final ServicoService servicoService;
 
     public ServicoController(ServicoService servicoService) {
         this.servicoService = servicoService;
     }
 
     @GetMapping
-    public ResponseEntity<ResponseAPI<List<Servico>>> getServicoList() {
+    public ResponseEntity<ResponseAPI<List<ServicoDTO>>> getServicoList() {
         List<Servico> servicos = servicoService.getListAllServicos();
+        List<ServicoDTO> servicosDTO = servicos.stream().map(ServicoDTO::new).collect(Collectors.toList());
 
-        if (servicos.isEmpty()) {
-            return ResponseEntity
-                    .status(HttpStatus.NO_CONTENT) // Ou HttpStatus.NO_CONTENT, dependendo da sua regra
-                    .body(ResponseAPI.<List<Servico>>builder()
-                    .success(true)
-                    .message("Nenhum serviço encontrado.")
-                    .dados(servicos) // Ainda envia a lista vazia
-                    .build());
-        }
-
-        return ResponseEntity
-                .status(HttpStatus.OK)
-                .body(ResponseAPI.<List<Servico>>builder()
+        return ResponseEntity.ok(ResponseAPI.<List<ServicoDTO>>builder()
                 .success(true)
                 .message("Lista de serviços recuperada com sucesso.")
-                .dados(servicos)
+                .dados(servicosDTO)
                 .build());
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<ResponseAPI<ServicoDTO>> getServicoById(@PathVariable Long id) {
+        try {
+            Servico servico = servicoService.getServicoById(id);
+            return ResponseEntity.ok(ResponseAPI.<ServicoDTO>builder()
+                    .success(true)
+                    .dados(new ServicoDTO(servico))
+                    .build());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ResponseAPI.<ServicoDTO>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(404)
+                            .build());
+        }
     }
 
     @GetMapping("/agendamento")
     public ResponseEntity<ResponseAPI<List<ServicoAgendamento>>> getServicoAgendamentoList() {
         List<ServicoAgendamento> servicos = servicoService.getListAgendamentoServicos();
-
-        if (servicos.isEmpty()) {
-            return ResponseEntity
-                    .status(HttpStatus.NO_CONTENT) // Ou HttpStatus.NO_CONTENT, dependendo da sua regra
-                    .body(ResponseAPI.<List<ServicoAgendamento>>builder()
-                            .success(true)
-                            .message("Nenhum serviço encontrado.")
-                            .dados(servicos) // Ainda envia a lista vazia
-                            .build());
-        }
-
-        return ResponseEntity
-                .status(HttpStatus.OK)
-                .body(ResponseAPI.<List<ServicoAgendamento>>builder()
-                        .success(true)
-                        .message("Lista de serviços recuperada com sucesso.")
-                        .dados(servicos)
-                        .build());
+        return ResponseEntity.ok(ResponseAPI.<List<ServicoAgendamento>>builder()
+                .success(true)
+                .message("Lista de serviços para agendamento recuperada com sucesso.")
+                .dados(servicos)
+                .build());
     }
 
     @PostMapping
-    public ResponseEntity<ResponseAPI<Servico>> postServico(@RequestBody Servico servico) {
+    public ResponseEntity<ResponseAPI<ServicoDTO>> postServico(@RequestBody ServicoCreateDTO servicoDTO) {
         try {
-            Servico novoServico = servicoService.createServico(servico);
+            Servico novoServico = servicoService.createServico(servicoDTO);
             return ResponseEntity
-                    .status(HttpStatus.CREATED) // Status 201 para criação bem-sucedida
-                    .body(ResponseAPI.<Servico>builder()
+                    .status(HttpStatus.CREATED)
+                    .body(ResponseAPI.<ServicoDTO>builder()
                             .success(true)
                             .message("Serviço criado com sucesso!")
-                            .dados(novoServico)
+                            .dados(new ServicoDTO(novoServico))
                             .build());
         } catch (IllegalArgumentException e) {
-            // Captura exceções de validação do serviço
-            return ResponseEntity
-                    .status(HttpStatus.BAD_REQUEST) // Status 400 para erros de requisição
-                    .body(ResponseAPI.<Servico>builder()
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ResponseAPI.<ServicoDTO>builder()
                             .success(false)
                             .message("Erro ao criar serviço: " + e.getMessage())
-                            .errorCode(400) // Opcional: Código de erro customizado
-                            .build());
-        } catch (Exception e) {
-            // Captura outras exceções inesperadas
-            return ResponseEntity
-                    .status(HttpStatus.INTERNAL_SERVER_ERROR) // Status 500 para erros internos
-                    .body(ResponseAPI.<Servico>builder()
-                            .success(false)
-                            .message("Ocorreu um erro interno ao criar o serviço.")
-                            .errorCode(500)
+                            .errorCode(400)
                             .build());
         }
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ResponseAPI<Servico>> updateServico(@PathVariable Long id, @RequestBody Servico servico) {
+    public ResponseEntity<ResponseAPI<ServicoDTO>> updateServico(@PathVariable Long id, @RequestBody ServicoCreateDTO servicoDTO) {
         try {
-            Servico servicoAtualizado = servicoService.updateServico(id, servico);
-            return ResponseEntity
-                    .status(HttpStatus.OK) // Status 200 OK para atualização bem-sucedida
-                    .body(ResponseAPI.<Servico>builder()
-                            .success(true)
-                            .message("Serviço atualizado com sucesso!")
-                            .dados(servicoAtualizado)
-                            .build());
+            Servico servicoAtualizado = servicoService.updateServico(id, servicoDTO);
+            return ResponseEntity.ok(ResponseAPI.<ServicoDTO>builder()
+                    .success(true)
+                    .message("Serviço atualizado com sucesso!")
+                    .dados(new ServicoDTO(servicoAtualizado))
+                    .build());
         } catch (IllegalArgumentException e) {
-            // Captura exceções de validação (serviço não encontrado, nome duplicado, dados inválidos)
-            return ResponseEntity
-                    .status(HttpStatus.BAD_REQUEST) // Ou HttpStatus.NOT_FOUND se for específico de não encontrado
-                    .body(ResponseAPI.<Servico>builder()
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ResponseAPI.<ServicoDTO>builder()
                             .success(false)
                             .message("Erro ao atualizar serviço: " + e.getMessage())
-                            .errorCode(400)
+                            .errorCode(404)
                             .build());
-        } catch (Exception e) {
-            return ResponseEntity
-                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ResponseAPI.<Servico>builder()
+        }
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<ResponseAPI<Void>> deleteServico(@PathVariable Long id) {
+        try {
+            servicoService.deleteServico(id);
+            return ResponseEntity.ok(ResponseAPI.<Void>builder()
+                    .success(true)
+                    .message("Serviço desativado com sucesso.")
+                    .build());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ResponseAPI.<Void>builder()
                             .success(false)
-                            .message("Ocorreu um erro interno ao atualizar o serviço.")
-                            .errorCode(500)
+                            .message(e.getMessage())
+                            .errorCode(404)
                             .build());
         }
     }

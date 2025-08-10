@@ -1,119 +1,116 @@
 package org.exemplo.bellory.service;
 
 import org.exemplo.bellory.model.dto.ServicoAgendamento;
+import org.exemplo.bellory.model.dto.ServicoCreateDTO;
+import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 import org.exemplo.bellory.model.entity.servico.Servico;
+import org.exemplo.bellory.model.repository.organizacao.OrganizacaoRepository;
 import org.exemplo.bellory.model.repository.servico.ServicoRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class ServicoService {
 
     private final ServicoRepository servicoRepository;
+    private final OrganizacaoRepository organizacaoRepository;
 
-    public ServicoService(ServicoRepository servicoRepository) {
+    public ServicoService(ServicoRepository servicoRepository, OrganizacaoRepository organizacaoRepository) {
         this.servicoRepository = servicoRepository;
+        this.organizacaoRepository = organizacaoRepository;
     }
 
-
     public List<Servico> getListAllServicos() {
-
         return this.servicoRepository.findAllByOrderByNomeAsc();
     }
 
-    public List<ServicoAgendamento> getListAgendamentoServicos() {
+    public Servico getServicoById(Long id) {
+        return servicoRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Serviço com ID " + id + " não encontrado."));
+    }
 
+    public List<ServicoAgendamento> getListAgendamentoServicos() {
         return this.servicoRepository.findAllProjectedBy();
     }
 
-    public Servico createServico(Servico servico) {
-        // Validação de campos obrigatórios e básicos
-        if (servico.getOrganizacao().getId() <= 0) {
-            throw new IllegalArgumentException("O ID da organização é obrigatório e deve ser maior que zero.");
-
+    @Transactional
+    public Servico createServico(ServicoCreateDTO dto) {
+        // Validação de campos obrigatórios
+        if (dto.getOrganizacaoId() == null) {
+            throw new IllegalArgumentException("O ID da organização é obrigatório.");
         }
-        if (servico.getNome() == null || servico.getNome().trim().isEmpty()) {
+        if (dto.getNome() == null || dto.getNome().trim().isEmpty()) {
             throw new IllegalArgumentException("O nome do serviço é obrigatório.");
         }
-        if (servico.getCategoria() == null || servico.getCategoria().trim().isEmpty()) {
-            throw new IllegalArgumentException("A categoria do serviço é obrigatória.");
-        }
-        if (servico.getPreco() == null || servico.getPreco().compareTo(BigDecimal.ZERO) <= 0) {
+        if (dto.getPreco() == null || dto.getPreco().compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("O preço do serviço é obrigatório e deve ser maior que zero.");
         }
-        if (servico.getTempoEstimadoMinutos() == null || servico.getTempoEstimadoMinutos() <= 0) {
-            throw new IllegalArgumentException("A duração estimada do serviço é obrigatória e deve ser maior que zero.");
+        if (dto.getTempoEstimadoMinutos() == null || dto.getTempoEstimadoMinutos() <= 0) {
+            throw new IllegalArgumentException("A duração estimada do serviço é obrigatória.");
         }
 
-        // Validação de unicidade do nome do serviço (opcional, mas recomendado)
-        if (servicoRepository.existsByNome(servico.getNome())) {
-            throw new IllegalArgumentException("Já existe um serviço com o nome '" + servico.getNome() + "'.");
+        // Validação de unicidade do nome do serviço
+        if (servicoRepository.existsByNome(dto.getNome())) {
+            throw new IllegalArgumentException("Já existe um serviço com o nome '" + dto.getNome() + "'.");
         }
 
-        // Definir valores padrão se necessário (ex: um novo serviço é ativo por padrão)
-        // Se o campo 'ativo' não for fornecido ou for nulo, define como true
-//        if (servico.getAtivo() == null) {
-//            servico.setAtivo(true);
-//        }
-        // Exemplo: definir usuário de criação/atualização se não for feito por JWT ou outro filtro
-        // servico.setUsuarioAtualizacao("API_CREATE");
+        Organizacao org = organizacaoRepository.findById(dto.getOrganizacaoId())
+                .orElseThrow(() -> new IllegalArgumentException("Organização com ID " + dto.getOrganizacaoId() + " não encontrada."));
 
-        // Salva o serviço no banco de dados
-        return servicoRepository.save(servico);
+        Servico novoServico = new Servico();
+        novoServico.setOrganizacao(org);
+        novoServico.setNome(dto.getNome());
+        novoServico.setCategoria(dto.getCategoria());
+        novoServico.setGenero(dto.getGenero());
+        novoServico.setDescricao(dto.getDescricao());
+        novoServico.setTempoEstimadoMinutos(dto.getTempoEstimadoMinutos());
+        novoServico.setPreco(dto.getPreco());
+        novoServico.setUrlsImagens(dto.getUrlsImagens());
+        novoServico.setAtivo(true);
+        novoServico.setDtCriacao(LocalDateTime.now());
+
+        return servicoRepository.save(novoServico);
     }
-    // NOVO MÉTODO: Para atualizar um serviço existente
-    public Servico updateServico(Long id, Servico servicoDetalhes) {
-        // 1. Verificar se o serviço existe
-        Servico servicoExistente = servicoRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Serviço com ID " + id + " não encontrado para atualização."));
 
-        // 2. Aplicar as atualizações nos campos
-        // Você pode escolher quais campos podem ser atualizados
-        if (servicoDetalhes.getOrganizacao().getId() > 0) { // Exemplo: só atualiza se for um ID válido
-            servicoExistente.setOrganizacao(servicoDetalhes.getOrganizacao());
-        }
-        if (servicoDetalhes.getNome() != null && !servicoDetalhes.getNome().trim().isEmpty()) {
-            // Verifique se o novo nome já existe e não é o nome do próprio serviço que está sendo atualizado
-            if (!servicoExistente.getNome().equals(servicoDetalhes.getNome()) && servicoRepository.existsByNome(servicoDetalhes.getNome())) {
-                throw new IllegalArgumentException("Já existe outro serviço com o nome '" + servicoDetalhes.getNome() + "'.");
-            }
-            servicoExistente.setNome(servicoDetalhes.getNome());
-        }
-        if (servicoDetalhes.getCategoria() != null && !servicoDetalhes.getCategoria().trim().isEmpty()) {
-            servicoExistente.setCategoria(servicoDetalhes.getCategoria());
-        }
-        if (servicoDetalhes.getGenero() != null) { // Gênero pode ser nulo ou vazio
-            servicoExistente.setGenero(servicoDetalhes.getGenero());
-        }
-        if (servicoDetalhes.getDescricao() != null) { // Descrição pode ser nula ou vazia
-            servicoExistente.setDescricao(servicoDetalhes.getDescricao());
-        }
-        if (servicoDetalhes.getTempoEstimadoMinutos() != null && servicoDetalhes.getTempoEstimadoMinutos() > 0) {
-            servicoExistente.setTempoEstimadoMinutos(servicoDetalhes.getTempoEstimadoMinutos());
-        }
-        if (servicoDetalhes.getPreco() != null && servicoDetalhes.getPreco().compareTo(BigDecimal.ZERO) > 0) {
-            servicoExistente.setPreco(servicoDetalhes.getPreco());
-        }
-        // Para listas (produtos, urlsImagens), você pode optar por substituir a lista ou adicionar/remover itens.
-        // Aqui, estou optando por substituir se uma nova lista for fornecida.
-        if (servicoDetalhes.getProdutos() != null) {
-            servicoExistente.setProdutos(servicoDetalhes.getProdutos());
-        }
-        if (servicoDetalhes.getUrlsImagens() != null) {
-            servicoExistente.setUrlsImagens(servicoDetalhes.getUrlsImagens());
-        }
-        // Ativo pode ser atualizado para true ou false
-//        if (servicoDetalhes.getAtivo() != null) {
-//            servicoExistente.setAtivo(servicoDetalhes.getAtivo());
-//        }
-        // O campo dtAtualizacao será gerenciado pelo @UpdateTimestamp
+    @Transactional
+    public Servico updateServico(Long id, ServicoCreateDTO dto) {
+        Servico servicoExistente = getServicoById(id);
 
-        // 3. Validações adicionais (se houver, como dependências entre campos, etc.)
-        // As validações básicas de formato já foram feitas ao copiar os dados válidos.
+        if (dto.getNome() != null && !dto.getNome().trim().isEmpty()) {
+            servicoExistente.setNome(dto.getNome());
+        }
+        if (dto.getCategoria() != null) {
+            servicoExistente.setCategoria(dto.getCategoria());
+        }
+        if (dto.getGenero() != null) {
+            servicoExistente.setGenero(dto.getGenero());
+        }
+        if (dto.getDescricao() != null) {
+            servicoExistente.setDescricao(dto.getDescricao());
+        }
+        if (dto.getTempoEstimadoMinutos() != null && dto.getTempoEstimadoMinutos() > 0) {
+            servicoExistente.setTempoEstimadoMinutos(dto.getTempoEstimadoMinutos());
+        }
+        if (dto.getPreco() != null && dto.getPreco().compareTo(BigDecimal.ZERO) > 0) {
+            servicoExistente.setPreco(dto.getPreco());
+        }
+        if (dto.getUrlsImagens() != null) {
+            servicoExistente.setUrlsImagens(dto.getUrlsImagens());
+        }
+        servicoExistente.setDtAtualizacao(LocalDateTime.now());
 
-        // 4. Salvar o serviço atualizado
         return servicoRepository.save(servicoExistente);
+    }
+
+    @Transactional
+    public void deleteServico(Long id) {
+        Servico servico = getServicoById(id);
+        servico.setAtivo(false); // Soft delete
+        servicoRepository.save(servico);
     }
 }

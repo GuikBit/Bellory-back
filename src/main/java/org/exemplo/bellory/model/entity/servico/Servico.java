@@ -46,7 +46,7 @@ public class Servico {
     private String genero;
 
     @Column(columnDefinition = "TEXT")
-    private String descricao;;
+    private String descricao;
 
     @Column(name = "tempo_estimado_minutos", nullable = false)
     private Integer tempoEstimadoMinutos; // Ex: "90 min", "1 hora"
