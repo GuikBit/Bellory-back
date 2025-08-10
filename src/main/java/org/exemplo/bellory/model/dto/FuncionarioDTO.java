@@ -1,0 +1,132 @@
+package org.exemplo.bellory.model.dto;
+
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import org.exemplo.bellory.model.entity.funcionario.BloqueioAgenda;
+import org.exemplo.bellory.model.entity.funcionario.Funcionario;
+import org.exemplo.bellory.model.entity.funcionario.JornadaTrabalho;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List; // Importar List
+import java.util.stream.Collectors;
+
+@Getter
+@Setter
+@NoArgsConstructor
+public class FuncionarioDTO {
+
+    private Long id;
+    private String foto;
+    private String nomeCompleto; // Mantido de 'nome'
+    private String username; // Mantido de 'login'
+    private String cpf;
+    private String email;
+    private String telefone;
+    private LocalDate dataNasc;
+    private LocalDateTime dataContratacao;
+    private LocalDateTime dataCriacao;
+    private LocalDateTime dataUpdate;
+    private String sexo;
+    private Integer nivel;
+    private String apelido;
+    private String situacao;
+    private String cep;
+    private String logradouro;
+    private String numero;
+    private String complemento;
+    private String bairro;
+    private String cidade;
+    private String uf;
+    private String rg;
+    private String rgOrgEmissor;
+    private String tituloEleitor;
+    private String certMilitar;
+    private String cnh;
+    private String categHabilitacao;
+    private String ctps;
+    private String ctpsSerie;
+    private String pisPasep;
+    private String naturalidade;
+    private String estadoCivil;
+    private String grauInstrucao;
+    private String formacao;
+    private String cargo;
+    private BigDecimal salario;
+    private boolean isComissao;
+    private String comissao;
+    private String nomeMae;
+    private String nomePai;
+    private String banco;
+    private String agencia;
+    private String conta;
+    private String operacao;
+    private String jornadaSemanal;
+    private boolean ativo;
+    private String role;
+
+    // As listas agora usam os novos DTOs
+    private List<JornadaTrabalhoDTO> jornadaDeTrabalho;
+    private List<BloqueioAgendaDTO> bloqueiosAgenda;
+
+    public FuncionarioDTO(Funcionario funcionario, List<BloqueioAgendaDTO> bloqueiosDTO,  List<JornadaTrabalhoDTO> jornadaDTO) {
+        this.id = funcionario.getId();
+        this.foto = funcionario.getFoto();
+        this.nomeCompleto = funcionario.getNomeCompleto();
+        this.username = funcionario.getUsername();
+        this.cpf = funcionario.getCpf();
+        this.email = funcionario.getEmail();
+        this.telefone = funcionario.getTelefone();
+        this.dataNasc = funcionario.getDataNasc();
+        this.dataContratacao = funcionario.getDataContratacao();
+        this.dataCriacao = funcionario.getDataCriacao();
+        this.dataUpdate = funcionario.getDataUpdate();
+        this.sexo = funcionario.getSexo();
+        this.nivel = funcionario.getNivel();
+        this.apelido = funcionario.getApelido();
+        this.situacao = funcionario.getSituacao();
+        this.cep = funcionario.getCep();
+        this.logradouro = funcionario.getLogradouro();
+        this.numero = funcionario.getNumero();
+        this.complemento = funcionario.getComplemento();
+        this.bairro = funcionario.getBairro();
+        this.cidade = funcionario.getCidade();
+        this.uf = funcionario.getUf();
+        this.rg = funcionario.getRg();
+        this.rgOrgEmissor = funcionario.getRgOrgEmissor();
+        this.tituloEleitor = funcionario.getTituloEleitor();
+        this.certMilitar = funcionario.getCertMilitar();
+        this.cnh = funcionario.getCnh();
+        this.categHabilitacao = funcionario.getCategHabilitacao();
+        this.ctps = funcionario.getCtps();
+        this.ctpsSerie = funcionario.getCtpsSerie();
+        this.pisPasep = funcionario.getPisPasep();
+        this.naturalidade = funcionario.getNaturalidade();
+        this.estadoCivil = funcionario.getEstadoCivil();
+        this.grauInstrucao = funcionario.getGrauInstrucao();
+        this.formacao = funcionario.getFormacao();
+        this.cargo = funcionario.getCargo();
+        this.salario = funcionario.getSalario();
+        this.isComissao = funcionario.isComissao();
+        this.comissao = funcionario.getComissao();
+        this.nomeMae = funcionario.getNomeMae();
+        this.nomePai = funcionario.getNomePai();
+        this.banco = funcionario.getBanco();
+        this.agencia = funcionario.getAgencia();
+        this.conta = funcionario.getConta();
+        this.operacao = funcionario.getOperacao();
+        this.jornadaSemanal = funcionario.getJornadaSemanal();
+        this.ativo = funcionario.isAtivo();
+
+        // Extrai a primeira role encontrada (simplificação)
+        this.role = funcionario.getRole();
+
+        // Mapeia as listas de entidades para listas de DTOs
+        this.jornadaDeTrabalho = jornadaDTO;
+
+        this.bloqueiosAgenda = bloqueiosDTO;
+    }
+}

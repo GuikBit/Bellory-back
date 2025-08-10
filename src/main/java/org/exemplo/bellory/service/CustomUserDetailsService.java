@@ -1,38 +1,32 @@
 package org.exemplo.bellory.service;
 
-import org.exemplo.bellory.model.entity.users.User;
-import org.exemplo.bellory.model.repository.users.UserRepository;
+import org.exemplo.bellory.model.repository.funcionario.FuncionarioRepository;
+import org.exemplo.bellory.model.repository.users.ClienteRepository;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-
 @Service
 public class CustomUserDetailsService implements UserDetailsService {
 
-    private final UserRepository userRepository;
+    // Injetar os repositórios das entidades concretas
+    private final FuncionarioRepository funcionarioRepository;
+    private final ClienteRepository clienteRepository;
 
-    public CustomUserDetailsService(UserRepository userRepository) {
-        this.userRepository = userRepository;
+    public CustomUserDetailsService(FuncionarioRepository funcionarioRepository, ClienteRepository clienteRepository) {
+        this.funcionarioRepository = funcionarioRepository;
+        this.clienteRepository = clienteRepository;
     }
 
-    // Este método é chamado pelo Spring Security durante o processo de autenticação.
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        User user = this.userRepository.findByUsername(username)
-                .orElseThrow(() -> new UsernameNotFoundException("Usuário não encontrado: " + username));
-
-        // Cria um objeto UserDetails do Spring Security a partir da sua entidade User
-        return new org.springframework.security.core.userdetails.User(
-                user.getUsername(),
-                user.getPassword(),
-                user.isAtivo(), // enabled
-                true, // accountNonExpired
-                true, // credentialsNonExpired
-                true, // accountNonLocked
-                user.getRoles() // authorities
-        );
+        // Tenta encontrar como Funcionário primeiro
+        return funcionarioRepository.findByUsername(username)
+                .map(UserDetails.class::cast)
+                // Se não encontrar, tenta como Cliente
+                .orElseGet(() -> clienteRepository.findByUsername(username)
+                        .map(UserDetails.class::cast)
+                        .orElseThrow(() -> new UsernameNotFoundException("Usuário não encontrado: " + username)));
     }
 }

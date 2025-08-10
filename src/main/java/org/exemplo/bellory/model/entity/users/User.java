@@ -8,23 +8,19 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
-import java.util.HashSet;
+import java.util.Collections;
 import java.util.Set;
 
-/**
- * Classe base para todos os tipos de utilizadores do sistema.
- * Utiliza a estratégia de herança JOINED, onde os dados comuns ficam na tabela 'tb_users'
- * e os dados específicos de cada tipo de utilizador ficam em tabelas separadas.
- */
 @MappedSuperclass
 @Getter
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public abstract class User {
+public abstract class User implements UserDetails {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -49,13 +45,8 @@ public abstract class User {
 
     private boolean ativo = true;
 
-    @ManyToMany(fetch = FetchType.EAGER)
-    @JoinTable(
-            name = "user_roles",
-            joinColumns = @JoinColumn(name = "user_id"),
-            inverseJoinColumns = @JoinColumn(name = "role_id")
-    )
-    private Set<Role> roles = new HashSet<>();
+    // Método abstrato para que as subclasses forneçam sua role como String
+    public abstract String getRole();
 
     public User(Organizacao organizacao, String username, String nomeCompleto, String password, String email) {
         this.organizacao = organizacao;
@@ -63,5 +54,26 @@ public abstract class User {
         this.nomeCompleto = nomeCompleto;
         this.password = password;
         this.email = email;
+    }
+
+    // --- MÉTODOS DA INTERFACE UserDetails ---
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        // Converte a String da role em uma autoridade que o Spring Security entende
+        return Collections.singletonList(new SimpleGrantedAuthority(getRole()));
+    }
+
+    @Override
+    public boolean isAccountNonExpired() { return true; }
+
+    @Override
+    public boolean isAccountNonLocked() { return true; }
+
+    @Override
+    public boolean isCredentialsNonExpired() { return true; }
+
+    @Override
+    public boolean isEnabled() {
+        return this.ativo;
     }
 }

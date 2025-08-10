@@ -25,6 +25,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.*;
 
 @Service // Anotação chave: esta é uma classe de serviço
@@ -93,9 +94,9 @@ public class DatabaseSeederService {
         Role roleCliente = criarRoleSeNaoExistir(roleRepository, "ROLE_CLIENTE");
 
         // --- 4. Cria os Usuários de Teste ---
-        Funcionario funcionario1 = criarFuncionarioSeNaoExistir(funcionarioRepository, "funcionario1", "Julia Almeida", "julia@bellory.com", "Cabeleireira", new HashSet<>(Set.of(roleFuncionario, roleAdmin)), organizacaoPrincipal, passwordEncoder);
-        Funcionario funcionario2 = criarFuncionarioSeNaoExistir(funcionarioRepository, "funcionario2", "Carlos Mendes", "carlos@bellory.com", "Manicure", new HashSet<>(Set.of(roleFuncionario)), organizacaoPrincipal, passwordEncoder);
-        Cliente cliente1 = criarClienteSeNaoExistir(clienteRepository, "cliente1", "Ana Silva", "ana.silva@email.com", "99999-8888", LocalDate.of(1995, 5, 15), new HashSet<>(Set.of(roleCliente)), organizacaoPrincipal, passwordEncoder);
+        Funcionario funcionario1 = criarFuncionarioSeNaoExistir(funcionarioRepository, "funcionario1", "Julia Almeida", "julia@bellory.com", "Cabeleireira", "ROLE_ADMIN", organizacaoPrincipal, passwordEncoder, LocalDate.now().toString());
+        Funcionario funcionario2 = criarFuncionarioSeNaoExistir(funcionarioRepository, "funcionario2", "Carlos Mendes", "carlos@bellory.com", "Manicure", "ROLE_FUNCIONARIO", organizacaoPrincipal, passwordEncoder, LocalDate.now().toString());
+        Cliente cliente1 = criarClienteSeNaoExistir(clienteRepository, "cliente1", "Ana Silva", "ana.silva@email.com", "99999-8888", LocalDate.of(1995, 5, 15), "ROLE_CLIENTE", organizacaoPrincipal, passwordEncoder);
 
         // --- 5. Cria os Serviços de Teste ---
         Servico servicoCorte = criarServicoSeNaoExistir(servicoRepository, "Corte Feminino", "Cabelo", "Corte personalizado...", 60, new BigDecimal("129.90"), "Feminino","https://images.unsplash.com/photo-1647140655214-e4a2d914971f?q=80&w=1965&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D", organizacaoPrincipal);
@@ -155,25 +156,51 @@ public class DatabaseSeederService {
         });
     }
 
-    private Funcionario criarFuncionarioSeNaoExistir(FuncionarioRepository funcionarioRepository, String username, String nomeCompleto, String email, String cargo, Set<Role> roles, Organizacao org, PasswordEncoder encoder) {
+    private Funcionario criarFuncionarioSeNaoExistir(FuncionarioRepository funcionarioRepository, String username, String nomeCompleto, String email, String cargo, String role, Organizacao org, PasswordEncoder encoder, String dataContracao) {
         return funcionarioRepository.findByUsername(username)
                 .map(user -> (Funcionario) user)
                 .orElseGet(() -> {
                     Funcionario f = new Funcionario();
+                    // --- Dados Essenciais (já existentes) ---
                     f.setUsername(username);
                     f.setNomeCompleto(nomeCompleto);
                     f.setEmail(email);
                     f.setPassword(encoder.encode("password"));
                     f.setCargo(cargo);
-                    f.setRoles(roles);
+                    f.setRole(role);
                     f.setOrganizacao(org);
                     f.setAtivo(true);
+                    f.setDataContratacao(LocalDateTime.now());
+                    f.setDataCriacao(LocalDateTime.now());
+
+                    // --- Novos Campos Populados ---
+                    f.setFoto("https://exemplo.com/foto/" + username + ".jpg");
+                    f.setCpf("123.456.789-" + (username.endsWith("1") ? "10" : "20"));
+                    f.setTelefone("(11) 98765-4321");
+                    f.setDataNasc(LocalDate.of(1990, 1, 15));
+                    f.setSexo("Feminino");
+                    f.setNivel(username.contains("admin") ? 1 : 2); // Exemplo de lógica
+                    f.setApelido(nomeCompleto.split(" ")[0]);
+                    f.setSituacao("Ativo");
+                    f.setCep("12345-678");
+                    f.setLogradouro("Rua das Flores");
+                    f.setNumero("123");
+                    f.setBairro("Centro");
+                    f.setCidade("Cidade Exemplo");
+                    f.setUf("SP");
+                    f.setRg("12.345.678-9");
+                    f.setEstadoCivil("Solteiro(a)");
+                    f.setGrauInstrucao("Ensino Superior Completo");
+                    f.setSalario(new BigDecimal("3500.00"));
+                    f.setJornadaSemanal("44 horas");
+                    f.setNomeMae("Maria da Silva");
+
                     System.out.println("Criado Funcionario: " + nomeCompleto);
                     return funcionarioRepository.save(f);
                 });
     }
 
-    private Cliente criarClienteSeNaoExistir(ClienteRepository clienteRepository, String username, String nomeCompleto, String email, String telefone, LocalDate dtNasc, Set<Role> roles, Organizacao org, PasswordEncoder encoder) {
+    private Cliente criarClienteSeNaoExistir(ClienteRepository clienteRepository, String username, String nomeCompleto, String email, String telefone, LocalDate dtNasc, String role, Organizacao org, PasswordEncoder encoder) {
         return clienteRepository.findByUsername(username).orElseGet(() -> {
             Cliente c = new Cliente();
             c.setUsername(username);
@@ -182,13 +209,14 @@ public class DatabaseSeederService {
             c.setPassword(encoder.encode("password"));
             c.setTelefone(telefone);
             c.setDataNascimento(dtNasc);
-            c.setRoles(roles);
+            c.setRole(role); // Atribui a role como String
             c.setOrganizacao(org);
             c.setAtivo(true);
             System.out.println("Criado Cliente: " + nomeCompleto);
             return clienteRepository.save(c);
         });
     }
+
 
     private Servico criarServicoSeNaoExistir(ServicoRepository repo, String nome, String categoria, String descricao, int duracao, BigDecimal preco, String genero, String urlImage, Organizacao org) {
         return repo.findByNomeAndOrganizacao(nome, org).orElseGet(() -> {

@@ -1,9 +1,9 @@
 package org.exemplo.bellory.controller;
 
 import org.exemplo.bellory.model.dto.FuncionarioAgendamento;
+import org.exemplo.bellory.model.dto.FuncionarioDTO; // Importar o DTO
 import org.exemplo.bellory.model.entity.error.ResponseAPI;
 import org.exemplo.bellory.model.entity.funcionario.Funcionario;
-import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 import org.exemplo.bellory.service.FuncionarioService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,26 +21,27 @@ public class FuncionarioController {
         this.funcionarioService = funcionarioService;
     }
 
+    // O tipo de retorno agora é ResponseAPI<List<FuncionarioDTO>>
     @GetMapping
-    public ResponseEntity<ResponseAPI<List<Funcionario>>> getFuncionarioList() {
-        List<Funcionario> funcionarios = funcionarioService.getListAllFuncionarios();
+    public ResponseEntity<ResponseAPI<List<FuncionarioDTO>>> getFuncionarioList() {
+        List<FuncionarioDTO> funcionariosDTO = funcionarioService.getListAllFuncionarios();
 
-        if (funcionarios.isEmpty()) {
+        if (funcionariosDTO.isEmpty()) {
             return ResponseEntity
-                    .status(HttpStatus.NO_CONTENT) // Ou HttpStatus.NO_CONTENT, dependendo da sua regra
-                    .body(ResponseAPI.<List<Funcionario>>builder()
+                    .status(HttpStatus.NO_CONTENT)
+                    .body(ResponseAPI.<List<FuncionarioDTO>>builder()
                             .success(true)
-                            .message("Nenhum serviço encontrado.")
-                            .dados(funcionarios) // Ainda envia a lista vazia
+                            .message("Nenhum funcionário encontrado.")
+                            .dados(funcionariosDTO)
                             .build());
         }
 
         return ResponseEntity
                 .status(HttpStatus.OK)
-                .body(ResponseAPI.<List<Funcionario>>builder()
+                .body(ResponseAPI.<List<FuncionarioDTO>>builder()
                         .success(true)
-                        .message("Lista de serviços recuperada com sucesso.")
-                        .dados(funcionarios)
+                        .message("Lista de funcionários recuperada com sucesso.")
+                        .dados(funcionariosDTO)
                         .build());
     }
 
@@ -50,11 +51,11 @@ public class FuncionarioController {
 
         if (funcionarios.isEmpty()) {
             return ResponseEntity
-                    .status(HttpStatus.NO_CONTENT) // Ou HttpStatus.NO_CONTENT, dependendo da sua regra
+                    .status(HttpStatus.NO_CONTENT)
                     .body(ResponseAPI.<List<FuncionarioAgendamento>>builder()
                             .success(true)
-                            .message("Nenhum serviço encontrado.")
-                            .dados(funcionarios) // Ainda envia a lista vazia
+                            .message("Nenhum funcionário encontrado.")
+                            .dados(funcionarios)
                             .build());
         }
 
@@ -62,7 +63,7 @@ public class FuncionarioController {
                 .status(HttpStatus.OK)
                 .body(ResponseAPI.<List<FuncionarioAgendamento>>builder()
                         .success(true)
-                        .message("Lista de serviços recuperada com sucesso.")
+                        .message("Lista de funcionários para agendamento recuperada com sucesso.")
                         .dados(funcionarios)
                         .build());
     }
@@ -73,19 +74,19 @@ public class FuncionarioController {
 
         if (func.getId() == null) {
             return ResponseEntity
-                    .status(HttpStatus.NO_CONTENT) // Ou HttpStatus.NO_CONTENT, dependendo da sua regra
+                    .status(HttpStatus.BAD_REQUEST)
                     .body(ResponseAPI.<Funcionario>builder()
-                            .success(true)
-                            .message("Nenhum serviço encontrado.")
-                            .dados(func) // Ainda envia a lista vazia
+                            .success(false)
+                            .message("Erro ao criar funcionário.")
+                            .dados(null)
                             .build());
         }
 
         return ResponseEntity
-                .status(HttpStatus.OK)
+                .status(HttpStatus.CREATED)
                 .body(ResponseAPI.<Funcionario>builder()
                         .success(true)
-                        .message("Lista de serviços recuperada com sucesso.")
+                        .message("Funcionário criado com sucesso.")
                         .dados(func)
                         .build());
     }

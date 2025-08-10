@@ -1,9 +1,8 @@
 package org.exemplo.bellory.controller;
 
+import org.exemplo.bellory.model.dto.ClienteDTO; // Importar o DTO
 import org.exemplo.bellory.model.entity.error.ResponseAPI;
-import org.exemplo.bellory.model.entity.users.Cliente;
 import org.exemplo.bellory.service.ClienteService;
-import org.exemplo.bellory.service.FuncionarioService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -16,34 +15,32 @@ import java.util.List;
 @RequestMapping("/api/cliente")
 public class ClienteController {
 
-
     ClienteService clienteService;
 
     public ClienteController(ClienteService clienteService) {
         this.clienteService = clienteService;
-
     }
 
+    // O tipo de retorno agora é ResponseAPI<List<ClienteDTO>>
     @GetMapping
-    public ResponseEntity<ResponseAPI<List<Cliente>>> getClientes(){
+    public ResponseEntity<ResponseAPI<List<ClienteDTO>>> getClientes(){
 
-        List<Cliente> clientes = clienteService.getListAllCliente();
+        List<ClienteDTO> clientesDTO = clienteService.getListAllCliente();
 
-        if(clientes.isEmpty()){
+        if(clientesDTO.isEmpty()){
             return ResponseEntity.status(HttpStatus.NO_CONTENT)
-                    .body(ResponseAPI.<List<Cliente>>builder()
+                    .body(ResponseAPI.<List<ClienteDTO>>builder()
                             .success(true)
                             .message("Nenhum cliente encontrado")
-                            .dados(clientes)
+                            .dados(clientesDTO)
                             .build());
         }
 
         return ResponseEntity.status(HttpStatus.OK)
-                .body(ResponseAPI.<List<Cliente>>builder()
+                .body(ResponseAPI.<List<ClienteDTO>>builder()
                         .success(true)
                         .message("Lista de clientes recuperada com sucesso.")
-                        .dados(clientes)
+                        .dados(clientesDTO)
                         .build());
     }
-
 }

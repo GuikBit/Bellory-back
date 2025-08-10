@@ -4,11 +4,11 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.exemplo.bellory.model.entity.users.User;
-import org.exemplo.bellory.model.repository.users.UserRepository;
+import org.exemplo.bellory.service.CustomUserDetailsService; // Importar o service
 import org.exemplo.bellory.service.TokenService;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails; // Usar UserDetails
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -18,11 +18,12 @@ import java.io.IOException;
 public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final TokenService tokenService;
-    private final UserRepository userRepository;
+    private final CustomUserDetailsService userDetailsService; // Injetar o UserDetailsService
 
-    public JwtAuthFilter(TokenService tokenService, UserRepository userRepository) {
+    // Construtor atualizado
+    public JwtAuthFilter(TokenService tokenService, CustomUserDetailsService userDetailsService) {
         this.tokenService = tokenService;
-        this.userRepository = userRepository;
+        this.userDetailsService = userDetailsService;
     }
 
     @Override
@@ -33,11 +34,11 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         if (token != null) {
             String subject = tokenService.validateToken(token);
             if (subject != null && !subject.isEmpty()) {
-                // Busca a sua entidade User diretamente
-                User user = userRepository.findByUsername(subject).orElse(null);
+                // Usa o service para carregar o UserDetails
+                UserDetails user = userDetailsService.loadUserByUsername(subject);
                 if (user != null) {
-                    // O principal da autenticação agora é a sua própria entidade User
-                    var authentication = new UsernamePasswordAuthenticationToken(user, null, user.getRoles());
+                    // O principal da autenticação agora é o UserDetails
+                    var authentication = new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
                     SecurityContextHolder.getContext().setAuthentication(authentication);
                 }
             }

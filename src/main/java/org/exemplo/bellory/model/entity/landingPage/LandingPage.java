@@ -27,7 +27,7 @@ public class LandingPage {
     // --- CORREÇÃO APLICADA AQUI ---
     // A associação agora é com a entidade concreta 'Funcionario'
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "funcionario_id", nullable = false)
+    @JoinColumn(name = "user_id", nullable = false)
     private Funcionario user; // O tipo foi alterado de User para Funcionario
 
     @OneToMany(mappedBy = "landingPage", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
