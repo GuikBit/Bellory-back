@@ -3,6 +3,7 @@ package org.exemplo.bellory.controller;
 import org.exemplo.bellory.model.dto.FuncionarioAgendamento;
 import org.exemplo.bellory.model.dto.FuncionarioCreateDTO;
 import org.exemplo.bellory.model.dto.FuncionarioDTO; // Importar o DTO
+import org.exemplo.bellory.model.dto.FuncionarioUpdateDTO;
 import org.exemplo.bellory.model.entity.error.ResponseAPI;
 import org.exemplo.bellory.model.entity.funcionario.Funcionario;
 import org.exemplo.bellory.service.FuncionarioService;
@@ -99,8 +100,62 @@ public class FuncionarioController {
         }
     }
 
-//    @PatchMapping
-//    public ResponseEntity<ResponseAPI<Funcionario>> pachtFuncionario(@RequestBody FuncionarioDTO funcionario) {
-//
-//    }
+    @PutMapping("/{id}")
+    public ResponseEntity<ResponseAPI<Funcionario>> updateFuncionario(@PathVariable Long id, @RequestBody FuncionarioUpdateDTO funcionarioDTO) {
+        try {
+            Funcionario funcionarioAtualizado = funcionarioService.updateFuncionario(id, funcionarioDTO);
+            return ResponseEntity
+                    .status(HttpStatus.OK)
+                    .body(ResponseAPI.<Funcionario>builder()
+                            .success(true)
+                            .message("Funcionário atualizado com sucesso.")
+                            .dados(funcionarioAtualizado)
+                            .build());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity
+                    .status(HttpStatus.NOT_FOUND) // Ou BAD_REQUEST dependendo do erro
+                    .body(ResponseAPI.<Funcionario>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(404)
+                            .build());
+        } catch (Exception e) {
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseAPI.<Funcionario>builder()
+                            .success(false)
+                            .message("Ocorreu um erro interno ao atualizar o funcionário.")
+                            .errorCode(500)
+                            .build());
+        }
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<ResponseAPI<Void>> deleteFuncionario(@PathVariable Long id) {
+        try {
+            funcionarioService.deleteFuncionario(id);
+            return ResponseEntity
+                    .status(HttpStatus.OK)
+                    .body(ResponseAPI.<Void>builder()
+                            .success(true)
+                            .message("Funcionário desativado com sucesso.")
+                            .build());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity
+                    .status(HttpStatus.NOT_FOUND)
+                    .body(ResponseAPI.<Void>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(404)
+                            .build());
+        } catch (Exception e) {
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseAPI.<Void>builder()
+                            .success(false)
+                            .message("Ocorreu um erro interno ao desativar o funcionário.")
+                            .errorCode(500)
+                            .build());
+        }
+    }
 }

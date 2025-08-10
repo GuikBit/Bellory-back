@@ -79,6 +79,53 @@ public class FuncionarioService {
         return funcionarioRepository.save(novoFuncionario);
     }
 
+    @Transactional
+    public Funcionario updateFuncionario(Long id, FuncionarioUpdateDTO dto) {
+        // 1. Busca o funcionário existente no banco de dados
+        Funcionario funcionario = funcionarioRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Funcionário com ID " + id + " não encontrado."));
+
+        // 2. Atualiza apenas os campos que foram fornecidos no DTO
+        if (dto.getNomeCompleto() != null && !dto.getNomeCompleto().trim().isEmpty()) {
+            funcionario.setNomeCompleto(dto.getNomeCompleto());
+        }
+        if (dto.getEmail() != null && !dto.getEmail().trim().isEmpty()) {
+            funcionario.setEmail(dto.getEmail());
+        }
+        if (dto.getTelefone() != null) {
+            funcionario.setTelefone(dto.getTelefone());
+        }
+        if (dto.getDataNasc() != null) {
+            funcionario.setDataNasc(dto.getDataNasc());
+        }
+        if (dto.getCargo() != null && !dto.getCargo().trim().isEmpty()) {
+            funcionario.setCargo(dto.getCargo());
+        }
+        if (dto.getSalario() != null) {
+            funcionario.setSalario(dto.getSalario());
+        }
+
+
+        funcionario.setComissao(dto.isComissao());
+        funcionario.setDataUpdate(LocalDateTime.now());
+
+        // 3. Salva e retorna o funcionário atualizado
+        return funcionarioRepository.save(funcionario);
+    }
+
+    @Transactional
+    public void deleteFuncionario(Long id) {
+        // 1. Busca o funcionário no banco
+        Funcionario funcionario = funcionarioRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Funcionário com ID " + id + " não encontrado para exclusão."));
+
+        // 2. Realiza a deleção lógica (soft delete)
+        funcionario.setAtivo(false);
+
+        // 3. Salva a alteração
+        funcionarioRepository.save(funcionario);
+    }
+
     // O método agora retorna uma lista de DTOs
     public List<FuncionarioDTO> getListAllFuncionarios() {
         List<Funcionario> funcionarios = this.funcionarioRepository.findAll();
