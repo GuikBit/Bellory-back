@@ -2,15 +2,16 @@ package org.exemplo.bellory.model.entity.servico;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.exemplo.bellory.model.entity.enums.TipoCategoria;
 
 @Entity
-@Table(name = "categServico")
+@Table(name = "categoria")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class CategServico {
+public class Categoria {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -22,6 +23,10 @@ public class CategServico {
     @Column(nullable = false, length = 255)
     private String value;
 
+    @Column(nullable = false, length = 10)
+    private TipoCategoria tipo;
+
     @Column(nullable = false)
     private boolean ativo = true;
 }
+

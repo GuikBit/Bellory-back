@@ -41,7 +41,7 @@ public class Servico {
 
     @OneToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "categService_id", nullable = false)
-    private CategServico categServico;
+    private Categoria categServico;
 
     @Column(nullable = false)
     private String genero;
