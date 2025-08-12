@@ -2,14 +2,17 @@ package org.exemplo.bellory.service;
 
 import org.exemplo.bellory.model.entity.agendamento.Agendamento;
 import org.exemplo.bellory.model.entity.agendamento.Status;
+import org.exemplo.bellory.model.entity.enums.TipoCategoria;
 import org.exemplo.bellory.model.entity.funcionario.*;
 import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 import org.exemplo.bellory.model.entity.plano.Plano;
 import org.exemplo.bellory.model.entity.produto.Produto;
+import org.exemplo.bellory.model.entity.servico.Categoria;
 import org.exemplo.bellory.model.entity.servico.Servico;
 import org.exemplo.bellory.model.entity.users.Cliente;
 import org.exemplo.bellory.model.entity.users.Role;
 import org.exemplo.bellory.model.repository.agendamento.AgendamentoRepository;
+import org.exemplo.bellory.model.repository.categoria.CategoriaRepository;
 import org.exemplo.bellory.model.repository.funcionario.FuncionarioRepository;
 import org.exemplo.bellory.model.repository.organizacao.OrganizacaoRepository;
 import org.exemplo.bellory.model.repository.organizacao.PlanoRepository;
@@ -40,13 +43,14 @@ public class DatabaseSeederService {
     private final PlanoRepository planoRepository;
     private final ProdutoRepository produtoRepository;
     private final PasswordEncoder passwordEncoder;
+    private final CategoriaRepository categoriaRepository; // ADICIONADO
 
     // Injeção de dependência via construtor (boa prática)
     public DatabaseSeederService(OrganizacaoRepository organizacaoRepository, RoleRepository roleRepository,
                                  FuncionarioRepository funcionarioRepository, ClienteRepository clienteRepository,
                                  ServicoRepository servicoRepository, AgendamentoRepository agendamentoRepository,
                                  PlanoRepository planoRepository, ProdutoRepository produtoRepository,
-                                 PasswordEncoder passwordEncoder) {
+                                 PasswordEncoder passwordEncoder, CategoriaRepository categoriaRepository) { // ADICIONADO
         this.organizacaoRepository = organizacaoRepository;
         this.roleRepository = roleRepository;
         this.funcionarioRepository = funcionarioRepository;
@@ -56,6 +60,7 @@ public class DatabaseSeederService {
         this.planoRepository = planoRepository;
         this.produtoRepository = produtoRepository;
         this.passwordEncoder = passwordEncoder;
+        this.categoriaRepository = categoriaRepository; // ADICIONADO
     }
 
     @Transactional // A anotação garante que tudo aqui dentro execute em uma única transação
@@ -93,16 +98,22 @@ public class DatabaseSeederService {
         Role roleFuncionario = criarRoleSeNaoExistir(roleRepository, "ROLE_FUNCIONARIO");
         Role roleCliente = criarRoleSeNaoExistir(roleRepository, "ROLE_CLIENTE");
 
-        // --- 4. Cria os Usuários de Teste ---
+        // --- 4. Cria as Categorias de Serviço ---
+        Categoria categoriaCabelo = criarCategoriaSeNaoExistir("Cabelo", "cabelo", TipoCategoria.SERVICO);
+        Categoria categoriaMaos = criarCategoriaSeNaoExistir("Mãos e Pés", "maos_pes", TipoCategoria.SERVICO);
+        Categoria categoriaEstetica = criarCategoriaSeNaoExistir("Estética Facial", "estetica_facial", TipoCategoria.SERVICO);
+
+
+        // --- 5. Cria os Usuários de Teste ---
         Funcionario funcionario1 = criarFuncionarioSeNaoExistir(funcionarioRepository, "funcionario1", "Julia Almeida", "julia@bellory.com", "Cabeleireira", "ROLE_ADMIN", organizacaoPrincipal, passwordEncoder, LocalDate.now().toString());
         Funcionario funcionario2 = criarFuncionarioSeNaoExistir(funcionarioRepository, "funcionario2", "Carlos Mendes", "carlos@bellory.com", "Barbeiro", "ROLE_FUNCIONARIO", organizacaoPrincipal, passwordEncoder, LocalDate.now().toString());
         Cliente cliente1 = criarClienteSeNaoExistir(clienteRepository, "cliente1", "Ana Silva", "ana.silva@email.com", "99999-8888", LocalDate.of(1995, 5, 15), "ROLE_CLIENTE", organizacaoPrincipal, passwordEncoder);
 
-        // --- 5. Cria os Serviços de Teste ---
-        Servico servicoCorte = criarServicoSeNaoExistir(servicoRepository, "Corte Feminino", "Cabelo", "Corte personalizado...", 60, new BigDecimal("129.90"), "Feminino","https://images.unsplash.com/photo-1647140655214-e4a2d914971f?q=80&w=1965&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D", organizacaoPrincipal);
-        Servico servicoManicure = criarServicoSeNaoExistir(servicoRepository, "Manicure Completa", "Mãos", "Cutilagem, esmaltação...", 45, new BigDecimal("45.00"),"Feminino","https://s1-unimed-dev.us-southeast-1.linodeobjects.com/images/products/seller_143/Modelagem-e-design-de-sobrancelha-masculina_cfac09e2_7d31_40ce_97ab_629fd41641a0.webp", organizacaoPrincipal);
+        // --- 6. Cria os Serviços de Teste ---
+        Servico servicoCorte = criarServicoSeNaoExistir(servicoRepository, "Corte Feminino", categoriaCabelo, "Corte personalizado...", 60, new BigDecimal("129.90"), "Feminino","https://images.unsplash.com/photo-1647140655214-e4a2d914971f?q=80&w=1965&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D", organizacaoPrincipal);
+        Servico servicoManicure = criarServicoSeNaoExistir(servicoRepository, "Manicure Completa", categoriaMaos, "Cutilagem, esmaltação...", 45, new BigDecimal("45.00"),"Feminino","https://s1-unimed-dev.us-southeast-1.linodeobjects.com/images/products/seller_143/Modelagem-e-design-de-sobrancelha-masculina_cfac09e2_7d31_40ce_97ab_629fd41641a0.webp", organizacaoPrincipal);
 
-        // --- 6. Define Jornada de Trabalho e Bloqueios ---
+        // --- 7. Define Jornada de Trabalho e Bloqueios ---
         if (funcionario1.getJornadaDeTrabalho().isEmpty()) {
             criarJornadaParaFuncionario(funcionario1);
             criarBloqueiosAlmocoParaFuncionario(funcionario1);
@@ -116,7 +127,7 @@ public class DatabaseSeederService {
             System.out.println("Jornada e bloqueios de almoço para " + funcionario2.getNomeCompleto() + " criados.");
         }
 
-        // --- 7. Cria um Agendamento de Teste ---
+        // --- 8. Cria um Agendamento de Teste ---
         LocalDateTime dataHoraAgendamento = LocalDateTime.now().plusDays(2).withHour(10).withMinute(0).withSecond(0).withNano(0);
         if (agendamentoRepository.findByFuncionariosContainingAndDtAgendamento(funcionario1, dataHoraAgendamento).isEmpty()) {
             System.out.println("Criando agendamento de teste...");
@@ -138,7 +149,7 @@ public class DatabaseSeederService {
             System.out.println("Agendamento de teste e bloqueio correspondente criados com sucesso.");
         }
 
-        // --- 8. Cria Produtos de Teste ---
+        // --- 9. Cria Produtos de Teste ---
         System.out.println("Criando produtos de teste...");
         criarProdutoSeNaoExistir(produtoRepository, organizacaoPrincipal, "Máscara Neon Glow", "Máscara com efeito neon que revitaliza e ilumina os cabelos instantaneamente.", new BigDecimal("75.90"), 100, "Tratamentos", "Feminino", "Neon Beauty", new BigDecimal("4.9"), 16, true, List.of("https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?q=80&w=400"), List.of("Proteínas Fluorescentes", "Ácidos Frutais", "Vitamina B12", "Colágeno Vegetal"));
         criarProdutoSeNaoExistir(produtoRepository, organizacaoPrincipal, "Esmalte Holográfico", "Esmalte com efeito holográfico que muda de cor conforme a luz.", new BigDecimal("35.50"), 100, "Unhas", "Feminino", "Holo Nails", new BigDecimal("4.8"), 0, false, List.of("https://images.unsplash.com/photo-1604654894610-df63bc536371?q=80&w=400"), List.of("Pigmentos Holográficos", "Base Magnética", "Top Coat 3D"));
@@ -149,6 +160,21 @@ public class DatabaseSeederService {
     }
 
     // --- MÉTODOS AUXILIARES ---
+    private Categoria criarCategoriaSeNaoExistir(String label, String value, TipoCategoria tipo) {
+        return categoriaRepository.findByTipo(tipo).stream()
+                .filter(c -> c.getLabel().equalsIgnoreCase(label))
+                .findFirst()
+                .orElseGet(() -> {
+                    System.out.println("Criando Categoria: " + label);
+                    Categoria novaCategoria = new Categoria();
+                    novaCategoria.setLabel(label);
+                    novaCategoria.setValue(value);
+                    novaCategoria.setTipo(tipo);
+                    novaCategoria.setAtivo(true);
+                    return categoriaRepository.save(novaCategoria);
+                });
+    }
+
     private Role criarRoleSeNaoExistir(RoleRepository roleRepository, String nome) {
         return roleRepository.findByNome(nome).orElseGet(() -> {
             System.out.println("Criando Role: " + nome);
@@ -218,7 +244,7 @@ public class DatabaseSeederService {
     }
 
 
-    private Servico criarServicoSeNaoExistir(ServicoRepository repo, String nome, String categoria, String descricao, int duracao, BigDecimal preco, String genero, String urlImage, Organizacao org) {
+    private Servico criarServicoSeNaoExistir(ServicoRepository repo, String nome, Categoria categoria, String descricao, int duracao, BigDecimal preco, String genero, String urlImage, Organizacao org) {
         return repo.findByNomeAndOrganizacao(nome, org).orElseGet(() -> {
             Servico s = new Servico();
             s.setNome(nome);

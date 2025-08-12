@@ -11,7 +11,7 @@ import java.util.List;
 public class ServicoCreateDTO {
     private Long organizacaoId;
     private String nome;
-    private String categoria;
+    private Long categoriaId;
     private String genero;
     private String descricao;
     private Integer tempoEstimadoMinutos;

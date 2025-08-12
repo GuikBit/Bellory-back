@@ -3,8 +3,11 @@ package org.exemplo.bellory.controller;
 import org.exemplo.bellory.model.dto.ServicoAgendamento;
 import org.exemplo.bellory.model.dto.ServicoCreateDTO;
 import org.exemplo.bellory.model.dto.ServicoDTO;
+import org.exemplo.bellory.model.entity.enums.TipoCategoria;
 import org.exemplo.bellory.model.entity.error.ResponseAPI;
+import org.exemplo.bellory.model.entity.servico.Categoria;
 import org.exemplo.bellory.model.entity.servico.Servico;
+import org.exemplo.bellory.service.CategoriaService;
 import org.exemplo.bellory.service.ServicoService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -18,10 +21,13 @@ import java.util.stream.Collectors;
 public class ServicoController {
 
     private final ServicoService servicoService;
+    private final CategoriaService categoriaService;
 
-    public ServicoController(ServicoService servicoService) {
+    public ServicoController(ServicoService servicoService, CategoriaService categoriaService) {
         this.servicoService = servicoService;
+        this.categoriaService = categoriaService;
     }
+
 
     @GetMapping
     public ResponseEntity<ResponseAPI<List<ServicoDTO>>> getServicoList() {
@@ -110,6 +116,76 @@ public class ServicoController {
             return ResponseEntity.ok(ResponseAPI.<Void>builder()
                     .success(true)
                     .message("Serviço desativado com sucesso.")
+                    .build());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ResponseAPI.<Void>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(404)
+                            .build());
+        }
+    }
+
+    @GetMapping("/categorias")
+    public ResponseEntity<ResponseAPI<List<Categoria>>> getServiceCategorias() {
+        List<Categoria> categorias = categoriaService.findByTipo(TipoCategoria.SERVICO);
+        return ResponseEntity.ok(ResponseAPI.<List<Categoria>>builder()
+                .success(true)
+                .message("Lista de categorias de serviço recuperada com sucesso.")
+                .dados(categorias)
+                .build());
+    }
+
+    @PostMapping("/categoria")
+    public ResponseEntity<ResponseAPI<Categoria>> createServiceCategoria(@RequestBody Categoria categoria) {
+        try {
+            categoria.setTipo(TipoCategoria.SERVICO);
+            Categoria novaCategoria = categoriaService.createCategoria(categoria);
+            return ResponseEntity
+                    .status(HttpStatus.CREATED)
+                    .body(ResponseAPI.<Categoria>builder()
+                            .success(true)
+                            .message("Categoria de serviço criada com sucesso!")
+                            .dados(novaCategoria)
+                            .build());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ResponseAPI.<Categoria>builder()
+                            .success(false)
+                            .message("Erro ao criar categoria: " + e.getMessage())
+                            .errorCode(400)
+                            .build());
+        }
+    }
+
+    @PutMapping("/categoria/{id}")
+    public ResponseEntity<ResponseAPI<Categoria>> updateServiceCategoria(@PathVariable Long id, @RequestBody Categoria categoria) {
+        try {
+            categoria.setTipo(TipoCategoria.SERVICO);
+            Categoria categoriaAtualizada = categoriaService.updateCategoria(id, categoria);
+            return ResponseEntity.ok(ResponseAPI.<Categoria>builder()
+                    .success(true)
+                    .message("Categoria de serviço atualizada com sucesso!")
+                    .dados(categoriaAtualizada)
+                    .build());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ResponseAPI.<Categoria>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(404)
+                            .build());
+        }
+    }
+
+    @DeleteMapping("/categoria/{id}")
+    public ResponseEntity<ResponseAPI<Void>> deleteServiceCategoria(@PathVariable Long id) {
+        try {
+            categoriaService.deleteCategoria(id);
+            return ResponseEntity.ok(ResponseAPI.<Void>builder()
+                    .success(true)
+                    .message("Categoria de serviço desativada com sucesso.")
                     .build());
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)

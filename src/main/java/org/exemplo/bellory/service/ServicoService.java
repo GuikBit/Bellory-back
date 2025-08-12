@@ -3,7 +3,9 @@ package org.exemplo.bellory.service;
 import org.exemplo.bellory.model.dto.ServicoAgendamento;
 import org.exemplo.bellory.model.dto.ServicoCreateDTO;
 import org.exemplo.bellory.model.entity.organizacao.Organizacao;
+import org.exemplo.bellory.model.entity.servico.Categoria;
 import org.exemplo.bellory.model.entity.servico.Servico;
+import org.exemplo.bellory.model.repository.categoria.CategoriaRepository;
 import org.exemplo.bellory.model.repository.organizacao.OrganizacaoRepository;
 import org.exemplo.bellory.model.repository.servico.ServicoRepository;
 import org.springframework.stereotype.Service;
@@ -19,10 +21,12 @@ public class ServicoService {
 
     private final ServicoRepository servicoRepository;
     private final OrganizacaoRepository organizacaoRepository;
+    private final CategoriaRepository categoriaRepository; // Adicionado
 
-    public ServicoService(ServicoRepository servicoRepository, OrganizacaoRepository organizacaoRepository) {
+    public ServicoService(ServicoRepository servicoRepository, OrganizacaoRepository organizacaoRepository, CategoriaRepository categoriaRepository) {
         this.servicoRepository = servicoRepository;
         this.organizacaoRepository = organizacaoRepository;
+        this.categoriaRepository = categoriaRepository; // Adicionado
     }
 
     public List<Servico> getListAllServicos() {
@@ -53,6 +57,9 @@ public class ServicoService {
         if (dto.getTempoEstimadoMinutos() == null || dto.getTempoEstimadoMinutos() <= 0) {
             throw new IllegalArgumentException("A duração estimada do serviço é obrigatória.");
         }
+        if (dto.getCategoriaId() == null) {
+            throw new IllegalArgumentException("O ID da categoria é obrigatório.");
+        }
 
         // Validação de unicidade do nome do serviço
         if (servicoRepository.existsByNome(dto.getNome())) {
@@ -62,10 +69,13 @@ public class ServicoService {
         Organizacao org = organizacaoRepository.findById(dto.getOrganizacaoId())
                 .orElseThrow(() -> new IllegalArgumentException("Organização com ID " + dto.getOrganizacaoId() + " não encontrada."));
 
+        Categoria categoria = categoriaRepository.findById(dto.getCategoriaId())
+                .orElseThrow(() -> new IllegalArgumentException("Categoria com ID " + dto.getCategoriaId() + " não encontrada."));
+
         Servico novoServico = new Servico();
         novoServico.setOrganizacao(org);
         novoServico.setNome(dto.getNome());
-        novoServico.setCategoria(dto.getCategoria());
+        novoServico.setCategoria(categoria);
         novoServico.setGenero(dto.getGenero());
         novoServico.setDescricao(dto.getDescricao());
         novoServico.setTempoEstimadoMinutos(dto.getTempoEstimadoMinutos());
@@ -84,8 +94,10 @@ public class ServicoService {
         if (dto.getNome() != null && !dto.getNome().trim().isEmpty()) {
             servicoExistente.setNome(dto.getNome());
         }
-        if (dto.getCategoria() != null) {
-            servicoExistente.setCategoria(dto.getCategoria());
+        if (dto.getCategoriaId() != null) {
+            Categoria categoria = categoriaRepository.findById(dto.getCategoriaId())
+                    .orElseThrow(() -> new IllegalArgumentException("Categoria com ID " + dto.getCategoriaId() + " não encontrada."));
+            servicoExistente.setCategoria(categoria);
         }
         if (dto.getGenero() != null) {
             servicoExistente.setGenero(dto.getGenero());
@@ -102,8 +114,8 @@ public class ServicoService {
         if (dto.getUrlsImagens() != null) {
             servicoExistente.setUrlsImagens(dto.getUrlsImagens());
         }
-        servicoExistente.setDtAtualizacao(LocalDateTime.now());
 
+        servicoExistente.setDtAtualizacao(LocalDateTime.now());
         return servicoRepository.save(servicoExistente);
     }
 

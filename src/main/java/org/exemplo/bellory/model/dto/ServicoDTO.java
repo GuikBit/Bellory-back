@@ -30,7 +30,7 @@ public class ServicoDTO {
         this.id = servico.getId();
         this.organizacaoId = servico.getOrganizacao().getId();
         this.nome = servico.getNome();
-        this.categoria = servico.getCategoria();
+        this.categoria = servico.getCategoria().getLabel();
         this.genero = servico.getGenero();
         this.descricao = servico.getDescricao();
         this.tempoEstimadoMinutos = servico.getTempoEstimadoMinutos();

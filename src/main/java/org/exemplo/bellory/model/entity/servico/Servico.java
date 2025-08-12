@@ -39,9 +39,9 @@ public class Servico {
     @Column(nullable = false, length = 255)
     private String nome;
 
-    @OneToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "categService_id", nullable = false)
-    private Categoria categServico;
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "categoria_id", nullable = false)
+    private Categoria categoria;
 
     @Column(nullable = false)
     private String genero;
