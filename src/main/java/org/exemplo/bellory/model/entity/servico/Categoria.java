@@ -23,7 +23,8 @@ public class Categoria {
     @Column(nullable = false, length = 255)
     private String value;
 
-    @Column(nullable = false, length = 10)
+    @Enumerated(EnumType.STRING) // Armazena o nome do enum no banco
+    @Column(nullable = false, length = 50)
     private TipoCategoria tipo;
 
     @Column(nullable = false)
