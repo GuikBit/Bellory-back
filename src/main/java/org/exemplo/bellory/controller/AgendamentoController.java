@@ -29,10 +29,4 @@ public class AgendamentoController {
         return ResponseEntity.ok(horarios);
     }
 
-    // ... (Seu endpoint existente para criar agendamento)
-    // @PostMapping
-    // public ResponseEntity<Agendamento> criarAgendamento(@RequestBody Agendamento agendamento) {
-    //    Agendamento novo = agendamentoService.criarAgendamento(agendamento);
-    //    return ResponseEntity.status(HttpStatus.CREATED).body(novo);
-    // }
 }
