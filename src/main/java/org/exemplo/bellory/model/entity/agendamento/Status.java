@@ -5,7 +5,9 @@ public enum Status {
     AGENDADO("Agendado"),
     EM_ESPERA("Em Espera"),
     CONCLUIDO("Concluído"),
-    CANCELADO("Cancelado");
+    CANCELADO("Cancelado"),
+    PAGO("Pago"),
+    VENCIDA("Vencida");
 
     private final String descricao;
 

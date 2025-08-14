@@ -1,5 +1,6 @@
 package org.exemplo.bellory.model.entity.cobranca;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -7,6 +8,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.exemplo.bellory.model.entity.agendamento.Agendamento;
+import org.exemplo.bellory.model.entity.agendamento.Status;
 import org.exemplo.bellory.model.entity.compra.Compra;
 import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 import org.exemplo.bellory.model.entity.pagamento.Pagamento;
@@ -39,6 +41,7 @@ public class Cobranca {
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "agendamento_id", referencedColumnName = "id")
+    @JsonIgnore
     private Agendamento agendamento;
 
     @OneToOne(fetch = FetchType.LAZY)
@@ -49,7 +52,7 @@ public class Cobranca {
     private BigDecimal valor;
 
     @Column(name = "status_cobranca", nullable = false, length = 50)
-    private String statusCobranca; // "Pendente", "Paga", "Vencida", "Cancelada"
+    private Status statusCobranca; // "Pendente", "Paga", "Vencida", "Cancelada"
 
     @Column(name = "dt_vencimento")
     private LocalDate dtVencimento;

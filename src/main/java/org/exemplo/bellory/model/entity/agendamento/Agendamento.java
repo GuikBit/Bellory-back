@@ -54,7 +54,6 @@ public class Agendamento {
     private List<Funcionario> funcionarios;
 
     @OneToOne(mappedBy = "agendamento")
-    @JsonIgnore // Evita recursão com Cobranca
     private Cobranca cobranca;
 
 

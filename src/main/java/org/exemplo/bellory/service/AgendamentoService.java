@@ -181,7 +181,7 @@ public class AgendamentoService {
         cobranca.setCliente(cliente);
         cobranca.setAgendamento(agendamentoSalvo);
         cobranca.setValor(valorTotal);
-        cobranca.setStatusCobranca("Pendente");
+        cobranca.setStatusCobranca(Status.PENDENTE);
         cobranca.setDtVencimento(dto.getDtAgendamento().toLocalDate());
         cobranca.setDtCriacao(LocalDateTime.now());
 
@@ -303,7 +303,7 @@ public class AgendamentoService {
 
         // Cancelar cobrança associada
         if (agendamento.getCobranca() != null) {
-            agendamento.getCobranca().setStatusCobranca("Cancelada");
+            agendamento.getCobranca().setStatusCobranca(Status.CANCELADO);
             agendamento.getCobranca().setDtAtualizacao(LocalDateTime.now());
             cobrancaRepository.save(agendamento.getCobranca());
         }
@@ -386,7 +386,7 @@ public class AgendamentoService {
                 agendamento.marcarComoConcluido();
                 // Marcar cobrança como paga se existir
                 if (agendamento.getCobranca() != null) {
-                    agendamento.getCobranca().setStatusCobranca("Paga");
+                    agendamento.getCobranca().setStatusCobranca(Status.PAGO);
                     agendamento.getCobranca().setDtAtualizacao(LocalDateTime.now());
                     cobrancaRepository.save(agendamento.getCobranca());
                 }
@@ -395,7 +395,7 @@ public class AgendamentoService {
                 agendamento.cancelarAgendamento();
                 // Cancelar cobrança
                 if (agendamento.getCobranca() != null) {
-                    agendamento.getCobranca().setStatusCobranca("Cancelada");
+                    agendamento.getCobranca().setStatusCobranca(Status.CANCELADO);
                     agendamento.getCobranca().setDtAtualizacao(LocalDateTime.now());
                     cobrancaRepository.save(agendamento.getCobranca());
                 }
@@ -446,7 +446,7 @@ public class AgendamentoService {
             // Encontre a jornada de trabalho para o dia específico
             JornadaTrabalho jornada = jornadaTrabalhoRepository.findByFuncionarioAndDiaSemana(
                     funcionario,
-                    DiaSemana.valueOf(diaSemanaAgendamento.name())
+                    DiaSemana.fromDayOfWeek(diaSemanaAgendamento) // <- Use o método de conversão
             ).orElseThrow(() ->
                     new RuntimeException("Funcionário não tem jornada de trabalho definida para este dia.")
             );
@@ -510,8 +510,9 @@ public class AgendamentoService {
 
         // 1. Verificar a Jornada de Trabalho
         JornadaTrabalho jornada = jornadaTrabalhoRepository.findByFuncionarioAndDiaSemana(
-                        funcionario, DiaSemana.valueOf(diaSemanaAgendamento.name()))
-                .orElseThrow(() -> new RuntimeException("Funcionário não tem jornada de trabalho definida para este dia."));
+                funcionario,
+                DiaSemana.fromDayOfWeek(diaSemanaAgendamento) // <- Use o método de conversão aqui também
+        ).orElseThrow(() -> new RuntimeException("Funcionário não tem jornada de trabalho definida para este dia."));
 
         if (horaInicioAgendamento.isBefore(jornada.getHoraInicio()) ||
                 horaFimAgendamento.isAfter(jornada.getHoraFim())) {

@@ -23,15 +23,15 @@ public enum DiaSemana {
 
     // --- NOVO MÉTODO DE CONVERSÃO ---
     public static DiaSemana fromDayOfWeek(DayOfWeek dayOfWeek) {
-        return switch (dayOfWeek) {
-            case MONDAY -> SEGUNDA;
-            case TUESDAY -> TERCA;
-            case WEDNESDAY -> QUARTA;
-            case THURSDAY -> QUINTA;
-            case FRIDAY -> SEXTA;
-            case SATURDAY -> SABADO;
-            case SUNDAY -> DOMINGO;
-            default -> throw new IllegalArgumentException("Dia da semana inválido: " + dayOfWeek);
-        };
+        switch (dayOfWeek) {
+            case MONDAY: return SEGUNDA;
+            case TUESDAY: return TERCA;
+            case WEDNESDAY: return QUARTA;
+            case THURSDAY: return QUINTA;
+            case FRIDAY: return SEXTA;
+            case SATURDAY: return SABADO;
+            case SUNDAY: return DOMINGO;
+            default: throw new IllegalArgumentException("Dia da semana inválido: " + dayOfWeek);
+        }
     }
 }

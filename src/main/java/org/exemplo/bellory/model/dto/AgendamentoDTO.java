@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.exemplo.bellory.model.entity.agendamento.Agendamento;
 import org.exemplo.bellory.model.entity.agendamento.Status;
+import org.exemplo.bellory.model.entity.cobranca.Cobranca;
 import org.exemplo.bellory.model.entity.funcionario.Funcionario;
 import org.exemplo.bellory.model.entity.servico.Servico;
 
@@ -25,6 +26,7 @@ public class AgendamentoDTO {
     private List<ServicoResumoDTO> servicos;
     private List<FuncionarioResumoDTO> funcionarios;
     private LocalDateTime dtAgendamento;
+    private CobrancaDTO cobranca;
     private String observacao;
     private Status status;
     private BigDecimal valorTotal;
@@ -43,6 +45,8 @@ public class AgendamentoDTO {
                 agendamento.getCliente().getEmail(),
                 agendamento.getCliente().getTelefone()
         );
+
+        this.cobranca = new CobrancaDTO(agendamento.getCobranca());
 
         // Serviços resumo
         this.servicos = agendamento.getServicos().stream()
