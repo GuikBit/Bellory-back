@@ -52,7 +52,11 @@ public class SecurityConfig {
                                  "/api/funcionario/**",
                                 "/api/agendamento/**",
                                 "/api/produto/**",
-                                "/api/cliente/**"
+                                "/api/cliente/**",
+                                // Adicione estas linhas para o Swagger
+                                "/v3/api-docs/**",
+                                "/swagger-ui/**",
+                                "/swagger-ui.html"
                                 // "/api/funcionario/agendamento"
                         ).permitAll()
                         // Adicione regras específicas para /api/funcionario/agendamento se necessário
