@@ -3,6 +3,7 @@ package org.exemplo.bellory.model.repository.funcionario;
 import org.exemplo.bellory.model.dto.FuncionarioAgendamento;
 import org.exemplo.bellory.model.entity.funcionario.Funcionario;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -14,4 +15,10 @@ public interface FuncionarioRepository extends JpaRepository<Funcionario, Long> 
     Optional<Funcionario> findByUsername(String username);
 
     List<FuncionarioAgendamento> findAllProjectedBy();
+
+    @Query("SELECT f FROM Funcionario f WHERE f.situacao = 'Ativo'")
+    List<Funcionario> findByAtivo(boolean ativo);
+
+    @Query("SELECT COUNT(f) FROM Funcionario f WHERE f.situacao = 'Ativo'")
+    Long countByAtivo(boolean ativo);
 }

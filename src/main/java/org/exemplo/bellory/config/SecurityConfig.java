@@ -53,10 +53,15 @@ public class SecurityConfig {
                                 "/api/agendamento/**",
                                 "/api/produto/**",
                                 "/api/cliente/**",
+                                "/api/dashboard/**",
                                 // Adicione estas linhas para o Swagger
+                                // Swagger/OpenAPI endpoints - COMPLETE
                                 "/v3/api-docs/**",
+                                "/v3/api-docs.yaml",
                                 "/swagger-ui/**",
-                                "/swagger-ui.html"
+                                "/swagger-ui.html",
+                                "/swagger-resources/**",
+                                "/webjars/**"
                                 // "/api/funcionario/agendamento"
                         ).permitAll()
                         // Adicione regras específicas para /api/funcionario/agendamento se necessário
