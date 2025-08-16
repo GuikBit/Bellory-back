@@ -23,7 +23,7 @@ services:
     depends_on:
       - db      # Diz ao Docker para esperar o serviço 'db' estar pronto antes de iniciar o 'app'
     ports:
-      - "8080:8080" # Mapeia a porta 8080 do container para a 8080 da sua máquina
+      - "80:8080" # Mapeia a porta 8080 do container para a 8080 da sua máquina
     environment:
       # Configurações para a API se conectar ao serviço 'db'
       - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/postgres
