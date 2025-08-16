@@ -1,6 +1,10 @@
 package org.exemplo.bellory.model.repository.users;
 
 import org.exemplo.bellory.model.entity.users.Cliente;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -14,6 +18,9 @@ import java.util.Optional;
 public interface ClienteRepository extends JpaRepository<Cliente, Long> {
 
     Optional<Cliente> findByUsername(String username);
+
+    Optional<Cliente> findByEmail(String email);
+
     Long countByAtivo(boolean ativo);
 
     @Query("SELECT COUNT(c) FROM Cliente c WHERE c.dtCriacao BETWEEN :inicio AND :fim")
@@ -32,5 +39,22 @@ public interface ClienteRepository extends JpaRepository<Cliente, Long> {
     Long countAniversariantesHoje();
 
     @Query("SELECT COUNT(c) FROM Cliente c WHERE c.dataNascimento BETWEEN :inicioSemana AND :fimSemana")
-    Long countAniversariantesEstaSemana();
+    Long countAniversariantesEstaSemana(@Param("inicioSemana") LocalDateTime inicioSemana, @Param("fimSemana") LocalDateTime fimSemana);
+
+    // Método para buscar clientes por termo (alternativa ao Specification)
+    @Query("SELECT c FROM Cliente c WHERE " +
+            "LOWER(c.nomeCompleto) LIKE LOWER(CONCAT('%', :termo, '%')) OR " +
+            "LOWER(c.email) LIKE LOWER(CONCAT('%', :termo, '%')) OR " +
+            "c.telefone LIKE CONCAT('%', :termo, '%')")
+    List<Cliente> findByTermoBusca(@Param("termo") String termo);
+
+    // Buscar clientes aniversariantes por mês
+    @Query("SELECT c FROM Cliente c WHERE MONTH(c.dataNascimento) = :mes AND c.ativo = true")
+    List<Cliente> findAniversariantesByMes(@Param("mes") int mes);
+
+    // Buscar clientes aniversariantes por mês e ano
+    @Query("SELECT c FROM Cliente c WHERE MONTH(c.dataNascimento) = :mes AND YEAR(c.dataNascimento) = :ano AND c.ativo = true")
+    List<Cliente> findAniversariantesByMesAndAno(@Param("mes") int mes, @Param("ano") int ano);
+
+    List<Cliente> findAll(Specification<Cliente> spec, Sort sort);
 }

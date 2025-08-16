@@ -1,9 +1,6 @@
 package org.exemplo.bellory.model.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -12,6 +9,7 @@ import java.util.List;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
+@Builder
 public class AgendamentoFiltroDTO {
     private Long clienteId;
     private List<Long> funcionarioIds;
@@ -22,4 +20,5 @@ public class AgendamentoFiltroDTO {
     private String nomeCliente;
     private String nomeFuncionario;
     private String nomeServico;
+
 }

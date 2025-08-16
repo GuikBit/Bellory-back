@@ -1,13 +1,8 @@
 package org.exemplo.bellory.model.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 import org.exemplo.bellory.model.entity.agendamento.Agendamento;
 import org.exemplo.bellory.model.entity.agendamento.Status;
-import org.exemplo.bellory.model.entity.cobranca.Cobranca;
-import org.exemplo.bellory.model.entity.funcionario.Funcionario;
 import org.exemplo.bellory.model.entity.servico.Servico;
 
 import java.math.BigDecimal;
@@ -19,6 +14,7 @@ import java.util.stream.Collectors;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
+@Builder
 public class AgendamentoDTO {
     private Long id;
     private Long organizacaoId;
