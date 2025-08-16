@@ -43,6 +43,11 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 }
             }
         }
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            response.setStatus(HttpServletResponse.SC_OK);
+            return;
+        }
+
 
         filterChain.doFilter(request, response);
     }

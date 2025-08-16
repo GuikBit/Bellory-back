@@ -45,31 +45,26 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() // <- ADICIONE ISSO
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(
                                 "/api/auth/**",
                                 "/api/test/**",
                                 "/api/servico/**",
                                 "/api/pages/**",
-                                 "/api/funcionario/**",
+                                "/api/funcionario/**",
                                 "/api/agendamento/**",
                                 "/api/produto/**",
                                 "/api/cliente/**",
                                 "/api/dashboard/**",
-                                // Adicione estas linhas para o Swagger
-                                // Swagger/OpenAPI endpoints - COMPLETE
                                 "/v3/api-docs/**",
                                 "/v3/api-docs.yaml",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
                                 "/swagger-resources/**",
                                 "/webjars/**"
-                                // "/api/funcionario/agendamento"
                         ).permitAll()
-                        // Adicione regras específicas para /api/funcionario/agendamento se necessário
-                        //.requestMatchers("/api/funcionario/agendamento").hasAnyRole("FUNCIONARIO", "ADMIN") // Exemplo
                         .requestMatchers("/admin/**").hasRole("ADMIN")
-                        .anyRequest().authenticated() // Garante que o restante seja autenticado
+                        .anyRequest().authenticated()
                 )
                 // Adiciona o nosso filtro customizado ANTES do filtro padrão de username/password
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
