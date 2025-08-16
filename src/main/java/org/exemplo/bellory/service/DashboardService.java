@@ -19,9 +19,11 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.TemporalAdjusters;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -263,9 +265,16 @@ public class DashboardService {
                 .map(this::mapToClienteTop)
                 .collect(Collectors.toList());
 
+        LocalDateTime agora = LocalDateTime.now();
+
+        LocalDateTime inicioSemana = agora.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+                .withHour(0).withMinute(0).withSecond(0).withNano(0);
+        LocalDateTime fimSemana = agora.with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY))
+                .withHour(23).withMinute(59).withSecond(59).withNano(999999999);
+
         // Aniversariantes
         Long clientesAniversarioHoje = clienteRepository.countAniversariantesHoje();
-        Long clientesAniversarioEstaSemana = clienteRepository.countAniversariantesEstaSemana();
+        Long clientesAniversarioEstaSemana = clienteRepository.countAniversariantesEstaSemana(inicioSemana, fimSemana);
 
         return DashboardDTO.ClientesResumoDTO.builder()
                 .totalClientes(totalClientes)

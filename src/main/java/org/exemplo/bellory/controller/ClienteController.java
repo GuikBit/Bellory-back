@@ -630,7 +630,7 @@ public class ClienteController {
     @GetMapping("/estatisticas")
     public ResponseEntity<ResponseAPI<EstatisticasClientesDTO>> getEstatisticasClientes() {
         try {
-            EstatisticasClientesDTO estatisticas = clienteService.getEstatisticasClientes();
+            EstatisticasClientesDTO estatisticas = clienteService.getEstatisticas();
 
             return ResponseEntity.ok(ResponseAPI.<EstatisticasClientesDTO>builder()
                     .success(true)
