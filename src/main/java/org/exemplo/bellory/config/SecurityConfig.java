@@ -16,6 +16,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.util.Arrays;
 import java.util.List;
 
 @Configuration
@@ -66,7 +67,6 @@ public class SecurityConfig {
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
-                // Adiciona o nosso filtro customizado ANTES do filtro padrão de username/password
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
     }
@@ -74,13 +74,38 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("https://barbearia-nu-opal.vercel.app"));
-        // OU se quiser liberar geral (sem credenciais):
-        // configuration.setAllowedOriginPatterns(List.of("*"));
 
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("*"));
+        // Permitir múltiplas origens
+        configuration.setAllowedOriginPatterns(Arrays.asList(
+                "https://barbearia-nu-opal.vercel.app",
+                "https://*.vercel.app", // Para outras variações do Vercel
+                "http://localhost:*",   // Para desenvolvimento local
+                "https://localhost:*"   // Para HTTPS local
+        ));
+
+        // Métodos HTTP permitidos
+        configuration.setAllowedMethods(Arrays.asList(
+                "GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"
+        ));
+
+        // Headers permitidos
+        configuration.setAllowedHeaders(Arrays.asList("*"));
+
+        // Headers expostos para o cliente
+        configuration.setExposedHeaders(Arrays.asList(
+                "Authorization",
+                "Content-Type",
+                "Content-Length",
+                "X-Requested-With",
+                "Accept",
+                "Origin"
+        ));
+
+        // Permitir credenciais
         configuration.setAllowCredentials(true);
+
+        // Cache para requisições preflight
+        configuration.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);

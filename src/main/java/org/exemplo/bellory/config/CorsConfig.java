@@ -7,15 +7,24 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @Configuration
 public class CorsConfig {
+
     @Bean
     public WebMvcConfigurer corsConfigurer() {
         return new WebMvcConfigurer() {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
-                registry.addMapping("/**") // aplica em todos os endpoints
-                        .allowedOrigins("*") // qualquer origem
-                        .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
-                        .allowedHeaders("*");
+                registry.addMapping("/**")
+                        .allowedOriginPatterns(
+                                "https://barbearia-nu-opal.vercel.app",
+                                "https://*.vercel.app",
+                                "http://localhost:*",
+                                "https://localhost:*"
+                        )
+                        .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH")
+                        .allowedHeaders("*")
+                        .exposedHeaders("Authorization", "Content-Type", "Content-Length")
+                        .allowCredentials(true)
+                        .maxAge(3600);
             }
         };
     }
