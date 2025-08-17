@@ -77,7 +77,7 @@ public class SecurityConfig {
 
         // Permitir múltiplas origens
         configuration.setAllowedOriginPatterns(Arrays.asList(
-                "https://barbearia-nu-opal.vercel.app",
+                "https://bellory.vercel.app",
                 "https://*.vercel.app", // Para outras variações do Vercel
                 "http://localhost:*",   // Para desenvolvimento local
                 "https://localhost:*"   // Para HTTPS local

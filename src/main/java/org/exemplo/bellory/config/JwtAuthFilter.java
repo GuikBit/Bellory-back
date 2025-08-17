@@ -32,7 +32,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         // Adicionar headers CORS manualmente no filtro
         String origin = request.getHeader("Origin");
         if (origin != null && (
-                origin.equals("https://barbearia-nu-opal.vercel.app") ||
+                origin.equals("https://bellory.vercel.app") ||
                         origin.matches("https://.*\\.vercel\\.app") ||
                         origin.matches("http://localhost:\\d+") ||
                         origin.matches("https://localhost:\\d+")
