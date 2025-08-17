@@ -75,23 +75,17 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        // Permitir múltiplas origens
         configuration.setAllowedOriginPatterns(Arrays.asList(
                 "https://bellory.vercel.app",
-                "https://*.vercel.app", // Para outras variações do Vercel
-                "http://localhost:*",   // Para desenvolvimento local
-                "https://localhost:*"   // Para HTTPS local
+                "https://*.vercel.app"
         ));
 
-        // Métodos HTTP permitidos
         configuration.setAllowedMethods(Arrays.asList(
                 "GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"
         ));
 
-        // Headers permitidos
         configuration.setAllowedHeaders(Arrays.asList("*"));
 
-        // Headers expostos para o cliente
         configuration.setExposedHeaders(Arrays.asList(
                 "Authorization",
                 "Content-Type",
@@ -101,15 +95,11 @@ public class SecurityConfig {
                 "Origin"
         ));
 
-        // Permitir credenciais
         configuration.setAllowCredentials(true);
-
-        // Cache para requisições preflight
         configuration.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
-
         return source;
     }
 }
