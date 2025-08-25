@@ -213,6 +213,26 @@ public class AgendamentoController {
         }
     }
 
+    @GetMapping("/status-disponiveis")
+    public ResponseEntity<ResponseAPI<List<StatusAgendamentoDTO>>> getStatusDisponiveis() {
+        try {
+            List<StatusAgendamentoDTO> statusList = agendamentoService.getAllStatusDisponiveis();
+
+            return ResponseEntity.ok(ResponseAPI.<List<StatusAgendamentoDTO>>builder()
+                    .success(true)
+                    .message("Status disponíveis recuperados com sucesso.")
+                    .dados(statusList)
+                    .build());
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseAPI.<List<StatusAgendamentoDTO>>builder()
+                            .success(false)
+                            .message("Ocorreu um erro interno ao buscar os status: " + e.getMessage())
+                            .errorCode(500)
+                            .build());
+        }
+    }
     // Endpoint para alterar status do agendamento
     @PatchMapping("/{id}/status/{status}")
     public ResponseEntity<ResponseAPI<AgendamentoDTO>> updateStatusAgendamento(@PathVariable Long id, @PathVariable String status) {

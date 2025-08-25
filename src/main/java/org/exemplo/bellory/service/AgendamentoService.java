@@ -24,10 +24,7 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -870,6 +867,38 @@ public class AgendamentoService {
         return agendamentos.stream()
                 .map(AgendamentoDTO::new)
                 .collect(Collectors.toList());
+    }
+
+    public List<StatusAgendamentoDTO> getAllStatusDisponiveis() {
+        return Arrays.stream(Status.values())
+                .map(status -> new StatusAgendamentoDTO(
+                        status.name(),
+                        status.getDescricao(),
+                        getStatusColor(status),
+                        isStatusAtivo(status)
+                ))
+                .collect(Collectors.toList());
+    }
+
+    private String getStatusColor(Status status) {
+        switch (status) {
+            case PENDENTE: return "#FFA500"; // Laranja
+            case AGENDADO: return "#007BFF"; // Azul
+            case CONFIRMADO: return "#28A745"; // Verde
+            case EM_ESPERA: return "#FFC107"; // Amarelo
+            case CONCLUIDO: return "#28A745"; // Verde
+            case CANCELADO: return "#DC3545"; // Vermelho
+            case PAGO: return "#28A745"; // Verde
+            case EM_ANDAMENTO: return "#17A2B8"; // Azul claro
+            case NAO_COMPARECEU: return "#6C757D"; // Cinza
+            case REAGENDADO: return "#007BFF"; // Azul
+            case VENCIDA: return "#DC3545"; // Vermelho
+            default: return "#6C757D"; // Cinza padrão
+        }
+    }
+
+    private boolean isStatusAtivo(Status status) {
+        return status != Status.CANCELADO && status != Status.CONCLUIDO && status != Status.VENCIDA;
     }
 
 

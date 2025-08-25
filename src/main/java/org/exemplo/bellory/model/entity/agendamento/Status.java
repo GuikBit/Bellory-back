@@ -7,12 +7,11 @@ public enum Status {
     EM_ESPERA("Em Espera"),
     CONCLUIDO("Concluído"),
     CANCELADO("Cancelado"),
-    PAGO("Pago"),
     EM_ANDAMENTO("Em Anamento"),
     NAO_COMPARECEU("Nao Compareceu"),
     REAGENDADO("Reagendado"),
-    VENCIDA("Vencida");
-
+    VENCIDA("Vencida"),
+    PAGO("Pago");
 
     private final String descricao;
 
