@@ -360,6 +360,35 @@ public class AgendamentoService {
         }
     }
 
+    private void atualizarBloqueiosAgenda(Agendamento agendamento) {
+        int duracaoTotalMinutos = agendamento.getServicos().stream()
+                .mapToInt(Servico::getTempoEstimadoMinutos)
+                .sum();
+
+
+
+        LocalDateTime dataHoraFimAgendamento = agendamento.getDtAgendamento().plusMinutes(duracaoTotalMinutos);
+
+        // Criar bloqueios para cada funcionário
+        for (Funcionario funcionario : agendamento.getFuncionarios()) {
+
+            BloqueioAgenda bloqueioAgenda = disponibilidadeRepository.getById(agendamento.getBloqueioAgenda().getId());
+
+//            BloqueioAgenda bloqueio = new BloqueioAgenda(
+//                    funcionario,
+//                    agendamento.getDtAgendamento(),
+//                    dataHoraFimAgendamento,
+//                    "Agendamento de Serviço",
+//                    TipoBloqueio.AGENDAMENTO,
+//                    agendamento
+//            );
+            bloqueioAgenda.setInicioBloqueio(agendamento.getDtAgendamento());
+            bloqueioAgenda.setFimBloqueio(dataHoraFimAgendamento);
+
+            disponibilidadeRepository.save(bloqueioAgenda);
+        }
+    }
+
     private void atualizarCobrancaAgendamento(Agendamento agendamento) {
         if (agendamento.getCobranca() != null) {
             // Recalcular valor total dos serviços
@@ -771,12 +800,13 @@ public class AgendamentoService {
 
         // Atualizar data do agendamento
         agendamento.setDtAgendamento(novaDataHora);
+        agendamento.setStatus(Status.REAGENDADO);
 
         // Validar disponibilidade na nova data
         validarDisponibilidadeAgendamento(agendamento);
 
         // Criar novos bloqueios
-        criarBloqueiosAgenda(agendamento);
+        atualizarBloqueiosAgenda(agendamento);
 
         // Atualizar cobrança se necessário
         atualizarCobrancaAgendamento(agendamento);

@@ -57,7 +57,7 @@ public class Agendamento {
     private Cobranca cobranca;
 
 
-    @Column(name = "dt_agendamento", nullable = false)
+    @Column(name = "dtAgendamento", nullable = false)
     private LocalDateTime dtAgendamento;
 
     @Column(columnDefinition = "TEXT")
@@ -74,10 +74,10 @@ public class Agendamento {
     @Column(name = "status", nullable = false)
     private Status status;
 
-    @Column(name = "dt_criacao", columnDefinition = "TIMESTAMP DEFAULT now()")
+    @Column(name = "dtCriacao", columnDefinition = "TIMESTAMP DEFAULT now()")
     private LocalDateTime dtCriacao;
 
-    @Column(name = "dt_atualizacao")
+    @Column(name = "dtAtualizacao")
     private LocalDateTime dtAtualizacao;
 
     public Agendamento() {

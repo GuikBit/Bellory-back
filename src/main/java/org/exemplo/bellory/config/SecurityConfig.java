@@ -40,8 +40,43 @@ public class SecurityConfig {
     }
 
     @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+
+        configuration.setAllowedOriginPatterns(Arrays.asList(
+                "https://bellory.vercel.app",
+                "https://*.vercel.app",
+                "http://localhost:*",
+                "https://localhost:*"
+        ));
+
+        configuration.setAllowedMethods(Arrays.asList(
+                "GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"
+        ));
+
+        configuration.setAllowedHeaders(Arrays.asList("*"));
+
+        configuration.setExposedHeaders(Arrays.asList(
+                "Authorization",
+                "Content-Type",
+                "Content-Length",
+                "X-Requested-With",
+                "Accept",
+                "Origin"
+        ));
+
+        configuration.setAllowCredentials(true);
+        configuration.setMaxAge(3600L);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
+    }
+
+    @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http
+                .cors(cors -> cors.configurationSource(corsConfigurationSource())) // Importante: ativar CORS
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
@@ -69,36 +104,4 @@ public class SecurityConfig {
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
     }
-
-//    @Bean
-//    public CorsConfigurationSource corsConfigurationSource() {
-//        CorsConfiguration configuration = new CorsConfiguration();
-//
-//        configuration.setAllowedOriginPatterns(Arrays.asList(
-//                "https://bellory.vercel.app",
-//                "https://*.vercel.app"
-//        ));
-//
-//        configuration.setAllowedMethods(Arrays.asList(
-//                "GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"
-//        ));
-//
-//        configuration.setAllowedHeaders(Arrays.asList("*"));
-//
-//        configuration.setExposedHeaders(Arrays.asList(
-//                "Authorization",
-//                "Content-Type",
-//                "Content-Length",
-//                "X-Requested-With",
-//                "Accept",
-//                "Origin"
-//        ));
-//
-//        configuration.setAllowCredentials(true);
-//        configuration.setMaxAge(3600L);
-//
-//        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-//        source.registerCorsConfiguration("/**", configuration);
-//        return source;
-//    }
 }
