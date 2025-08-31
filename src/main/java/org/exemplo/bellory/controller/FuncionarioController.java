@@ -2,7 +2,7 @@ package org.exemplo.bellory.controller;
 
 import org.exemplo.bellory.model.dto.FuncionarioAgendamento;
 import org.exemplo.bellory.model.dto.FuncionarioCreateDTO;
-import org.exemplo.bellory.model.dto.FuncionarioDTO; // Importar o DTO
+import org.exemplo.bellory.model.dto.FuncionarioDTO;
 import org.exemplo.bellory.model.dto.FuncionarioUpdateDTO;
 import org.exemplo.bellory.model.entity.error.ResponseAPI;
 import org.exemplo.bellory.model.entity.funcionario.Funcionario;
@@ -23,7 +23,6 @@ public class FuncionarioController {
         this.funcionarioService = funcionarioService;
     }
 
-    // O tipo de retorno agora é ResponseAPI<List<FuncionarioDTO>>
     @GetMapping
     public ResponseEntity<ResponseAPI<List<FuncionarioDTO>>> getFuncionarioList() {
         List<FuncionarioDTO> funcionariosDTO = funcionarioService.getListAllFuncionarios();
@@ -45,6 +44,37 @@ public class FuncionarioController {
                         .message("Lista de funcionários recuperada com sucesso.")
                         .dados(funcionariosDTO)
                         .build());
+    }
+
+    // NOVO ENDPOINT: Buscar funcionário por ID com todos os dados
+    @GetMapping("/{id}")
+    public ResponseEntity<ResponseAPI<FuncionarioDTO>> getFuncionarioById(@PathVariable Long id) {
+        try {
+            FuncionarioDTO funcionarioDTO = funcionarioService.getFuncionarioById(id);
+            return ResponseEntity
+                    .status(HttpStatus.OK)
+                    .body(ResponseAPI.<FuncionarioDTO>builder()
+                            .success(true)
+                            .message("Funcionário encontrado com sucesso.")
+                            .dados(funcionarioDTO)
+                            .build());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity
+                    .status(HttpStatus.NOT_FOUND)
+                    .body(ResponseAPI.<FuncionarioDTO>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(404)
+                            .build());
+        } catch (Exception e) {
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseAPI.<FuncionarioDTO>builder()
+                            .success(false)
+                            .message("Ocorreu um erro interno ao buscar o funcionário.")
+                            .errorCode(500)
+                            .build());
+        }
     }
 
     @GetMapping("/agendamento")
@@ -71,9 +101,9 @@ public class FuncionarioController {
     }
 
     @PostMapping
-    public ResponseEntity<ResponseAPI<Funcionario>> postFuncionario(@RequestBody FuncionarioCreateDTO funcionarioDTO) { // <-- MUDANÇA AQUI
+    public ResponseEntity<ResponseAPI<Funcionario>> postFuncionario(@RequestBody FuncionarioCreateDTO funcionarioDTO) {
         try {
-            Funcionario novoFuncionario = funcionarioService.postNewFuncionario(funcionarioDTO); // <-- MUDANÇA AQUI
+            Funcionario novoFuncionario = funcionarioService.postNewFuncionario(funcionarioDTO);
             return ResponseEntity
                     .status(HttpStatus.CREATED)
                     .body(ResponseAPI.<Funcionario>builder()
@@ -113,7 +143,7 @@ public class FuncionarioController {
                             .build());
         } catch (IllegalArgumentException e) {
             return ResponseEntity
-                    .status(HttpStatus.NOT_FOUND) // Ou BAD_REQUEST dependendo do erro
+                    .status(HttpStatus.NOT_FOUND)
                     .body(ResponseAPI.<Funcionario>builder()
                             .success(false)
                             .message(e.getMessage())

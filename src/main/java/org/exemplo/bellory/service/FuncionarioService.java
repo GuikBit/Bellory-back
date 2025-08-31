@@ -13,7 +13,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.stream.Collectors; // Importar
+import java.util.stream.Collectors;
 
 @Service
 public class FuncionarioService {
@@ -29,7 +29,7 @@ public class FuncionarioService {
     }
 
     @Transactional
-    public Funcionario postNewFuncionario(FuncionarioCreateDTO dto) { // <-- MUDANÇA AQUI
+    public Funcionario postNewFuncionario(FuncionarioCreateDTO dto) {
         // --- VALIDAÇÕES ESSENCIAIS ---
         if (dto.getIdOrganizacao() == null) {
             throw new IllegalArgumentException("O ID da organização é obrigatório.");
@@ -105,7 +105,6 @@ public class FuncionarioService {
             funcionario.setSalario(dto.getSalario());
         }
 
-
         funcionario.setComissao(dto.isComissao());
         funcionario.setDataUpdate(LocalDateTime.now());
 
@@ -124,6 +123,35 @@ public class FuncionarioService {
 
         // 3. Salva a alteração
         funcionarioRepository.save(funcionario);
+    }
+
+    // NOVO MÉTODO: Buscar funcionário por ID retornando FuncionarioDTO
+    public FuncionarioDTO getFuncionarioById(Long id) {
+        // 1. Busca o funcionário no banco
+        Funcionario funcionario = funcionarioRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Funcionário com ID " + id + " não encontrado."));
+
+        // 2. Converte as listas de entidades para DTOs
+        List<JornadaTrabalhoDTO> jornadaDTO = funcionario.getJornadaDeTrabalho().stream()
+                .map(jornada -> new JornadaTrabalhoDTO(
+                        jornada.getDiaSemana().name(),
+                        jornada.getHoraInicio(),
+                        jornada.getHoraFim(),
+                        jornada.getAtivo()
+                ))
+                .collect(Collectors.toList());
+
+        List<BloqueioAgendaDTO> bloqueiosDTO = funcionario.getBloqueiosAgenda().stream()
+                .map(bloqueio -> new BloqueioAgendaDTO(
+                        bloqueio.getInicioBloqueio(),
+                        bloqueio.getFimBloqueio(),
+                        bloqueio.getDescricao(),
+                        bloqueio.getTipoBloqueio().name()
+                ))
+                .collect(Collectors.toList());
+
+        // 3. Retorna o FuncionarioDTO com todas as informações
+        return new FuncionarioDTO(funcionario, bloqueiosDTO, jornadaDTO);
     }
 
     // O método agora retorna uma lista de DTOs
