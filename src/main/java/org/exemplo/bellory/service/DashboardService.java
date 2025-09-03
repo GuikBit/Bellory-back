@@ -1,6 +1,7 @@
 package org.exemplo.bellory.service;
 
 
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.exemplo.bellory.model.dto.dashboard.*;
 import org.exemplo.bellory.model.entity.agendamento.Agendamento;
@@ -38,6 +39,8 @@ public class DashboardService {
     private final ServicoRepository servicoRepository;
     // Assumindo que você criará esses repositories
 
+
+    @Transactional
     public DashboardDTO getDashboardGeral(DashboardFiltroDTO filtro) {
         validarFiltro(filtro);
 
@@ -265,15 +268,14 @@ public class DashboardService {
                 .map(this::mapToClienteTop)
                 .collect(Collectors.toList());
 
-        LocalDateTime agora = LocalDateTime.now();
-
-        LocalDateTime inicioSemana = agora.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-                .withHour(0).withMinute(0).withSecond(0).withNano(0);
-        LocalDateTime fimSemana = agora.with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY))
-                .withHour(23).withMinute(59).withSecond(59).withNano(999999999);
+        // CORREÇÃO: Usar LocalDate para aniversariantes
+        LocalDate hoje = LocalDate.now();
+        LocalDate inicioSemana = hoje.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        LocalDate fimSemana = hoje.with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY));
 
         // Aniversariantes
         Long clientesAniversarioHoje = clienteRepository.countAniversariantesHoje();
+        // CORREÇÃO: Agora passando LocalDate em vez de LocalDateTime
         Long clientesAniversarioEstaSemana = clienteRepository.countAniversariantesEstaSemana(inicioSemana, fimSemana);
 
         return DashboardDTO.ClientesResumoDTO.builder()
@@ -489,6 +491,7 @@ public class DashboardService {
         return tendencias;
     }
 
+    @Transactional
     public DashboardComparativoDTO getDashboardComparativo(LocalDate inicioAtual, LocalDate fimAtual,
                                                            LocalDate inicioAnterior, LocalDate fimAnterior) {
         DashboardFiltroDTO filtroAtual = DashboardFiltroDTO.builder()
@@ -519,7 +522,7 @@ public class DashboardService {
                 .descricaoPeriodos(descricaoPeriodos)
                 .build();
     }
-
+    @Transactional
     public Object getMetricasFuncionario(Long funcionarioId, LocalDate dataInicio, LocalDate dataFim) {
         Funcionario funcionario = funcionarioRepository.findById(funcionarioId)
                 .orElseThrow(() -> new IllegalArgumentException("Funcionário não encontrado"));
@@ -694,7 +697,8 @@ public class DashboardService {
                 .build();
     }
 
-    private ClienteTopDTO mapToClienteTop(Cliente cliente) {
+    @Transactional
+    protected ClienteTopDTO mapToClienteTop(Cliente cliente) {
         Long totalAgendamentos = agendamentoRepository.countByCliente(cliente.getId());
         BigDecimal valorGasto = cobrancaRepository.sumByCliente(cliente.getId());
         LocalDateTime ultimoAgendamento = agendamentoRepository.findLastAgendamentoByCliente(cliente.getId());
@@ -707,7 +711,9 @@ public class DashboardService {
                 .ultimoAgendamento(ultimoAgendamento)
                 .build();
     }
-    private ProdutoEstoqueDTO mapToProdutoEstoque(Produto produto) {
+
+    @Transactional
+    protected ProdutoEstoqueDTO mapToProdutoEstoque(Produto produto) {
         String status;
         if (produto.getQtdEstoque() == 0) {
             status = "CRITICO";

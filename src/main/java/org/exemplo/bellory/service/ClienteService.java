@@ -354,10 +354,9 @@ public class ClienteService {
         LocalDateTime inicioAno = agora.withDayOfYear(1).withHour(0).withMinute(0).withSecond(0).withNano(0);
 
         // Calcular início e fim da semana
-        LocalDateTime inicioSemana = agora.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-                .withHour(0).withMinute(0).withSecond(0).withNano(0);
-        LocalDateTime fimSemana = agora.with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY))
-                .withHour(23).withMinute(59).withSecond(59).withNano(999999999);
+        LocalDate hoje = LocalDate.now();
+        LocalDate inicioSemana = hoje.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        LocalDate fimSemana = hoje.with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY));
 
         return EstatisticasClientesDTO.builder()
                 .totalClientes(clienteRepository.count())

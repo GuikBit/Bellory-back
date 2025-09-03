@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -38,8 +39,9 @@ public interface ClienteRepository extends JpaRepository<Cliente, Long> {
     @Query("SELECT COUNT(c) FROM Cliente c WHERE DAY(c.dataNascimento) = DAY(CURRENT_DATE) AND MONTH(c.dataNascimento) = MONTH(CURRENT_DATE)")
     Long countAniversariantesHoje();
 
+    // CORREÇÃO: Alterar para usar LocalDate e ajustar a query
     @Query("SELECT COUNT(c) FROM Cliente c WHERE c.dataNascimento BETWEEN :inicioSemana AND :fimSemana")
-    Long countAniversariantesEstaSemana(@Param("inicioSemana") LocalDateTime inicioSemana, @Param("fimSemana") LocalDateTime fimSemana);
+    Long countAniversariantesEstaSemana(@Param("inicioSemana") LocalDate inicioSemana, @Param("fimSemana") LocalDate fimSemana);
 
     // Método para buscar clientes por termo (alternativa ao Specification)
     @Query("SELECT c FROM Cliente c WHERE " +
