@@ -16,6 +16,7 @@ public class ClienteCreateDTO {
     private String email;
     private String username;
     private String password;
+    private String cpf;
     private String telefone;
     private LocalDate dataNascimento;
 }

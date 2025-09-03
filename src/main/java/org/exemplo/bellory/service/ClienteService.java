@@ -86,9 +86,9 @@ public class ClienteService {
     @Transactional
     public ClienteDTO createCliente(ClienteCreateDTO dto) {
         // Validações
-        if (clienteRepository.findByUsername(dto.getUsername()).isPresent()) {
-            throw new IllegalArgumentException("Username já existe.");
-        }
+//        if (clienteRepository.findByUsername(dto.getUsername()).isPresent()) {
+//            throw new IllegalArgumentException("Username já existe.");
+//        }
 
         // Verificar se existe método findByEmail no repository
         // if (clienteRepository.findByEmail(dto.getEmail()).isPresent()) {
@@ -99,8 +99,8 @@ public class ClienteService {
         cliente.setOrganizacao(organizacaoRepository.findById(1L).orElse(null));
         cliente.setNomeCompleto(dto.getNomeCompleto());
         cliente.setEmail(dto.getEmail());
-        cliente.setUsername(dto.getUsername());
-        cliente.setPassword(passwordEncoder.encode(dto.getPassword()));
+//        cliente.setUsername(dto.getUsername());
+//        cliente.setPassword(passwordEncoder.encode(dto.getPassword()));
         cliente.setTelefone(dto.getTelefone());
         cliente.setDataNascimento(dto.getDataNascimento());
         cliente.setRole("ROLE_CLIENTE");
