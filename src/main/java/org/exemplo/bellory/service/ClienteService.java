@@ -427,6 +427,7 @@ public class ClienteService {
                 .telefone(cliente.getTelefone())
                 .dataNascimento(cliente.getDataNascimento())
                 .role(cliente.getRole())
+                .cpf(cliente.getCpf())
                 .ativo(cliente.isAtivo())
                 .build();
     }

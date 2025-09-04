@@ -1,11 +1,10 @@
 package org.exemplo.bellory.controller;
 
-import org.exemplo.bellory.model.dto.FuncionarioAgendamento;
-import org.exemplo.bellory.model.dto.FuncionarioCreateDTO;
-import org.exemplo.bellory.model.dto.FuncionarioDTO;
-import org.exemplo.bellory.model.dto.FuncionarioUpdateDTO;
+import org.exemplo.bellory.model.dto.*;
 import org.exemplo.bellory.model.entity.error.ResponseAPI;
+import org.exemplo.bellory.model.entity.funcionario.Cargo;
 import org.exemplo.bellory.model.entity.funcionario.Funcionario;
+import org.exemplo.bellory.service.CargoService;
 import org.exemplo.bellory.service.FuncionarioService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -18,9 +17,11 @@ import java.util.List;
 public class FuncionarioController {
 
     FuncionarioService funcionarioService;
+    CargoService cargoService;
 
-    public FuncionarioController(FuncionarioService funcionarioService) {
+    public FuncionarioController(FuncionarioService funcionarioService, CargoService cargoService) {
         this.funcionarioService = funcionarioService;
+        this.cargoService = cargoService;
     }
 
     @GetMapping
@@ -188,4 +189,35 @@ public class FuncionarioController {
                             .build());
         }
     }
+
+    @PostMapping("/cargo")
+    public ResponseEntity<ResponseAPI<Cargo>> createCargo(@RequestBody CargoDTO cargoDTO){
+        try {
+            CargoDTO cargo = cargoService.createCargo(cargoDTO);
+            return ResponseEntity
+                    .status(HttpStatus.OK)
+                    .body(ResponseAPI.<Void>builder()
+                            .success(true)
+                            .message("Funcionário desativado com sucesso.")
+                            .build());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity
+                    .status(HttpStatus.NOT_FOUND)
+                    .body(ResponseAPI.<Void>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(404)
+                            .build());
+        } catch (Exception e) {
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseAPI.<Void>builder()
+                            .success(false)
+                            .message("Ocorreu um erro interno ao desativar o funcionário.")
+                            .errorCode(500)
+                            .build());
+        }
+    }
+
+
 }

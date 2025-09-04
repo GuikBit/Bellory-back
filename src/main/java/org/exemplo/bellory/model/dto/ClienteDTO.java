@@ -15,18 +15,20 @@ public class ClienteDTO {
     private String nomeCompleto;
     private String email;
     private String telefone;
+    private String cpf;
     private LocalDate dataNascimento;
     private boolean ativo;
     private String role;
 
     // Você pode adicionar um construtor se quiser, para facilitar a conversão
-    public ClienteDTO(Long id, String nomeCompleto, String email, String telefone, LocalDate dataNascimento, String role, boolean ativo) {
+    public ClienteDTO(Long id, String nomeCompleto, String email, String telefone, LocalDate dataNascimento, String role, String cpf, boolean ativo) {
         this.id = id;
         this.nomeCompleto = nomeCompleto;
         this.email = email;
         this.telefone = telefone;
         this.dataNascimento = dataNascimento;
         this.ativo = ativo;
+        this.cpf = cpf;
         this.role = role;
     }
 }
