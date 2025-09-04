@@ -50,6 +50,12 @@
             <version>2.5.0</version>
         </dependency>
 
+        <!-- https://mvnrepository.com/artifact/org.hibernate.validator/hibernate-validator -->
+        <dependency>
+            <groupId>org.hibernate.validator</groupId>
+            <artifactId>hibernate-validator</artifactId>
+        </dependency>
+
         <!-- ADICIONADO: A nova biblioteca para gestão de JWT -->
         <dependency>
             <groupId>com.auth0</groupId>

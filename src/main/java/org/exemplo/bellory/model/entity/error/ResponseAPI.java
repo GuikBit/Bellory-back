@@ -6,6 +6,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.Map;
+
 @Data // Gera getters, setters, toString, equals, hashCode (Lombok)
 @NoArgsConstructor // Construtor sem argumentos (Lombok)
 @AllArgsConstructor // Construtor com todos os argumentos (Lombok)
@@ -16,4 +18,5 @@ public class ResponseAPI<T> {
     private String message;
     private T dados;
     private Integer errorCode; // Opcional, para códigos de erro específicos da aplicação
+    private Map<String, String> errors; // Campo para detalhar os erros de validação
 }

@@ -1,5 +1,6 @@
 package org.exemplo.bellory.controller;
 
+import jakarta.validation.Valid;
 import org.exemplo.bellory.model.dto.*;
 import org.exemplo.bellory.model.dto.clienteDTO.*;
 import org.exemplo.bellory.model.dto.compra.CompraDTO;
@@ -106,50 +107,37 @@ public class ClienteController {
      * Criar novo cliente
      */
     @PostMapping
-    public ResponseEntity<ResponseAPI<ClienteDTO>> createCliente(@RequestBody ClienteCreateDTO clienteCreateDTO) {
-        try {
-            // Validações básicas
-            if (clienteCreateDTO.getNomeCompleto() == null || clienteCreateDTO.getNomeCompleto().trim().isEmpty()) {
-                return ResponseEntity.badRequest()
-                        .body(ResponseAPI.<ClienteDTO>builder()
-                                .success(false)
-                                .message("O nome completo é obrigatório.")
-                                .errorCode(400)
-                                .build());
-            }
+    public ResponseEntity<ResponseAPI<ClienteDTO>> createCliente(@RequestBody @Valid ClienteCreateDTO clienteCreateDTO) {
+        ClienteDTO novoCliente = clienteService.createCliente(clienteCreateDTO);
 
-            if (clienteCreateDTO.getEmail() == null || clienteCreateDTO.getEmail().trim().isEmpty()) {
-                return ResponseEntity.badRequest()
-                        .body(ResponseAPI.<ClienteDTO>builder()
-                                .success(false)
-                                .message("O email é obrigatório.")
-                                .errorCode(400)
-                                .build());
-            }
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ResponseAPI.<ClienteDTO>builder()
+                        .success(true)
+                        .message("Cliente criado com sucesso.")
+                        .dados(novoCliente)
+                        .build());
+    }
 
-            ClienteDTO novoCliente = clienteService.createCliente(clienteCreateDTO);
+    @PostMapping("/verificar-cpf") // Endpoint com nome mais claro
+    public ResponseEntity<ResponseAPI<Boolean>> verificarSeCpfExiste(@RequestBody @Valid RequestCpfDTO request) {
 
-            return ResponseEntity.status(HttpStatus.CREATED)
-                    .body(ResponseAPI.<ClienteDTO>builder()
-                            .success(true)
-                            .message("Cliente criado com sucesso.")
-                            .dados(novoCliente)
-                            .build());
+        // Chama o serviço para verificar se o CPF já existe
+        boolean cpfExiste = clienteService.verificarSeCpfExiste(request.getCpf());
 
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest()
-                    .body(ResponseAPI.<ClienteDTO>builder()
-                            .success(false)
-                            .message(e.getMessage())
-                            .errorCode(400)
-                            .build());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ResponseAPI.<ClienteDTO>builder()
-                            .success(false)
-                            .message("Erro interno ao criar cliente: " + e.getMessage())
-                            .errorCode(500)
-                            .build());
+        if (cpfExiste) {
+            // Se existe, retorna sucesso na operação, mas com a informação de que já está cadastrado
+            return ResponseEntity.ok(ResponseAPI.<Boolean>builder()
+                    .success(true)
+                    .message("CPF já cadastrado.")
+                    .dados(true) // O dado retornado é 'true' (sim, existe)
+                    .build());
+        } else {
+            // Se não existe, retorna sucesso com a informação de que está disponível
+            return ResponseEntity.ok(ResponseAPI.<Boolean>builder()
+                    .success(true)
+                    .message("CPF disponível para cadastro.")
+                    .dados(false) // O dado retornado é 'false' (não, não existe)
+                    .build());
         }
     }
 

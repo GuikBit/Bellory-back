@@ -59,4 +59,6 @@ public interface ClienteRepository extends JpaRepository<Cliente, Long> {
     List<Cliente> findAniversariantesByMesAndAno(@Param("mes") int mes, @Param("ano") int ano);
 
     List<Cliente> findAll(Specification<Cliente> spec, Sort sort);
+
+    Optional<Object> findByCpf(String cpf);
 }

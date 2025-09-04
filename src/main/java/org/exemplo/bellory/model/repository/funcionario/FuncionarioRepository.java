@@ -21,4 +21,6 @@ public interface FuncionarioRepository extends JpaRepository<Funcionario, Long> 
 
     @Query("SELECT COUNT(f) FROM Funcionario f WHERE f.situacao = 'Ativo'")
     Long countByAtivo(boolean ativo);
+
+    Optional<Object> findByCpf(String cpf);
 }

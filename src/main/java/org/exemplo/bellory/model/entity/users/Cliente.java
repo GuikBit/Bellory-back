@@ -18,6 +18,11 @@ public class Cliente extends User {
 
     private LocalDate dataNascimento;
 
+    private Boolean isCadastroIncompleto;
+
+    @Column(length = 14)
+    private String cpf;
+
     // --- CAMPO DE ROLE COMO STRING ---
     private String role;
 

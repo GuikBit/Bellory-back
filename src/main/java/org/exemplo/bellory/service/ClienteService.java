@@ -83,28 +83,36 @@ public class ClienteService {
         return convertToDetalhadoDTO(cliente);
     }
 
+    public boolean verificarSeCpfExiste(String cpf) {
+        // Importante: sempre limpe o CPF para consultar o banco sem formatação
+        String cpfLimpo = cpf.replaceAll("[^0-9]", "");
+        return clienteRepository.findByCpf(cpfLimpo).isPresent();
+    }
     @Transactional
     public ClienteDTO createCliente(ClienteCreateDTO dto) {
         // Validações
-//        if (clienteRepository.findByUsername(dto.getUsername()).isPresent()) {
-//            throw new IllegalArgumentException("Username já existe.");
-//        }
 
         // Verificar se existe método findByEmail no repository
-        // if (clienteRepository.findByEmail(dto.getEmail()).isPresent()) {
-        //     throw new IllegalArgumentException("Email já existe.");
-        // }
+         if (clienteRepository.findByEmail(dto.getEmail()).isPresent()) {
+             throw new IllegalArgumentException("E-mail já existe.");
+         }
+
+         if(clienteRepository.findByCpf(dto.getCpf()).isPresent()){
+             throw new IllegalArgumentException("CPF já existe.");
+         }
 
         Cliente cliente = new Cliente();
         cliente.setOrganizacao(organizacaoRepository.findById(1L).orElse(null));
         cliente.setNomeCompleto(dto.getNomeCompleto());
         cliente.setEmail(dto.getEmail());
-//        cliente.setUsername(dto.getUsername());
-//        cliente.setPassword(passwordEncoder.encode(dto.getPassword()));
+        cliente.setUsername("usuarioRapido");
+        cliente.setPassword(passwordEncoder.encode("102030"));
         cliente.setTelefone(dto.getTelefone());
         cliente.setDataNascimento(dto.getDataNascimento());
+        cliente.setCpf(dto.getCpf().replaceAll("[^0-9]", ""));
         cliente.setRole("ROLE_CLIENTE");
         cliente.setAtivo(true);
+        cliente.setIsCadastroIncompleto(true);
         cliente.setDtCriacao(LocalDateTime.now());
 
         Cliente clienteSalvo = clienteRepository.save(cliente);
