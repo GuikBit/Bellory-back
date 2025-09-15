@@ -16,5 +16,10 @@ public class ServicoCreateDTO {
     private String descricao;
     private Integer tempoEstimadoMinutos;
     private BigDecimal preco;
+    private Integer desconto;
     private List<String> urlsImagens;
+    private List<String> produtos;
+    private boolean isHome;
+    private boolean isAvaliacao;
+    private boolean ativo;
 }

@@ -56,6 +56,9 @@ public class Servico {
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal preco;
 
+    @Column
+    private Integer desconto;
+
     // Mapeia a lista de nomes de produtos para uma tabela de suporte.
     // Lista de produtos usados no serviço
     @ElementCollection(fetch = FetchType.LAZY)
@@ -76,7 +79,13 @@ public class Servico {
     private LocalDateTime dtAtualizacao;
 
     @Column(nullable = false)
-    private boolean ativo = true;
+    private boolean ativo;
+
+    @Column
+    private boolean isHome;
+
+    @Column(nullable = false)
+    private boolean isAvaliacao;
 
     private String usuarioAtualizacao;
 

@@ -243,7 +243,7 @@ public class DatabaseSeederService {
         String[] estadosCivis = {"Solteiro(a)", "Casado(a)", "Divorciado(a)", "Viúvo(a)"};
         String[] grausInstrucao = {"Ensino Médio", "Técnico", "Superior Incompleto", "Superior Completo", "Pós-graduação"};
 
-        for (int i = 1; i <= 15; i++) {
+        for (int i = 1; i <= 5; i++) {
             String username = "funcionario" + i;
 
             int finalI = i;
@@ -369,40 +369,40 @@ public class DatabaseSeederService {
                 {"Penteado", "0", "Penteados para eventos especiais", "90", "159.90", "Feminino"},
 
                 // Mãos e Pés
-                {"Manicure Completa", "1", "Cutilagem, esmaltação e hidratação", "45", "45.00", "Feminino"},
-                {"Pedicure Completa", "1", "Cutilagem, esmaltação e esfoliação", "60", "55.00", "Feminino"},
-                {"Manicure Express", "1", "Esmaltação rápida", "20", "25.00", "Feminino"},
-                {"Unhas em Gel", "1", "Aplicação de gel nas unhas", "90", "89.90", "Feminino"},
-                {"Nail Art", "1", "Decoração artística das unhas", "60", "79.90", "Feminino"},
-                {"Spa dos Pés", "1", "Tratamento relaxante completo", "90", "119.90", "Unissex"},
-
-                // Estética Facial
-                {"Limpeza de Pele", "2", "Limpeza profunda e hidratação", "90", "129.90", "Unissex"},
-                {"Peeling", "2", "Renovação celular da pele", "60", "159.90", "Unissex"},
-                {"Máscara Facial", "2", "Tratamento com máscaras específicas", "45", "89.90", "Unissex"},
-                {"Microagulhamento", "2", "Tratamento anti-aging", "90", "299.90", "Unissex"},
-
-                // Sobrancelhas
-                {"Design de Sobrancelhas", "3", "Design personalizado com pinça", "30", "39.90", "Unissex"},
-                {"Henna", "3", "Coloração com henna natural", "45", "49.90", "Unissex"},
-                {"Micropigmentação", "3", "Pigmentação semipermanente", "120", "399.90", "Unissex"},
-
-                // Massagem
-                {"Massagem Relaxante", "4", "Massagem corporal relaxante", "60", "119.90", "Unissex"},
-                {"Massagem Modeladora", "4", "Massagem para modelar o corpo", "90", "159.90", "Unissex"},
-
-                // Depilação
-                {"Depilação Pernas", "5", "Depilação completa das pernas", "45", "79.90", "Feminino"},
-                {"Depilação Axilas", "5", "Depilação das axilas", "15", "29.90", "Feminino"},
-                {"Depilação Buço", "5", "Depilação do buço", "10", "19.90", "Feminino"},
-
-                // Maquiagem
-                {"Maquiagem Social", "6", "Make para eventos sociais", "60", "159.90", "Feminino"},
-                {"Maquiagem Noiva", "6", "Make especial para noivas", "90", "299.90", "Feminino"},
-                {"Automaquiagem", "6", "Aula de automaquiagem", "120", "199.90", "Feminino"},
-
-                // Barba
-                {"Barba Completa", "8", "Corte e modelagem da barba", "30", "39.90", "Masculino"}
+//                {"Manicure Completa", "1", "Cutilagem, esmaltação e hidratação", "45", "45.00", "Feminino"},
+//                {"Pedicure Completa", "1", "Cutilagem, esmaltação e esfoliação", "60", "55.00", "Feminino"},
+//                {"Manicure Express", "1", "Esmaltação rápida", "20", "25.00", "Feminino"},
+//                {"Unhas em Gel", "1", "Aplicação de gel nas unhas", "90", "89.90", "Feminino"},
+//                {"Nail Art", "1", "Decoração artística das unhas", "60", "79.90", "Feminino"},
+//                {"Spa dos Pés", "1", "Tratamento relaxante completo", "90", "119.90", "Unissex"},
+//
+//                // Estética Facial
+//                {"Limpeza de Pele", "2", "Limpeza profunda e hidratação", "90", "129.90", "Unissex"},
+//                {"Peeling", "2", "Renovação celular da pele", "60", "159.90", "Unissex"},
+//                {"Máscara Facial", "2", "Tratamento com máscaras específicas", "45", "89.90", "Unissex"},
+//                {"Microagulhamento", "2", "Tratamento anti-aging", "90", "299.90", "Unissex"},
+//
+//                // Sobrancelhas
+//                {"Design de Sobrancelhas", "3", "Design personalizado com pinça", "30", "39.90", "Unissex"},
+//                {"Henna", "3", "Coloração com henna natural", "45", "49.90", "Unissex"},
+//                {"Micropigmentação", "3", "Pigmentação semipermanente", "120", "399.90", "Unissex"},
+//
+//                // Massagem
+//                {"Massagem Relaxante", "4", "Massagem corporal relaxante", "60", "119.90", "Unissex"},
+//                {"Massagem Modeladora", "4", "Massagem para modelar o corpo", "90", "159.90", "Unissex"},
+//
+//                // Depilação
+//                {"Depilação Pernas", "5", "Depilação completa das pernas", "45", "79.90", "Feminino"},
+//                {"Depilação Axilas", "5", "Depilação das axilas", "15", "29.90", "Feminino"},
+//                {"Depilação Buço", "5", "Depilação do buço", "10", "19.90", "Feminino"},
+//
+//                // Maquiagem
+//                {"Maquiagem Social", "6", "Make para eventos sociais", "60", "159.90", "Feminino"},
+//                {"Maquiagem Noiva", "6", "Make especial para noivas", "90", "299.90", "Feminino"},
+//                {"Automaquiagem", "6", "Aula de automaquiagem", "120", "199.90", "Feminino"},
+//
+//                // Barba
+//                {"Barba Completa", "8", "Corte e modelagem da barba", "30", "39.90", "Masculino"}
         };
 
         for (String[] data : servicosData) {
