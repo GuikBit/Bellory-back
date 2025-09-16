@@ -14,10 +14,7 @@ import org.exemplo.bellory.model.entity.users.Cliente;
 import org.exemplo.bellory.model.repository.organizacao.OrganizacaoRepository;
 import org.exemplo.bellory.model.repository.users.ClienteRepository;
 import org.exemplo.bellory.model.repository.agendamento.AgendamentoRepository;
-import org.exemplo.bellory.model.repository.CobrancaRepository;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.Pageable;
+import org.exemplo.bellory.model.repository.Transacao.CobrancaRepository;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -281,7 +278,7 @@ public class ClienteService {
         Cliente cliente = clienteRepository.findById(clienteId)
                 .orElseThrow(() -> new IllegalArgumentException("Cliente não encontrado."));
 
-        BigDecimal valorTotalGasto = cobrancaRepository.sumByCliente(clienteId);
+        BigDecimal valorTotalGasto = cobrancaRepository.sumByCliente(clienteId, Cobranca.StatusCobranca.PAGO);
         Long totalAgendamentos = agendamentoRepository.countByCliente(clienteId);
         LocalDateTime ultimoAgendamento = agendamentoRepository.findLastAgendamentoByCliente(clienteId);
 
@@ -434,7 +431,7 @@ public class ClienteService {
 
     private ClienteDetalhadoDTO convertToDetalhadoDTO(Cliente cliente) {
         Long totalAgendamentos = agendamentoRepository.countByCliente(cliente.getId());
-        BigDecimal valorTotal = cobrancaRepository.sumByCliente(cliente.getId());
+        BigDecimal valorTotal = cobrancaRepository.sumByCliente(cliente.getId(), Cobranca.StatusCobranca.PAGO);
         LocalDateTime ultimoAgendamento = agendamentoRepository.findLastAgendamentoByCliente(cliente.getId());
 
         return ClienteDetalhadoDTO.builder()
@@ -472,7 +469,7 @@ public class ClienteService {
     }
 
     private TopClienteDTO convertToTopClienteDTO(Cliente cliente) {
-        BigDecimal valorGasto = cobrancaRepository.sumByCliente(cliente.getId());
+        BigDecimal valorGasto = cobrancaRepository.sumByCliente(cliente.getId(), Cobranca.StatusCobranca.PAGO);
         Long totalAgendamentos = agendamentoRepository.countByCliente(cliente.getId());
         LocalDateTime ultimaVisita = agendamentoRepository.findLastAgendamentoByCliente(cliente.getId());
 

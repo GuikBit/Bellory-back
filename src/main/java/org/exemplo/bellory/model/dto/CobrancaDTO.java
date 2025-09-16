@@ -16,7 +16,7 @@ import java.time.LocalDateTime;
 public class CobrancaDTO {
     private Long id;
     private BigDecimal valor;
-    private Status status;
+    private Cobranca.StatusCobranca status;
     private Long clienteId;
     private String nomeCliente;
     private Long agendamentoId;

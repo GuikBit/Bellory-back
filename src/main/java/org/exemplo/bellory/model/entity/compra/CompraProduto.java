@@ -1,42 +1,80 @@
 package org.exemplo.bellory.model.entity.compra;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 import org.exemplo.bellory.model.entity.produto.Produto;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "compra_produto")
 @Getter
 @Setter
-@AllArgsConstructor
 @NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class CompraProduto {
 
-    @EmbeddedId
-    private CompraProdutoId id;
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @MapsId("compraId")
-    @JoinColumn(name = "compra_id")
-    @JsonIgnore
+    @JoinColumn(name = "compra_id", nullable = false)
     private Compra compra;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @MapsId("produtoId")
-    @JoinColumn(name = "produto_id")
+    @JoinColumn(name = "produto_id", nullable = false)
     private Produto produto;
 
     @Column(nullable = false)
-    private int quantidade = 1;
+    private Integer quantidade;
 
-    @Column(name = "preco_unitario_compra", nullable = false, precision = 10, scale = 2)
-    private BigDecimal precoUnitarioCompra;
+    @Column(name = "preco_unitario", nullable = false, precision = 10, scale = 2)
+    private BigDecimal precoUnitario;
 
-    // Getters e Setters
+    @Column(name = "subtotal", nullable = false, precision = 10, scale = 2)
+    private BigDecimal subtotal;
+
+    @Column(name = "desconto_item", precision = 10, scale = 2)
+    private BigDecimal descontoItem = BigDecimal.ZERO;
+
+    @Column(columnDefinition = "TEXT")
+    private String observacoes;
+
+    @Column(name = "dt_adicionado", columnDefinition = "TIMESTAMP DEFAULT now()")
+    private LocalDateTime dtAdicionado;
+
+    // === MÉTODOS DE CONVENIÊNCIA ===
+    public void calcularSubtotal() {
+        BigDecimal subtotalBruto = this.precoUnitario.multiply(BigDecimal.valueOf(this.quantidade));
+        this.subtotal = subtotalBruto.subtract(this.descontoItem != null ? this.descontoItem : BigDecimal.ZERO);
+    }
+
+    public void aplicarDesconto(BigDecimal desconto) {
+        this.descontoItem = desconto;
+        calcularSubtotal();
+    }
+
+    public void atualizarQuantidade(Integer novaQuantidade) {
+        this.quantidade = novaQuantidade;
+        calcularSubtotal();
+    }
+
+    @PrePersist
+    public void prePersist() {
+        if (this.dtAdicionado == null) {
+            this.dtAdicionado = LocalDateTime.now();
+        }
+        if (this.descontoItem == null) {
+            this.descontoItem = BigDecimal.ZERO;
+        }
+        calcularSubtotal();
+    }
+
+    @PreUpdate
+    public void preUpdate() {
+        calcularSubtotal();
+    }
 }

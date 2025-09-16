@@ -10,7 +10,7 @@ import org.exemplo.bellory.model.entity.cobranca.Cobranca;
 import org.exemplo.bellory.model.entity.funcionario.Funcionario;
 import org.exemplo.bellory.model.entity.produto.Produto;
 import org.exemplo.bellory.model.entity.users.Cliente;
-import org.exemplo.bellory.model.repository.CobrancaRepository;
+import org.exemplo.bellory.model.repository.Transacao.CobrancaRepository;
 import org.exemplo.bellory.model.repository.agendamento.AgendamentoRepository;
 import org.exemplo.bellory.model.repository.funcionario.FuncionarioRepository;
 import org.exemplo.bellory.model.repository.produtos.ProdutoRepository;
@@ -142,27 +142,27 @@ public class DashboardService {
         LocalDateTime fimDateTime = dataFim.atTime(23, 59, 59);
 
         // Receita total do período
-        BigDecimal receitaTotal = cobrancaRepository.sumReceitaByPeriod(inicioDateTime, fimDateTime);
+        BigDecimal receitaTotal = cobrancaRepository.sumReceitaByPeriod(inicioDateTime, fimDateTime, Cobranca.StatusCobranca.PAGO);
         if (receitaTotal == null) receitaTotal = BigDecimal.ZERO;
 
         // Receita hoje
         LocalDateTime hojeBaixo = LocalDate.now().atStartOfDay();
         LocalDateTime hojeAlto = LocalDate.now().atTime(23, 59, 59);
-        BigDecimal receitaHoje = cobrancaRepository.sumReceitaByPeriod(hojeBaixo, hojeAlto);
+        BigDecimal receitaHoje = cobrancaRepository.sumReceitaByPeriod(hojeBaixo, hojeAlto, Cobranca.StatusCobranca.PAGO);
         if (receitaHoje == null) receitaHoje = BigDecimal.ZERO;
 
         // Receita este mês
         LocalDate inicioMes = LocalDate.now().withDayOfMonth(1);
         LocalDate fimMes = inicioMes.plusMonths(1).minusDays(1);
         BigDecimal receitaEsteMes = cobrancaRepository.sumReceitaByPeriod(
-                inicioMes.atStartOfDay(), fimMes.atTime(23, 59, 59));
+                inicioMes.atStartOfDay(), fimMes.atTime(23, 59, 59 ), Cobranca.StatusCobranca.PAGO);
         if (receitaEsteMes == null) receitaEsteMes = BigDecimal.ZERO;
 
         // Receita este ano
         LocalDate inicioAno = LocalDate.now().withDayOfYear(1);
         LocalDate fimAno = inicioAno.plusYears(1).minusDays(1);
         BigDecimal receitaEsteAno = cobrancaRepository.sumReceitaByPeriod(
-                inicioAno.atStartOfDay(), fimAno.atTime(23, 59, 59));
+                inicioAno.atStartOfDay(), fimAno.atTime(23, 59, 59),Cobranca.StatusCobranca.PAGO);
         if (receitaEsteAno == null) receitaEsteAno = BigDecimal.ZERO;
 
         // Receita prevista (agendamentos futuros)
@@ -188,22 +188,22 @@ public class DashboardService {
         List<Cobranca> cobrancas = cobrancaRepository.findByPeriod(inicioDateTime, fimDateTime);
         Long totalCobrancas = (long) cobrancas.size();
         Long cobrancasPagas = cobrancas.stream()
-                .mapToLong(c -> c.getStatusCobranca() == Status.PAGO ? 1 : 0)
+                .mapToLong(c -> (c.getStatusCobranca().equals(Status.PAGO)) ? 1 : 0)
                 .sum();
         Long cobrancasPendentes = cobrancas.stream()
-                .mapToLong(c -> c.getStatusCobranca() == Status.PENDENTE ? 1 : 0)
+                .mapToLong(c -> c.getStatusCobranca().equals(Status.PENDENTE)? 1 : 0)
                 .sum();
         Long cobrancasVencidas = cobrancas.stream()
-                .mapToLong(c -> c.getStatusCobranca() == Status.VENCIDA ? 1 : 0)
+                .mapToLong(c -> c.getStatusCobranca().equals( Status.VENCIDA) ? 1 : 0)
                 .sum();
 
         BigDecimal valorPendente = cobrancas.stream()
-                .filter(c -> c.getStatusCobranca() == Status.PENDENTE)
+                .filter(c -> c.getStatusCobranca().equals(Status.PENDENTE))
                 .map(Cobranca::getValor)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         BigDecimal valorVencido = cobrancas.stream()
-                .filter(c -> c.getStatusCobranca() == Status.VENCIDA)
+                .filter(c -> c.getStatusCobranca().equals(Status.VENCIDA))
                 .map(Cobranca::getValor)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
@@ -255,7 +255,7 @@ public class DashboardService {
 
         // Ticket médio por cliente
         BigDecimal receitaTotal = cobrancaRepository.sumReceitaByPeriod(
-                dataInicio.atStartOfDay(), dataFim.atTime(23, 59, 59));
+                dataInicio.atStartOfDay(), dataFim.atTime(23, 59, 59), Cobranca.StatusCobranca.PAGO);
         if (receitaTotal == null) receitaTotal = BigDecimal.ZERO;
 
         Double ticketMedioCliente = clientesAtivos > 0 ?
@@ -302,21 +302,21 @@ public class DashboardService {
         // Produtos com estoque baixo (menos de 10 unidades - configurável)
         int limiteEstoqueBaixo = 10;
         Long produtosEstoqueBaixo = produtos.stream()
-                .mapToLong(p -> p.getQtdEstoque() > 0 && p.getQtdEstoque() <= limiteEstoqueBaixo ? 1 : 0)
+                .mapToLong(p -> p.getQuantidadeEstoque() > 0 && p.getQuantidadeEstoque() <= limiteEstoqueBaixo ? 1 : 0)
                 .sum();
 
         Long produtosSemEstoque = produtos.stream()
-                .mapToLong(p -> p.getQtdEstoque() == 0 ? 1 : 0)
+                .mapToLong(p -> p.getQuantidadeEstoque() == 0 ? 1 : 0)
                 .sum();
 
         // Valor total do estoque
         BigDecimal valorTotalEstoque = produtos.stream()
-                .map(p -> p.getPreco().multiply(new BigDecimal(p.getQtdEstoque())))
+                .map(p -> p.getPreco().multiply(new BigDecimal(p.getQuantidadeEstoque())))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         // Produtos com baixo estoque para alertas
         List<ProdutoEstoqueDTO> produtosBaixoEstoque = produtos.stream()
-                .filter(p -> p.getQtdEstoque() <= limiteEstoqueBaixo)
+                .filter(p -> p.getQuantidadeEstoque() <= limiteEstoqueBaixo)
                 .map(this::mapToProdutoEstoque)
                 .collect(Collectors.toList());
 
@@ -561,7 +561,7 @@ public class DashboardService {
         LocalDateTime agora = LocalDateTime.now();
         return agendamentoRepository.findAgendamentosFuturos(agora)
                 .stream()
-                .filter(a -> a.getCobranca() != null && a.getCobranca().getStatusCobranca() != Status.PAGO)
+                .filter(a -> a.getCobranca() != null && !a.getCobranca().getStatusCobranca().equals(Status.PAGO))
                 .map(a -> a.getCobranca().getValor())
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
@@ -583,7 +583,7 @@ public class DashboardService {
     private Map<String, BigDecimal> calcularReceitaPorFuncionario(LocalDateTime inicio, LocalDateTime fim) {
         return agendamentoRepository.findByDataRangeWithFuncionarios(inicio, fim)
                 .stream()
-                .filter(a -> a.getCobranca() != null && a.getCobranca().getStatusCobranca() == Status.PAGO)
+                .filter(a -> a.getCobranca() != null && a.getCobranca().getStatusCobranca().equals(Status.PAGO))
                 .flatMap(a -> a.getFuncionarios().stream())
                 .collect(Collectors.groupingBy(
                         f -> f.getNomeCompleto(),
@@ -603,7 +603,7 @@ public class DashboardService {
     private BigDecimal calcularReceitaFuncionario(Long funcionarioId, LocalDateTime inicio, LocalDateTime fim) {
         return agendamentoRepository.findByFuncionarioAndDataRange(funcionarioId, inicio, fim)
                 .stream()
-                .filter(a -> a.getCobranca() != null && a.getCobranca().getStatusCobranca() == Status.PAGO)
+                .filter(a -> a.getCobranca() != null && a.getCobranca().getStatusCobranca().equals(Status.PAGO))
                 .map(a -> a.getCobranca().getValor())
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
@@ -700,7 +700,7 @@ public class DashboardService {
     @Transactional
     protected ClienteTopDTO mapToClienteTop(Cliente cliente) {
         Long totalAgendamentos = agendamentoRepository.countByCliente(cliente.getId());
-        BigDecimal valorGasto = cobrancaRepository.sumByCliente(cliente.getId());
+        BigDecimal valorGasto = cobrancaRepository.sumByCliente(cliente.getId(), Cobranca.StatusCobranca.PAGO);
         LocalDateTime ultimoAgendamento = agendamentoRepository.findLastAgendamentoByCliente(cliente.getId());
 
         return ClienteTopDTO.builder()
@@ -715,9 +715,9 @@ public class DashboardService {
     @Transactional
     protected ProdutoEstoqueDTO mapToProdutoEstoque(Produto produto) {
         String status;
-        if (produto.getQtdEstoque() == 0) {
+        if (produto.getQuantidadeEstoque() == 0) {
             status = "CRITICO";
-        } else if (produto.getQtdEstoque() <= 5) {
+        } else if (produto.getQuantidadeEstoque() <= 5) {
             status = "BAIXO";
         } else {
             status = "OK";
@@ -726,9 +726,9 @@ public class DashboardService {
         return ProdutoEstoqueDTO.builder()
                 .id(produto.getId())
                 .nome(produto.getNome())
-                .quantidadeAtual(produto.getQtdEstoque())
+                .quantidadeAtual(produto.getQuantidadeEstoque())
                 .estoqueMinimo(5) // Configurável
-                .categoria(produto.getCategoria())
+                .categoria(produto.getCategoria().getLabel())
                 .status(status)
                 .build();
     }
@@ -775,7 +775,7 @@ public class DashboardService {
             labels.add(dataAtual.format(DateTimeFormatter.ofPattern("dd/MM")));
 
             BigDecimal receita = cobrancaRepository.sumReceitaByPeriod(
-                    dataAtual.atStartOfDay(), dataAtual.atTime(23, 59, 59));
+                    dataAtual.atStartOfDay(), dataAtual.atTime(23, 59, 59), Cobranca.StatusCobranca.PAGO);
             dados.add(receita != null ? receita : BigDecimal.ZERO);
 
             dataAtual = dataAtual.plusDays(1);
@@ -895,9 +895,9 @@ public class DashboardService {
     private DashboardDTO.TendenciaDTO criarTendenciaReceita(LocalDate inicioAtual, LocalDate fimAtual,
                                                             LocalDate inicioAnterior, LocalDate fimAnterior) {
         BigDecimal receitaAtual = cobrancaRepository.sumReceitaByPeriod(
-                inicioAtual.atStartOfDay(), fimAtual.atTime(23, 59, 59));
+                inicioAtual.atStartOfDay(), fimAtual.atTime(23, 59, 59), Cobranca.StatusCobranca.PAGO);
         BigDecimal receitaAnterior = cobrancaRepository.sumReceitaByPeriod(
-                inicioAnterior.atStartOfDay(), fimAnterior.atTime(23, 59, 59));
+                inicioAnterior.atStartOfDay(), fimAnterior.atTime(23, 59, 59), Cobranca.StatusCobranca.PAGO);
 
         if (receitaAtual == null) receitaAtual = BigDecimal.ZERO;
         if (receitaAnterior == null) receitaAnterior = BigDecimal.ZERO;

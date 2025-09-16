@@ -33,7 +33,6 @@ public class Agendamento {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cliente_id", nullable = false)
-    @JsonIgnore
     private Cliente cliente;
 
     @ManyToMany(fetch = FetchType.LAZY)

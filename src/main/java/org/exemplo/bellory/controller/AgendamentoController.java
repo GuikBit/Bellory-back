@@ -2,26 +2,34 @@ package org.exemplo.bellory.controller;
 
 
 import org.exemplo.bellory.model.dto.*;
+import org.exemplo.bellory.model.entity.cobranca.Cobranca;
 import org.exemplo.bellory.model.entity.error.ResponseAPI;
+import org.exemplo.bellory.model.entity.pagamento.Pagamento;
 import org.exemplo.bellory.service.AgendamentoService;
+import org.exemplo.bellory.service.TransacaoService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/agendamento")
 public class AgendamentoController {
 
     private final AgendamentoService agendamentoService;
+    private final TransacaoService transacaoService;
 
-    public AgendamentoController(AgendamentoService agendamentoService) {
+    public AgendamentoController(AgendamentoService agendamentoService, TransacaoService transacaoService) {
         this.agendamentoService = agendamentoService;
+        this.transacaoService = transacaoService;
     }
 
     @PostMapping("/disponibilidade")
@@ -186,9 +194,148 @@ public class AgendamentoController {
         }
     }
 
+    @GetMapping("/cobrancas-pendentes")
+    public ResponseEntity<ResponseAPI<List<AgendamentoDTO>>> getAgendamentosComCobrancasPendentes() {
+        try {
+            List<AgendamentoDTO> agendamentos = agendamentoService.getAgendamentosComCobrancasPendentes();
+
+            return ResponseEntity.ok(ResponseAPI.<List<AgendamentoDTO>>builder()
+                    .success(true)
+                    .message("Agendamentos com cobranças pendentes recuperados com sucesso.")
+                    .dados(agendamentos)
+                    .build());
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseAPI.<List<AgendamentoDTO>>builder()
+                            .success(false)
+                            .message("Erro ao buscar agendamentos com cobranças pendentes: " + e.getMessage())
+                            .errorCode(500)
+                            .build());
+        }
+    }
+
+    @GetMapping("/vencidos")
+    public ResponseEntity<ResponseAPI<List<AgendamentoDTO>>> getAgendamentosVencidos() {
+        try {
+            List<AgendamentoDTO> agendamentos = agendamentoService.getAgendamentosVencidos();
+
+            return ResponseEntity.ok(ResponseAPI.<List<AgendamentoDTO>>builder()
+                    .success(true)
+                    .message("Agendamentos com cobranças vencidas recuperados com sucesso.")
+                    .dados(agendamentos)
+                    .build());
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseAPI.<List<AgendamentoDTO>>builder()
+                            .success(false)
+                            .message("Erro ao buscar agendamentos vencidos: " + e.getMessage())
+                            .errorCode(500)
+                            .build());
+        }
+    }
+
+    @PostMapping("/{id}/pagamento")
+    public ResponseEntity<ResponseAPI<Map<String, Object>>> processarPagamentoAgendamento(
+            @PathVariable Long id,
+            @RequestBody PagamentoAgendamentoDTO pagamentoDTO) {
+        try {
+            // Validações básicas
+            if (pagamentoDTO.getValorPagamento() == null || pagamentoDTO.getValorPagamento().compareTo(BigDecimal.ZERO) <= 0) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(ResponseAPI.<Map<String, Object>>builder()
+                                .success(false)
+                                .message("Valor do pagamento deve ser maior que zero.")
+                                .errorCode(400)
+                                .build());
+            }
+
+            if (pagamentoDTO.getMetodoPagamento() == null || pagamentoDTO.getMetodoPagamento().trim().isEmpty()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(ResponseAPI.<Map<String, Object>>builder()
+                                .success(false)
+                                .message("Método de pagamento é obrigatório.")
+                                .errorCode(400)
+                                .build());
+            }
+
+            // Buscar agendamento
+            AgendamentoDTO agendamento = agendamentoService.getAgendamentoById(id);
+            if (agendamento.getCobrancaId() == null) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(ResponseAPI.<Map<String, Object>>builder()
+                                .success(false)
+                                .message("Este agendamento não possui cobrança associada.")
+                                .errorCode(400)
+                                .build());
+            }
+
+            // Processar pagamento através do TransactionService
+            Pagamento.MetodoPagamento metodoPagamento = Pagamento.MetodoPagamento.valueOf(
+                    pagamentoDTO.getMetodoPagamento().toUpperCase()
+            );
+
+            Pagamento pagamento = transacaoService.processarPagamento(
+                    agendamento.getCobrancaId(),
+                    metodoPagamento,
+                    pagamentoDTO.getValorPagamento(),
+                    pagamentoDTO.getCartaoCreditoId()
+            );
+
+            // Preparar resposta
+            Map<String, Object> resultado = new HashMap<>();
+            resultado.put("pagamentoId", pagamento.getId());
+            resultado.put("transacaoId", pagamento.getTransacaoId());
+            resultado.put("status", pagamento.getStatusPagamento().name());
+            resultado.put("valor", pagamento.getValor());
+            resultado.put("metodoPagamento", pagamento.getMetodoPagamento().getDescricao());
+
+            return ResponseEntity.ok(ResponseAPI.<Map<String, Object>>builder()
+                    .success(true)
+                    .message("Pagamento processado com sucesso.")
+                    .dados(resultado)
+                    .build());
+
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ResponseAPI.<Map<String, Object>>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(400)
+                            .build());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseAPI.<Map<String, Object>>builder()
+                            .success(false)
+                            .message("Erro interno ao processar pagamento: " + e.getMessage())
+                            .errorCode(500)
+                            .build());
+        }
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<ResponseAPI<Void>> cancelAgendamento(@PathVariable Long id) {
         try {
+            // Verificar se existe cobrança paga antes de cancelar
+            AgendamentoDTO agendamento = agendamentoService.getAgendamentoById(id);
+
+            if (agendamento.getCobrancaId() != null) {
+                List<Cobranca> cobrancas = transacaoService.getCobrancasPendentesCliente(agendamento.getClienteId())
+                        .stream()
+                        .filter(c -> c.getId().equals(agendamento.getCobrancaId()))
+                        .collect(Collectors.toList());
+
+                if (!cobrancas.isEmpty() && cobrancas.get(0).isPaga()) {
+                    return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                            .body(ResponseAPI.<Void>builder()
+                                    .success(false)
+                                    .message("Não é possível cancelar agendamento com cobrança paga. Realize estorno primeiro.")
+                                    .errorCode(400)
+                                    .build());
+                }
+            }
+
             agendamentoService.cancelAgendamento(id);
 
             return ResponseEntity.ok(ResponseAPI.<Void>builder()
@@ -203,11 +350,71 @@ public class AgendamentoController {
                             .message(e.getMessage())
                             .errorCode(404)
                             .build());
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ResponseAPI.<Void>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(400)
+                            .build());
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ResponseAPI.<Void>builder()
                             .success(false)
                             .message("Ocorreu um erro interno ao cancelar o agendamento: " + e.getMessage())
+                            .errorCode(500)
+                            .build());
+        }
+    }
+
+    @PostMapping("/{id}/estorno")
+    public ResponseEntity<ResponseAPI<String>> estornarPagamentoAgendamento(
+            @PathVariable Long id,
+            @RequestBody Map<String, String> request) {
+        try {
+            String motivo = request.get("motivo");
+            if (motivo == null || motivo.trim().isEmpty()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(ResponseAPI.<String>builder()
+                                .success(false)
+                                .message("Motivo do estorno é obrigatório.")
+                                .errorCode(400)
+                                .build());
+            }
+
+            // Buscar agendamento
+            AgendamentoDTO agendamento = agendamentoService.getAgendamentoById(id);
+
+            if (agendamento.getCobrancaId() == null) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(ResponseAPI.<String>builder()
+                                .success(false)
+                                .message("Este agendamento não possui cobrança associada.")
+                                .errorCode(400)
+                                .build());
+            }
+
+            // Processar estorno através do TransactionService
+            transacaoService.estornarCobranca(agendamento.getCobrancaId(), motivo);
+
+            return ResponseEntity.ok(ResponseAPI.<String>builder()
+                    .success(true)
+                    .message("Estorno processado com sucesso.")
+                    .dados("Cobrança estornada: " + agendamento.getCobrancaId())
+                    .build());
+
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ResponseAPI.<String>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(400)
+                            .build());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseAPI.<String>builder()
+                            .success(false)
+                            .message("Erro interno ao processar estorno: " + e.getMessage())
                             .errorCode(500)
                             .build());
         }

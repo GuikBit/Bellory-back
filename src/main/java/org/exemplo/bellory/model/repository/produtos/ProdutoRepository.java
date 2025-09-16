@@ -17,9 +17,9 @@ public interface ProdutoRepository extends JpaRepository<Produto, Long> {
 
     Long countByAtivo(boolean ativo);
 
-    @Query("SELECT p FROM Produto p WHERE p.qtdEstoque <= :limite AND p.ativo = true ORDER BY p.qtdEstoque ASC")
+    @Query("SELECT p FROM Produto p WHERE p.quantidadeEstoque <= :limite AND p.ativo = true ORDER BY p.quantidadeEstoque ASC")
     List<Produto> findByEstoqueBaixo(int limite);
 
-    @Query("SELECT p FROM Produto p WHERE p.qtdEstoque = 0 AND p.ativo = true")
+    @Query("SELECT p FROM Produto p WHERE p.quantidadeEstoque = 0 AND p.ativo = true")
     List<Produto> findSemEstoque();
 }

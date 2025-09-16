@@ -6,6 +6,7 @@ import org.exemplo.bellory.model.entity.agendamento.Status;
 import org.exemplo.bellory.model.entity.servico.Servico;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -19,6 +20,7 @@ public class AgendamentoDTO {
     private Long id;
     private Long organizacaoId;
     private ClienteResumoDTO cliente;
+    private Long clienteId;
     private List<ServicoResumoDTO> servicos;
     private List<FuncionarioResumoDTO> funcionarios;
     private LocalDateTime dtAgendamento;
@@ -28,11 +30,19 @@ public class AgendamentoDTO {
     private BigDecimal valorTotal;
     private LocalDateTime dtCriacao;
     private LocalDateTime dtAtualizacao;
+    private Long cobrancaId;
+    private BigDecimal valorCobranca;
+    private String statusCobranca;
+    private LocalDate dtVencimentoCobranca;
+    private BigDecimal valorPago;
+    private BigDecimal valorPendente;
+    private boolean cobrancaVencida;
 
     // Construtor que converte de Agendamento para AgendamentoDTO
     public AgendamentoDTO(Agendamento agendamento) {
         this.id = agendamento.getId();
         this.organizacaoId = agendamento.getOrganizacao().getId();
+        this.clienteId = agendamento.getCliente().getId();
 
         // Cliente resumo
         this.cliente = new ClienteResumoDTO(

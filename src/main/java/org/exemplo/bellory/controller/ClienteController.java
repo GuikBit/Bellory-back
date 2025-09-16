@@ -129,14 +129,14 @@ public class ClienteController {
             return ResponseEntity.ok(ResponseAPI.<Boolean>builder()
                     .success(true)
                     .message("CPF já cadastrado.")
-                    .dados(true) // O dado retornado é 'true' (sim, existe)
+                    .dados(false) // O dado retornado é 'false' (CPF, já cadastrado)
                     .build());
         } else {
             // Se não existe, retorna sucesso com a informação de que está disponível
             return ResponseEntity.ok(ResponseAPI.<Boolean>builder()
                     .success(true)
                     .message("CPF disponível para cadastro.")
-                    .dados(false) // O dado retornado é 'false' (não, não existe)
+                    .dados(true) // O dado retornado é 'true' (CPF, disponivel)
                     .build());
         }
     }

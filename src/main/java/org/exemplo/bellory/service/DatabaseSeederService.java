@@ -36,6 +36,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.stream.Collectors;
 
 @Service
 public class DatabaseSeederService {
@@ -122,7 +123,7 @@ public class DatabaseSeederService {
         List<Servico> servicos = criarServicos(categorias, orgPrincipal);
 
         // 8. PRODUTOS (50 produtos)
-        criarProdutos(orgPrincipal);
+        criarProdutos(orgPrincipal, categorias);
 
         // 9. AGENDAMENTOS (100 agendamentos com todos os status)
         criarAgendamentos(orgPrincipal, funcionarios, clientes, servicos);
@@ -446,97 +447,208 @@ public class DatabaseSeederService {
         return servicos;
     }
 
-    private void criarProdutos(Organizacao org) {
+    private void criarProdutos(Organizacao org, List<Categoria> categorias) {
         System.out.println("🛍️ Criando produtos...");
 
+        // Criar mapa para facilitar busca de categorias por nome
+        Map<String, Categoria> categoriaMap = categorias.stream()
+                .collect(Collectors.toMap(Categoria::getLabel, categoria -> categoria));
+
         String[][] produtosData = {
-                {"Shampoo Premium", "Shampoo hidratante com óleos essenciais", "45.90", "100", "Cabelo", "Feminino", "Beauty Pro", "4.5", "0", "false"},
-                {"Condicionador Reparador", "Condicionador para cabelos danificados", "39.90", "80", "Cabelo", "Unissex", "Hair Care", "4.3", "15", "true"},
-                {"Máscara Capilar", "Tratamento intensivo semanal", "89.90", "50", "Cabelo", "Unissex", "Intensive Care", "4.8", "20", "true"},
-                {"Óleo Argan", "Óleo puro de argan marroquino", "129.90", "30", "Cabelo", "Unissex", "Argan Gold", "4.9", "0", "false"},
-                {"Leave-in Protetor", "Proteção térmica e hidratação", "35.90", "120", "Cabelo", "Unissex", "Thermo Pro", "4.2", "10", "false"},
+                // nome, descricao, preco, quantidadeEstoque, nomeCategoria, codigoBarras, codigoInterno, marca, unidade, precoCusto, genero, avaliacao, totalAvaliacoes, descontoPercentual, destaque, ativo, modelo, peso
+                {"Shampoo Premium", "Shampoo hidratante com óleos essenciais para todos os tipos de cabelo", "45.90", "100", "Cabelo", "7891234567890", "SHP001", "Beauty Pro", "UN", "25.00", "Feminino", "4.5", "127", "0", "true", "true", "Premium Line", "0.350"},
+                {"Condicionador Reparador", "Condicionador para cabelos danificados com queratina", "39.90", "80", "Cabelo", "7891234567891", "CDR002", "Hair Care", "UN", "22.00", "Unissex", "4.3", "89", "15", "false", "true", "Repair", "0.300"},
+                {"Máscara Capilar", "Tratamento intensivo semanal com óleos naturais", "89.90", "50", "Cabelo", "7891234567892", "MSC003", "Intensive Care", "UN", "45.00", "Unissex", "4.8", "203", "20", "true", "true", "Intensive", "0.250"},
+                {"Óleo Argan", "Óleo puro de argan marroquino 100% natural", "129.90", "30", "Cabelo", "7891234567893", "ARG004", "Argan Gold", "ML", "65.00", "Unissex", "4.9", "156", "0", "true", "true", "Pure", "0.100"},
+                {"Leave-in Protetor", "Proteção térmica e hidratação instantânea", "35.90", "120", "Cabelo", "7891234567894", "LEV005", "Thermo Pro", "ML", "18.00", "Unissex", "4.2", "94", "10", "false", "true", "Thermal", "0.150"},
 
-                {"Esmalte Gel", "Esmalte com efeito gel duradouro", "19.90", "200", "Unhas", "Feminino", "Nail Perfect", "4.1", "0", "false"},
-                {"Base Fortalecedora", "Base que fortalece as unhas", "29.90", "150", "Unhas", "Feminino", "Strong Nails", "4.4", "0", "false"},
-                {"Kit Nail Art", "Kit completo para decoração", "79.90", "25", "Unhas", "Feminino", "Art Nails", "4.7", "25", "true"},
-                {"Removedor Suave", "Remove esmalte sem ressecar", "12.90", "180", "Unhas", "Feminino", "Gentle Care", "4.0", "0", "false"},
-                {"Óleo Cutícula", "Hidrata e amacia as cutículas", "24.90", "100", "Unhas", "Feminino", "Cuticle Soft", "4.3", "0", "false"},
+                {"Esmalte Gel", "Esmalte com efeito gel duradouro até 15 dias", "19.90", "200", "Mãos e Pés", "7891234567895", "ESM006", "Nail Perfect", "UN", "8.00", "Feminino", "4.1", "78", "0", "false", "true", "Gel Effect", "0.015"},
+                {"Base Fortalecedora", "Base que fortalece as unhas fracas", "29.90", "150", "Mãos e Pés", "7891234567896", "BSF007", "Strong Nails", "ML", "15.00", "Feminino", "4.4", "112", "0", "false", "true", "Fortifying", "0.012"},
+                {"Kit Nail Art", "Kit completo para decoração de unhas", "79.90", "25", "Mãos e Pés", "7891234567897", "KNA008", "Art Nails", "KIT", "40.00", "Feminino", "4.7", "45", "25", "true", "true", "Professional", "0.200"},
+                {"Removedor Suave", "Remove esmalte sem ressecar as unhas", "12.90", "180", "Mãos e Pés", "7891234567898", "REM009", "Gentle Care", "ML", "6.00", "Feminino", "4.0", "67", "0", "false", "true", "Gentle", "0.100"},
+                {"Óleo Cutícula", "Hidrata e amacia as cutículas", "24.90", "100", "Mãos e Pés", "7891234567899", "CUT010", "Cuticle Soft", "ML", "12.00", "Feminino", "4.3", "88", "0", "false", "true", "Nourishing", "0.010"},
 
-                {"Creme Anti-Idade", "Reduz rugas e linhas de expressão", "199.90", "40", "Skincare", "Unissex", "Youth Formula", "4.8", "30", "true"},
-                {"Sérum Vitamina C", "Ilumina e revitaliza a pele", "159.90", "60", "Skincare", "Unissex", "Vitamin Boost", "4.6", "20", "true"},
-                {"Protetor Solar Facial", "FPS 60 para rosto", "89.90", "80", "Skincare", "Unissex", "Sun Shield", "4.5", "0", "false"},
-                {"Água Micelar", "Remove maquiagem suavemente", "49.90", "120", "Skincare", "Unissex", "Micellar Clean", "4.2", "15", "false"},
-                {"Tônico Facial", "Equilibra pH da pele", "39.90", "100", "Skincare", "Unissex", "Balance Tone", "4.1", "0", "false"},
+                {"Creme Anti-Idade", "Reduz rugas e linhas de expressão visíveis", "199.90", "40", "Estética Facial", "7891234567800", "CRA011", "Youth Formula", "G", "100.00", "Unissex", "4.8", "234", "30", "true", "true", "Anti-Age", "0.050"},
+                {"Sérum Vitamina C", "Ilumina e revitaliza a pele com antioxidantes", "159.90", "60", "Estética Facial", "7891234567801", "SVC012", "Vitamin Boost", "ML", "80.00", "Unissex", "4.6", "189", "20", "true", "true", "Brightening", "0.030"},
+                {"Protetor Solar Facial", "FPS 60 proteção UVA/UVB para rosto", "89.90", "80", "Estética Facial", "7891234567802", "PSF013", "Sun Shield", "ML", "45.00", "Unissex", "4.5", "145", "0", "false", "true", "FPS 60", "0.060"},
+                {"Água Micelar", "Remove maquiagem suavemente sem agredir", "49.90", "120", "Estética Facial", "7891234567803", "AGM014", "Micellar Clean", "ML", "25.00", "Unissex", "4.2", "167", "15", "false", "true", "Micellar", "0.250"},
+                {"Tônico Facial", "Equilibra pH da pele e minimiza poros", "39.90", "100", "Estética Facial", "7891234567804", "TON015", "Balance Tone", "ML", "20.00", "Unissex", "4.1", "134", "0", "false", "true", "Balancing", "0.200"},
 
-                {"Base Líquida", "Cobertura natural duradoura", "69.90", "90", "Maquiagem", "Feminino", "Perfect Skin", "4.4", "0", "false"},
-                {"Paleta Sombras", "12 cores vibrantes", "119.90", "45", "Maquiagem", "Feminino", "Color Palette", "4.7", "35", "true"},
-                {"Batom Matte", "Acabamento matte duradouro", "29.90", "150", "Maquiagem", "Feminino", "Matte Kiss", "4.3", "0", "false"},
-                {"Rímel Alongador", "Alonga e volumiza os cílios", "45.90", "80", "Maquiagem", "Feminino", "Lash Volume", "4.5", "0", "false"},
-                {"Blush Compacto", "Cor natural para as bochechas", "39.90", "70", "Maquiagem", "Feminino", "Natural Glow", "4.2", "20", "false"},
+                {"Lápis para Sobrancelha", "Define e preenche as sobrancelhas naturalmente", "29.90", "90", "Sobrancelhas", "7891234567805", "LPS016", "Perfect Brow", "UN", "15.00", "Feminino", "4.4", "98", "0", "false", "true", "Precision", "0.005"},
+                {"Gel Fixador Sobrancelha", "Fixa e modela os fios por 12h", "35.90", "70", "Sobrancelhas", "7891234567806", "GFS017", "Brow Fix", "ML", "18.00", "Feminino", "4.2", "76", "0", "false", "true", "Long Lasting", "0.008"},
+                {"Kit Sobrancelha", "Kit completo para design profissional", "69.90", "45", "Sobrancelhas", "7891234567807", "KSB018", "Brow Kit", "KIT", "35.00", "Feminino", "4.6", "123", "30", "true", "true", "Professional", "0.150"},
+                {"Pinça Profissional", "Pinça de aço inoxidável ultra precisa", "45.90", "60", "Sobrancelhas", "7891234567808", "PIN019", "Steel Pro", "UN", "25.00", "Unissex", "4.7", "89", "0", "false", "true", "Precision", "0.020"},
+                {"Cera Depilatória Sobrancelha", "Remove pelos indesejados suavemente", "19.90", "80", "Sobrancelhas", "7891234567809", "CDS020", "Wax Brow", "G", "10.00", "Feminino", "4.1", "65", "0", "false", "true", "Gentle", "0.025"},
 
-                {"Cera Modeladora", "Fixa e modela o cabelo", "35.90", "60", "Styling", "Masculino", "Style Fix", "4.0", "0", "false"},
-                {"Gel Fixador", "Fixação forte sem ressecamento", "25.90", "90", "Styling", "Masculino", "Strong Hold", "4.1", "0", "false"},
-                {"Pomada Capilar", "Brilho e fixação moderada", "42.90", "55", "Styling", "Masculino", "Shine Wax", "4.3", "15", "false"},
-                {"Spray Texturizador", "Textura e movimento", "38.90", "75", "Styling", "Unissex", "Texture Boost", "4.4", "0", "false"},
-                {"Mousse Volumizador", "Volume e leveza", "46.90", "65", "Styling", "Feminino", "Volume Up", "4.2", "25", "true"},
+                {"Óleo Relaxante", "Óleo essencial para massagem terapêutica", "89.90", "50", "Massagem", "7891234567810", "OLR021", "Relax Oil", "ML", "45.00", "Unissex", "4.8", "156", "0", "true", "true", "Therapeutic", "0.250"},
+                {"Creme Massagem", "Creme hidratante para massagem corporal", "59.90", "60", "Massagem", "7891234567811", "CRM022", "Massage Cream", "G", "30.00", "Unissex", "4.5", "134", "15", "false", "true", "Moisturizing", "0.300"},
+                {"Vela Aromática", "Vela para ambientação e relaxamento", "39.90", "80", "Massagem", "7891234567812", "VEA023", "Aroma Candle", "UN", "20.00", "Unissex", "4.3", "97", "0", "false", "true", "Aromatherapy", "0.180"},
+                {"Pedras Quentes", "Kit de pedras vulcânicas para massagem", "159.90", "20", "Massagem", "7891234567813", "PQU024", "Hot Stones", "KIT", "80.00", "Unissex", "4.9", "67", "35", "true", "true", "Professional", "2.500"},
+                {"CD Relaxante", "Música relaxante e sons da natureza", "29.90", "100", "Massagem", "7891234567814", "MUS025", "Nature Sounds", "UN", "15.00", "Unissex", "4.2", "78", "0", "false", "true", "Premium", "0.050"},
 
-                {"Kit Coloração", "Kit completo para colorir em casa", "89.90", "35", "Kits", "Unissex", "Home Color", "4.0", "40", "true"},
-                {"Kit Hidratação", "Tratamento completo hidratante", "129.90", "40", "Kits", "Unissex", "Hydra Kit", "4.6", "30", "true"},
-                {"Kit Manicure", "Ferramentas profissionais", "159.90", "20", "Kits", "Feminino", "Nail Pro Kit", "4.8", "45", "true"},
-                {"Kit Barba", "Cuidados completos para barba", "199.90", "25", "Kits", "Masculino", "Beard Care", "4.7", "35", "true"},
-                {"Kit Noiva", "Produtos especiais para noivas", "399.90", "15", "Kits", "Feminino", "Bridal Kit", "4.9", "50", "true"},
+                {"Cera Quente", "Cera profissional para depilação corporal", "45.90", "80", "Depilação", "7891234567815", "CQU026", "Hot Wax", "G", "25.00", "Feminino", "4.4", "187", "0", "false", "true", "Professional", "0.400"},
+                {"Cera Fria Roll-on", "Cera em roll-on para peles sensíveis", "29.90", "120", "Depilação", "7891234567816", "CFR027", "Cold Wax", "ML", "15.00", "Feminino", "4.1", "145", "0", "false", "true", "Sensitive", "0.100"},
+                {"Pós Depilação", "Loção calmante e hidratante", "35.90", "90", "Depilação", "7891234567817", "POS028", "After Wax", "ML", "18.00", "Feminino", "4.3", "156", "20", "false", "true", "Soothing", "0.150"},
+                {"Espátulas Descartáveis", "Pacote com 100 espátulas de madeira", "19.90", "200", "Depilação", "7891234567818", "ESP029", "Disposable", "PCT", "8.00", "Unissex", "4.0", "89", "0", "false", "true", "Eco Wood", "0.200"},
+                {"Pó Talco Depilação", "Talco mineral para preparar a pele", "24.90", "150", "Depilação", "7891234567819", "TAL030", "Wax Talc", "G", "12.00", "Feminino", "4.2", "123", "0", "false", "true", "Mineral", "0.100"},
 
-                {"Perfume Floral", "Fragrância delicada e feminina", "159.90", "50", "Perfumaria", "Feminino", "Flower Essence", "4.6", "0", "false"},
-                {"Perfume Amadeirado", "Fragrância masculina marcante", "179.90", "45", "Perfumaria", "Masculino", "Wood Scent", "4.5", "20", "false"},
-                {"Body Splash", "Fragrância suave para o corpo", "49.90", "100", "Perfumaria", "Feminino", "Fresh Body", "4.2", "0", "false"},
-                {"Desodorante Roll-on", "Proteção 48h sem álcool", "19.90", "150", "Perfumaria", "Unissex", "Dry Care", "4.1", "0", "false"},
-                {"Água Perfumada", "Fragrância leve e refrescante", "79.90", "80", "Perfumaria", "Unissex", "Light Scent", "4.3", "25", "false"},
+                {"Base Líquida HD", "Cobertura natural duradoura alta definição", "69.90", "90", "Maquiagem", "7891234567820", "BLI031", "Perfect Skin", "ML", "35.00", "Feminino", "4.4", "234", "0", "false", "true", "HD Formula", "0.030"},
+                {"Paleta Sombras Profissional", "48 cores vibrantes e pigmentadas", "119.90", "45", "Maquiagem", "7891234567821", "PAL032", "Color Palette", "UN", "60.00", "Feminino", "4.7", "178", "35", "true", "true", "Professional", "0.180"},
+                {"Batom Matte Longa Duração", "Acabamento matte resistente a 12h", "29.90", "150", "Maquiagem", "7891234567822", "BAT033", "Matte Kiss", "UN", "15.00", "Feminino", "4.3", "198", "0", "false", "true", "Long Wear", "0.004"},
+                {"Rímel à Prova d'Água", "Alonga e volumiza resistente à água", "45.90", "80", "Maquiagem", "7891234567823", "RIM034", "Lash Volume", "UN", "25.00", "Feminino", "4.5", "167", "0", "false", "true", "Waterproof", "0.010"},
+                {"Blush Compacto Natural", "Cor natural duradoura para bochechas", "39.90", "70", "Maquiagem", "7891234567824", "BLU035", "Natural Glow", "UN", "20.00", "Feminino", "4.2", "145", "20", "false", "true", "Natural", "0.008"},
 
-                {"Escova Profissional", "Cerdas naturais para alisamento", "89.90", "30", "Acessórios", "Unissex", "Pro Brush", "4.7", "0", "false"},
-                {"Secador Íons", "Tecnologia íons para brilho", "299.90", "15", "Acessórios", "Unissex", "Ion Dryer", "4.8", "25", "true"},
-                {"Chapinha Cerâmica", "Placas de cerâmica profissional", "199.90", "20", "Acessórios", "Unissex", "Ceramic Pro", "4.6", "30", "true"},
-                {"Babyliss", "Modelador de cachos", "149.90", "25", "Acessórios", "Feminino", "Curl Master", "4.5", "20", "false"},
-                {"Kit Pincéis", "Pincéis profissionais maquiagem", "119.90", "35", "Acessórios", "Feminino", "Brush Set", "4.4", "35", "true"},
+                {"Peeling Químico Facial", "Remove impurezas profundas com AHA", "129.90", "30", "Tratamentos", "7891234567825", "PEE036", "Deep Clean", "ML", "65.00", "Unissex", "4.6", "98", "25", "true", "true", "Professional", "0.050"},
+                {"Máscara de Ouro 24k", "Tratamento luxuoso anti-idade premium", "299.90", "15", "Tratamentos", "7891234567826", "MDO037", "Gold Mask", "UN", "150.00", "Unissex", "4.9", "67", "40", "true", "true", "Luxury", "0.025"},
+                {"Hidrogel Ácido Hialurônico", "Hidratação intensiva profunda", "89.90", "40", "Tratamentos", "7891234567827", "HGF038", "Hydro Gel", "UN", "45.00", "Unissex", "4.7", "134", "30", "true", "true", "Intensive", "0.030"},
+                {"Ampola Vitamina E", "Concentrado revitalizante antioxidante", "59.90", "60", "Tratamentos", "7891234567828", "AMP039", "Vita Boost", "UN", "30.00", "Unissex", "4.5", "189", "0", "false", "true", "Concentrate", "0.010"},
+                {"Aparelho Led Terapia", "Fototerapia LED profissional", "1299.90", "5", "Tratamentos", "7891234567829", "LED040", "Photo Therapy", "UN", "650.00", "Unissex", "4.8", "23", "50", "true", "true", "Professional", "0.800"},
 
-                {"Sabonete Esfoliante", "Remove células mortas", "29.90", "120", "Corpo", "Unissex", "Exfoliant Care", "4.1", "0", "false"},
-                {"Hidratante Corporal", "Nutrição intensa 24h", "45.90", "100", "Corpo", "Unissex", "Body Moist", "4.3", "15", "false"},
-                {"Óleo Corporal", "Hidratação profunda com óleos", "69.90", "60", "Corpo", "Feminino", "Body Oil", "4.5", "20", "false"},
-                {"Creme Anticelulite", "Reduz aparência da celulite", "89.90", "40", "Corpo", "Feminino", "Slim Body", "4.2", "25", "true"},
-                {"Protetor Solar Corporal", "FPS 50 resistente à água", "59.90", "80", "Corpo", "Unissex", "Sun Body", "4.4", "0", "false"},
+                {"Óleo para Barba Premium", "Hidrata e perfuma a barba masculina", "49.90", "80", "Barba", "7891234567830", "OLB041", "Beard Oil", "ML", "25.00", "Masculino", "4.6", "156", "0", "false", "true", "Premium", "0.050"},
+                {"Balm para Barba Natural", "Modela e condiciona naturalmente", "39.90", "90", "Barba", "7891234567831", "BAL042", "Beard Balm", "G", "20.00", "Masculino", "4.4", "134", "15", "false", "true", "Natural", "0.060"},
+                {"Shampoo Específico Barba", "Limpeza específica para pelos faciais", "35.90", "100", "Barba", "7891234567832", "SHB043", "Beard Wash", "ML", "18.00", "Masculino", "4.3", "198", "0", "false", "true", "Specialized", "0.250"},
+                {"Pente Madeira Artesanal", "Pente de madeira nobre feito à mão", "29.90", "60", "Barba", "7891234567833", "PTM044", "Wood Comb", "UN", "15.00", "Masculino", "4.5", "87", "0", "false", "true", "Handmade", "0.025"},
+                {"Kit Barba Completo", "Todos os produtos essenciais", "159.90", "25", "Barba", "7891234567834", "KBC045", "Complete Kit", "KIT", "80.00", "Masculino", "4.8", "78", "40", "true", "true", "Premium", "0.400"},
 
-                {"Suplemento Capilar", "Vitaminas para crescimento", "129.90", "50", "Suplementos", "Unissex", "Hair Growth", "4.6", "0", "false"},
-                {"Colágeno Hidrolisado", "Beleza de dentro para fora", "89.90", "60", "Suplementos", "Unissex", "Beauty Collagen", "4.7", "30", "true"},
-                {"Vitamina E", "Antioxidante natural", "39.90", "100", "Suplementos", "Unissex", "Vitamin E", "4.3", "0", "false"},
-                {"Biotina", "Fortalece cabelos e unhas", "49.90", "80", "Suplementos", "Unissex", "Biotin Plus", "4.4", "20", "false"}
+                {"Véu de Noiva Bordado", "Véu tradicional com bordado à mão", "299.90", "20", "Noivas", "7891234567835", "VNO046", "Bridal Veil", "UN", "150.00", "Feminino", "4.9", "45", "0", "true", "true", "Luxury", "0.100"},
+                {"Kit Maquiagem Noiva", "Maquiagem completa para o grande dia", "399.90", "15", "Noivas", "7891234567836", "MNO047", "Bridal Makeup", "KIT", "200.00", "Feminino", "4.8", "67", "35", "true", "true", "Professional", "0.500"},
+                {"Acessórios Cabelo Noiva", "Tiaras, presilhas e ornamentos", "199.90", "30", "Noivas", "7891234567837", "PNO048", "Hair Accessories", "KIT", "100.00", "Feminino", "4.7", "89", "30", "true", "true", "Elegant", "0.150"},
+                {"Perfume Exclusivo Noiva", "Fragrância especial e única", "259.90", "25", "Noivas", "7891234567838", "PRN049", "Bridal Scent", "ML", "130.00", "Feminino", "4.6", "34", "25", "true", "true", "Exclusive", "0.100"},
+                {"Kit Spa Relaxante Noiva", "Tratamentos pré-casamento completos", "499.90", "10", "Noivas", "7891234567839", "SPN050", "Bridal Spa", "KIT", "250.00", "Feminino", "4.9", "23", "45", "true", "true", "Luxury", "1.200"}
         };
 
         for (String[] data : produtosData) {
+            // Buscar categoria por nome
+            Categoria categoria = categoriaMap.get(data[4]);
+
+            if (categoria == null) {
+                System.err.println("⚠️ Categoria não encontrada: " + data[4]);
+                continue;
+            }
+
             String nome = data[0];
             produtoRepository.findByNomeAndOrganizacao(nome, org).orElseGet(() -> {
-                Produto p = new Produto();
-                p.setOrganizacao(org);
-                p.setNome(data[0]);
-                p.setDescricao(data[1]);
-                p.setPreco(new BigDecimal(data[2]));
-                p.setQtdEstoque(Integer.parseInt(data[3]));
-                p.setCategoria(data[4]);
-                p.setGenero(data[5]);
-                p.setMarca(data[6]);
-                p.setAvaliacao(new BigDecimal(data[7]));
-                p.setDescontoPercentual(Integer.parseInt(data[8]) > 0 ? Integer.parseInt(data[8]) : null);
-                p.setDestaque(Boolean.parseBoolean(data[9]));
-                p.setAtivo(ThreadLocalRandom.current().nextDouble() < 0.95);
-                p.setUrlsImagens(Arrays.asList(
-                        "https://images.unsplash.com/photo-1556228578-8c89e6adf883?w=400",
-                        "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=400"
-                ));
-                p.setIngredientes(Arrays.asList(
-                        "Água", "Ingrediente Ativo", "Conservantes", "Fragrância", "Vitaminas"
-                ));
-                p.setTotalAvaliacoes(ThreadLocalRandom.current().nextInt(5, 50));
-                return produtoRepository.save(p);
+                try {
+                    Produto p = new Produto();
+                    p.setOrganizacao(org);
+                    p.setNome(data[0]);                                      // nome
+                    p.setDescricao(data[1]);                                 // descricao
+                    p.setPreco(new BigDecimal(data[2]));                     // preco
+                    p.setQuantidadeEstoque(Integer.parseInt(data[3]));       // quantidadeEstoque
+                    p.setCategoria(categoria);                               // categoria
+                    p.setCodigoBarras(data[5]);                             // codigoBarras
+                    p.setCodigoInterno(data[6]);                            // codigoInterno
+                    p.setMarca(data[7]);                                    // marca
+                    p.setUnidade(data[8]);                                  // unidade
+                    p.setPrecoCusto(new BigDecimal(data[9]));               // precoCusto
+                    p.setGenero(data[10]);                                  // genero
+                    p.setAvaliacao(new BigDecimal(data[11]));               // avaliacao
+                    p.setTotalAvaliacoes(Integer.parseInt(data[12]));       // totalAvaliacoes
+                    p.setDescontoPercentual(Integer.parseInt(data[13]) > 0 ? Integer.parseInt(data[13]) : null); // descontoPercentual
+                    p.setDestaque(Boolean.parseBoolean(data[14]));          // destaque
+                    p.setAtivo(Boolean.parseBoolean(data[15]));             // ativo
+                    p.setModelo(data[16]);                                  // modelo
+                    p.setPeso(new BigDecimal(data[17]));                    // peso
+
+                    // Configurações padrão
+                    p.setEstoqueMinimo(10);
+                    p.setStatus(Produto.StatusProduto.ATIVO);
+
+                    // Adicionar imagens variadas por categoria
+                    adicionarImagensPorCategoria(p, data[4]);
+
+                    // Adicionar ingredientes básicos
+                    p.setIngredientes(Arrays.asList(
+                            "Água purificada",
+                            "Ingredientes ativos específicos",
+                            "Conservantes naturais",
+                            "Fragrância suave",
+                            "Vitaminas e antioxidantes"
+                    ));
+
+                    // Adicionar instruções de uso
+                    p.setComoUsar(Arrays.asList(
+                            "Limpe bem a área antes da aplicação",
+                            "Aplique o produto conforme necessário",
+                            "Massageie suavemente até completa absorção",
+                            "Use conforme orientação profissional"
+                    ));
+
+                    // Adicionar especificações técnicas
+                    Map<String, String> specs = new HashMap<>();
+                    specs.put("Tipo de Pele", "Todos os tipos");
+                    specs.put("Validade", "36 meses");
+                    specs.put("Origem", "Nacional");
+                    specs.put("Certificação", "ANVISA");
+                    specs.put("Testado", "Dermatologicamente");
+                    p.setEspecificacoes(specs);
+
+                    return produtoRepository.save(p);
+
+                } catch (NumberFormatException e) {
+                    System.err.println("❌ Erro ao converter dados numéricos para produto: " + data[0]);
+                    System.err.println("Dados problemáticos: " + Arrays.toString(data));
+                    return null;
+                } catch (Exception e) {
+                    System.err.println("❌ Erro geral ao criar produto: " + data[0] + " - " + e.getMessage());
+                    return null;
+                }
             });
         }
+
+        System.out.println("✅ Produtos criados com sucesso!");
+    }
+
+    private void adicionarImagensPorCategoria(Produto produto, String nomeCategoria) {
+        List<String> imagens = new ArrayList<>();
+
+        switch (nomeCategoria) {
+            case "Cabelo":
+                imagens.add("https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=400");
+                imagens.add("https://images.unsplash.com/photo-1559599101-f09722fb4948?w=400");
+                break;
+            case "Mãos e Pés":
+                imagens.add("https://images.unsplash.com/photo-1604654894610-df63bc536371?w=400");
+                imagens.add("https://images.unsplash.com/photo-1583001931096-959e9a1a6223?w=400");
+                break;
+            case "Estética Facial":
+                imagens.add("https://images.unsplash.com/photo-1556228578-8c89e6adf883?w=400");
+                imagens.add("https://images.unsplash.com/photo-1570194065650-d99fb4bedf0a?w=400");
+                break;
+            case "Sobrancelhas":
+                imagens.add("https://images.unsplash.com/photo-1487412947147-5cebf100ffc2?w=400");
+                imagens.add("https://images.unsplash.com/photo-1516975080664-ed2fc6a32937?w=400");
+                break;
+            case "Massagem":
+                imagens.add("https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=400");
+                imagens.add("https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400");
+                break;
+            case "Depilação":
+                imagens.add("https://images.unsplash.com/photo-1570194065650-d99fb4bedf0a?w=400");
+                imagens.add("https://images.unsplash.com/photo-1598300042247-d088f8ab3a91?w=400");
+                break;
+            case "Maquiagem":
+                imagens.add("https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=400");
+                imagens.add("https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=400");
+                break;
+            case "Tratamentos":
+                imagens.add("https://images.unsplash.com/photo-1570194065650-d99fb4bedf0a?w=400");
+                imagens.add("https://images.unsplash.com/photo-1583001931096-959e9a1a6223?w=400");
+                break;
+            case "Barba":
+                imagens.add("https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=400");
+                imagens.add("https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400");
+                break;
+            case "Noivas":
+                imagens.add("https://images.unsplash.com/photo-1594736797933-d0401ba2fe65?w=400");
+                imagens.add("https://images.unsplash.com/photo-1519741497674-611481863552?w=400");
+                break;
+            default:
+                imagens.add("https://images.unsplash.com/photo-1556228578-8c89e6adf883?w=400");
+                imagens.add("https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=400");
+        }
+
+        produto.setUrlsImagens(imagens);
     }
 
     private void criarAgendamentos(Organizacao org, List<Funcionario> funcionarios, List<Cliente> clientes, List<Servico> servicos) {

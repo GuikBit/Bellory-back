@@ -9,7 +9,7 @@ import org.exemplo.bellory.model.entity.funcionario.*;
 import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 import org.exemplo.bellory.model.entity.servico.Servico;
 import org.exemplo.bellory.model.entity.users.Cliente;
-import org.exemplo.bellory.model.repository.CobrancaRepository;
+import org.exemplo.bellory.model.repository.Transacao.CobrancaRepository;
 import org.exemplo.bellory.model.repository.agendamento.AgendamentoRepository;
 import org.exemplo.bellory.model.repository.funcionario.DisponibilidadeRepository;
 import org.exemplo.bellory.model.repository.funcionario.FuncionarioRepository;
@@ -39,6 +39,9 @@ public class AgendamentoService {
     private final OrganizacaoRepository organizacaoRepository;
     private final CobrancaRepository cobrancaRepository;
 
+    private final TransacaoService transacaoService;
+
+
     private static final int TOLERANCIA_MINUTOS = 10;
 
     public AgendamentoService(AgendamentoRepository agendamentoRepository,
@@ -48,7 +51,7 @@ public class AgendamentoService {
                               ServicoRepository servicoRepository,
                               ClienteRepository clienteRepository,
                               OrganizacaoRepository organizacaoRepository,
-                              CobrancaRepository cobrancaRepository) {
+                              CobrancaRepository cobrancaRepository, TransacaoService transacaoService) {
         this.agendamentoRepository = agendamentoRepository;
         this.disponibilidadeRepository = disponibilidadeRepository;
         this.jornadaTrabalhoRepository = jornadaTrabalhoRepository;
@@ -57,6 +60,7 @@ public class AgendamentoService {
         this.clienteRepository = clienteRepository;
         this.organizacaoRepository = organizacaoRepository;
         this.cobrancaRepository = cobrancaRepository;
+        this.transacaoService = transacaoService;
     }
 
 
@@ -164,25 +168,15 @@ public class AgendamentoService {
         agendamento.setStatus(Status.PENDENTE);
         agendamento.setDtCriacao(LocalDateTime.now());
 
-        // 3. Validar e salvar agendamento (usando método existente)
+        // 3. Validar e salvar agendamento
         Agendamento agendamentoSalvo = criarAgendamento(agendamento);
 
-        // 4. Calcular valor total dos serviços
-        BigDecimal valorTotal = servicos.stream()
-                .map(Servico::getPreco)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        // 4. Criar cobrança através do TransactionService
+        Cobranca cobranca = transacaoService.criarCobrancaParaAgendamento(agendamentoSalvo);
 
-        // 5. Criar cobrança
-        Cobranca cobranca = new Cobranca();
-        cobranca.setOrganizacao(organizacao);
-        cobranca.setCliente(cliente);
-        cobranca.setAgendamento(agendamentoSalvo);
-        cobranca.setValor(valorTotal);
-        cobranca.setStatusCobranca(Status.PENDENTE);
-        cobranca.setDtVencimento(dto.getDtAgendamento().toLocalDate());
-        cobranca.setDtCriacao(LocalDateTime.now());
-
-        cobrancaRepository.save(cobranca);
+        // 5. Estabelecer relacionamento bidirecional
+        agendamentoSalvo.setCobranca(cobranca);
+        agendamentoRepository.save(agendamentoSalvo);
 
         return new AgendamentoDTO(agendamentoSalvo);
     }
@@ -290,6 +284,12 @@ public class AgendamentoService {
         Agendamento agendamento = agendamentoRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Agendamento com ID " + id + " não encontrado."));
 
+        // Verificar se agendamento pode ser cancelado
+        if (agendamento.getStatus() == Status.CONCLUIDO) {
+            throw new IllegalArgumentException("Não é possível cancelar um agendamento já concluído.");
+        }
+
+        // Cancelar agendamento
         agendamento.cancelarAgendamento();
         agendamento.setDtAtualizacao(LocalDateTime.now());
 
@@ -298,10 +298,11 @@ public class AgendamentoService {
             disponibilidadeRepository.delete(agendamento.getBloqueioAgenda());
         }
 
-        // Cancelar cobrança associada
-        if (agendamento.getCobranca() != null) {
-            agendamento.getCobranca().setStatusCobranca(Status.CANCELADO);
-            agendamento.getCobranca().setDtAtualizacao(LocalDateTime.now());
+        // Cancelar cobrança associada se existir e estiver pendente
+        if (agendamento.getCobranca() != null &&
+                agendamento.getCobranca().getStatusCobranca() != Cobranca.StatusCobranca.PAGO) {
+
+            agendamento.getCobranca().cancelar();
             cobrancaRepository.save(agendamento.getCobranca());
         }
 
@@ -391,16 +392,26 @@ public class AgendamentoService {
 
     private void atualizarCobrancaAgendamento(Agendamento agendamento) {
         if (agendamento.getCobranca() != null) {
-            // Recalcular valor total dos serviços
-            BigDecimal novoValorTotal = agendamento.getServicos().stream()
-                    .map(Servico::getPreco)
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            Cobranca cobranca = agendamento.getCobranca();
 
-            agendamento.getCobranca().setValor(novoValorTotal);
-            agendamento.getCobranca().setDtVencimento(agendamento.getDtAgendamento().toLocalDate());
-            agendamento.getCobranca().setDtAtualizacao(LocalDateTime.now());
+            // Só permitir atualização se cobrança não estiver paga
+            if (!cobranca.isPaga()) {
+                // Recalcular valor total dos serviços
+                BigDecimal novoValorTotal = agendamento.getServicos().stream()
+                        .map(Servico::getPreco)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-            cobrancaRepository.save(agendamento.getCobranca());
+                cobranca.setValor(novoValorTotal);
+                cobranca.setDtVencimento(agendamento.getDtAgendamento().toLocalDate());
+                cobranca.setDtAtualizacao(LocalDateTime.now());
+
+                // Recalcular valores pendentes
+                cobranca.recalcularValores();
+
+                cobrancaRepository.save(cobranca);
+            } else {
+                throw new IllegalStateException("Não é possível alterar agendamento com cobrança já paga. Realize estorno primeiro.");
+            }
         }
     }
     private void alterarStatusAgendamento(Agendamento agendamento, Status novoStatus) {
@@ -408,30 +419,54 @@ public class AgendamentoService {
             case AGENDADO:
                 agendamento.marcarComoAgendado();
                 break;
+
+            case CONFIRMADO:
+                agendamento.setStatus(Status.CONFIRMADO);
+                // Enviar notificação de confirmação se necessário
+                break;
+
+            case EM_ANDAMENTO:
+                agendamento.setStatus(Status.EM_ANDAMENTO);
+                break;
+
             case CONCLUIDO:
                 agendamento.marcarComoConcluido();
-                // Marcar cobrança como paga se existir
-                if (agendamento.getCobranca() != null) {
-                    agendamento.getCobranca().setStatusCobranca(Status.PAGO);
-                    agendamento.getCobranca().setDtAtualizacao(LocalDateTime.now());
-                    cobrancaRepository.save(agendamento.getCobranca());
-                }
+                // NÃO marcar cobrança como paga automaticamente
+                // Isso deve ser feito através do processo de pagamento
                 break;
+
             case CANCELADO:
                 agendamento.cancelarAgendamento();
-                // Cancelar cobrança
-                if (agendamento.getCobranca() != null) {
-                    agendamento.getCobranca().setStatusCobranca(Status.CANCELADO);
-                    agendamento.getCobranca().setDtAtualizacao(LocalDateTime.now());
+                // Cancelar cobrança somente se não estiver paga
+                if (agendamento.getCobranca() != null &&
+                        !agendamento.getCobranca().isPaga()) {
+                    agendamento.getCobranca().cancelar();
                     cobrancaRepository.save(agendamento.getCobranca());
                 }
                 break;
+
             case EM_ESPERA:
                 agendamento.colocarEmEspera();
                 break;
+
+            case NAO_COMPARECEU:
+                agendamento.setStatus(Status.NAO_COMPARECEU);
+                // Aplicar taxa de não comparecimento se configurada
+                aplicarTaxaNaoComparecimento(agendamento);
+                break;
+
             default:
                 agendamento.setStatus(novoStatus);
         }
+    }
+
+    private void aplicarTaxaNaoComparecimento(Agendamento agendamento) {
+        // Verificar se existe política de taxa para não comparecimento
+        // Por agora, só registrar o status - a taxa pode ser implementada depois
+        agendamento.setObservacao(
+                (agendamento.getObservacao() != null ? agendamento.getObservacao() + " | " : "") +
+                        "Cliente não compareceu - " + LocalDateTime.now().toString()
+        );
     }
 
     public Agendamento salvar(Agendamento agendamento) {
@@ -671,7 +706,31 @@ public class AgendamentoService {
                 .collect(Collectors.toList());
     }
 
+    public List<AgendamentoDTO> getAgendamentosComCobrancasPendentes() {
+        List<Agendamento> agendamentos = agendamentoRepository.findAll().stream()
+                .filter(a -> a.getCobranca() != null && a.getCobranca().isPendente())
+                .sorted((a1, a2) -> a1.getDtAgendamento().compareTo(a2.getDtAgendamento()))
+                .collect(Collectors.toList());
 
+        return agendamentos.stream()
+                .map(AgendamentoDTO::new)
+                .collect(Collectors.toList());
+    }
+
+    public List<AgendamentoDTO> getAgendamentosVencidos() {
+        LocalDate hoje = LocalDate.now();
+        List<Agendamento> agendamentos = agendamentoRepository.findAll().stream()
+                .filter(a -> a.getCobranca() != null &&
+                        a.getCobranca().getDtVencimento() != null &&
+                        a.getCobranca().getDtVencimento().isBefore(hoje) &&
+                        a.getCobranca().isPendente())
+                .sorted((a1, a2) -> a1.getCobranca().getDtVencimento().compareTo(a2.getCobranca().getDtVencimento()))
+                .collect(Collectors.toList());
+
+        return agendamentos.stream()
+                .map(AgendamentoDTO::new)
+                .collect(Collectors.toList());
+    }
 
     public List<AgendamentoDTO> getAgendamentosByCliente(Long clienteId) {
         Cliente cliente = clienteRepository.findById(clienteId)

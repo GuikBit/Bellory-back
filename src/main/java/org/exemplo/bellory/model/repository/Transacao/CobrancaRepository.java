@@ -1,4 +1,4 @@
-package org.exemplo.bellory.model.repository;
+package org.exemplo.bellory.model.repository.Transacao;
 
 import org.exemplo.bellory.model.entity.agendamento.Status;
 import org.exemplo.bellory.model.entity.cobranca.Cobranca;
@@ -25,8 +25,8 @@ public interface CobrancaRepository extends JpaRepository<Cobranca, Long> {
 
     List<Cobranca> findByClienteAndStatusCobranca(Cliente cliente, Status statusCobranca);
 
-    @Query("SELECT COALESCE(SUM(c.valor), 0) FROM Cobranca c WHERE c.statusCobranca = org.exemplo.bellory.model.entity.agendamento.Status.PAGO AND c.dtCriacao BETWEEN :inicio AND :fim")
-    BigDecimal sumReceitaByPeriod(@Param("inicio") LocalDateTime inicio, @Param("fim") LocalDateTime fim);
+    @Query("SELECT COALESCE(SUM(c.valor), 0) FROM Cobranca c WHERE c.statusCobranca = :status1 AND c.dtCriacao BETWEEN :inicio AND :fim")
+    BigDecimal sumReceitaByPeriod(@Param("inicio") LocalDateTime inicio, @Param("fim") LocalDateTime fim, Cobranca.StatusCobranca status1);
 
     @Query("SELECT COALESCE(SUM(c.valor), 0) FROM Cobranca c WHERE c.statusCobranca = :status AND c.dtCriacao BETWEEN :inicio AND :fim")
     BigDecimal sumReceitaByStatusAndPeriod(@Param("status") Status status,
@@ -36,6 +36,15 @@ public interface CobrancaRepository extends JpaRepository<Cobranca, Long> {
     @Query("SELECT c FROM Cobranca c WHERE c.dtCriacao BETWEEN :inicio AND :fim")
     List<Cobranca> findByPeriod(@Param("inicio") LocalDateTime inicio, @Param("fim") LocalDateTime fim);
 
-    @Query("SELECT COALESCE(SUM(c.valor), 0) FROM Cobranca c WHERE c.cliente.id = :clienteId AND c.statusCobranca = org.exemplo.bellory.model.entity.agendamento.Status.PAGO")
-    BigDecimal sumByCliente(@Param("clienteId") Long clienteId);
+    @Query("SELECT COALESCE(SUM(c.valor), 0) FROM Cobranca c WHERE c.cliente.id = :clienteId AND c.statusCobranca = :status1")
+    BigDecimal sumByCliente(@Param("clienteId") Long clienteId, Cobranca.StatusCobranca status1);
+
+//    List<Cobranca> findByClienteIdAndStatusCobrancaIn(Long clienteId, List<Cobranca.StatusCobranca> pendente);
+//
+//    List<Cobranca> findVencidas();
+
+    @Query("SELECT c FROM Cobranca c WHERE c.dtVencimento < CURRENT_DATE AND c.statusCobranca IN (:status1, :status2)")
+    List<Cobranca> findVencidas(@Param("status1") Cobranca.StatusCobranca status1, @Param("status2") Cobranca.StatusCobranca status2);
+
+    List<Cobranca> findByClienteIdAndStatusCobrancaIn(Long clienteId, List<Cobranca.StatusCobranca> status);
 }

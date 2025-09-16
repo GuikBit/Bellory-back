@@ -2,12 +2,9 @@ package org.exemplo.bellory.model.entity.produto;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
-import org.exemplo.bellory.model.entity.compra.CompraProduto;
+import lombok.*;
 import org.exemplo.bellory.model.entity.organizacao.Organizacao;
+import org.exemplo.bellory.model.entity.servico.Categoria;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -17,8 +14,9 @@ import java.util.*;
 @Table(name = "produto")
 @Getter
 @Setter
-@AllArgsConstructor
 @NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class Produto {
 
     @Id
@@ -27,33 +25,18 @@ public class Produto {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "organizacao_id", nullable = false)
-    @JsonIgnore // Evita serialização em loop e exposição desnecessária
     private Organizacao organizacao;
 
     @Column(nullable = false, length = 255)
     private String nome;
 
-    @Lob // @Lob é uma forma padrão JPA de indicar um objeto grande, geralmente mapeado para TEXT ou BLOB.
-    @Column(name = "descricao", columnDefinition = "TEXT")
-    private String descricao;
-
-    @Column(nullable = false, precision = 10, scale = 2)
-    private BigDecimal preco;
-
-    @Column(name = "qtd_estoque", nullable = false)
-    private int qtdEstoque = 0;
-
-    @Column(length = 100)
-    private String categoria;
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "categoria_id", nullable = false)
+    private Categoria categoria;
 
     @Column(length = 100)
     private String genero;
 
-    @Column(length = 100)
-    private String marca;
-
-    // Nota: Avaliações são idealmente gerenciadas em uma entidade separada (ex: AvaliacaoProduto)
-    // para evitar problemas de concorrência. A média pode ser calculada via query.
     @Column(name = "avaliacao", precision = 3, scale = 2)
     private BigDecimal avaliacao;
 
@@ -69,17 +52,48 @@ public class Produto {
     @Column(nullable = false)
     private boolean ativo = true;
 
-    // --- COLEÇÕES DE ELEMENTOS SIMPLES ---
+    @Column(columnDefinition = "TEXT")
+    private String descricao;
 
+    @Column(name = "codigo_barras", length = 50)
+    private String codigoBarras;
+
+    @Column(name = "codigo_interno", unique = true, length = 50)
+    private String codigoInterno;
+
+    @Column(nullable = false, precision = 10, scale = 2)
+    private BigDecimal preco;
+
+    @Column(name = "preco_custo", precision = 10, scale = 2)
+    private BigDecimal precoCusto;
+
+    @Column(name = "quantidade_estoque")
+    private Integer quantidadeEstoque = 0;
+
+    @Column(name = "estoque_minimo")
+    private Integer estoqueMinimo = 0;
+
+    @Column(length = 10)
+    private String unidade; // UN, KG, L, etc.
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status_produto", nullable = false)
+    private StatusProduto status = StatusProduto.ATIVO;
+
+    @Column(length = 100)
+    private String marca;
+
+    @Column(length = 50)
+    private String modelo;
+
+    @Column(name = "peso_kg", precision = 8, scale = 3)
+    private BigDecimal peso;
+
+    // Lista de URLs de imagens do produto
     @ElementCollection(fetch = FetchType.LAZY)
     @CollectionTable(name = "produto_imagens", joinColumns = @JoinColumn(name = "produto_id"))
-    @Column(name = "url_imagem", nullable = false)
-    private List<String> urlsImagens;
-
-    @ElementCollection(fetch = FetchType.LAZY)
-    @CollectionTable(name = "produto_beneficios", joinColumns = @JoinColumn(name = "produto_id"))
-    @Column(name = "beneficio", nullable = false, columnDefinition = "TEXT")
-    private List<String> beneficios;
+    @Column(name = "url_imagem", nullable = false, length = 1000)
+    private List<String> urlsImagens = new ArrayList<>();
 
     @ElementCollection(fetch = FetchType.LAZY)
     @CollectionTable(name = "produto_ingredientes", joinColumns = @JoinColumn(name = "produto_id"))
@@ -99,17 +113,6 @@ public class Produto {
     @Column(name = "valor", columnDefinition = "TEXT")
     private Map<String, String> especificacoes;
 
-    // --- RELACIONAMENTOS COM OUTRAS ENTIDADES ---
-
-    @OneToMany(mappedBy = "produto")
-    @JsonIgnore // Essencial para evitar loop de serialização na API
-    private Set<CompraProduto> compras = new HashSet<>();
-
-    /**
-     * Relacionamento Muitos-para-Muitos com a própria entidade Produto.
-     * O JPA criará uma tabela de associação (ex: produto_relacionados_assoc)
-     * para armazenar os pares de IDs, garantindo a integridade referencial.
-     */
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = "produto_relacionados_assoc",
@@ -128,43 +131,136 @@ public class Produto {
     @JsonIgnore
     private Set<Produto> produtosUtilizados = new HashSet<>();
 
-    // --- TIMESTAMPS E CALLBACKS DE CICLO DE VIDA ---
-
-    @Column(name = "dt_criacao", nullable = false, updatable = false)
+    @Column(name = "dt_criacao", columnDefinition = "TIMESTAMP DEFAULT now()")
     private LocalDateTime dtCriacao;
 
     @Column(name = "dt_atualizacao")
     private LocalDateTime dtAtualizacao;
 
-    @PrePersist
-    protected void onCreate() {
-        dtCriacao = LocalDateTime.now();
+    @Column(name = "usuario_criacao", length = 100)
+    private String usuarioCriacao;
+
+    @Column(name = "usuario_atualizacao", length = 100)
+    private String usuarioAtualizacao;
+
+    // === ENUM ===
+    public enum StatusProduto {
+        ATIVO("Ativo"),
+        INATIVO("Inativo"),
+        DESCONTINUADO("Descontinuado"),
+        SEM_ESTOQUE("Sem Estoque");
+
+        private final String descricao;
+
+        StatusProduto(String descricao) {
+            this.descricao = descricao;
+        }
+
+        public String getDescricao() {
+            return descricao;
+        }
     }
 
-    @PreUpdate
-    protected void onUpdate() {
-        dtAtualizacao = LocalDateTime.now();
-    }
-
-    // --- MÉTODOS AUXILIARES (GETTERS DERIVADOS) ---
-
-    /**
-     * Verifica se o produto está em estoque com base na quantidade.
-     * Este valor não é persistido, evitando inconsistência de dados.
-     * @return true se qtdEstoque for maior que zero.
-     */
-    public boolean isEmEstoque() {
-        return this.qtdEstoque > 0;
-    }
-
-
-
-    public void adicionarUrlImagem(List<String> imagem) {
+    // === MÉTODOS DE CONVENIÊNCIA ===
+    public void adicionarImagem(String urlImagem) {
         if (this.urlsImagens == null) {
             this.urlsImagens = new ArrayList<>();
         }
-        for (String url : imagem) {
-            this.urlsImagens.add(url);
+        this.urlsImagens.add(urlImagem);
+    }
+
+    public void removerImagem(String urlImagem) {
+        if (this.urlsImagens != null) {
+            this.urlsImagens.remove(urlImagem);
         }
     }
+
+    // === MÉTODOS DE ESTOQUE ===
+    public void adicionarEstoque(Integer quantidade) {
+        this.quantidadeEstoque += quantidade;
+        if (this.quantidadeEstoque > 0 && this.status == StatusProduto.SEM_ESTOQUE) {
+            this.status = StatusProduto.ATIVO;
+        }
+    }
+
+    public void removerEstoque(Integer quantidade) {
+        this.quantidadeEstoque -= quantidade;
+        if (this.quantidadeEstoque <= 0) {
+            this.quantidadeEstoque = 0;
+            this.status = StatusProduto.SEM_ESTOQUE;
+        }
+    }
+
+    public boolean temEstoque() {
+        return this.quantidadeEstoque != null && this.quantidadeEstoque > 0;
+    }
+
+    public boolean temEstoqueDisponivel(Integer quantidadeDesejada) {
+        return this.quantidadeEstoque != null && this.quantidadeEstoque >= quantidadeDesejada;
+    }
+
+    public boolean estoqueAbaixoDoMinimo() {
+        return this.quantidadeEstoque != null &&
+                this.estoqueMinimo != null &&
+                this.quantidadeEstoque <= this.estoqueMinimo;
+    }
+
+    // === MÉTODOS DE PREÇO ===
+    public BigDecimal calcularMargem() {
+        if (this.precoCusto == null || this.precoCusto.compareTo(BigDecimal.ZERO) == 0) {
+            return BigDecimal.ZERO;
+        }
+        return this.preco.subtract(this.precoCusto)
+                .divide(this.precoCusto, 4, BigDecimal.ROUND_HALF_UP)
+                .multiply(BigDecimal.valueOf(100));
+    }
+
+    public void ativar() {
+        this.status = StatusProduto.ATIVO;
+        this.dtAtualizacao = LocalDateTime.now();
+    }
+
+    public void inativar() {
+        this.status = StatusProduto.INATIVO;
+        this.dtAtualizacao = LocalDateTime.now();
+    }
+
+    public void descontinuar() {
+        this.status = StatusProduto.DESCONTINUADO;
+        this.dtAtualizacao = LocalDateTime.now();
+    }
+
+    public boolean isAtivo() {
+        return this.status == StatusProduto.ATIVO;
+    }
+
+    @PrePersist
+    public void prePersist() {
+        if (this.dtCriacao == null) {
+            this.dtCriacao = LocalDateTime.now();
+        }
+        if (this.status == null) {
+            this.status = StatusProduto.ATIVO;
+        }
+        if (this.quantidadeEstoque == null) {
+            this.quantidadeEstoque = 0;
+        }
+        if (this.estoqueMinimo == null) {
+            this.estoqueMinimo = 0;
+        }
+        if (this.codigoInterno == null || this.codigoInterno.trim().isEmpty()) {
+            gerarCodigoInterno();
+        }
+    }
+
+    @PreUpdate
+    public void preUpdate() {
+        this.dtAtualizacao = LocalDateTime.now();
+    }
+
+    private void gerarCodigoInterno() {
+        // Gera código interno no formato: PROD + timestamp
+        this.codigoInterno = "PROD" + System.currentTimeMillis();
+    }
+
 }
