@@ -1,0 +1,236 @@
+// ===== EXEMPLOS DE USO DA API MULTI-TENANT =====
+
+// 1. REQUISIÇÃO PARA BUSCAR PÁGINA (PRODUÇÃO)
+// URL: https://bella.bellory.com.br/api/pages/home
+// Método: GET
+// Headers: (opcionais para páginas públicas)
+
+fetch('https://bella.bellory.com.br/api/pages/home', {
+  method: 'GET',
+  headers: {
+    'Content-Type': 'application/json'
+  }
+})
+.then(response => response.json())
+.then(data => {
+  if (data.success) {
+    console.log('Página encontrada:', data.dados);
+    console.log('Componentes:', data.dados.components);
+    
+    // Iterar pelos componentes em ordem
+    data.dados.components.forEach(component => {
+      console.log(`Componente ${component.order_index}: ${component.type}`);
+      
+      // Parse das propriedades JSON
+      const props = JSON.parse(component.props);
+      console.log('Props:', props);
+    });
+  }
+})
+.catch(error => console.error('Erro:', error));
+
+// 2. REQUISIÇÃO PARA DESENVOLVIMENTO LOCAL
+// URL: http://localhost:8080/api/pages/home
+// Método: GET
+// Headers: X-Tenant-ID para especificar o tenant em desenvolvimento
+
+fetch('http://localhost:8080/api/pages/home', {
+  method: 'GET',
+  headers: {
+    'Content-Type': 'application/json',
+    'X-Tenant-ID': 'bella'  // Especifica o tenant para desenvolvimento
+  }
+})
+.then(response => response.json())
+.then(data => console.log(data));
+
+// 3. LISTAR TODAS AS PÁGINAS DO TENANT
+// URL: https://vintage.bellory.com.br/api/pages
+// Método: GET
+
+fetch('https://vintage.bellory.com.br/api/pages', {
+  method: 'GET',
+  headers: {
+    'Content-Type': 'application/json'
+  }
+})
+.then(response => response.json())
+.then(data => {
+  if (data.success) {
+    console.log('Páginas disponíveis:', data.dados);
+    
+    data.dados.forEach(page => {
+      console.log(`- ${page.slug}: ${page.title} (${page.component_count} componentes)`);
+    });
+  }
+});
+
+// 4. VERIFICAR INFORMAÇÕES DO TENANT
+// URL: https://relax.bellory.com.br/api/pages/tenant-info
+// Método: GET
+
+fetch('https://relax.bellory.com.br/api/pages/tenant-info', {
+  method: 'GET',
+  headers: {
+    'Content-Type': 'application/json'
+  }
+})
+.then(response => response.json())
+.then(data => {
+  console.log('Informações do tenant:', data.dados);
+  console.log('Tenant ID:', data.dados.tenant_id);
+});
+
+// ===== EXEMPLO DE RESPOSTA DA API =====
+
+// Resposta de GET /api/pages/home para o tenant "bella"
+const exemploResposta = {
+  "success": true,
+  "message": "Página recuperada com sucesso",
+  "dados": {
+    "id": 1,
+    "slug": "home",
+    "title": "Bella Vista - Sua Beleza, Nossa Paixão",
+    "description": "Descubra os melhores tratamentos de beleza e cortes modernos",
+    "active": true,
+    "meta_title": "Salão Bella Vista - Tratamentos de Beleza Premium",
+    "meta_description": "Salão de beleza especializado em cortes, coloração e tratamentos capilares. Agende já!",
+    "meta_keywords": "salão de beleza, cortes femininos, coloração, tratamentos capilares",
+    "created_at": "2024-01-15T10:30:00",
+    "updated_at": null,
+    "component_count": 4,
+    "tenant": {
+      "id": 1,
+      "name": "Salão Bella Vista",
+      "subdomain": "bella",
+      "theme": "beauty"
+    },
+    "components": [
+      {
+        "id": 1,
+        "type": "HERO",
+        "order_index": 0,
+        "active": true,
+        "props": {
+          "title": "Bella Vista Salão",
+          "subtitle": "Sua beleza é nossa paixão",
+          "description": "Oferecemos os melhores tratamentos de beleza com profissionais qualificados e produtos de primeira linha.",
+          "backgroundImage": "https://images.unsplash.com/photo-1560066984-138dadb4c035?ixlib=rb-4.0.3",
+          "ctaText": "Agendar Horário",
+          "ctaLink": "/agendamento"
+        },
+        "style": null,
+        "created_at": "2024-01-15T10:35:00",
+        "updated_at": null,
+        "type_info": {
+          "value": "HERO",
+          "description": "Seção principal/banner"
+        }
+      },
+      {
+        "id": 2,
+        "type": "SERVICES_GRID",
+        "order_index": 1,
+        "active": true,
+        "props": {
+          "title": "Nossos Serviços",
+          "services": [
+            {
+              "name": "Corte Feminino",
+              "description": "Cortes modernos e clássicos",
+              "price": "R$ 80,00",
+              "image": "https://images.unsplash.com/photo-1522337660859-02fbefca4702?ixlib=rb-4.0.3"
+            }
+            // ... mais serviços
+          ]
+        },
+        "style": null,
+        "created_at": "2024-01-15T10:36:00",
+        "updated_at": null,
+        "type_info": {
+          "value": "SERVICES_GRID",
+          "description": "Grade de serviços"
+        }
+      }
+      // ... mais componentes
+    ]
+  }
+};
+
+// ===== EXEMPLO DE INTEGRAÇÃO COM REACT =====
+
+// Hook personalizado para buscar página
+function usePage(slug) {
+  const [page, setPage] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  
+  useEffect(() => {
+    const fetchPage = async () => {
+      try {
+        const response = await fetch(`/api/pages/${slug}`);
+        const data = await response.json();
+        
+        if (data.success) {
+          setPage(data.dados);
+        } else {
+          setError(data.message);
+        }
+      } catch (err) {
+        setError('Erro ao carregar página');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchPage();
+  }, [slug]);
+  
+  return { page, loading, error };
+}
+
+// Componente para renderizar uma página
+function PageRenderer({ slug }) {
+  const { page, loading, error } = usePage(slug);
+  
+  if (loading) return <div>Carregando...</div>;
+  if (error) return <div>Erro: {error}</div>;
+  if (!page) return <div>Página não encontrada</div>;
+  
+  return (
+    <div className="page" data-theme={page.tenant.theme}>
+      <head>
+        <title>{page.meta_title || page.title}</title>
+        <meta name="description" content={page.meta_description} />
+        <meta name="keywords" content={page.meta_keywords} />
+      </head>
+      
+      <main>
+        {page.components.map(component => (
+          <ComponentRenderer 
+            key={component.id} 
+            component={component}
+          />
+        ))}
+      </main>
+    </div>
+  );
+}
+
+// Componente para renderizar um componente específico
+function ComponentRenderer({ component }) {
+  const props = JSON.parse(component.props);
+  
+  switch (component.type) {
+    case 'HERO':
+      return <HeroComponent {...props} />;
+    case 'SERVICES_GRID':
+      return <ServicesGridComponent {...props} />;
+    case 'ABOUT':
+      return <AboutComponent {...props} />;
+    case 'CONTACT_FORM':
+      return <ContactFormComponent {...props} />;
+    default:
+      return <div>Componente não reconhecido: {component.type}</div>;
+  }
+}

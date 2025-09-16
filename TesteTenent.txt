@@ -1,0 +1,362 @@
+# ===== GUIA DE TESTES PARA A API MULTI-TENANT =====
+
+# ===== 1. TESTES EM DESENVOLVIMENTO LOCAL =====
+
+# 1.1 Teste básico - Buscar página com header X-Tenant-ID
+curl -X GET "http://localhost:8080/api/pages/home" \
+  -H "Content-Type: application/json" \
+  -H "X-Tenant-ID: bella" \
+  | jq '.'
+
+# 1.2 Teste sem header X-Tenant-ID (deve usar tenant padrão 'demo')
+curl -X GET "http://localhost:8080/api/pages/home" \
+  -H "Content-Type: application/json" \
+  | jq '.'
+
+# 1.3 Listar todas as páginas do tenant
+curl -X GET "http://localhost:8080/api/pages" \
+  -H "Content-Type: application/json" \
+  -H "X-Tenant-ID: bella" \
+  | jq '.'
+
+# 1.4 Verificar informações do tenant
+curl -X GET "http://localhost:8080/api/pages/tenant-info" \
+  -H "Content-Type: application/json" \
+  -H "X-Tenant-ID: bella" \
+  | jq '.'
+
+# ===== 2. TESTES COM SUBDOMÍNIOS (PRODUÇÃO/SIMULAÇÃO) =====
+
+# 2.1 Teste com subdomínio bella (adicionar entrada no /etc/hosts)
+# Adicione no /etc/hosts: 127.0.0.1 bella.bellory.com.br
+curl -X GET "http://bella.bellory.com.br:8080/api/pages/home" \
+  -H "Content-Type: application/json" \
+  | jq '.'
+
+# 2.2 Teste com subdomínio vintage
+# Adicione no /etc/hosts: 127.0.0.1 vintage.bellory.com.br
+curl -X GET "http://vintage.bellory.com.br:8080/api/pages/home" \
+  -H "Content-Type: application/json" \
+  | jq '.'
+
+# 2.3 Teste com subdomínio relax
+# Adicione no /etc/hosts: 127.0.0.1 relax.bellory.com.br
+curl -X GET "http://relax.bellory.com.br:8080/api/pages/home" \
+  -H "Content-Type: application/json" \
+  | jq '.'
+
+# ===== 3. TESTES DE ERRO =====
+
+# 3.1 Tenant inexistente
+curl -X GET "http://localhost:8080/api/pages/home" \
+  -H "Content-Type: application/json" \
+  -H "X-Tenant-ID: inexistente" \
+  | jq '.'
+
+# 3.2 Página inexistente
+curl -X GET "http://localhost:8080/api/pages/pagina-inexistente" \
+  -H "Content-Type: application/json" \
+  -H "X-Tenant-ID: bella" \
+  | jq '.'
+
+# 3.3 Sem tenant no contexto (deve dar erro ou usar padrão)
+curl -X GET "http://example.com:8080/api/pages/home" \
+  -H "Content-Type: application/json" \
+  -H "Host: example.com" \
+  | jq '.'
+
+# ===== 4. TESTES AUTOMATIZADOS COM POSTMAN/NEWMAN =====
+
+# 4.1 Criar collection no Postman com os seguintes testes:
+
+echo '{
+  "info": {
+    "name": "Bellory Multi-Tenant API Tests",
+    "description": "Testes da API multi-tenant do Bellory"
+  },
+  "item": [
+    {
+      "name": "Get Page - Bella Tenant",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Tenant-ID",
+            "value": "bella"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/pages/home",
+          "host": ["{{base_url}}"],
+          "path": ["api", "pages", "home"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Response is successful\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "});",
+              "",
+              "pm.test(\"Page has components\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.dados.components).to.be.an(\"array\");",
+              "    pm.expect(jsonData.dados.components.length).to.be.greaterThan(0);",
+              "});",
+              "",
+              "pm.test(\"Components are ordered\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    var components = jsonData.dados.components;",
+              "    for (let i = 0; i < components.length - 1; i++) {",
+              "        pm.expect(components[i].order_index).to.be.lessThan(components[i + 1].order_index);",
+              "    }",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Get All Pages - Vintage Tenant",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Tenant-ID",
+            "value": "vintage"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/pages",
+          "host": ["{{base_url}}"],
+          "path": ["api", "pages"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Response contains pages list\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.dados).to.be.an(\"array\");",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Get Tenant Info",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Tenant-ID",
+            "value": "relax"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/pages/tenant-info",
+          "host": ["{{base_url}}"],
+          "path": ["api", "pages", "tenant-info"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Tenant info is correct\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.dados.tenant_id).to.eql(\"relax\");",
+              "    pm.expect(jsonData.dados.context_available).to.eql(true);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Test Invalid Tenant",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Tenant-ID",
+            "value": "invalid-tenant"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/pages/home",
+          "host": ["{{base_url}}"],
+          "path": ["api", "pages", "home"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 404\", function () {",
+              "    pm.response.to.have.status(404);",
+              "});",
+              "",
+              "pm.test(\"Error response\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "});"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8080"
+    }
+  ]
+}' > bellory_multitenant_tests.json
+
+echo "Collection Postman criada: bellory_multitenant_tests.json"
+echo "Para executar com Newman: newman run bellory_multitenant_tests.json"
+
+# ===== 5. TESTES DE PERFORMANCE =====
+
+# 5.1 Teste de carga com Apache Bench
+ab -n 100 -c 10 \
+   -H "Content-Type: application/json" \
+   -H "X-Tenant-ID: bella" \
+   "http://localhost:8080/api/pages/home"
+
+# 5.2 Teste com diferentes tenants
+for tenant in bella vintage relax; do
+  echo "Testando tenant: $tenant"
+  ab -n 50 -c 5 \
+     -H "Content-Type: application/json" \
+     -H "X-Tenant-ID: $tenant" \
+     "http://localhost:8080/api/pages/home"
+done
+
+# ===== 6. TESTES DE INTEGRAÇÃO =====
+
+# 6.1 Script para testar todos os cenários
+#!/bin/bash
+echo "=== Iniciando testes de integração multi-tenant ==="
+
+BASE_URL="http://localhost:8080"
+TENANTS=("bella" "vintage" "relax")
+
+# Função para testar um tenant
+test_tenant() {
+    local tenant=$1
+    echo "Testando tenant: $tenant"
+    
+    # Teste 1: Buscar página home
+    echo "  - Buscando página home..."
+    response=$(curl -s -w "%{http_code}" -H "X-Tenant-ID: $tenant" "$BASE_URL/api/pages/home")
+    if [[ "$response" == *"200" ]]; then
+        echo "  ✓ Página home encontrada"
+    else
+        echo "  ✗ Erro ao buscar página home"
+    fi
+    
+    # Teste 2: Listar páginas
+    echo "  - Listando páginas..."
+    response=$(curl -s -w "%{http_code}" -H "X-Tenant-ID: $tenant" "$BASE_URL/api/pages")
+    if [[ "$response" == *"200" ]]; then
+        echo "  ✓ Páginas listadas com sucesso"
+    else
+        echo "  ✗ Erro ao listar páginas"
+    fi
+    
+    # Teste 3: Verificar tenant info
+    echo "  - Verificando informações do tenant..."
+    response=$(curl -s -w "%{http_code}" -H "X-Tenant-ID: $tenant" "$BASE_URL/api/pages/tenant-info")
+    if [[ "$response" == *"200" ]]; then
+        echo "  ✓ Informações do tenant obtidas"
+    else
+        echo "  ✗ Erro ao obter informações do tenant"
+    fi
+    
+    echo ""
+}
+
+# Executar testes para todos os tenants
+for tenant in "${TENANTS[@]}"; do
+    test_tenant "$tenant"
+done
+
+echo "=== Testes de integração finalizados ==="
+
+# ===== 7. LOGS E DEBUGGING =====
+
+# 7.1 Verificar logs do filtro de tenant
+tail -f logs/spring.log | grep "TenantFilter\|TenantContext"
+
+# 7.2 Verificar logs das requisições
+tail -f logs/spring.log | grep "TenantPageController"
+
+# 7.3 Verificar queries executadas (se logging SQL estiver habilitado)
+tail -f logs/spring.log | grep "org.hibernate.SQL"
+
+# ===== 8. TESTES DE BANCO DE DADOS =====
+
+# 8.1 Verificar se os dados foram inseridos corretamente
+mysql -u root -p -e "
+USE bellory_db;
+SELECT t.name, t.subdomain, COUNT(p.id) as page_count
+FROM tenant t
+LEFT JOIN page p ON t.id = p.tenant_id
+WHERE t.active = 1
+GROUP BY t.id;
+"
+
+# 8.2 Verificar componentes por página
+mysql -u root -p -e "
+USE bellory_db;
+SELECT 
+    t.subdomain,
+    p.slug,
+    pc.type,
+    pc.order_index
+FROM tenant t
+JOIN page p ON t.id = p.tenant_id
+JOIN page_component pc ON p.id = pc.page_id
+WHERE t.active = 1 AND p.active = 1 AND pc.active = 1
+ORDER BY t.subdomain, p.slug, pc.order_index;
+"
