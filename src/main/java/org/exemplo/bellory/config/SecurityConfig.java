@@ -73,30 +73,40 @@ public class SecurityConfig {
         return source;
     }
 
+    // Atualize o seu SecurityConfig.java para incluir as rotas multi-tenant
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http
-                .cors(cors -> cors.configurationSource(corsConfigurationSource())) // Importante: ativar CORS
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(
+                                // Rotas existentes
                                 "/api/auth/**",
                                 "/api/test/**",
                                 "/api/servico/**",
-                                "/api/pages/**",
                                 "/api/funcionario/**",
                                 "/api/agendamento/**",
                                 "/api/produto/**",
                                 "/api/cliente/**",
                                 "/api/dashboard/**",
+
+                                // NOVAS ROTAS MULTI-TENANT
+                                "/api/pages/**",        // Páginas multi-tenant (públicas)
+                                "/api/tenant/**",       // Gestão de tenants (pode precisar auth dependendo do caso)
+
+                                // Rotas de documentação e health check
                                 "/v3/api-docs/**",
                                 "/v3/api-docs.yaml",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
                                 "/swagger-resources/**",
-                                "/webjars/**"
+                                "/webjars/**",
+                                "/actuator/**",
+                                "/health"
                         ).permitAll()
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()

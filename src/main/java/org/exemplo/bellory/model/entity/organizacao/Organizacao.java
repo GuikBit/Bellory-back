@@ -8,7 +8,6 @@ import org.exemplo.bellory.model.entity.config.ConfigSistema;
 import org.exemplo.bellory.model.entity.plano.Plano;
 import org.exemplo.bellory.model.entity.endereco.Endereco;
 import org.exemplo.bellory.model.entity.funcionario.Funcionario;
-import org.exemplo.bellory.model.entity.landingPage.ConfigLandingPage;
 import org.exemplo.bellory.model.entity.servico.Servico;
 import org.exemplo.bellory.model.entity.users.Cliente;
 
@@ -59,8 +58,8 @@ public class Organizacao {
     @JsonIgnore
     private Plano plano;
 
-    @OneToOne(mappedBy = "organizacao", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    private ConfigLandingPage configLandingpage;
+//    @OneToOne(mappedBy = "organizacao", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+//    private ConfigLandingPage configLandingpage;
 
     @OneToOne(mappedBy = "organizacao", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private ConfigSistema configSistema;

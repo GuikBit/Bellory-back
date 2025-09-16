@@ -9,6 +9,9 @@ import org.exemplo.bellory.model.entity.plano.Plano;
 import org.exemplo.bellory.model.entity.produto.Produto;
 import org.exemplo.bellory.model.entity.servico.Categoria;
 import org.exemplo.bellory.model.entity.servico.Servico;
+import org.exemplo.bellory.model.entity.tenant.Page;
+import org.exemplo.bellory.model.entity.tenant.PageComponent;
+import org.exemplo.bellory.model.entity.tenant.Tenant;
 import org.exemplo.bellory.model.entity.users.Cliente;
 import org.exemplo.bellory.model.entity.users.Role;
 import org.exemplo.bellory.model.repository.agendamento.AgendamentoRepository;
@@ -18,6 +21,9 @@ import org.exemplo.bellory.model.repository.organizacao.OrganizacaoRepository;
 import org.exemplo.bellory.model.repository.organizacao.PlanoRepository;
 import org.exemplo.bellory.model.repository.produtos.ProdutoRepository;
 import org.exemplo.bellory.model.repository.servico.ServicoRepository;
+import org.exemplo.bellory.model.repository.tenant.PageComponentRepository;
+import org.exemplo.bellory.model.repository.tenant.PageRepository;
+import org.exemplo.bellory.model.repository.tenant.TenantRepository;
 import org.exemplo.bellory.model.repository.users.ClienteRepository;
 import org.exemplo.bellory.model.repository.users.RoleRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -45,6 +51,11 @@ public class DatabaseSeederService {
     private final PasswordEncoder passwordEncoder;
     private final CategoriaRepository categoriaRepository;
 
+    private final TenantRepository tenantRepository;
+    private final PageRepository pageRepository;
+    private final PageComponentRepository componentRepository;
+
+
     // Arrays com dados diversos para randomização
     private final String[] nomesFemininos = {"Ana", "Maria", "Julia", "Carla", "Fernanda", "Beatriz", "Camila", "Larissa", "Rafaela", "Amanda", "Gabriela", "Bruna", "Letícia", "Mariana", "Priscila", "Débora", "Tatiane", "Vanessa", "Patrícia", "Luciana"};
     private final String[] nomesMasculinos = {"Carlos", "João", "Pedro", "Lucas", "Rafael", "Bruno", "Diego", "Rodrigo", "Felipe", "Gustavo", "Thiago", "André", "Marcelo", "Vinícius", "Leonardo", "Daniel", "Eduardo", "Gabriel", "Fernando", "Ricardo"};
@@ -67,7 +78,8 @@ public class DatabaseSeederService {
                                  FuncionarioRepository funcionarioRepository, ClienteRepository clienteRepository,
                                  ServicoRepository servicoRepository, AgendamentoRepository agendamentoRepository,
                                  PlanoRepository planoRepository, ProdutoRepository produtoRepository,
-                                 PasswordEncoder passwordEncoder, CategoriaRepository categoriaRepository) {
+                                 PasswordEncoder passwordEncoder, CategoriaRepository categoriaRepository,
+                                 PageComponentRepository componentRepository, PageRepository pageRepository, TenantRepository tenantRepository) {
         this.organizacaoRepository = organizacaoRepository;
         this.roleRepository = roleRepository;
         this.funcionarioRepository = funcionarioRepository;
@@ -78,6 +90,9 @@ public class DatabaseSeederService {
         this.produtoRepository = produtoRepository;
         this.passwordEncoder = passwordEncoder;
         this.categoriaRepository = categoriaRepository;
+        this.componentRepository = componentRepository;
+        this.pageRepository = pageRepository;
+        this.tenantRepository = tenantRepository;
     }
 
     @Transactional
@@ -111,6 +126,8 @@ public class DatabaseSeederService {
 
         // 9. AGENDAMENTOS (100 agendamentos com todos os status)
         criarAgendamentos(orgPrincipal, funcionarios, clientes, servicos);
+
+        seedTenantData();
 
         System.out.println("✅ Seeding completo finalizado com sucesso!");
         System.out.println("📊 Dados criados:");
@@ -786,4 +803,265 @@ public class DatabaseSeederService {
             funcionario.addBloqueio(bloqueioFerias);
         }
     }
+
+    // Adicione este método ao seu DatabaseSeederService existente para popular dados de exemplo
+
+    /**
+     * Popula dados de exemplo para a arquitetura multi-tenant.
+     * Este método deve ser chamado após a criação das organizações.
+     */
+    @Transactional
+    public void seedTenantData() {
+        System.out.println("=== Populando dados multi-tenant ===");
+
+        try {
+            // Criar tenants de exemplo
+            createSampleTenants();
+
+            System.out.println("Dados multi-tenant populados com sucesso!");
+        } catch (Exception e) {
+            System.err.println("Erro ao popular dados multi-tenant: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Cria tenants de exemplo com páginas e componentes.
+     */
+    private void createSampleTenants() {
+        // Tenant 1 - Salão de Beleza
+        Tenant salaoBeleza = Tenant.builder()
+                .name("Salão Bella Vista")
+                .subdomain("bella")
+                .theme("beauty")
+                .active(true)
+                .email("contato@bella.bellory.com.br")
+                .description("Salão de beleza especializado em cortes modernos e tratamentos capilares")
+                .themeConfig("{\"primaryColor\":\"#ff69b4\",\"secondaryColor\":\"#ffffff\",\"fontFamily\":\"Poppins\"}")
+                .build();
+
+        salaoBeleza = tenantRepository.save(salaoBeleza);
+
+        // Criar página inicial para o salão
+        createHomePageForSalon(salaoBeleza);
+
+        // Tenant 2 - Barbearia
+        Tenant barbearia = Tenant.builder()
+                .name("Barbearia Vintage")
+                .subdomain("vintage")
+                .theme("masculine")
+                .active(true)
+                .email("contato@vintage.bellory.com.br")
+                .description("Barbearia tradicional com cortes clássicos e modernos")
+                .themeConfig("{\"primaryColor\":\"#8b4513\",\"secondaryColor\":\"#f4f4f4\",\"fontFamily\":\"Roboto\"}")
+                .build();
+
+        barbearia = tenantRepository.save(barbearia);
+
+        // Criar página inicial para a barbearia
+        createHomePageForBarber(barbearia);
+
+        // Tenant 3 - Spa
+        Tenant spa = Tenant.builder()
+                .name("Spa Relax")
+                .subdomain("relax")
+                .theme("wellness")
+                .active(true)
+                .email("contato@relax.bellory.com.br")
+                .description("Spa completo com tratamentos relaxantes e terapêuticos")
+                .themeConfig("{\"primaryColor\":\"#20b2aa\",\"secondaryColor\":\"#f0f8ff\",\"fontFamily\":\"Lato\"}")
+                .build();
+
+        spa = tenantRepository.save(spa);
+
+        // Criar página inicial para o spa
+        createHomePageForSpa(spa);
+
+        System.out.println("Criados 3 tenants de exemplo com suas respectivas páginas");
+    }
+
+    /**
+     * Cria página inicial para o salão de beleza.
+     */
+    private void createHomePageForSalon(Tenant tenant) {
+        Page homePage = Page.builder()
+                .tenant(tenant)
+                .slug("home")
+                .title("Bella Vista - Sua Beleza, Nossa Paixão")
+                .description("Descubra os melhores tratamentos de beleza e cortes modernos")
+                .active(true)
+                .metaTitle("Salão Bella Vista - Tratamentos de Beleza Premium")
+                .metaDescription("Salão de beleza especializado em cortes, coloração e tratamentos capilares. Agende já!")
+                .metaKeywords("salão de beleza, cortes femininos, coloração, tratamentos capilares")
+                .build();
+
+        homePage = pageRepository.save(homePage);
+
+        // Componente Hero
+        PageComponent heroComponent = PageComponent.builder()
+                .page(homePage)
+                .type("HERO")
+                .orderIndex(0)
+                .active(true)
+                .propsJson("{\n" +
+                        "  \"title\": \"Bella Vista Salão\",\n" +
+                        "  \"subtitle\": \"Sua beleza é nossa paixão\",\n" +
+                        "  \"description\": \"Oferecemos os melhores tratamentos de beleza com profissionais qualificados e produtos de primeira linha.\",\n" +
+                        "  \"backgroundImage\": \"https://images.unsplash.com/photo-1560066984-138dadb4c035?ixlib=rb-4.0.3\",\n" +
+                        "  \"ctaText\": \"Agendar Horário\",\n" +
+                        "  \"ctaLink\": \"/agendamento\"\n" +
+                        "}")
+                .build();
+
+        componentRepository.save(heroComponent);
+
+        // Componente Serviços
+        PageComponent servicesComponent = PageComponent.builder()
+                .page(homePage)
+                .type("SERVICES_GRID")
+                .orderIndex(1)
+                .active(true)
+                .propsJson("{\n" +
+                        "  \"title\": \"Nossos Serviços\",\n" +
+                        "  \"services\": [\n" +
+                        "    {\n" +
+                        "      \"name\": \"Corte Feminino\",\n" +
+                        "      \"description\": \"Cortes modernos e clássicos\",\n" +
+                        "      \"price\": \"R$ 80,00\",\n" +
+                        "      \"image\": \"https://images.unsplash.com/photo-1522337660859-02fbefca4702?ixlib=rb-4.0.3\"\n" +
+                        "    },\n" +
+                        "    {\n" +
+                        "      \"name\": \"Coloração\",\n" +
+                        "      \"description\": \"Coloração completa com produtos premium\",\n" +
+                        "      \"price\": \"R$ 150,00\",\n" +
+                        "      \"image\": \"https://images.unsplash.com/photo-1487412912498-0447578fcca8?ixlib=rb-4.0.3\"\n" +
+                        "    },\n" +
+                        "    {\n" +
+                        "      \"name\": \"Tratamentos\",\n" +
+                        "      \"description\": \"Hidratação e reconstrução capilar\",\n" +
+                        "      \"price\": \"R$ 120,00\",\n" +
+                        "      \"image\": \"https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3\"\n" +
+                        "    }\n" +
+                        "  ]\n" +
+                        "}")
+                .build();
+
+        componentRepository.save(servicesComponent);
+
+        // Componente Sobre
+        PageComponent aboutComponent = PageComponent.builder()
+                .page(homePage)
+                .type("ABOUT")
+                .orderIndex(2)
+                .active(true)
+                .propsJson("{\n" +
+                        "  \"title\": \"Sobre Nós\",\n" +
+                        "  \"description\": \"Há mais de 10 anos cuidando da sua beleza com carinho e profissionalismo. Nossa equipe é formada por profissionais especializados que estão sempre se atualizando com as últimas tendências do mercado.\",\n" +
+                        "  \"image\": \"https://images.unsplash.com/photo-1521590832167-7bcbfaa6381f?ixlib=rb-4.0.3\",\n" +
+                        "  \"highlights\": [\n" +
+                        "    \"Mais de 10 anos de experiência\",\n" +
+                        "    \"Profissionais qualificados\",\n" +
+                        "    \"Produtos de primeira linha\",\n" +
+                        "    \"Ambiente acolhedor\"\n" +
+                        "  ]\n" +
+                        "}")
+                .build();
+
+        componentRepository.save(aboutComponent);
+
+        // Componente Contato
+        PageComponent contactComponent = PageComponent.builder()
+                .page(homePage)
+                .type("CONTACT_FORM")
+                .orderIndex(3)
+                .active(true)
+                .propsJson("{\n" +
+                        "  \"title\": \"Entre em Contato\",\n" +
+                        "  \"address\": \"Rua das Flores, 123 - Centro\",\n" +
+                        "  \"phone\": \"(11) 9999-9999\",\n" +
+                        "  \"email\": \"contato@bella.bellory.com.br\",\n" +
+                        "  \"hours\": \"Segunda a Sexta: 9h às 18h | Sábado: 9h às 16h\",\n" +
+                        "  \"showForm\": true\n" +
+                        "}")
+                .build();
+
+        componentRepository.save(contactComponent);
+    }
+
+    /**
+     * Cria página inicial para a barbearia.
+     */
+    private void createHomePageForBarber(Tenant tenant) {
+        Page homePage = Page.builder()
+                .tenant(tenant)
+                .slug("home")
+                .title("Barbearia Vintage - Tradição e Estilo")
+                .description("Cortes clássicos e modernos em uma barbearia tradicional")
+                .active(true)
+                .metaTitle("Barbearia Vintage - Cortes Masculinos Premium")
+                .metaDescription("Barbearia tradicional com cortes clássicos e modernos. Ambiente masculino e acolhedor.")
+                .metaKeywords("barbearia, cortes masculinos, barba, bigode, estilo vintage")
+                .build();
+
+        homePage = pageRepository.save(homePage);
+
+        // Componente Hero para barbearia
+        PageComponent heroComponent = PageComponent.builder()
+                .page(homePage)
+                .type("HERO")
+                .orderIndex(0)
+                .active(true)
+                .propsJson("{\n" +
+                        "  \"title\": \"Barbearia Vintage\",\n" +
+                        "  \"subtitle\": \"Tradição, estilo e qualidade\",\n" +
+                        "  \"description\": \"Uma barbearia tradicional que combina técnicas clássicas com o melhor da modernidade.\",\n" +
+                        "  \"backgroundImage\": \"https://images.unsplash.com/photo-1585747860715-2ba37e788b70?ixlib=rb-4.0.3\",\n" +
+                        "  \"ctaText\": \"Agendar Corte\",\n" +
+                        "  \"ctaLink\": \"/agendamento\"\n" +
+                        "}")
+                .build();
+
+        componentRepository.save(heroComponent);
+
+        // Outros componentes similares...
+    }
+
+    /**
+     * Cria página inicial para o spa.
+     */
+    private void createHomePageForSpa(Tenant tenant) {
+        Page homePage = Page.builder()
+                .tenant(tenant)
+                .slug("home")
+                .title("Spa Relax - Bem-estar e Relaxamento")
+                .description("Tratamentos relaxantes e terapêuticos para seu bem-estar")
+                .active(true)
+                .metaTitle("Spa Relax - Tratamentos de Bem-estar")
+                .metaDescription("Spa completo com massagens, tratamentos faciais e terapias relaxantes.")
+                .metaKeywords("spa, massagens, relaxamento, bem-estar, tratamentos faciais")
+                .build();
+
+        homePage = pageRepository.save(homePage);
+
+        // Componente Hero para spa
+        PageComponent heroComponent = PageComponent.builder()
+                .page(homePage)
+                .type("HERO")
+                .orderIndex(0)
+                .active(true)
+                .propsJson("{\n" +
+                        "  \"title\": \"Spa Relax\",\n" +
+                        "  \"subtitle\": \"Sua oasis de tranquilidade\",\n" +
+                        "  \"description\": \"Desconecte-se do mundo e reconecte-se com você mesmo em nosso spa completo.\",\n" +
+                        "  \"backgroundImage\": \"https://images.unsplash.com/photo-1544161515-4ab6ce6db874?ixlib=rb-4.0.3\",\n" +
+                        "  \"ctaText\": \"Agendar Tratamento\",\n" +
+                        "  \"ctaLink\": \"/agendamento\"\n" +
+                        "}")
+                .build();
+
+        componentRepository.save(heroComponent);
+
+        // Outros componentes similares...
+    }
+
 }
