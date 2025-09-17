@@ -1,0 +1,403 @@
+# API de Produtos - Sistema Bellory
+
+## Visão Geral
+Esta API REST fornece funcionalidades completas para gerenciamento de produtos em um sistema de barbearia/ecommerce.
+
+## Endpoints Principais
+
+### 🛍️ CRUD Básico
+
+#### Criar Produto
+```http
+POST /api/v1/produtos
+Content-Type: application/json
+
+{
+  "organizacaoId": 1,
+  "nome": "Shampoo Anticaspa Premium",
+  "categoriaId": 2,
+  "genero": "Unissex",
+  "destaque": true,
+  "descricao": "Shampoo premium para tratamento intensivo de caspa",
+  "codigoBarras": "7891234567890",
+  "preco": 35.99,
+  "precoCusto": 18.50,
+  "quantidadeEstoque": 100,
+  "estoqueMinimo": 10,
+  "unidade": "UN",
+  "marca": "Hair Premium",
+  "modelo": "Anticaspa Pro",
+  "peso": 0.350,
+  "descontoPercentual": 10,
+  "urlsImagens": [
+    "https://cdn.bellory.com/produtos/shampoo-premium-1.jpg",
+    "https://cdn.bellory.com/produtos/shampoo-premium-2.jpg"
+  ],
+  "ingredientes": [
+    "Água",
+    "Sulfato de sódio",
+    "Piritionato de zinco",
+    "Extrato de tea tree"
+  ],
+  "comoUsar": [
+    "Aplique no cabelo molhado",
+    "Massageie suavemente o couro cabeludo",
+    "Deixe agir por 2-3 minutos",
+    "Enxágue abundantemente"
+  ],
+  "especificacoes": {
+    "volume": "350ml",
+    "tipo": "Medicinal",
+    "indicacao": "Caspa e coceira",
+    "frequencia": "Uso diário"
+  },
+  "usuarioCriacao": "admin@bellory.com"
+}
+```
+
+#### Listar Produtos (com filtros e paginação)
+```http
+GET /api/v1/produtos?page=0&size=10&sortBy=nome&sortDir=asc&nome=shampoo&categoriaId=2&ativo=true&destaque=true
+```
+
+#### Buscar Produto por ID
+```http
+GET /api/v1/produtos/1
+```
+
+#### Atualizar Produto
+```http
+PUT /api/v1/produtos/1
+Content-Type: application/json
+
+{
+  "nome": "Shampoo Anticaspa Premium Updated",
+  "preco": 39.99,
+  "quantidadeEstoque": 80,
+  "usuarioAtualizacao": "admin@bellory.com"
+}
+```
+
+### 📦 Gerenciamento de Estoque
+
+#### Adicionar Estoque
+```http
+PATCH /api/v1/produtos/1/estoque/adicionar?quantidade=50
+```
+
+#### Remover Estoque
+```http
+PATCH /api/v1/produtos/1/estoque/remover?quantidade=10
+```
+
+#### Produtos com Estoque Baixo
+```http
+GET /api/v1/produtos/estoque/baixo?limite=10
+```
+
+#### Produtos Sem Estoque
+```http
+GET /api/v1/produtos/estoque/zerado
+```
+
+### 🔍 Funcionalidades de Pesquisa
+
+#### Pesquisar Produtos
+```http
+GET /api/v1/produtos/pesquisar?termo=shampoo&page=0&size=10
+```
+
+#### Buscar por Faixa de Preço
+```http
+GET /api/v1/produtos/preco?precoMinimo=10.00&precoMaximo=50.00
+```
+
+#### Produtos em Destaque
+```http
+GET /api/v1/produtos/destaque
+```
+
+#### Buscar por Categoria
+```http
+GET /api/v1/produtos/categoria/2
+```
+
+### 🖼️ Gerenciamento de Imagens
+
+#### Adicionar Imagem
+```http
+POST /api/v1/produtos/1/imagens
+Content-Type: application/json
+
+{
+  "urlImagem": "https://cdn.bellory.com/produtos/novo-produto-imagem.jpg"
+}
+```
+
+#### Remover Imagem
+```http
+DELETE /api/v1/produtos/1/imagens?urlImagem=https://cdn.bellory.com/produtos/imagem-antiga.jpg
+```
+
+### ⚡ Ações Rápidas
+
+#### Ativar Produto
+```http
+PATCH /api/v1/produtos/1/ativar
+```
+
+#### Inativar Produto
+```http
+PATCH /api/v1/produtos/1/inativar
+```
+
+#### Descontinuar Produto
+```http
+PATCH /api/v1/produtos/1/descontinuar
+```
+
+#### Alternar Destaque
+```http
+PATCH /api/v1/produtos/1/destaque
+```
+
+### 🔗 Produtos Relacionados
+
+#### Adicionar Produto Relacionado
+```http
+POST /api/v1/produtos/1/relacionados/5
+```
+
+#### Remover Produto Relacionado
+```http
+DELETE /api/v1/produtos/1/relacionados/5
+```
+
+#### Listar Produtos Relacionados
+```http
+GET /api/v1/produtos/1/relacionados
+```
+
+### 📊 Relatórios e Estatísticas
+
+#### Dashboard - Estatísticas Gerais
+```http
+GET /api/v1/produtos/dashboard
+```
+
+**Resposta:**
+```json
+{
+  "totalProdutos": 150,
+  "produtosAtivos": 135,
+  "produtosInativos": 15,
+  "produtosSemEstoque": 8,
+  "produtosEstoqueBaixo": 12,
+  "valorTotalEstoque": 45750.30
+}
+```
+
+#### Produtos Mais Vendidos
+```http
+GET /api/v1/produtos/mais-vendidos?limite=10
+```
+
+### 🔍 Utilitários
+
+#### Validar Código de Barras
+```http
+GET /api/v1/produtos/validar-codigo-barras?codigoBarras=7891234567890
+```
+
+#### Buscar por Código de Barras
+```http
+GET /api/v1/produtos/codigo-barras/7891234567890
+```
+
+#### Duplicar Produto
+```http
+POST /api/v1/produtos/1/duplicar
+```
+
+## Códigos de Status HTTP
+
+| Código | Descrição |
+|--------|-----------|
+| 200 | Sucesso |
+| 201 | Criado com sucesso |
+| 204 | Sucesso sem conteúdo |
+| 400 | Dados inválidos |
+| 404 | Recurso não encontrado |
+| 500 | Erro interno do servidor |
+
+## Exemplos de Respostas
+
+### Produto Completo (Response DTO)
+```json
+{
+  "id": 1,
+  "nome": "Shampoo Anticaspa Premium",
+  "nomeCategoria": "Cuidados Capilares",
+  "categoriaId": 2,
+  "genero": "Unissex",
+  "avaliacao": 4.5,
+  "totalAvaliacoes": 127,
+  "descontoPercentual": 10,
+  "destaque": true,
+  "ativo": true,
+  "descricao": "Shampoo premium para tratamento intensivo de caspa",
+  "codigoBarras": "7891234567890",
+  "codigoInterno": "PROD1640123456789",
+  "preco": 35.99,
+  "precoCusto": 18.50,
+  "quantidadeEstoque": 100,
+  "estoqueMinimo": 10,
+  "unidade": "UN",
+  "status": "ATIVO",
+  "statusDescricao": "Ativo",
+  "marca": "Hair Premium",
+  "modelo": "Anticaspa Pro",
+  "peso": 0.350,
+  "urlsImagens": [
+    "https://cdn.bellory.com/produtos/shampoo-premium-1.jpg",
+    "https://cdn.bellory.com/produtos/shampoo-premium-2.jpg"
+  ],
+  "ingredientes": [
+    "Água",
+    "Sulfato de sódio",
+    "Piritionato de zinco",
+    "Extrato de tea tree"
+  ],
+  "comoUsar": [
+    "Aplique no cabelo molhado",
+    "Massageie suavemente o couro cabeludo",
+    "Deixe agir por 2-3 minutos",
+    "Enxágue abundantemente"
+  ],
+  "especificacoes": {
+    "volume": "350ml",
+    "tipo": "Medicinal",
+    "indicacao": "Caspa e coceira",
+    "frequencia": "Uso diário"
+  },
+  "dtCriacao": "2024-01-15T10:30:00",
+  "dtAtualizacao": "2024-01-20T14:45:00",
+  "usuarioCriacao": "admin@bellory.com",
+  "usuarioAtualizacao": "manager@bellory.com",
+  "margemLucro": 94.54,
+  "temEstoque": true,
+  "estoqueAbaixoMinimo": false,
+  "precoComDesconto": 32.39,
+  "imagemPrincipal": "https://cdn.bellory.com/produtos/shampoo-premium-1.jpg",
+  "organizacaoId": 1,
+  "nomeOrganizacao": "Barbearia Premium"
+}
+```
+
+### Lista Paginada
+```json
+{
+  "content": [
+    {
+      "id": 1,
+      "nome": "Produto 1",
+      "preco": 29.99
+    }
+  ],
+  "pageable": {
+    "sort": {
+      "sorted": true,
+      "unsorted": false
+    },
+    "pageNumber": 0,
+    "pageSize": 10
+  },
+  "totalElements": 150,
+  "totalPages": 15,
+  "last": false,
+  "first": true,
+  "numberOfElements": 10
+}
+```
+
+### Tratamento de Erros
+```json
+{
+  "timestamp": "2024-01-15T10:30:00",
+  "status": 404,
+  "error": "Resource Not Found",
+  "message": "Produto não encontrado com ID: 999",
+  "path": "/api/v1/produtos/999"
+}
+```
+
+### Erros de Validação
+```json
+{
+  "timestamp": "2024-01-15T10:30:00",
+  "status": 400,
+  "error": "Validation Failed",
+  "message": "Dados inválidos fornecidos",
+  "path": "/api/v1/produtos",
+  "validationErrors": {
+    "nome": "Nome do produto é obrigatório",
+    "preco": "Preço deve ser maior que zero",
+    "organizacaoId": "ID da organização é obrigatório"
+  }
+}
+```
+
+## Autenticação e Segurança
+
+> **Nota:** Implemente autenticação JWT/OAuth2 antes da produção
+
+### Headers Recomendados
+```http
+Authorization: Bearer <token>
+Content-Type: application/json
+Accept: application/json
+```
+
+## Boas Práticas
+
+1. **Paginação**: Sempre use paginação para listas grandes
+2. **Filtros**: Use os filtros disponíveis para otimizar consultas
+3. **Cache**: Implemente cache Redis para consultas frequentes
+4. **Rate Limiting**: Configure limites de requisições por usuário
+5. **Monitoramento**: Use logs estruturados e métricas
+
+## Dependências do projeto.xml
+
+```xml
+<!-- Adicionar ao pom.xml -->
+<dependencies>
+    <!-- OpenAPI/Swagger -->
+    <dependency>
+        <groupId>org.springdoc</groupId>
+        <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+        <version>2.2.0</version>
+    </dependency>
+
+    <!-- Validation -->
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-validation</artifactId>
+    </dependency>
+</dependencies>
+```
+
+## URLs da Documentação
+
+- **Swagger UI**: `http://localhost:8080/swagger-ui.html`
+- **OpenAPI JSON**: `http://localhost:8080/v3/api-docs`
+
+---
+
+### 📝 Notas de Implementação
+
+1. **Transações**: Todos os métodos de escrita usam `@Transactional`
+2. **Validação**: DTOs com validação Bean Validation (JSR-303)
+3. **Exceções**: Tratamento global com `@RestControllerAdvice`
+4. **CORS**: Configurado para desenvolvimento e produção
+5. **Testes**: Incluídos testes unitários básicos
+6. **Documentação**: OpenAPI 3.0 integrado
