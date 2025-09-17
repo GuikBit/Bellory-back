@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.exemplo.bellory.model.entity.servico.Servico;
 import org.exemplo.bellory.model.entity.users.Role;
 import org.exemplo.bellory.model.entity.users.User;
 
@@ -121,7 +122,7 @@ public class Funcionario extends User {
     private boolean isComissao = false;
 
     @Column(name = "isVisivelExterno")
-    private boolean isVisivelExterno = false;
+    private boolean isVisivelExterno;
 
     // A comissão pode ser um percentual ou valor fixo, por isso String
     @Column(length = 50)
@@ -159,6 +160,14 @@ public class Funcionario extends User {
 
     @OneToMany(mappedBy = "funcionario", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<BloqueioAgenda> bloqueiosAgenda = new ArrayList<>();
+
+    @ManyToMany
+    @JoinTable(
+            name = "funcionario_servico",
+            joinColumns = @JoinColumn(name = "funcionario_id"),
+            inverseJoinColumns = @JoinColumn(name = "servico_id")
+    )
+    private List<Servico> servicos;
 
     // Métodos para ajudar a gerenciar a sincronia dos relacionamentos (opcional, mas boa prática)
     public void addJornada(JornadaTrabalho jornada) {

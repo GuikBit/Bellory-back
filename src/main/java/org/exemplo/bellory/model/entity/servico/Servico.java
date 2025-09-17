@@ -3,6 +3,7 @@ package org.exemplo.bellory.model.entity.servico;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
+import org.exemplo.bellory.model.entity.funcionario.Funcionario;
 import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -65,6 +66,9 @@ public class Servico {
     @CollectionTable(name = "servico_produtos", joinColumns = @JoinColumn(name = "servico_id"))
     @Column(name = "produto_nome", nullable = false)
     private List<String> produtos;
+
+    @ManyToMany(mappedBy = "servicos")
+    private List<Funcionario> funcionarios;
 
     // Lista de URLs de imagens associadas ao serviço
     @ElementCollection(fetch = FetchType.LAZY)

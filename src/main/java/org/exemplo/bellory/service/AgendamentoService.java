@@ -992,6 +992,110 @@ public class AgendamentoService {
 
 
 
+    /**
+     * Consulta funcionários que prestam TODOS os serviços informados
+     */
+    public FuncionarioServicoResponse consultarFuncionariosPorServicos(List<Long> servicoIds) {
+        if (servicoIds == null || servicoIds.isEmpty()) {
+            throw new IllegalArgumentException("Lista de serviços não pode estar vazia.");
+        }
+
+        // Verificar se todos os serviços existem
+        List<Servico> servicos = servicoIds.stream()
+                .map(id -> servicoRepository.findById(id)
+                        .orElseThrow(() -> new IllegalArgumentException("Serviço com ID " + id + " não encontrado.")))
+                .collect(Collectors.toList());
+
+        // Buscar funcionários que prestam TODOS os serviços
+        List<Funcionario> funcionarios = funcionarioRepository.findAll().stream()
+                .filter(funcionario -> funcionario.getServicos() != null &&
+                        funcionario.getServicos().containsAll(servicos))
+                .collect(Collectors.toList());
+
+        // Converter para DTOs
+        List<FuncionarioServicoResponse.FuncionarioResumoDTO> funcionariosDTO = funcionarios.stream()
+                .map(FuncionarioServicoResponse.FuncionarioResumoDTO::new)
+                .collect(Collectors.toList());
+
+        List<FuncionarioServicoResponse.ServicoResumoDTO> servicosDTO = servicos.stream()
+                .map(FuncionarioServicoResponse.ServicoResumoDTO::new)
+                .collect(Collectors.toList());
+
+        return new FuncionarioServicoResponse(funcionariosDTO, servicosDTO, "POR_SERVICOS");
+    }
+
+    /**
+     * Consulta serviços que TODOS os funcionários informados prestam em comum
+     */
+    public FuncionarioServicoResponse consultarServicosPorFuncionarios(List<Long> funcionarioIds) {
+        if (funcionarioIds == null || funcionarioIds.isEmpty()) {
+            throw new IllegalArgumentException("Lista de funcionários não pode estar vazia.");
+        }
+
+        // Verificar se todos os funcionários existem
+        List<Funcionario> funcionarios = funcionarioIds.stream()
+                .map(id -> funcionarioRepository.findById(id)
+                        .orElseThrow(() -> new IllegalArgumentException("Funcionário com ID " + id + " não encontrado.")))
+                .collect(Collectors.toList());
+
+        // Buscar serviços que TODOS os funcionários prestam
+        List<Servico> servicosComuns = new ArrayList<>();
+
+        if (!funcionarios.isEmpty()) {
+            // Começar com os serviços do primeiro funcionário
+            List<Servico> servicosIntersecao = new ArrayList<>();
+            if (funcionarios.get(0).getServicos() != null) {
+                servicosIntersecao.addAll(funcionarios.get(0).getServicos());
+            }
+
+            // Para cada funcionário seguinte, manter apenas os serviços em comum
+            for (int i = 1; i < funcionarios.size(); i++) {
+                Funcionario funcionario = funcionarios.get(i);
+                if (funcionario.getServicos() != null) {
+                    servicosIntersecao.retainAll(funcionario.getServicos());
+                } else {
+                    servicosIntersecao.clear(); // Se algum funcionário não tem serviços, não há interseção
+                    break;
+                }
+            }
+
+            servicosComuns = servicosIntersecao;
+        }
+
+        // Converter para DTOs
+        List<FuncionarioServicoResponse.FuncionarioResumoDTO> funcionariosDTO = funcionarios.stream()
+                .map(FuncionarioServicoResponse.FuncionarioResumoDTO::new)
+                .collect(Collectors.toList());
+
+        List<FuncionarioServicoResponse.ServicoResumoDTO> servicosDTO = servicosComuns.stream()
+                .map(FuncionarioServicoResponse.ServicoResumoDTO::new)
+                .collect(Collectors.toList());
+
+        return new FuncionarioServicoResponse(funcionariosDTO, servicosDTO, "POR_FUNCIONARIOS");
+    }
+
+    /**
+     * Método unificado que decide qual consulta fazer baseado nos parâmetros
+     */
+    public FuncionarioServicoResponse consultarRelacionamentos(ConsultaRelacionamentoRequest request) {
+        boolean temServicos = request.getServicoIds() != null && !request.getServicoIds().isEmpty();
+        boolean temFuncionarios = request.getFuncionarioIds() != null && !request.getFuncionarioIds().isEmpty();
+
+        if (temServicos && temFuncionarios) {
+            throw new IllegalArgumentException("Informe apenas serviços OU funcionários, não ambos.");
+        }
+
+        if (!temServicos && !temFuncionarios) {
+            throw new IllegalArgumentException("Informe pelo menos uma lista de serviços ou funcionários.");
+        }
+
+        if (temServicos) {
+            return consultarFuncionariosPorServicos(request.getServicoIds());
+        } else {
+            return consultarServicosPorFuncionarios(request.getFuncionarioIds());
+        }
+    }
+
 
 
 

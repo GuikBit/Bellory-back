@@ -122,6 +122,9 @@ public class DatabaseSeederService {
         // 7. SERVIÇOS (30 serviços)
         List<Servico> servicos = criarServicos(categorias, orgPrincipal);
 
+        // 8. VINCULAÇÃO SERVIÇOS-FUNCIONÁRIOS
+        vincularServicosComFuncionarios(funcionarios, servicos);
+
         // 8. PRODUTOS (50 produtos)
         criarProdutos(orgPrincipal, categorias);
 
@@ -167,6 +170,65 @@ public class DatabaseSeederService {
         }
 
         return planos;
+    }
+
+    private void vincularServicosComFuncionarios(List<Funcionario> funcionarios, List<Servico> servicos) {
+        System.out.println("🔗 Vinculando serviços com funcionários...");
+
+        // Mapeamento de especialidades por funcionário (baseado na ordem de criação)
+        Map<String, List<String>> especialidadesPorFuncionario = Map.of(
+                "funcionario1", List.of("cabelo", "sobrancelhas", "maquiagem"), // Ana Silva - Beleza feminina
+                "funcionario2", List.of("cabelo", "barba"), // Carlos Santos - Barbeiro
+                "funcionario3", List.of("estetica_facial", "tratamentos", "sobrancelhas"), // Maria Oliveira - Estética
+                "funcionario4", List.of("cabelo"), // João Costa - Cabelo geral
+                "funcionario5", List.of("maos_pes", "sobrancelhas") // Fernanda Lima - Mãos e pés
+        );
+
+        // Mapeamento de categorias por value
+        Map<String, List<Servico>> servicosPorCategoria = servicos.stream()
+                .collect(Collectors.groupingBy(s -> s.getCategoria().getValue()));
+
+        int vinculosCriados = 0;
+
+        for (Funcionario funcionario : funcionarios) {
+            List<String> especialidades = especialidadesPorFuncionario.get(funcionario.getUsername());
+            if (especialidades == null) continue;
+
+            List<Servico> servicosDoFuncionario = new ArrayList<>();
+
+            for (String especialidade : especialidades) {
+                List<Servico> servicosCategoria = servicosPorCategoria.get(especialidade);
+                if (servicosCategoria != null) {
+                    // Para cada categoria, vincular de 1 a 3 serviços aleatoriamente
+                    Collections.shuffle(servicosCategoria);
+                    int quantidade = Math.min(servicosCategoria.size(), ThreadLocalRandom.current().nextInt(1, 4));
+                    servicosDoFuncionario.addAll(servicosCategoria.subList(0, quantidade));
+                }
+            }
+
+            // Adicionar alguns serviços extras aleatórios (10% chance por serviço)
+            for (Servico servico : servicos) {
+                if (!servicosDoFuncionario.contains(servico) && ThreadLocalRandom.current().nextDouble() < 0.1) {
+                    servicosDoFuncionario.add(servico);
+                }
+            }
+
+            // Vincular os serviços ao funcionário
+            if (funcionario.getServicos() == null) {
+                funcionario.setServicos(new ArrayList<>());
+            }
+            funcionario.getServicos().clear();
+            funcionario.getServicos().addAll(servicosDoFuncionario);
+
+            funcionarioRepository.save(funcionario);
+            vinculosCriados += servicosDoFuncionario.size();
+
+            System.out.println("   " + funcionario.getNomeCompleto() + " vinculado a " +
+                    servicosDoFuncionario.size() + " serviços: " +
+                    servicosDoFuncionario.stream().map(Servico::getNome).collect(Collectors.joining(", ")));
+        }
+
+        System.out.println("✅ Total de vínculos serviço-funcionário criados: " + vinculosCriados);
     }
 
     private List<Organizacao> criarOrganizacoes(List<Plano> planos) {
@@ -261,30 +323,39 @@ public class DatabaseSeederService {
         String[] estadosCivis = {"Solteiro(a)", "Casado(a)", "Divorciado(a)", "Viúvo(a)"};
         String[] grausInstrucao = {"Ensino Médio", "Técnico", "Superior Incompleto", "Superior Completo", "Pós-graduação"};
 
+        // Definir especialidades por funcionário
+        String[][] especialidadesPorFuncionario = {
+                {"Ana Silva", "Feminino", "Cabeleireiro(a)", "cabelo,sobrancelhas,maquiagem"}, // Especialista em beleza feminina
+                {"Carlos Santos", "Masculino", "Barbeiro", "cabelo,barba"}, // Barbeiro especializado
+                {"Maria Oliveira", "Feminino", "Esteticista", "estetica_facial,tratamentos,sobrancelhas"}, // Estética facial
+                {"João Costa", "Masculino", "Cabeleireiro(a)", "cabelo"}, // Cabelo masculino e feminino
+                {"Fernanda Lima", "Feminino", "Manicure", "maos_pes,sobrancelhas"} // Mãos, pés e sobrancelhas
+        };
+
         for (int i = 1; i <= 5; i++) {
             String username = "funcionario" + i;
-
             int finalI = i;
+
             Funcionario funcionario = funcionarioRepository.findByUsername(username)
                     .map(user -> (Funcionario) user)
                     .orElseGet(() -> {
-                        boolean isFeminino = ThreadLocalRandom.current().nextBoolean();
-                        String[] nomes = isFeminino ? nomesFemininos : nomesMasculinos;
-                        String nome = nomes[ThreadLocalRandom.current().nextInt(nomes.length)];
-                        String sobrenome = sobrenomes[ThreadLocalRandom.current().nextInt(sobrenomes.length)];
-                        String nomeCompleto = nome + " " + sobrenome;
+                        String[] dados = especialidadesPorFuncionario[finalI - 1];
+                        String nomeCompleto = dados[0];
+                        String sexo = dados[1];
+                        String cargo = dados[2];
 
                         Funcionario f = new Funcionario();
                         f.setUsername(username);
                         f.setNomeCompleto(nomeCompleto);
                         f.setEmail(username + "@bellory.com");
                         f.setPassword(passwordEncoder.encode("password123"));
-                        f.setCargo(cargos[ThreadLocalRandom.current().nextInt(cargos.length)]);
+                        f.setCargo(cargo);
                         f.setRole(finalI <= 2 ? "ROLE_ADMIN" : (finalI <= 5 ? "ROLE_GERENTE" : "ROLE_FUNCIONARIO"));
                         f.setOrganizacao(org);
                         f.setAtivo(ThreadLocalRandom.current().nextDouble() < 0.9); // 90% ativos
 
-                        // Dados pessoais randomizados
+                        // Dados pessoais baseados na especialidade
+                        boolean isFeminino = "Feminino".equals(sexo);
                         f.setFoto("https://randomuser.me/api/portraits/" + (isFeminino ? "women/" : "men/") + finalI + ".jpg");
                         f.setCpf(String.format("%03d.%03d.%03d-%02d",
                                 ThreadLocalRandom.current().nextInt(1000),
@@ -295,14 +366,14 @@ public class DatabaseSeederService {
                                 ThreadLocalRandom.current().nextInt(10000),
                                 ThreadLocalRandom.current().nextInt(10000)));
                         f.setDataNasc(LocalDate.now().minusYears(ThreadLocalRandom.current().nextInt(20, 60)));
-                        f.setSexo(isFeminino ? "Feminino" : "Masculino");
+                        f.setSexo(sexo);
                         f.setNivel(ThreadLocalRandom.current().nextInt(1, 6));
-                        f.setApelido(nome);
+                        f.setApelido(nomeCompleto.split(" ")[0]);
                         f.setSituacao(situacoes[ThreadLocalRandom.current().nextInt(situacoes.length)]);
                         f.setCep(String.format("%05d-%03d", ThreadLocalRandom.current().nextInt(100000), ThreadLocalRandom.current().nextInt(1000)));
                         f.setLogradouro("Rua " + sobrenomes[ThreadLocalRandom.current().nextInt(sobrenomes.length)]);
                         f.setNumero(String.valueOf(ThreadLocalRandom.current().nextInt(1, 9999)));
-                        f.setBairro("Bairro " + (finalI <= 5 ? "Centro" : "Vila " + nome));
+                        f.setBairro("Bairro " + (finalI <= 5 ? "Centro" : "Vila " + nomeCompleto.split(" ")[0]));
                         f.setCidade("São Paulo");
                         f.setUf("SP");
                         f.setRg(String.format("%02d.%03d.%03d-%01d",
@@ -318,6 +389,7 @@ public class DatabaseSeederService {
                                 sobrenomes[ThreadLocalRandom.current().nextInt(sobrenomes.length)]);
                         f.setDataContratacao(LocalDateTime.now().minusDays(ThreadLocalRandom.current().nextInt(30, 1000)));
                         f.setDataCriacao(LocalDateTime.now());
+                        f.setVisivelExterno(ThreadLocalRandom.current().nextDouble() < 0.8); // 80% visível externamente
 
                         return funcionarioRepository.save(f);
                     });
@@ -376,9 +448,10 @@ public class DatabaseSeederService {
         List<Servico> servicos = new ArrayList<>();
 
         String[][] servicosData = {
-                // Cabelo
+                // Cabelo (categoria index 0)
                 {"Corte Feminino", "0", "Corte personalizado para cabelo feminino", "60", "129.90", "Feminino"},
                 {"Corte Masculino", "0", "Corte clássico e moderno para homens", "45", "45.00", "Masculino"},
+                {"Corte Infantil", "0", "Corte especial para crianças", "30", "35.00", "Unissex"},
                 {"Escova", "0", "Escova modeladora profissional", "45", "65.00", "Feminino"},
                 {"Hidratação", "0", "Tratamento hidratante intensivo", "90", "89.90", "Unissex"},
                 {"Coloração", "0", "Coloração completa dos cabelos", "180", "189.90", "Unissex"},
@@ -386,41 +459,50 @@ public class DatabaseSeederService {
                 {"Alisamento", "0", "Alisamento progressivo profissional", "240", "299.90", "Unissex"},
                 {"Penteado", "0", "Penteados para eventos especiais", "90", "159.90", "Feminino"},
 
-                // Mãos e Pés
-//                {"Manicure Completa", "1", "Cutilagem, esmaltação e hidratação", "45", "45.00", "Feminino"},
-//                {"Pedicure Completa", "1", "Cutilagem, esmaltação e esfoliação", "60", "55.00", "Feminino"},
-//                {"Manicure Express", "1", "Esmaltação rápida", "20", "25.00", "Feminino"},
-//                {"Unhas em Gel", "1", "Aplicação de gel nas unhas", "90", "89.90", "Feminino"},
-//                {"Nail Art", "1", "Decoração artística das unhas", "60", "79.90", "Feminino"},
-//                {"Spa dos Pés", "1", "Tratamento relaxante completo", "90", "119.90", "Unissex"},
-//
-//                // Estética Facial
-//                {"Limpeza de Pele", "2", "Limpeza profunda e hidratação", "90", "129.90", "Unissex"},
-//                {"Peeling", "2", "Renovação celular da pele", "60", "159.90", "Unissex"},
-//                {"Máscara Facial", "2", "Tratamento com máscaras específicas", "45", "89.90", "Unissex"},
-//                {"Microagulhamento", "2", "Tratamento anti-aging", "90", "299.90", "Unissex"},
-//
-//                // Sobrancelhas
-//                {"Design de Sobrancelhas", "3", "Design personalizado com pinça", "30", "39.90", "Unissex"},
-//                {"Henna", "3", "Coloração com henna natural", "45", "49.90", "Unissex"},
-//                {"Micropigmentação", "3", "Pigmentação semipermanente", "120", "399.90", "Unissex"},
-//
-//                // Massagem
-//                {"Massagem Relaxante", "4", "Massagem corporal relaxante", "60", "119.90", "Unissex"},
-//                {"Massagem Modeladora", "4", "Massagem para modelar o corpo", "90", "159.90", "Unissex"},
-//
-//                // Depilação
-//                {"Depilação Pernas", "5", "Depilação completa das pernas", "45", "79.90", "Feminino"},
-//                {"Depilação Axilas", "5", "Depilação das axilas", "15", "29.90", "Feminino"},
-//                {"Depilação Buço", "5", "Depilação do buço", "10", "19.90", "Feminino"},
-//
-//                // Maquiagem
-//                {"Maquiagem Social", "6", "Make para eventos sociais", "60", "159.90", "Feminino"},
-//                {"Maquiagem Noiva", "6", "Make especial para noivas", "90", "299.90", "Feminino"},
-//                {"Automaquiagem", "6", "Aula de automaquiagem", "120", "199.90", "Feminino"},
-//
-//                // Barba
-//                {"Barba Completa", "8", "Corte e modelagem da barba", "30", "39.90", "Masculino"}
+                // Mãos e Pés (categoria index 1)
+                {"Manicure Completa", "1", "Cutilagem, esmaltação e hidratação", "45", "45.00", "Feminino"},
+                {"Pedicure Completa", "1", "Cutilagem, esmaltação e esfoliação", "60", "55.00", "Feminino"},
+                {"Manicure Express", "1", "Esmaltação rápida", "20", "25.00", "Feminino"},
+                {"Unhas em Gel", "1", "Aplicação de gel nas unhas", "90", "89.90", "Feminino"},
+                {"Nail Art", "1", "Decoração artística das unhas", "60", "79.90", "Feminino"},
+                {"Spa dos Pés", "1", "Tratamento relaxante completo", "90", "119.90", "Unissex"},
+
+                // Estética Facial (categoria index 2)
+                {"Limpeza de Pele", "2", "Limpeza profunda e hidratação", "90", "129.90", "Unissex"},
+                {"Peeling", "2", "Renovação celular da pele", "60", "159.90", "Unissex"},
+                {"Máscara Facial", "2", "Tratamento com máscaras específicas", "45", "89.90", "Unissex"},
+                {"Microagulhamento", "2", "Tratamento anti-aging", "90", "299.90", "Unissex"},
+
+                // Sobrancelhas (categoria index 3)
+                {"Design de Sobrancelhas", "3", "Design personalizado com pinça", "30", "39.90", "Unissex"},
+                {"Henna", "3", "Coloração com henna natural", "45", "49.90", "Unissex"},
+                {"Micropigmentação", "3", "Pigmentação semipermanente", "120", "399.90", "Unissex"},
+
+                // Massagem (categoria index 4)
+                {"Massagem Relaxante", "4", "Massagem corporal relaxante", "60", "119.90", "Unissex"},
+                {"Massagem Modeladora", "4", "Massagem para modelar o corpo", "90", "159.90", "Unissex"},
+
+                // Depilação (categoria index 5)
+                {"Depilação Pernas", "5", "Depilação completa das pernas", "45", "79.90", "Feminino"},
+                {"Depilação Axilas", "5", "Depilação das axilas", "15", "29.90", "Feminino"},
+                {"Depilação Buço", "5", "Depilação do buço", "10", "19.90", "Feminino"},
+
+                // Maquiagem (categoria index 6)
+                {"Maquiagem Social", "6", "Make para eventos sociais", "60", "159.90", "Feminino"},
+                {"Maquiagem Noiva", "6", "Make especial para noivas", "90", "299.90", "Feminino"},
+                {"Automaquiagem", "6", "Aula de automaquiagem", "120", "199.90", "Feminino"},
+
+                // Tratamentos (categoria index 7)
+                {"Botox Capilar", "7", "Tratamento intensivo para cabelos danificados", "120", "199.90", "Unissex"},
+                {"Cauterização", "7", "Reparação profunda dos fios", "90", "149.90", "Unissex"},
+
+                // Barba (categoria index 8)
+                {"Barba Completa", "8", "Corte e modelagem da barba", "30", "39.90", "Masculino"},
+                {"Barboterapia", "8", "Tratamento relaxante para barba", "45", "59.90", "Masculino"},
+
+                // Noivas (categoria index 9)
+                {"Pacote Noiva", "9", "Serviço completo para noivas", "240", "899.90", "Feminino"},
+                {"Teste de Noiva", "9", "Teste de maquiagem e penteado", "120", "299.90", "Feminino"}
         };
 
         for (String[] data : servicosData) {
@@ -437,7 +519,22 @@ public class DatabaseSeederService {
                 s.setGenero(data[5]);
                 s.setOrganizacao(org);
                 s.setAtivo(ThreadLocalRandom.current().nextDouble() < 0.95); // 95% ativos
+                s.setAvaliacao(ThreadLocalRandom.current().nextDouble() < 0.8); // 80% permitem avaliação
+                s.setHome(ThreadLocalRandom.current().nextDouble() < 0.3); // 30% aparecem na home
                 s.adicionarUrlImagem("https://images.unsplash.com/photo-1562322140-8baeececf3df?w=400");
+
+                // Adicionar alguns produtos para os serviços
+                if (ThreadLocalRandom.current().nextDouble() < 0.7) { // 70% dos serviços têm produtos
+                    List<String> produtos = new ArrayList<>();
+                    produtos.add("Shampoo Premium");
+                    produtos.add("Condicionador Reparador");
+                    if (categoria.getValue().equals("cabelo")) {
+                        produtos.add("Óleo Argan");
+                        produtos.add("Leave-in Protetor");
+                    }
+                    s.setProdutos(produtos);
+                }
+
                 return servicoRepository.save(s);
             });
 

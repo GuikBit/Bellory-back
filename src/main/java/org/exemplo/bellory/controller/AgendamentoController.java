@@ -768,4 +768,117 @@ public class AgendamentoController {
 
     }
 
+    // Adicionar este endpoint na classe AgendamentoController
+
+    /**
+     * Endpoint unificado para consultar relacionamentos entre funcionários e serviços
+     *
+     * Casos de uso:
+     * 1. Passar servicoIds: retorna funcionários que prestam TODOS os serviços
+     * 2. Passar funcionarioIds: retorna serviços que TODOS os funcionários prestam em comum
+     */
+    @PostMapping("/consultar-relacionamentos")
+    public ResponseEntity<ResponseAPI<FuncionarioServicoResponse>> consultarRelacionamentos(
+            @RequestBody ConsultaRelacionamentoRequest request) {
+        try {
+            FuncionarioServicoResponse resultado = agendamentoService.consultarRelacionamentos(request);
+
+            String mensagem;
+            if ("POR_SERVICOS".equals(resultado.getTipoConsulta())) {
+                mensagem = String.format("Encontrados %d funcionário(s) que prestam todos os %d serviço(s) informados.",
+                        resultado.getFuncionarios().size(), resultado.getServicos().size());
+            } else {
+                mensagem = String.format("Encontrados %d serviço(s) que todos os %d funcionário(s) prestam em comum.",
+                        resultado.getServicos().size(), resultado.getFuncionarios().size());
+            }
+
+            return ResponseEntity.ok(ResponseAPI.<FuncionarioServicoResponse>builder()
+                    .success(true)
+                    .message(mensagem)
+                    .dados(resultado)
+                    .build());
+
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ResponseAPI.<FuncionarioServicoResponse>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(400)
+                            .build());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseAPI.<FuncionarioServicoResponse>builder()
+                            .success(false)
+                            .message("Ocorreu um erro interno ao consultar relacionamentos: " + e.getMessage())
+                            .errorCode(500)
+                            .build());
+        }
+    }
+
+    /**
+     * Endpoint específico para buscar funcionários por serviços
+     */
+    @GetMapping("/funcionarios-por-servicos")
+    public ResponseEntity<ResponseAPI<FuncionarioServicoResponse>> getFuncionariosPorServicos(
+            @RequestParam List<Long> servicoIds) {
+        try {
+            FuncionarioServicoResponse resultado = agendamentoService.consultarFuncionariosPorServicos(servicoIds);
+
+            return ResponseEntity.ok(ResponseAPI.<FuncionarioServicoResponse>builder()
+                    .success(true)
+                    .message(String.format("Encontrados %d funcionário(s) que prestam todos os serviços informados.",
+                            resultado.getFuncionarios().size()))
+                    .dados(resultado)
+                    .build());
+
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ResponseAPI.<FuncionarioServicoResponse>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(400)
+                            .build());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseAPI.<FuncionarioServicoResponse>builder()
+                            .success(false)
+                            .message("Erro interno ao buscar funcionários: " + e.getMessage())
+                            .errorCode(500)
+                            .build());
+        }
+    }
+
+    /**
+     * Endpoint específico para buscar serviços por funcionários
+     */
+    @GetMapping("/servicos-por-funcionarios")
+    public ResponseEntity<ResponseAPI<FuncionarioServicoResponse>> getServicosPorFuncionarios(
+            @RequestParam List<Long> funcionarioIds) {
+        try {
+            FuncionarioServicoResponse resultado = agendamentoService.consultarServicosPorFuncionarios(funcionarioIds);
+
+            return ResponseEntity.ok(ResponseAPI.<FuncionarioServicoResponse>builder()
+                    .success(true)
+                    .message(String.format("Encontrados %d serviço(s) que todos os funcionários prestam em comum.",
+                            resultado.getServicos().size()))
+                    .dados(resultado)
+                    .build());
+
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ResponseAPI.<FuncionarioServicoResponse>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(400)
+                            .build());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseAPI.<FuncionarioServicoResponse>builder()
+                            .success(false)
+                            .message("Erro interno ao buscar serviços: " + e.getMessage())
+                            .errorCode(500)
+                            .build());
+        }
+    }
+
 }
