@@ -187,6 +187,43 @@ public class FuncionarioController {
         }
     }
 
+    @GetMapping("/validar-username")
+    public ResponseEntity<ResponseAPI<Boolean>> validarUsername(@RequestParam String username) {
+        try {
+            boolean existe = funcionarioService.existeUsername(username);
+
+            String mensagem = existe ?
+                    "Username '" + username + "' já está em uso." :
+                    "Username '" + username + "' está disponível.";
+
+            return ResponseEntity
+                    .status(HttpStatus.OK)
+                    .body(ResponseAPI.<Boolean>builder()
+                            .success(true)
+                            .message(mensagem)
+                            .dados(existe)
+                            .build());
+
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity
+                    .status(HttpStatus.BAD_REQUEST)
+                    .body(ResponseAPI.<Boolean>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(400)
+                            .build());
+
+        } catch (Exception e) {
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseAPI.<Boolean>builder()
+                            .success(false)
+                            .message("Erro interno ao validar username: " + e.getMessage())
+                            .errorCode(500)
+                            .build());
+        }
+    }
+
 //    @PostMapping("/cargo")
 //    public ResponseEntity<ResponseAPI<Cargo>> createCargo(@RequestBody CargoDTO cargoDTO){
 //        try {

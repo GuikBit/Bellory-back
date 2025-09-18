@@ -192,4 +192,12 @@ public class FuncionarioService {
         return this.funcionarioRepository.findAllProjectedBy();
     }
 
+    public boolean existeUsername(String username) {
+        if (username == null || username.trim().isEmpty()) {
+            throw new IllegalArgumentException("Username não pode ser nulo ou vazio.");
+        }
+
+        return funcionarioRepository.findByUsername(username.trim()).isPresent();
+    }
+
 }
