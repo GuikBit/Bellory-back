@@ -52,6 +52,9 @@ public class FuncionarioService {
         if (dto.getNivel() == null ){
             throw new IllegalArgumentException("O nível é obrigatório.");
         }
+        if (dto.getRole() == null || dto.getRole().trim().isEmpty()){
+            throw new IllegalArgumentException("O perfil de acesso é obrigatório.");
+        }
 
         // --- VERIFICAÇÃO DE UNICIDADE ---
         funcionarioRepository.findByUsername(dto.getUsername()).ifPresent(f -> {
@@ -71,8 +74,9 @@ public class FuncionarioService {
         novoFuncionario.setPassword(passwordEncoder.encode(dto.getPassword())); // Criptografa a senha
         novoFuncionario.setCargo(dto.getCargo());
         novoFuncionario.setNivel(dto.getNivel());
+        novoFuncionario.setVisivelExterno(dto.isVisibleExterno());
         novoFuncionario.setAtivo(true); // Define como ativo por padrão
-        novoFuncionario.setRole("ROLE_FUNCIONARIO"); // Define uma role padrão
+        novoFuncionario.setRole(dto.getRole()); // Define uma role padrão
         novoFuncionario.setDataContratacao(LocalDateTime.now());
         novoFuncionario.setDataCriacao(LocalDateTime.now());
 

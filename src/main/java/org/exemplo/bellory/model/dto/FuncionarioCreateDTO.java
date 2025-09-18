@@ -14,4 +14,6 @@ public class FuncionarioCreateDTO {
     private String password;
     private String cargo;
     private Integer nivel;
+    private String role;
+    private boolean isVisibleExterno;
 }
