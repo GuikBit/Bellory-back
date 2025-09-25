@@ -1017,11 +1017,11 @@ public class AgendamentoService {
                 .map(FuncionarioServicoResponse.FuncionarioResumoDTO::new)
                 .collect(Collectors.toList());
 
-        List<FuncionarioServicoResponse.ServicoResumoDTO> servicosDTO = servicos.stream()
-                .map(FuncionarioServicoResponse.ServicoResumoDTO::new)
-                .collect(Collectors.toList());
+//        List<FuncionarioServicoResponse.ServicoResumoDTO> servicosDTO = servicos.stream()
+//                .map(FuncionarioServicoResponse.ServicoResumoDTO::new)
+//                .collect(Collectors.toList());
 
-        return new FuncionarioServicoResponse(funcionariosDTO, servicosDTO, "POR_SERVICOS");
+        return new FuncionarioServicoResponse(funcionariosDTO, "POR_SERVICOS");
     }
 
     /**
@@ -1063,15 +1063,15 @@ public class AgendamentoService {
         }
 
         // Converter para DTOs
-        List<FuncionarioServicoResponse.FuncionarioResumoDTO> funcionariosDTO = funcionarios.stream()
-                .map(FuncionarioServicoResponse.FuncionarioResumoDTO::new)
-                .collect(Collectors.toList());
+//        List<FuncionarioServicoResponse.FuncionarioResumoDTO> funcionariosDTO = funcionarios.stream()
+//                .map(FuncionarioServicoResponse.FuncionarioResumoDTO::new)
+//                .collect(Collectors.toList());
 
         List<FuncionarioServicoResponse.ServicoResumoDTO> servicosDTO = servicosComuns.stream()
                 .map(FuncionarioServicoResponse.ServicoResumoDTO::new)
                 .collect(Collectors.toList());
 
-        return new FuncionarioServicoResponse(funcionariosDTO, servicosDTO, "POR_FUNCIONARIOS");
+        return new FuncionarioServicoResponse(servicosDTO, "POR_FUNCIONARIOS");
     }
 
     /**

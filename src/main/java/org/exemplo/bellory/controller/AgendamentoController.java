@@ -786,10 +786,10 @@ public class AgendamentoController {
             String mensagem;
             if ("POR_SERVICOS".equals(resultado.getTipoConsulta())) {
                 mensagem = String.format("Encontrados %d funcionário(s) que prestam todos os %d serviço(s) informados.",
-                        resultado.getFuncionarios().size(), resultado.getServicos().size());
+                        resultado.getDados().size());
             } else {
                 mensagem = String.format("Encontrados %d serviço(s) que todos os %d funcionário(s) prestam em comum.",
-                        resultado.getServicos().size(), resultado.getFuncionarios().size());
+                        resultado.getDados().size());
             }
 
             return ResponseEntity.ok(ResponseAPI.<FuncionarioServicoResponse>builder()
@@ -819,15 +819,14 @@ public class AgendamentoController {
      * Endpoint específico para buscar funcionários por serviços
      */
     @GetMapping("/funcionarios-por-servicos")
-    public ResponseEntity<ResponseAPI<FuncionarioServicoResponse>> getFuncionariosPorServicos(
+    public ResponseEntity<ResponseAPI> getFuncionariosPorServicos(
             @RequestParam List<Long> servicoIds) {
         try {
             FuncionarioServicoResponse resultado = agendamentoService.consultarFuncionariosPorServicos(servicoIds);
 
             return ResponseEntity.ok(ResponseAPI.<FuncionarioServicoResponse>builder()
                     .success(true)
-                    .message(String.format("Encontrados %d funcionário(s) que prestam todos os serviços informados.",
-                            resultado.getFuncionarios().size()))
+                    .message(String.format("Encontrados %d funcionário(s) que prestam todos os serviços informados.", resultado.getDados().size()))
                     .dados(resultado)
                     .build());
 
@@ -852,7 +851,7 @@ public class AgendamentoController {
      * Endpoint específico para buscar serviços por funcionários
      */
     @GetMapping("/servicos-por-funcionarios")
-    public ResponseEntity<ResponseAPI<FuncionarioServicoResponse>> getServicosPorFuncionarios(
+    public ResponseEntity<ResponseAPI> getServicosPorFuncionarios(
             @RequestParam List<Long> funcionarioIds) {
         try {
             FuncionarioServicoResponse resultado = agendamentoService.consultarServicosPorFuncionarios(funcionarioIds);
@@ -860,7 +859,7 @@ public class AgendamentoController {
             return ResponseEntity.ok(ResponseAPI.<FuncionarioServicoResponse>builder()
                     .success(true)
                     .message(String.format("Encontrados %d serviço(s) que todos os funcionários prestam em comum.",
-                            resultado.getServicos().size()))
+                            resultado.getDados().size()))
                     .dados(resultado)
                     .build());
 

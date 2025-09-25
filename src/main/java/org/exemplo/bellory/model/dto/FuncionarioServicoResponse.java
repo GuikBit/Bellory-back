@@ -14,10 +14,10 @@ import java.util.stream.Collectors;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class FuncionarioServicoResponse {
-    private List<FuncionarioResumoDTO> funcionarios;
-    private List<ServicoResumoDTO> servicos;
+public class FuncionarioServicoResponse<T> {
+    private List<T> dados;
     private String tipoConsulta; // "POR_SERVICOS" ou "POR_FUNCIONARIOS"
+
 
     @Getter
     @Setter
@@ -30,8 +30,8 @@ public class FuncionarioServicoResponse {
         private String telefone;
         private String foto;
         private boolean isVisivelExterno;
-        private List<Long> servicoIds;
-        private List<String> servicoNomes;
+//        private List<Long> servicoIds;
+//        private List<String> servicoNomes;
 
         public FuncionarioResumoDTO(Funcionario funcionario) {
             this.id = funcionario.getId();
@@ -41,14 +41,14 @@ public class FuncionarioServicoResponse {
             this.foto = funcionario.getFoto();
             this.isVisivelExterno = funcionario.isVisivelExterno();
 
-            if (funcionario.getServicos() != null) {
-                this.servicoIds = funcionario.getServicos().stream()
-                        .map(Servico::getId)
-                        .collect(Collectors.toList());
-                this.servicoNomes = funcionario.getServicos().stream()
-                        .map(Servico::getNome)
-                        .collect(Collectors.toList());
-            }
+//            if (funcionario.getServicos() != null) {
+//                this.servicoIds = funcionario.getServicos().stream()
+//                        .map(Servico::getId)
+//                        .collect(Collectors.toList());
+//                this.servicoNomes = funcionario.getServicos().stream()
+//                        .map(Servico::getNome)
+//                        .collect(Collectors.toList());
+//            }
         }
     }
 
@@ -64,8 +64,8 @@ public class FuncionarioServicoResponse {
         private java.math.BigDecimal preco;
         private String genero;
         private String categoriaNome;
-        private List<Long> funcionarioIds;
-        private List<String> funcionarioNomes;
+//        private List<Long> funcionarioIds;
+//        private List<String> funcionarioNomes;
 
         public ServicoResumoDTO(Servico servico) {
             this.id = servico.getId();
@@ -79,14 +79,14 @@ public class FuncionarioServicoResponse {
                 this.categoriaNome = servico.getCategoria().getLabel();
             }
 
-            if (servico.getFuncionarios() != null) {
-                this.funcionarioIds = servico.getFuncionarios().stream()
-                        .map(Funcionario::getId)
-                        .collect(Collectors.toList());
-                this.funcionarioNomes = servico.getFuncionarios().stream()
-                        .map(Funcionario::getNomeCompleto)
-                        .collect(Collectors.toList());
-            }
+//            if (servico.getFuncionarios() != null) {
+//                this.funcionarioIds = servico.getFuncionarios().stream()
+//                        .map(Funcionario::getId)
+//                        .collect(Collectors.toList());
+//                this.funcionarioNomes = servico.getFuncionarios().stream()
+//                        .map(Funcionario::getNomeCompleto)
+//                        .collect(Collectors.toList());
+//            }
         }
     }
 }
