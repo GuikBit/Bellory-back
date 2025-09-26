@@ -1,5 +1,6 @@
 package org.exemplo.bellory.controller;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.exemplo.bellory.model.dto.*;
 import org.exemplo.bellory.model.dto.clienteDTO.*;
@@ -116,6 +117,50 @@ public class ClienteController {
                         .message("Cliente criado com sucesso.")
                         .dados(novoCliente)
                         .build());
+    }
+
+    @GetMapping("/validar-username")
+    public ResponseEntity<ResponseAPI<UsernameValidationResponseDTO>> validarUsername(@RequestParam String username) {
+        try {
+            // Limpar e padronizar o username
+            String usernameLimpo = username.trim().toLowerCase();
+
+            if (usernameLimpo.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(ResponseAPI.<UsernameValidationResponseDTO>builder()
+                                .success(false)
+                                .message("Username não pode ser vazio.")
+                                .build()
+                        );
+            }
+
+            boolean existe = clienteService.verificarSeUsernameExiste(usernameLimpo);
+
+            UsernameValidationResponseDTO response = UsernameValidationResponseDTO.builder()
+                    .username(usernameLimpo)
+                    .disponivel(!existe)
+                    .message(existe ? "Username já está em uso" : "Username disponível")
+                    .build();
+
+            return ResponseEntity.ok(
+                    ResponseAPI.<UsernameValidationResponseDTO>builder()
+                            .success(true)
+                            .message(existe ? "Username já está em uso" : "Username disponível")
+                            .dados(response)
+                            .build()
+            );
+
+        } catch (Exception e) {
+            System.err.println("Erro ao validar username: " + e.getMessage());
+            e.printStackTrace();
+
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ResponseAPI.<UsernameValidationResponseDTO>builder()
+                            .success(false)
+                            .message("Erro interno ao validar username.")
+                            .build()
+                    );
+        }
     }
 
     @PostMapping("/verificar-cpf") // Endpoint com nome mais claro
