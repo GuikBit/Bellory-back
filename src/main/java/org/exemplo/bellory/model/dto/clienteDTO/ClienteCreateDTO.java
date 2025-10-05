@@ -38,4 +38,5 @@ public class ClienteCreateDTO {
 
     private String telefone;
     private LocalDate dataNascimento;
+    private boolean clienteRapido;
 }

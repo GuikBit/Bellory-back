@@ -99,7 +99,7 @@ public class ClienteService {
              throw new IllegalArgumentException("E-mail já existe.");
          }
 
-         if(clienteRepository.findByCpf(dto.getCpf()).isPresent()){
+         if(clienteRepository.findByCpf(dto.getCpf().replaceAll("[^0-9]", "")).isPresent()){
              throw new IllegalArgumentException("CPF já existe.");
          }
 
@@ -107,14 +107,22 @@ public class ClienteService {
         cliente.setOrganizacao(organizacaoRepository.findById(1L).orElse(null));
         cliente.setNomeCompleto(dto.getNomeCompleto());
         cliente.setEmail(dto.getEmail());
-        cliente.setUsername("usuarioRapido");
-        cliente.setPassword(passwordEncoder.encode("102030"));
+
+//        if(!dto.isClienteRapido()){
+            cliente.setUsername(dto.getUsername());
+            cliente.setPassword(passwordEncoder.encode(dto.getPassword()));
+        // }
+
         cliente.setTelefone(dto.getTelefone());
         cliente.setDataNascimento(dto.getDataNascimento());
         cliente.setCpf(dto.getCpf().replaceAll("[^0-9]", ""));
         cliente.setRole("ROLE_CLIENTE");
         cliente.setAtivo(true);
-        cliente.setIsCadastroIncompleto(true);
+        //if(!dto.isClienteRapido()){
+            cliente.setIsCadastroIncompleto(true);
+//        }else{
+//            cliente.setIsCadastroIncompleto(true);
+//        }
         cliente.setDtCriacao(LocalDateTime.now());
 
         Cliente clienteSalvo = clienteRepository.save(cliente);
