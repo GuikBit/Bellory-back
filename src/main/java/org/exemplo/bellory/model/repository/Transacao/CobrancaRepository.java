@@ -29,7 +29,7 @@ public interface CobrancaRepository extends JpaRepository<Cobranca, Long> {
     BigDecimal sumReceitaByPeriod(@Param("inicio") LocalDateTime inicio, @Param("fim") LocalDateTime fim, Cobranca.StatusCobranca status1);
 
     @Query("SELECT COALESCE(SUM(c.valor), 0) FROM Cobranca c WHERE c.statusCobranca = :status AND c.dtCriacao BETWEEN :inicio AND :fim")
-    BigDecimal sumReceitaByStatusAndPeriod(@Param("status") Status status,
+    BigDecimal sumReceitaByStatusAndPeriod(@Param("status") Cobranca.StatusCobranca status,
                                            @Param("inicio") LocalDateTime inicio,
                                            @Param("fim") LocalDateTime fim);
 

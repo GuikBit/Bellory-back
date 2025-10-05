@@ -188,22 +188,24 @@ public class DashboardService {
         List<Cobranca> cobrancas = cobrancaRepository.findByPeriod(inicioDateTime, fimDateTime);
         Long totalCobrancas = (long) cobrancas.size();
         Long cobrancasPagas = cobrancas.stream()
-                .mapToLong(c -> (c.getStatusCobranca().equals(Status.PAGO)) ? 1 : 0)
-                .sum();
+                .filter(c -> c.getStatusCobranca().equals(Cobranca.StatusCobranca.PAGO))
+                .count();
+
         Long cobrancasPendentes = cobrancas.stream()
-                .mapToLong(c -> c.getStatusCobranca().equals(Status.PENDENTE)? 1 : 0)
-                .sum();
+                .filter(c -> c.getStatusCobranca().equals(Cobranca.StatusCobranca.PENDENTE))
+                .count();
+
         Long cobrancasVencidas = cobrancas.stream()
-                .mapToLong(c -> c.getStatusCobranca().equals( Status.VENCIDA) ? 1 : 0)
-                .sum();
+                .filter(c -> c.getStatusCobranca().equals(Cobranca.StatusCobranca.VENCIDA))
+                .count();
 
         BigDecimal valorPendente = cobrancas.stream()
-                .filter(c -> c.getStatusCobranca().equals(Status.PENDENTE))
+                .filter(c -> c.getStatusCobranca().equals(Cobranca.StatusCobranca.PENDENTE))
                 .map(Cobranca::getValor)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         BigDecimal valorVencido = cobrancas.stream()
-                .filter(c -> c.getStatusCobranca().equals(Status.VENCIDA))
+                .filter(c -> c.getStatusCobranca().equals(Cobranca.StatusCobranca.VENCIDA))
                 .map(Cobranca::getValor)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
@@ -294,20 +296,25 @@ public class DashboardService {
     }
 
     private DashboardDTO.EstoqueResumoDTO getEstoqueResumo(DashboardFiltroDTO filtro) {
-        List<Produto> produtos = produtoRepository.findByAtivo(true);
+        // ANTES: List<Produto> produtos = produtoRepository.findByAtivo(true);
+        // DEPOIS:
+        List<Produto> produtos = produtoRepository.findByStatus(Produto.StatusProduto.ATIVO);
 
         Long totalProdutos = (long) produtos.size();
-        Long produtosAtivos = produtoRepository.countByAtivo(true);
+
+        // ANTES: Long produtosAtivos = produtoRepository.countByAtivo(true);
+        // DEPOIS:
+        Long produtosAtivos = produtoRepository.countByStatus(Produto.StatusProduto.ATIVO);
 
         // Produtos com estoque baixo (menos de 10 unidades - configurável)
         int limiteEstoqueBaixo = 10;
         Long produtosEstoqueBaixo = produtos.stream()
-                .mapToLong(p -> p.getQuantidadeEstoque() > 0 && p.getQuantidadeEstoque() <= limiteEstoqueBaixo ? 1 : 0)
-                .sum();
+                .filter(p -> p.getQuantidadeEstoque() > 0 && p.getQuantidadeEstoque() <= limiteEstoqueBaixo)
+                .count();
 
         Long produtosSemEstoque = produtos.stream()
-                .mapToLong(p -> p.getQuantidadeEstoque() == 0 ? 1 : 0)
-                .sum();
+                .filter(p -> p.getQuantidadeEstoque() == 0)
+                .count();
 
         // Valor total do estoque
         BigDecimal valorTotalEstoque = produtos.stream()
@@ -404,8 +411,9 @@ public class DashboardService {
                 Status.CONCLUIDO, inicioDateTime, fimDateTime);
 
         BigDecimal valorTotalVendas = cobrancaRepository.sumReceitaByStatusAndPeriod(
-                Status.PAGO, inicioDateTime, fimDateTime);
+                Cobranca.StatusCobranca.PAGO, inicioDateTime, fimDateTime);
         if (valorTotalVendas == null) valorTotalVendas = BigDecimal.ZERO;
+
 
         // Vendas hoje
         LocalDateTime hojeBaixo = LocalDate.now().atStartOfDay();
@@ -414,10 +422,10 @@ public class DashboardService {
                 Status.CONCLUIDO, hojeBaixo, hojeAlto);
 
         BigDecimal valorVendasHoje = cobrancaRepository.sumReceitaByStatusAndPeriod(
-                Status.PAGO, hojeBaixo, hojeAlto);
+                Cobranca.StatusCobranca.PAGO, hojeBaixo, hojeAlto);
         if (valorVendasHoje == null) valorVendasHoje = BigDecimal.ZERO;
 
-        // Pedidos por status
+        // Pedidos por status (usar Status de Agendamento)
         Long pedidosPendentes = agendamentoRepository.countByStatusAndDataRange(
                 Status.PENDENTE, inicioDateTime, fimDateTime);
         Long pedidosEntregues = agendamentoRepository.countByStatusAndDataRange(
@@ -557,11 +565,12 @@ public class DashboardService {
     }
 
     private BigDecimal calcularReceitaPrevista() {
-        // Soma dos valores dos agendamentos futuros que ainda não foram pagos
         LocalDateTime agora = LocalDateTime.now();
         return agendamentoRepository.findAgendamentosFuturos(agora)
                 .stream()
-                .filter(a -> a.getCobranca() != null && !a.getCobranca().getStatusCobranca().equals(Status.PAGO))
+                // ✅ CORRETO: Verificar StatusCobranca
+                .filter(a -> a.getCobranca() != null &&
+                        !a.getCobranca().getStatusCobranca().equals(Cobranca.StatusCobranca.PAGO))
                 .map(a -> a.getCobranca().getValor())
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
@@ -583,7 +592,9 @@ public class DashboardService {
     private Map<String, BigDecimal> calcularReceitaPorFuncionario(LocalDateTime inicio, LocalDateTime fim) {
         return agendamentoRepository.findByDataRangeWithFuncionarios(inicio, fim)
                 .stream()
-                .filter(a -> a.getCobranca() != null && a.getCobranca().getStatusCobranca().equals(Status.PAGO))
+                // ✅ CORRETO: Verificar StatusCobranca.PAGO
+                .filter(a -> a.getCobranca() != null &&
+                        a.getCobranca().getStatusCobranca().equals(Cobranca.StatusCobranca.PAGO))
                 .flatMap(a -> a.getFuncionarios().stream())
                 .collect(Collectors.groupingBy(
                         f -> f.getNomeCompleto(),
@@ -603,7 +614,9 @@ public class DashboardService {
     private BigDecimal calcularReceitaFuncionario(Long funcionarioId, LocalDateTime inicio, LocalDateTime fim) {
         return agendamentoRepository.findByFuncionarioAndDataRange(funcionarioId, inicio, fim)
                 .stream()
-                .filter(a -> a.getCobranca() != null && a.getCobranca().getStatusCobranca().equals(Status.PAGO))
+                // ✅ CORRETO: Verificar StatusCobranca.PAGO
+                .filter(a -> a.getCobranca() != null &&
+                        a.getCobranca().getStatusCobranca().equals(Cobranca.StatusCobranca.PAGO))
                 .map(a -> a.getCobranca().getValor())
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
@@ -700,6 +713,8 @@ public class DashboardService {
     @Transactional
     protected ClienteTopDTO mapToClienteTop(Cliente cliente) {
         Long totalAgendamentos = agendamentoRepository.countByCliente(cliente.getId());
+
+        // ✅ CORRETO: Usar StatusCobranca.PAGO
         BigDecimal valorGasto = cobrancaRepository.sumByCliente(cliente.getId(), Cobranca.StatusCobranca.PAGO);
         LocalDateTime ultimoAgendamento = agendamentoRepository.findLastAgendamentoByCliente(cliente.getId());
 
@@ -711,13 +726,14 @@ public class DashboardService {
                 .ultimoAgendamento(ultimoAgendamento)
                 .build();
     }
-
     @Transactional
     protected ProdutoEstoqueDTO mapToProdutoEstoque(Produto produto) {
         String status;
+        Integer estoqueMinimo = produto.getEstoqueMinimo() != null ? produto.getEstoqueMinimo() : 5;
+
         if (produto.getQuantidadeEstoque() == 0) {
             status = "CRITICO";
-        } else if (produto.getQuantidadeEstoque() <= 5) {
+        } else if (produto.getQuantidadeEstoque() <= estoqueMinimo) {
             status = "BAIXO";
         } else {
             status = "OK";
@@ -727,7 +743,7 @@ public class DashboardService {
                 .id(produto.getId())
                 .nome(produto.getNome())
                 .quantidadeAtual(produto.getQuantidadeEstoque())
-                .estoqueMinimo(5) // Configurável
+                .estoqueMinimo(estoqueMinimo)
                 .categoria(produto.getCategoria().getLabel())
                 .status(status)
                 .build();
@@ -774,6 +790,7 @@ public class DashboardService {
         while (!dataAtual.isAfter(dataFim)) {
             labels.add(dataAtual.format(DateTimeFormatter.ofPattern("dd/MM")));
 
+            // ✅ CORRETO: Usar StatusCobranca.PAGO
             BigDecimal receita = cobrancaRepository.sumReceitaByPeriod(
                     dataAtual.atStartOfDay(), dataAtual.atTime(23, 59, 59), Cobranca.StatusCobranca.PAGO);
             dados.add(receita != null ? receita : BigDecimal.ZERO);

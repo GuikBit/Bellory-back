@@ -29,6 +29,17 @@ public interface ProdutoRepository extends JpaRepository<Produto, Long> {
 
     // =============== CONSULTAS BÁSICAS ===============
 
+    List<Produto> findByStatus(Produto.StatusProduto status);
+
+    Long countByStatus(Produto.StatusProduto status);
+
+    // Métodos adicionais úteis
+    List<Produto> findByStatusAndQuantidadeEstoqueLessThanEqual(
+            Produto.StatusProduto status, Integer quantidade);
+
+    List<Produto> findByStatusAndQuantidadeEstoqueEquals(
+            Produto.StatusProduto status, Integer quantidade);
+
     Optional<Object> findByNomeAndOrganizacao(String nome, Organizacao organizacao);
 
     List<Produto> findByAtivo(boolean ativo);
