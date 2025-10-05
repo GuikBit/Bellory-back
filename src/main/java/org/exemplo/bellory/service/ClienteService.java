@@ -80,6 +80,11 @@ public class ClienteService {
         return convertToDetalhadoDTO(cliente);
     }
 
+    public boolean verificarSeUsernameExiste(String username) {
+        String usernameLimpo = username.trim().toLowerCase();
+        return clienteRepository.findByUsername(usernameLimpo).isPresent();
+    }
+
     public boolean verificarSeCpfExiste(String cpf) {
         // Importante: sempre limpe o CPF para consultar o banco sem formatação
         String cpfLimpo = cpf.replaceAll("[^0-9]", "");

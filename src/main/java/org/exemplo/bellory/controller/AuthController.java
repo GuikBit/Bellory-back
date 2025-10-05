@@ -4,6 +4,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 
 import org.exemplo.bellory.model.dto.auth.*;
+import org.exemplo.bellory.model.dto.clienteDTO.ClienteCreateDTO;
 import org.exemplo.bellory.model.entity.users.User;
 import org.exemplo.bellory.service.TokenService;
 import org.exemplo.bellory.service.CustomUserDetailsService;
@@ -227,6 +228,7 @@ public class AuthController {
                     ));
         }
     }
+
 
     @PostMapping("/logout")
     public ResponseEntity<?> logout(HttpServletRequest httpRequest) {
