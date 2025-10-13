@@ -39,6 +39,15 @@ public class Plano {
     @Column(name = "dt_atualizacao")
     private LocalDateTime dtAtualizacao;
 
+    @Column
+    private LocalDateTime diaCobranca;
+
+    @Column
+    private LocalDateTime dataUltimaCobranca;
+
+    @OneToOne(mappedBy = "plano", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private PlanoLimites limites;
+
     @Column(nullable = false)
     private boolean ativo = true;
 }

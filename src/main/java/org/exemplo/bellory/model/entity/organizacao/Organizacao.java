@@ -8,6 +8,7 @@ import org.exemplo.bellory.model.entity.config.ConfigSistema;
 import org.exemplo.bellory.model.entity.plano.Plano;
 import org.exemplo.bellory.model.entity.endereco.Endereco;
 import org.exemplo.bellory.model.entity.funcionario.Funcionario;
+import org.exemplo.bellory.model.entity.plano.PlanoLimites;
 import org.exemplo.bellory.model.entity.servico.Servico;
 import org.exemplo.bellory.model.entity.users.Cliente;
 
@@ -57,6 +58,10 @@ public class Organizacao {
     @JoinColumn(name = "plano_id", nullable = false)
     @JsonIgnore
     private Plano plano;
+
+    @OneToOne(cascade = CascadeType.ALL)
+    @JoinColumn(name = "limites_personalizados_id")
+    private PlanoLimites limitesPersonalizados;
 
 //    @OneToOne(mappedBy = "organizacao", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
 //    private ConfigLandingPage configLandingpage;

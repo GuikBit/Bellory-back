@@ -18,18 +18,17 @@ services:
 
   # 2. Serviço da nossa API Bellory
   app:
-    build: .  # Constrói a imagem a partir do Dockerfile no diretório atual
+    build: .
     container_name: bellory_api
     depends_on:
-      - db      # Diz ao Docker para esperar o serviço 'db' estar pronto antes de iniciar o 'app'
+      - db
     ports:
-      - "80:8080" # Mapeia a porta 8080 do container para a 8080 da sua máquina
+      - "80:8080"
     environment:
-      # Configurações para a API se conectar ao serviço 'db'
       - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/postgres
       - SPRING_DATASOURCE_USERNAME=postgres
       - SPRING_DATASOURCE_PASSWORD=root
-      - SPRING_JPA_HIBERNATE_DDL_AUTO=create-drop # 'update' é bom para desenvolvimento
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=create-drop
       - SECURITY_JWT_SIGNING_KEY=b968dd5d61d08414bce019ab28d188074a0ff71c388e1fb5
 
 # Define um volume nomeado para persistir os dados do banco
