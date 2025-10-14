@@ -9,12 +9,13 @@ jobs:
   build_and_deploy:
     name: Build & Deploy API
     runs-on: self-hosted
-    environment: production
+    #environment: production
 
     steps:
-      - name: Checkout código
+      - name: Checkout do código
         uses: actions/checkout@v4
 
+      # 1. CARREGA A CHAVE SSH NO AGENTE (PRÁTICA SEGURA!)
       - name: Configurar SSH Agent
         uses: webfactory/ssh-agent@v0.8.0
         with:
