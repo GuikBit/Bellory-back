@@ -16,6 +16,8 @@ public class CorsConfig {
                 registry.addMapping("/**")
                         .allowedOriginPatterns(
                                 "https://bellory.vercel.app",
+                                "https://dev.bellory.com.br",
+                                "https://app.bellory.com.br",
                                 "https://*.vercel.app",
                                 "http://localhost:*",
                                 "https://localhost:*"

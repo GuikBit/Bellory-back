@@ -47,6 +47,8 @@ public class SecurityConfig {
                 "https://bellory.vercel.app",
                 "https://*.vercel.app",
                 "http://localhost:*",
+                "https://dev.bellory.com.br",
+                "https://app.bellory.com.br",
                 "https://localhost:*"
         ));
 
