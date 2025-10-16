@@ -56,18 +56,19 @@ jobs:
             set -e
             echo "--- Preparando a pasta de produção..."
 
-            # Limpa e recria a pasta de deploy
-            rm -rf /opt/api
+            # Garante que a pasta de produção exista, sem apagar nada
             mkdir -p /opt/api
 
-            # Copia arquivos do build
+            # Apaga APENAS os arquivos antigos que serão substituídos, preservando o .env
+            rm -f /opt/api/docker-compose.yml /opt/api/Dockerfile /opt/api/*.jar
+
+            # Copia os arquivos novos do build
             cp /var/runner/api/docker-compose.yml /opt/api/
             cp /var/runner/api/Dockerfile /opt/api/
             cp /var/runner/api/target/*.jar /opt/api/
 
-            # Reinicia containers
+            # Reinicia os containers
             cd /opt/api
-            docker compose down || true
             docker system prune -f
             docker compose up -d --build
 
