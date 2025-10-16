@@ -1,0 +1,10 @@
+# Pasta de build
+/target/
+
+# Arquivos de log
+*.log
+
+# Configurações locais do IDE (opcional)
+.idea/
+*.iml
+*.class
