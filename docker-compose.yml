@@ -38,25 +38,28 @@
 
 
 services:
-  # Serviço da nossa API Bellory
   app:
     build: .
     container_name: bellory_api
     ports:
       - "8080:8080"
-    # Adiciona a rede do host para permitir a conexão com 'host.docker.internal'
-    # Em Linux, isso é geralmente necessário.
     extra_hosts:
       - "host.docker.internal:host-gateway"
+
+    # Carrega variáveis do arquivo .env
+    env_file:
+      - .env
+
     environment:
       # ATIVA O PERFIL DE PRODUÇÃO
       - SPRING_PROFILES_ACTIVE=prod
 
-      # PASSA AS CREDENCIAIS DO BANCO DE DADOS DE FORMA SEGURA
-      # (Você deve configurar essas variáveis nos Secrets do seu repositório no GitHub
-      # e depois passá-las para o seu servidor)
+      # Credenciais do banco (do arquivo .env)
       - DB_USER=${DB_PROD_USER}
       - DB_PASS=${DB_PROD_PASSWORD}
 
-      # Você pode passar outras variáveis de ambiente aqui se necessário
+      # JWT Secret
       - SECURITY_JWT_SIGNING_KEY=${SECURITY_JWT_SECRET}
+
+    # Reinicia automaticamente em caso de falha
+    restart: unless-stopped
