@@ -70,6 +70,7 @@ jobs:
             # Reinicia os containers
             cd /opt/api
             docker system prune -f
+            docker compose down
             docker compose up -d --build
 
             echo "--- Deploy concluído com sucesso!"
