@@ -131,7 +131,7 @@ public class DatabaseSeederService {
         // 9. AGENDAMENTOS (100 agendamentos com todos os status)
         criarAgendamentos(orgPrincipal, funcionarios, clientes, servicos);
 
-        seedTenantData();
+       // seedTenantData();
 
         System.out.println("✅ Seeding completo finalizado com sucesso!");
         System.out.println("📊 Dados criados:");
