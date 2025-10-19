@@ -5,6 +5,7 @@ import jakarta.validation.Valid;
 
 import org.exemplo.bellory.model.dto.auth.*;
 import org.exemplo.bellory.model.dto.clienteDTO.ClienteCreateDTO;
+import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 import org.exemplo.bellory.model.entity.users.User;
 import org.exemplo.bellory.service.TokenService;
 import org.exemplo.bellory.service.CustomUserDetailsService;
@@ -70,6 +71,19 @@ public class AuthController {
                         ));
             }
 
+            // buscar organizacao
+            Organizacao org = user.getOrganizacao();
+
+            OrganizacaoInfoDTO organizacaoInfo = new OrganizacaoInfoDTO();
+            organizacaoInfo.setId(org.getId());
+            organizacaoInfo.setNome(org.getNome());
+            organizacaoInfo.setDtCadastro(org.getDtCadastro());
+            organizacaoInfo.setNomeFantasia(org.getNomeFantasia());
+//            organizacaoInfo.setPlano(org.getPlano());
+            organizacaoInfo.setConfigSistema(org.getConfigSistema());
+            organizacaoInfo.setAtivo(org.isAtivo());
+            organizacaoInfo.setLimitesPersonalizados(org.getLimitesPersonalizados());
+
             // Gerar token
             String token = tokenService.generateToken(user);
             LocalDateTime expiresAt = tokenService.getExpirationDateTime();
@@ -86,6 +100,7 @@ public class AuthController {
                     .success(true)
                     .message("Login realizado com sucesso")
                     .token(token)
+                    .organizacao(organizacaoInfo)
                     .user(userInfo)
                     .expiresAt(expiresAt)
                     .build();

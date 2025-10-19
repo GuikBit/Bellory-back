@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 
 import java.time.LocalDateTime;
 
@@ -17,6 +18,7 @@ public class LoginResponseDTO {
         String message;
         String token;
         UserInfoDTO user;
+        OrganizacaoInfoDTO organizacao;
         @JsonFormat(pattern = "dd/MM/yyyy HH:mm:ss")
         LocalDateTime expiresAt;
 }
