@@ -1,21 +1,19 @@
-name: CI/CD API - Spring Boot
+name: CI/CD API - Spring Boot (DEV)
 
 on:
   push:
     branches:
-      - main
+      - dev
 
 jobs:
   build_and_deploy:
-    name: Build & Deploy API
+    name: Build & Deploy API (DEV)
     runs-on: self-hosted
-    #environment: production
 
     steps:
       - name: Checkout do código
         uses: actions/checkout@v4
 
-      # 1. CARREGA A CHAVE SSH NO AGENTE (PRÁTICA SEGURA!)
       - name: Configurar SSH Agent
         uses: webfactory/ssh-agent@v0.8.0
         with:
@@ -29,7 +27,7 @@ jobs:
       - name: Build no Servidor Remoto
         run: |
           REPO_URL="git@github.com:GuikBit/Bellory-back.git"
-          TARGET_DIR="/var/runner/api"
+          TARGET_DIR="/var/runner/api-dev"
 
           ssh -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << EOF
             set -e
@@ -37,12 +35,12 @@ jobs:
             if [ -d "$TARGET_DIR/.git" ]; then
               echo "--- Repositório existe. Atualizando..."
               cd "$TARGET_DIR"
-              git checkout main
-              git pull origin main
+              git checkout dev
+              git pull origin dev
             else
               echo "--- Clonando repositório..."
               mkdir -p "$(dirname "$TARGET_DIR")"
-              git clone -b main "$REPO_URL" "$TARGET_DIR"
+              git clone -b dev "$REPO_URL" "$TARGET_DIR"
               cd "$TARGET_DIR"
             fi
 
@@ -50,28 +48,28 @@ jobs:
             mvn clean package -DskipTests
           EOF
 
-      - name: Deploy e Reinício do Serviço
+      - name: Deploy e Reinício do Serviço (DEV)
         run: |
           ssh -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << EOF
             set -e
-            echo "--- Preparando a pasta de produção..."
+            echo "--- Preparando a pasta de desenvolvimento..."
 
-            # Garante que a pasta de produção exista, sem apagar nada
-            mkdir -p /opt/api
+            # Garante que a pasta de desenvolvimento exista
+            mkdir -p /opt/api-dev
 
             # Apaga APENAS os arquivos antigos que serão substituídos, preservando o .env
-            rm -f /opt/api/docker-compose.yml /opt/api/Dockerfile /opt/api/*.jar
+            rm -f /opt/api-dev/docker-compose-dev.yml /opt/api-dev/Dockerfile /opt/api-dev/*.jar
 
             # Copia os arquivos novos do build
-            cp /var/runner/api/docker-compose.yml /opt/api/
-            cp /var/runner/api/Dockerfile /opt/api/
-            cp /var/runner/api/target/*.jar /opt/api/
+            cp /var/runner/api-dev/docker-compose-dev.yml /opt/api-dev/
+            cp /var/runner/api-dev/Dockerfile /opt/api-dev/
+            cp /var/runner/api-dev/target/*.jar /opt/api-dev/Bellory-1.0-SNAPSHOT.jar
 
-            # Reinicia os containers
-            cd /opt/api
+            # Reinicia os containers usando o docker-compose-dev.yml
+            cd /opt/api-dev
             docker system prune -f
-            docker compose down
-            docker compose up -d --build
+            docker compose -f docker-compose-dev.yml down
+            docker compose -f docker-compose-dev.yml up -d --build
 
-            echo "--- Deploy concluído com sucesso!"
+            echo "--- Deploy de DEV concluído com sucesso!"
           EOF

@@ -40,7 +40,7 @@
 services:
   app:
     build: .
-    container_name: bellory_api
+    container_name: bellory_api_dev
     ports:
       - "8080:8080"
     extra_hosts:
@@ -51,12 +51,12 @@ services:
       - .env
 
     environment:
-      # ATIVA O PERFIL DE PRODUÇÃO
-      - SPRING_PROFILES_ACTIVE=prod
+      # ATIVA O PERFIL DE DESENVOLVIMENTO
+      - SPRING_PROFILES_ACTIVE=dev
 
       # Credenciais do banco (do arquivo .env)
-      - DB_USER=${DB_PROD_USER}
-      - DB_PASS=${DB_PROD_PASSWORD}
+      - DB_USER=${DB_DEV_USER}
+      - DB_PASS=${DB_DEV_PASSWORD}
 
       # JWT Secret
       - SECURITY_JWT_SIGNING_KEY=${SECURITY_JWT_SECRET}
