@@ -3,6 +3,7 @@ target/
 
 # Arquivos de log
 *.log
+.env
 
 # Configurações locais do IDE (opcional)
 .idea/

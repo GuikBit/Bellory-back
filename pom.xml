@@ -56,6 +56,12 @@
             <artifactId>hibernate-validator</artifactId>
         </dependency>
 
+        <dependency>
+            <groupId>me.paulschwarz</groupId>
+            <artifactId>spring-dotenv</artifactId>
+            <version>3.0.0</version>
+        </dependency>
+
         <!-- ADICIONADO: A nova biblioteca para gestão de JWT -->
         <dependency>
             <groupId>com.auth0</groupId>
