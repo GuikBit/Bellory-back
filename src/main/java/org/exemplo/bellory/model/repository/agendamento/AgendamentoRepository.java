@@ -12,13 +12,14 @@ import org.springframework.stereotype.Repository;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface AgendamentoRepository extends JpaRepository<Agendamento, Long> {
 
     // CORRIGIDO: O nome da propriedade é "dtAgendamento"
     Collection<Agendamento> findByClienteAndDtAgendamento(Cliente cliente, LocalDateTime dtAgendamento);
-
+    List<Agendamento> findAllByClienteOrganizacaoId(Long organizacaoId);
     // CORRIGIDO: O nome da propriedade é "dtAgendamento"
     Collection<Agendamento> findByFuncionariosContainingAndDtAgendamento(Funcionario funcionario, LocalDateTime dtAgendamento);
 
@@ -95,4 +96,121 @@ public interface AgendamentoRepository extends JpaRepository<Agendamento, Long> 
 
     @Query("SELECT MAX(a.dtAgendamento) FROM Agendamento a WHERE a.cliente.id = :clienteId")
     LocalDateTime findLastAgendamentoByCliente(@Param("clienteId") Long clienteId);
+
+    Optional<Agendamento> findByIdAndClienteOrganizacaoId(Long id, Long organizacaoId);
+
+    /**
+     * Busca agendamentos por cliente e organização
+     */
+    List<Agendamento> findByClienteIdAndClienteOrganizacaoId(Long clienteId, Long organizacaoId);
+
+    /**
+     * Busca agendamentos por funcionário e organização
+     */
+    @Query("SELECT a FROM Agendamento a " +
+            "JOIN a.funcionarios f " +
+            "WHERE f.id = :funcionarioId " +
+            "AND a.cliente.organizacao.id = :organizacaoId")
+    List<Agendamento> findByFuncionariosIdAndClienteOrganizacaoId(
+            @Param("funcionarioId") Long funcionarioId,
+            @Param("organizacaoId") Long organizacaoId
+    );
+
+    /**
+     * Busca agendamentos por data e organização
+     */
+    List<Agendamento> findByDtAgendamentoBetweenAndClienteOrganizacaoId(
+            LocalDateTime inicio,
+            LocalDateTime fim,
+            Long organizacaoId
+    );
+
+    /**
+     * Busca agendamentos por status e organização
+     */
+    @Query("SELECT a FROM Agendamento a " +
+            "WHERE a.status = :status " +
+            "AND a.cliente.organizacao.id = :organizacaoId")
+    List<Agendamento> findByStatusAndOrganizacaoId(
+            @Param("status") String status,
+            @Param("organizacaoId") Long organizacaoId
+    );
+
+    /**
+     * Busca agendamentos com cobranças pendentes por organização
+     */
+    @Query("SELECT a FROM Agendamento a " +
+            "JOIN a.cobranca c " +
+            "WHERE c.statusCobranca = 'PENDENTE' " +
+            "AND a.cliente.organizacao.id = :organizacaoId")
+    List<Agendamento> findComCobrancasPendentesByOrganizacaoId(@Param("organizacaoId") Long organizacaoId);
+
+    /**
+     * Busca agendamentos vencidos por organização
+     */
+    @Query("SELECT a FROM Agendamento a " +
+            "JOIN a.cobranca c " +
+            "WHERE c.statusCobranca = 'PENDENTE' " +
+            "AND c.dtVencimento < :dataAtual " +
+            "AND a.cliente.organizacao.id = :organizacaoId")
+    List<Agendamento> findVencidosByOrganizacaoId(
+            @Param("dataAtual") LocalDateTime dataAtual,
+            @Param("organizacaoId") Long organizacaoId
+    );
+
+    /**
+     * Busca agendamentos por funcionário e data
+     */
+    @Query("SELECT a FROM Agendamento a " +
+            "JOIN a.funcionarios f " +
+            "WHERE f.id = :funcionarioId " +
+            "AND DATE(a.dtAgendamento) = DATE(:data) " +
+            "AND a.cliente.organizacao.id = :organizacaoId " +
+            "ORDER BY a.dtAgendamento")
+    List<Agendamento> findByFuncionarioAndDataAndOrganizacao(
+            @Param("funcionarioId") Long funcionarioId,
+            @Param("data") LocalDateTime data,
+            @Param("organizacaoId") Long organizacaoId
+    );
+
+    /**
+     * Busca próximos agendamentos (7 dias) por organização
+     */
+    @Query("SELECT a FROM Agendamento a " +
+            "WHERE a.dtAgendamento BETWEEN :inicio AND :fim " +
+            "AND a.cliente.organizacao.id = :organizacaoId " +
+            "AND a.status NOT IN ('CANCELADO', 'CONCLUIDO') " +
+            "ORDER BY a.dtAgendamento")
+    List<Agendamento> findProximosAgendamentosByOrganizacaoId(
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim,
+            @Param("organizacaoId") Long organizacaoId
+    );
+
+    /**
+     * Conta agendamentos por status e organização
+     */
+    @Query("SELECT COUNT(a) FROM Agendamento a " +
+            "WHERE a.status = :status " +
+            "AND a.cliente.organizacao.id = :organizacaoId")
+    Long countByStatusAndOrganizacaoId(
+            @Param("status") String status,
+            @Param("organizacaoId") Long organizacaoId
+    );
+
+    /**
+     * Verifica disponibilidade de horário para um funcionário na organização
+     */
+    @Query("SELECT CASE WHEN COUNT(a) > 0 THEN true ELSE false END " +
+            "FROM Agendamento a " +
+            "JOIN a.funcionarios f " +
+            "WHERE f.id = :funcionarioId " +
+            "AND a.dtAgendamento = :dataHora " +
+            "AND a.status NOT IN ('CANCELADO') " +
+            "AND a.cliente.organizacao.id = :organizacaoId")
+    boolean existsByFuncionarioAndDataHoraAndOrganizacao(
+            @Param("funcionarioId") Long funcionarioId,
+            @Param("dataHora") LocalDateTime dataHora,
+            @Param("organizacaoId") Long organizacaoId
+    );
 }

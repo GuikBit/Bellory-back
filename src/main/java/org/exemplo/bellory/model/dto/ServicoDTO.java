@@ -1,15 +1,16 @@
 package org.exemplo.bellory.model.dto;
 
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 import org.exemplo.bellory.model.entity.servico.Servico;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
-
+@AllArgsConstructor
+@NoArgsConstructor
 @Getter
 @Setter
+@Builder
 public class ServicoDTO {
 
     private Long id;

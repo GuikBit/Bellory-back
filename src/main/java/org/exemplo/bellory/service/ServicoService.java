@@ -1,7 +1,9 @@
 package org.exemplo.bellory.service;
 
+import org.exemplo.bellory.context.TenantContext;
 import org.exemplo.bellory.model.dto.ServicoAgendamento;
 import org.exemplo.bellory.model.dto.ServicoCreateDTO;
+import org.exemplo.bellory.model.dto.ServicoDTO;
 import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 import org.exemplo.bellory.model.entity.servico.Categoria;
 import org.exemplo.bellory.model.entity.servico.Servico;
@@ -30,24 +32,33 @@ public class ServicoService {
     }
 
     public List<Servico> getListAllServicos() {
-        return this.servicoRepository.findAllByOrderByNomeAsc();
+        Long organizacaoId = getOrganizacaoIdFromContext();
+
+        return this.servicoRepository.findAllByOrganizacao_IdOrderByNomeAsc(organizacaoId);
     }
 
     public Servico getServicoById(Long id) {
-        return servicoRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Serviço com ID " + id + " não encontrado."));
+
+        Servico servico = servicoRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("Serviço com ID " + id + " não encontrado."));
+
+        validarOrganizacao(servico.getOrganizacao().getId());
+
+        return servico;
     }
 
     public List<ServicoAgendamento> getListAgendamentoServicos() {
-        return this.servicoRepository.findAllProjectedBy();
+        Long organizacaoId = getOrganizacaoIdFromContext();
+        return servicoRepository.findAllProjectedByOrganizacao_Id(organizacaoId);
     }
 
     @Transactional
     public Servico createServico(ServicoCreateDTO dto) {
+        Long organizacaoId = getOrganizacaoIdFromContext();
+
         // Validação de campos obrigatórios
-        if (dto.getOrganizacaoId() == null) {
-            throw new IllegalArgumentException("O ID da organização é obrigatório.");
-        }
+//        if (dto.getOrganizacaoId() == null) {
+//            throw new IllegalArgumentException("O ID da organização é obrigatório.");
+//        }
         if (dto.getNome() == null || dto.getNome().trim().isEmpty()) {
             throw new IllegalArgumentException("O nome do serviço é obrigatório.");
         }
@@ -66,11 +77,15 @@ public class ServicoService {
             throw new IllegalArgumentException("Já existe um serviço com o nome '" + dto.getNome() + "'.");
         }
 
-        Organizacao org = organizacaoRepository.findById(dto.getOrganizacaoId())
+        Organizacao org = organizacaoRepository.findById(organizacaoId)
                 .orElseThrow(() -> new IllegalArgumentException("Organização com ID " + dto.getOrganizacaoId() + " não encontrada."));
+
+        validarOrganizacao(org.getId());
 
         Categoria categoria = categoriaRepository.findById(dto.getCategoriaId())
                 .orElseThrow(() -> new IllegalArgumentException("Categoria com ID " + dto.getCategoriaId() + " não encontrada."));
+
+        validarOrganizacao(categoria.getOrganizacao().getId());
 
         Servico novoServico = new Servico();
         novoServico.setOrganizacao(org);
@@ -90,6 +105,8 @@ public class ServicoService {
     @Transactional
     public Servico updateServico(Long id, ServicoCreateDTO dto) {
         Servico servicoExistente = getServicoById(id);
+
+        validarOrganizacao(servicoExistente.getOrganizacao().getId());
 
         if (dto.getNome() != null && !dto.getNome().trim().isEmpty()) {
             servicoExistente.setNome(dto.getNome());
@@ -121,8 +138,33 @@ public class ServicoService {
 
     @Transactional
     public void deleteServico(Long id) {
+
         Servico servico = getServicoById(id);
+        validarOrganizacao(servico.getOrganizacao().getId());
         servico.setAtivo(false); // Soft delete
+
         servicoRepository.save(servico);
+    }
+
+    private void validarOrganizacao(Long entityOrganizacaoId) {
+        Long organizacaoId = TenantContext.getCurrentOrganizacaoId();
+
+        if (organizacaoId == null) {
+            throw new SecurityException("Organização não identificada no token");
+        }
+
+        if (!organizacaoId.equals(entityOrganizacaoId)) {
+            throw new SecurityException("Acesso negado: Você não tem permissão para acessar este recurso");
+        }
+    }
+
+    private Long getOrganizacaoIdFromContext() {
+        Long organizacaoId = TenantContext.getCurrentOrganizacaoId();
+
+        if (organizacaoId == null) {
+            throw new SecurityException("Organização não identificada. Token inválido ou expirado");
+        }
+
+        return organizacaoId;
     }
 }

@@ -12,6 +12,7 @@ public class FuncionarioCreateDTO {
     private String nomeCompleto;
     private String email;
     private String password;
+    private String telefone;
     private String cargo;
     private Integer nivel;
     private String role;

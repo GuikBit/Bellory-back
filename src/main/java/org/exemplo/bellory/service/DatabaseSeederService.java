@@ -111,7 +111,7 @@ public class DatabaseSeederService {
         List<Role> roles = criarRoles();
 
         // 4. CATEGORIAS
-        List<Categoria> categorias = criarCategorias();
+        List<Categoria> categorias = criarCategorias(orgPrincipal);
 
         // 5. FUNCIONÁRIOS (15 funcionários)
         List<Funcionario> funcionarios = criarFuncionarios(orgPrincipal);
@@ -278,7 +278,7 @@ public class DatabaseSeederService {
         return roles;
     }
 
-    private List<Categoria> criarCategorias() {
+    private List<Categoria> criarCategorias(Organizacao org) {
         System.out.println("📂 Criando categorias...");
         List<Categoria> categorias = new ArrayList<>();
 
@@ -305,6 +305,7 @@ public class DatabaseSeederService {
                         c.setLabel(data[0]);
                         c.setValue(data[1]);
                         c.setTipo(tipo);
+                        c.setOrganizacao(org);
                         c.setAtivo(true);
                         return categoriaRepository.save(c);
                     });

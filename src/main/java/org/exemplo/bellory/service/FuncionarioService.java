@@ -73,6 +73,7 @@ public class FuncionarioService {
         novoFuncionario.setEmail(dto.getEmail());
         novoFuncionario.setPassword(passwordEncoder.encode(dto.getPassword())); // Criptografa a senha
         novoFuncionario.setCargo(dto.getCargo());
+        novoFuncionario.setTelefone(dto.getTelefone());
         novoFuncionario.setNivel(dto.getNivel());
         novoFuncionario.setVisivelExterno(dto.isVisibleExterno());
         novoFuncionario.setAtivo(true); // Define como ativo por padrão

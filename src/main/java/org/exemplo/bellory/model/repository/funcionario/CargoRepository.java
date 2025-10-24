@@ -1,7 +1,8 @@
 package org.exemplo.bellory.model.repository.funcionario;
 
 import org.exemplo.bellory.model.entity.funcionario.BloqueioAgenda;
+import org.exemplo.bellory.model.entity.funcionario.Cargo;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface CargoRepository extends JpaRepository<BloqueioAgenda, Long> {
+public interface CargoRepository extends JpaRepository<Cargo, Long> {
 }

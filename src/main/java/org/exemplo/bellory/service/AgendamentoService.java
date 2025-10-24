@@ -1,6 +1,7 @@
 package org.exemplo.bellory.service;
 
 import jakarta.transaction.Transactional;
+import org.exemplo.bellory.context.TenantContext;
 import org.exemplo.bellory.model.dto.*;
 import org.exemplo.bellory.model.entity.agendamento.Agendamento;
 import org.exemplo.bellory.model.entity.agendamento.Status;
@@ -138,24 +139,55 @@ public class AgendamentoService {
 //        return agendamentoSalvo;
 //    }
 
+    private void validarOrganizacao(Long entityOrganizacaoId) {
+        Long organizacaoId = TenantContext.getCurrentOrganizacaoId();
+
+        if (organizacaoId == null) {
+            throw new SecurityException("Organização não identificada no token");
+        }
+
+        if (!organizacaoId.equals(entityOrganizacaoId)) {
+            throw new SecurityException("Acesso negado: Você não tem permissão para acessar este recurso");
+        }
+    }
+
+    private Long getOrganizacaoIdFromContext() {
+        Long organizacaoId = TenantContext.getCurrentOrganizacaoId();
+
+        if (organizacaoId == null) {
+            throw new SecurityException("Organização não identificada. Token inválido ou expirado");
+        }
+
+        return organizacaoId;
+    }
+
     @Transactional
     public AgendamentoDTO createAgendamentoCompleto(AgendamentoCreateDTO dto) {
         // 1. Buscar entidades relacionadas
-        Organizacao organizacao = organizacaoRepository.findById(dto.getOrganizacaoId())
+        Long organizacaoId = getOrganizacaoIdFromContext();
+
+        Organizacao organizacao = organizacaoRepository.findById(organizacaoId)
                 .orElseThrow(() -> new IllegalArgumentException("Organização não encontrada."));
+        validarOrganizacao(organizacao.getId());
+
+
 
         Cliente cliente = clienteRepository.findById(dto.getClienteId())
                 .orElseThrow(() -> new IllegalArgumentException("Cliente não encontrado."));
+
+        validarOrganizacao(cliente.getOrganizacao().getId());
 
         List<Servico> servicos = dto.getServicoIds().stream()
                 .map(id -> servicoRepository.findById(id)
                         .orElseThrow(() -> new IllegalArgumentException("Serviço com ID " + id + " não encontrado.")))
                 .collect(Collectors.toList());
+        servicos.forEach(s -> validarOrganizacao(s.getOrganizacao().getId()));
 
         List<Funcionario> funcionarios = dto.getFuncionarioIds().stream()
                 .map(id -> funcionarioRepository.findById(id)
                         .orElseThrow(() -> new IllegalArgumentException("Funcionário com ID " + id + " não encontrado.")))
                 .collect(Collectors.toList());
+        funcionarios.forEach(f -> validarOrganizacao(f.getOrganizacao().getId()));
 
         // 2. Criar agendamento
         Agendamento agendamento = new Agendamento();
@@ -182,8 +214,21 @@ public class AgendamentoService {
     }
 
 
+//    public List<AgendamentoDTO> getAllAgendamentos() {
+//        List<Agendamento> agendamentos = agendamentoRepository.findAll();
+//        return agendamentos.stream()
+//                .map(AgendamentoDTO::new)
+//                .collect(Collectors.toList());
+//    }
+
+    @Transactional
     public List<AgendamentoDTO> getAllAgendamentos() {
-        List<Agendamento> agendamentos = agendamentoRepository.findAll();
+        Long organizacaoId = getOrganizacaoIdFromContext();
+
+        // Buscar apenas agendamentos da organização do usuário
+        List<Agendamento> agendamentos = agendamentoRepository
+                .findAllByClienteOrganizacaoId(organizacaoId);
+
         return agendamentos.stream()
                 .map(AgendamentoDTO::new)
                 .collect(Collectors.toList());
@@ -192,6 +237,9 @@ public class AgendamentoService {
     public AgendamentoDTO getAgendamentoById(Long id) {
         Agendamento agendamento = agendamentoRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Agendamento com ID " + id + " não encontrado."));
+
+        validarOrganizacao(agendamento.getCliente().getOrganizacao().getId());
+
         return new AgendamentoDTO(agendamento);
     }
 
@@ -284,6 +332,8 @@ public class AgendamentoService {
         Agendamento agendamento = agendamentoRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Agendamento com ID " + id + " não encontrado."));
 
+        validarOrganizacao(agendamento.getCliente().getOrganizacao().getId());
+
         // Verificar se agendamento pode ser cancelado
         if (agendamento.getStatus() == Status.CONCLUIDO) {
             throw new IllegalArgumentException("Não é possível cancelar um agendamento já concluído.");
@@ -313,6 +363,8 @@ public class AgendamentoService {
     public AgendamentoDTO updateStatusAgendamento(Long id, String status) {
         Agendamento agendamento = agendamentoRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Agendamento com ID " + id + " não encontrado."));
+
+        validarOrganizacao(agendamento.getCliente().getOrganizacao().getId());
 
         try {
             Status novoStatus = Status.valueOf(status.toUpperCase());
@@ -733,10 +785,18 @@ public class AgendamentoService {
     }
 
     public List<AgendamentoDTO> getAgendamentosByCliente(Long clienteId) {
+
+        Long organizacaoId = getOrganizacaoIdFromContext();
+
         Cliente cliente = clienteRepository.findById(clienteId)
                 .orElseThrow(() -> new IllegalArgumentException("Cliente com ID " + clienteId + " não encontrado."));
 
-        List<Agendamento> agendamentos = agendamentoRepository.findByCliente(cliente);
+        validarOrganizacao(cliente.getOrganizacao().getId());
+
+//        List<Agendamento> agendamentos = agendamentoRepository.findByCliente(cliente);
+
+        List<Agendamento> agendamentos = agendamentoRepository.findByClienteIdAndClienteOrganizacaoId(clienteId, organizacaoId);
+
         return agendamentos.stream()
                 .map(AgendamentoDTO::new)
                 .collect(Collectors.toList());
@@ -744,10 +804,16 @@ public class AgendamentoService {
 
     // Método para buscar agendamentos por funcionário
     public List<AgendamentoDTO> getAgendamentosByFuncionario(Long funcionarioId) {
+        Long organizacaoId = getOrganizacaoIdFromContext();
+
         Funcionario funcionario = funcionarioRepository.findById(funcionarioId)
                 .orElseThrow(() -> new IllegalArgumentException("Funcionário com ID " + funcionarioId + " não encontrado."));
 
-        List<Agendamento> agendamentos = agendamentoRepository.findByFuncionariosContaining(funcionario);
+        validarOrganizacao(funcionario.getOrganizacao().getId());
+
+//        List<Agendamento> agendamentos = agendamentoRepository.findByFuncionariosContaining(funcionario);
+
+        List<Agendamento> agendamentos = agendamentoRepository.findByFuncionariosIdAndClienteOrganizacaoId(funcionarioId, organizacaoId);
 
         return agendamentos.stream()
                 .map(AgendamentoDTO::new)
@@ -756,10 +822,15 @@ public class AgendamentoService {
 
     // Método para buscar agendamentos por data
     public List<AgendamentoDTO> getAgendamentosByData(LocalDate data) {
+        Long organizacaoId = getOrganizacaoIdFromContext();
+
         LocalDateTime inicioDia = data.atStartOfDay();
         LocalDateTime fimDia = data.atTime(23, 59, 59);
 
-        List<Agendamento> agendamentos = agendamentoRepository.findByDtAgendamentoBetween(inicioDia, fimDia);
+//        List<Agendamento> agendamentos = agendamentoRepository.findByDtAgendamentoBetween(inicioDia, fimDia);
+
+        List<Agendamento> agendamentos = agendamentoRepository.findByDtAgendamentoBetweenAndClienteOrganizacaoId(inicioDia, fimDia, organizacaoId);
+
         return agendamentos.stream()
                 .map(AgendamentoDTO::new)
                 .collect(Collectors.toList());
@@ -807,8 +878,7 @@ public class AgendamentoService {
 
     // Método para buscar agendamentos do dia atual
     public List<AgendamentoDTO> getAgendamentosHoje() {
-        LocalDate hoje = LocalDate.now();
-        return getAgendamentosByData(hoje);
+        return getAgendamentosByData(LocalDate.now());
     }
 
     // Método para obter estatísticas de agendamentos
