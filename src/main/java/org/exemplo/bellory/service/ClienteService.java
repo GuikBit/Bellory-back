@@ -1,6 +1,7 @@
 package org.exemplo.bellory.service;
 
 import jakarta.persistence.criteria.Predicate;
+import org.exemplo.bellory.context.TenantContext;
 import org.exemplo.bellory.model.dto.*;
 import org.exemplo.bellory.model.dto.clienteDTO.*;
 import org.exemplo.bellory.model.dto.compra.CompraDTO;
@@ -30,6 +31,7 @@ import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
+
 @Service
 public class ClienteService {
 
@@ -44,7 +46,8 @@ public class ClienteService {
                           AgendamentoRepository agendamentoRepository,
                           CobrancaRepository cobrancaRepository,
                           PasswordEncoder passwordEncoder,
-                          OrganizacaoService organizacaoService, OrganizacaoRepository organizacaoRepository) {
+                          OrganizacaoService organizacaoService,
+                          OrganizacaoRepository organizacaoRepository) {
         this.clienteRepository = clienteRepository;
         this.agendamentoRepository = agendamentoRepository;
         this.cobrancaRepository = cobrancaRepository;
@@ -56,7 +59,9 @@ public class ClienteService {
     // =============== MÉTODOS EXISTENTES ATUALIZADOS ===============
 
     public List<ClienteDTO> getListAllCliente() {
-        List<Cliente> clientes = this.clienteRepository.findAll();
+        Long organizacaoId = getOrganizacaoIdFromContext();
+
+        List<Cliente> clientes = clienteRepository.findAllByOrganizacao_Id(organizacaoId);
         return clientes.stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
@@ -65,7 +70,9 @@ public class ClienteService {
     // =============== NOVOS MÉTODOS PARA CRUD ===============
 
     public List<ClienteDTO> getClientesComFiltros(ClienteFiltroDTO filtro, Sort sort) {
-        Specification<Cliente> spec = createClienteSpecification(filtro);
+        Long organizacaoId = getOrganizacaoIdFromContext();
+
+        Specification<Cliente> spec = createClienteSpecification(filtro, organizacaoId);
         List<Cliente> clientes = clienteRepository.findAll(spec, sort);
 
         return clientes.stream()
@@ -77,52 +84,54 @@ public class ClienteService {
         Cliente cliente = clienteRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Cliente com ID " + id + " não encontrado."));
 
+        validarOrganizacao(cliente.getOrganizacao().getId());
+
         return convertToDetalhadoDTO(cliente);
     }
 
     public boolean verificarSeUsernameExiste(String username) {
+        Long organizacaoId = getOrganizacaoIdFromContext();
         String usernameLimpo = username.trim().toLowerCase();
-        return clienteRepository.findByUsername(usernameLimpo).isPresent();
+
+        return clienteRepository.findByUsernameAndOrganizacao_Id(usernameLimpo, organizacaoId).isPresent();
     }
 
     public boolean verificarSeCpfExiste(String cpf) {
-        // Importante: sempre limpe o CPF para consultar o banco sem formatação
+        Long organizacaoId = getOrganizacaoIdFromContext();
         String cpfLimpo = cpf.replaceAll("[^0-9]", "");
-        return clienteRepository.findByCpf(cpfLimpo).isPresent();
+
+        return clienteRepository.findByCpfAndOrganizacao_Id(cpfLimpo, organizacaoId).isPresent();
     }
+
     @Transactional
     public ClienteDTO createCliente(ClienteCreateDTO dto) {
+        Long organizacaoId = getOrganizacaoIdFromContext();
+
         // Validações
+        if (clienteRepository.findByEmailAndOrganizacao_Id(dto.getEmail(), organizacaoId).isPresent()) {
+            throw new IllegalArgumentException("E-mail já existe.");
+        }
 
-        // Verificar se existe método findByEmail no repository
-         if (clienteRepository.findByEmail(dto.getEmail()).isPresent()) {
-             throw new IllegalArgumentException("E-mail já existe.");
-         }
+        if (clienteRepository.findByCpfAndOrganizacao_Id(
+                dto.getCpf().replaceAll("[^0-9]", ""), organizacaoId).isPresent()) {
+            throw new IllegalArgumentException("CPF já existe.");
+        }
 
-         if(clienteRepository.findByCpf(dto.getCpf().replaceAll("[^0-9]", "")).isPresent()){
-             throw new IllegalArgumentException("CPF já existe.");
-         }
+        Organizacao organizacao = organizacaoRepository.findById(organizacaoId)
+                .orElseThrow(() -> new IllegalArgumentException("Organização com ID " + organizacaoId + " não encontrada."));
 
         Cliente cliente = new Cliente();
-        cliente.setOrganizacao(organizacaoRepository.findById(1L).orElse(null));
+        cliente.setOrganizacao(organizacao);
         cliente.setNomeCompleto(dto.getNomeCompleto());
         cliente.setEmail(dto.getEmail());
-
-//        if(!dto.isClienteRapido()){
-            cliente.setUsername(dto.getUsername());
-            cliente.setPassword(passwordEncoder.encode(dto.getPassword()));
-        // }
-
+        cliente.setUsername(dto.getUsername());
+        cliente.setPassword(passwordEncoder.encode(dto.getPassword()));
         cliente.setTelefone(dto.getTelefone());
         cliente.setDataNascimento(dto.getDataNascimento());
         cliente.setCpf(dto.getCpf().replaceAll("[^0-9]", ""));
         cliente.setRole("ROLE_CLIENTE");
         cliente.setAtivo(true);
-        //if(!dto.isClienteRapido()){
-            cliente.setIsCadastroIncompleto(true);
-//        }else{
-//            cliente.setIsCadastroIncompleto(true);
-//        }
+        cliente.setIsCadastroIncompleto(true);
         cliente.setDtCriacao(LocalDateTime.now());
 
         Cliente clienteSalvo = clienteRepository.save(cliente);
@@ -133,6 +142,8 @@ public class ClienteService {
     public ClienteDTO updateCliente(Long id, ClienteUpdateDTO dto) {
         Cliente cliente = clienteRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Cliente com ID " + id + " não encontrado."));
+
+        validarOrganizacao(cliente.getOrganizacao().getId());
 
         if (dto.getNomeCompleto() != null) {
             cliente.setNomeCompleto(dto.getNomeCompleto());
@@ -156,6 +167,8 @@ public class ClienteService {
         Cliente cliente = clienteRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Cliente com ID " + id + " não encontrado."));
 
+        validarOrganizacao(cliente.getOrganizacao().getId());
+
         cliente.setAtivo(false);
         clienteRepository.save(cliente);
     }
@@ -165,6 +178,8 @@ public class ClienteService {
     public List<AgendamentoDTO> getAgendamentosCliente(AgendamentoFiltroDTO filtro) {
         Cliente cliente = clienteRepository.findById(filtro.getClienteId())
                 .orElseThrow(() -> new IllegalArgumentException("Cliente não encontrado."));
+
+        validarOrganizacao(cliente.getOrganizacao().getId());
 
         List<Agendamento> agendamentos = agendamentoRepository.findByCliente(cliente);
 
@@ -198,6 +213,8 @@ public class ClienteService {
         Cliente cliente = clienteRepository.findById(clienteId)
                 .orElseThrow(() -> new IllegalArgumentException("Cliente não encontrado."));
 
+        validarOrganizacao(cliente.getOrganizacao().getId());
+
         LocalDateTime agora = LocalDateTime.now();
         return agendamentoRepository.findProximosAgendamentosCliente(
                         clienteId, agora, Status.CANCELADO)
@@ -211,6 +228,7 @@ public class ClienteService {
 
     public List<CompraDTO> getComprasCliente(CompraFiltroDTO filtro) {
         // Implementação placeholder - seria necessário o CompraRepository
+        // Quando implementar, adicionar validação de organização
         return new ArrayList<>();
     }
 
@@ -219,6 +237,8 @@ public class ClienteService {
     public List<CobrancaDTO> getCobrancasCliente(Long clienteId, String status) {
         Cliente cliente = clienteRepository.findById(clienteId)
                 .orElseThrow(() -> new IllegalArgumentException("Cliente não encontrado."));
+
+        validarOrganizacao(cliente.getOrganizacao().getId());
 
         List<Cobranca> cobrancas;
         if (status != null && !status.isEmpty()) {
@@ -235,20 +255,22 @@ public class ClienteService {
 
     public List<PagamentoDTO> getPagamentosCliente(Long clienteId, String metodo) {
         // Implementação placeholder - seria necessário o PagamentoRepository
+        // Quando implementar, adicionar validação de organização
         return new ArrayList<>();
     }
 
     // =============== MÉTODOS PARA HISTÓRICO ===============
 
     public List<HistoricoClienteDTO> getHistoricoCliente(HistoricoFiltroDTO filtro) {
-        // Implementação que combina agendamentos e compras
+        Cliente cliente = clienteRepository.findById(filtro.getClienteId())
+                .orElseThrow(() -> new IllegalArgumentException("Cliente não encontrado."));
+
+        validarOrganizacao(cliente.getOrganizacao().getId());
+
         List<HistoricoClienteDTO> historico = new ArrayList<>();
 
         // Buscar agendamentos
         if (filtro.getTipo() == null || filtro.getTipo().equals("TODOS") || filtro.getTipo().equals("AGENDAMENTO")) {
-            Cliente cliente = clienteRepository.findById(filtro.getClienteId())
-                    .orElseThrow(() -> new IllegalArgumentException("Cliente não encontrado."));
-
             List<Agendamento> agendamentos = agendamentoRepository.findByCliente(cliente);
 
             for (Agendamento agendamento : agendamentos) {
@@ -291,6 +313,8 @@ public class ClienteService {
         Cliente cliente = clienteRepository.findById(clienteId)
                 .orElseThrow(() -> new IllegalArgumentException("Cliente não encontrado."));
 
+        validarOrganizacao(cliente.getOrganizacao().getId());
+
         BigDecimal valorTotalGasto = cobrancaRepository.sumByCliente(clienteId, Cobranca.StatusCobranca.PAGO);
         Long totalAgendamentos = agendamentoRepository.countByCliente(clienteId);
         LocalDateTime ultimoAgendamento = agendamentoRepository.findLastAgendamentoByCliente(clienteId);
@@ -300,11 +324,11 @@ public class ClienteService {
                 .nomeCliente(cliente.getNomeCompleto())
                 .valorTotalGasto(valorTotalGasto != null ? valorTotalGasto : BigDecimal.ZERO)
                 .valorTotalServicos(valorTotalGasto != null ? valorTotalGasto : BigDecimal.ZERO)
-                .valorTotalProdutos(BigDecimal.ZERO) // Placeholder
+                .valorTotalProdutos(BigDecimal.ZERO)
                 .totalAgendamentos(totalAgendamentos)
-                .totalCompras(0L) // Placeholder
+                .totalCompras(0L)
                 .valorPago(valorTotalGasto != null ? valorTotalGasto : BigDecimal.ZERO)
-                .valorPendente(BigDecimal.ZERO) // Calcular baseado no status das cobranças
+                .valorPendente(BigDecimal.ZERO)
                 .ticketMedioServicos(calcularTicketMedio(valorTotalGasto, totalAgendamentos))
                 .ultimoAgendamento(ultimoAgendamento)
                 .periodoAnalise("Histórico completo")
@@ -312,6 +336,11 @@ public class ClienteService {
     }
 
     public List<ServicoEstatisticaDTO> getServicosFavoritosCliente(Long clienteId) {
+        Cliente cliente = clienteRepository.findById(clienteId)
+                .orElseThrow(() -> new IllegalArgumentException("Cliente não encontrado."));
+
+        validarOrganizacao(cliente.getOrganizacao().getId());
+
         // Implementação placeholder - seria necessário analisar os serviços dos agendamentos
         return new ArrayList<>();
     }
@@ -319,12 +348,17 @@ public class ClienteService {
     // =============== MÉTODOS PARA BUSCA ===============
 
     public List<ClienteDTO> buscarClientes(String termo) {
+        Long organizacaoId = getOrganizacaoIdFromContext();
+
         Specification<Cliente> spec = (root, query, cb) -> {
             String termoBusca = "%" + termo.toLowerCase() + "%";
-            return cb.or(
-                    cb.like(cb.lower(root.get("nomeCompleto")), termoBusca),
-                    cb.like(cb.lower(root.get("email")), termoBusca),
-                    cb.like(root.get("telefone"), termoBusca)
+            return cb.and(
+                    cb.equal(root.get("organizacao").get("id"), organizacaoId),
+                    cb.or(
+                            cb.like(cb.lower(root.get("nomeCompleto")), termoBusca),
+                            cb.like(cb.lower(root.get("email")), termoBusca),
+                            cb.like(root.get("telefone"), termoBusca)
+                    )
             );
         };
 
@@ -337,11 +371,13 @@ public class ClienteService {
     // =============== MÉTODOS ESPECIAIS ===============
 
     public List<ClienteAniversarianteDTO> getAniversariantes(Integer mes, Integer ano) {
+        Long organizacaoId = getOrganizacaoIdFromContext();
+
         LocalDate hoje = LocalDate.now();
         int mesConsulta = mes != null ? mes : hoje.getMonthValue();
         int anoConsulta = ano != null ? ano : hoje.getYear();
 
-        return clienteRepository.findAll().stream()
+        return clienteRepository.findAllByOrganizacao_Id(organizacaoId).stream()
                 .filter(c -> c.getDataNascimento() != null)
                 .filter(c -> c.getDataNascimento().getMonthValue() == mesConsulta)
                 .map(cliente -> convertToAniversarianteDTO(cliente, anoConsulta))
@@ -350,7 +386,9 @@ public class ClienteService {
     }
 
     public List<TopClienteDTO> getTopClientes(int limite) {
-        return clienteRepository.findTopClientes().stream()
+        Long organizacaoId = getOrganizacaoIdFromContext();
+
+        return clienteRepository.findTopClientesByOrganizacao_Id(organizacaoId).stream()
                 .limit(limite)
                 .map(this::convertToTopClienteDTO)
                 .collect(Collectors.toList());
@@ -361,37 +399,42 @@ public class ClienteService {
         Cliente cliente = clienteRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Cliente não encontrado."));
 
+        validarOrganizacao(cliente.getOrganizacao().getId());
+
         cliente.setAtivo(ativo);
         Cliente clienteAtualizado = clienteRepository.save(cliente);
         return convertToDTO(clienteAtualizado);
     }
 
     public EstatisticasClientesDTO getEstatisticas() {
+        Long organizacaoId = getOrganizacaoIdFromContext();
+
         LocalDateTime agora = LocalDateTime.now();
         LocalDateTime inicioMes = agora.withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0).withNano(0);
         LocalDateTime inicioAno = agora.withDayOfYear(1).withHour(0).withMinute(0).withSecond(0).withNano(0);
 
-        // Calcular início e fim da semana
         LocalDate hoje = LocalDate.now();
         LocalDate inicioSemana = hoje.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
         LocalDate fimSemana = hoje.with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY));
 
         return EstatisticasClientesDTO.builder()
-                .totalClientes(clienteRepository.count())
-                .clientesAtivos(clienteRepository.countByAtivo(true))
-                .clientesInativos(clienteRepository.countByAtivo(false))
-                .novosClientesEsseMes(clienteRepository.countByDataCriacaoBetween(inicioMes, agora))
-                .novosClientesEsteAno(clienteRepository.countByDataCriacaoBetween(inicioAno, agora))
-                .aniversariantesHoje(clienteRepository.countAniversariantesHoje())
-                .aniversariantesEstaSemana(clienteRepository.countAniversariantesEstaSemana(inicioSemana, fimSemana))
-                .clientesRecorrentes(clienteRepository.countClientesRecorrentes())
+                .totalClientes(clienteRepository.countByOrganizacao_Id(organizacaoId))
+                .clientesAtivos(clienteRepository.countByOrganizacao_IdAndAtivo(organizacaoId, true))
+                .clientesInativos(clienteRepository.countByOrganizacao_IdAndAtivo(organizacaoId, false))
+                .novosClientesEsseMes(clienteRepository.countByOrganizacao_IdAndDtCriacaoBetween(
+                        organizacaoId, inicioMes, agora))
+                .novosClientesEsteAno(clienteRepository.countByOrganizacao_IdAndDtCriacaoBetween(
+                        organizacaoId, inicioAno, agora))
+                .aniversariantesHoje(clienteRepository.countAniversariantesHojeByOrganizacao_Id(organizacaoId))
+                .aniversariantesEstaSemana(clienteRepository.countAniversariantesEstaSemanaByOrganizacao(
+                        organizacaoId, hoje, inicioSemana, fimSemana))
+                .clientesRecorrentes(clienteRepository.countClientesRecorrentesByOrganizacao_Id(organizacaoId))
                 .build();
     }
 
     // =============== MÉTODOS AUXILIARES ===============
 
     private Organizacao getOrganizacaoPadrao() {
-        // Implementação placeholder - buscar organização padrão
         return organizacaoService.getOrganizacaoPadrao();
     }
 
@@ -410,7 +453,6 @@ public class ClienteService {
             return agendamento.getCobranca().getValor();
         }
 
-        // Se não houver cobrança, calcular baseado nos serviços
         if (agendamento.getServicos() != null) {
             return agendamento.getServicos().stream()
                     .map(servico -> servico.getPreco())
@@ -459,8 +501,8 @@ public class ClienteService {
                 .totalAgendamentos(totalAgendamentos)
                 .valorTotalGasto(valorTotal != null ? valorTotal : BigDecimal.ZERO)
                 .ultimoAgendamento(ultimoAgendamento)
-                .agendamentosPendentes(0L) // Calcular se necessário
-                .cobrancasPendentes(0L) // Calcular se necessário
+                .agendamentosPendentes(0L)
+                .cobrancasPendentes(0L)
                 .build();
     }
 
@@ -516,7 +558,6 @@ public class ClienteService {
     }
 
     private AgendamentoDTO convertAgendamentoToDTO(Agendamento agendamento) {
-        // Opção 1: Usar o construtor que já existe (RECOMENDADO)
         return new AgendamentoDTO(agendamento);
     }
 
@@ -534,9 +575,12 @@ public class ClienteService {
 
     // =============== MÉTODOS DE ESPECIFICAÇÃO ===============
 
-    private Specification<Cliente> createClienteSpecification(ClienteFiltroDTO filtro) {
+    private Specification<Cliente> createClienteSpecification(ClienteFiltroDTO filtro, Long organizacaoId) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
+
+            // Sempre filtrar pela organização
+            predicates.add(cb.equal(root.get("organizacao").get("id"), organizacaoId));
 
             if (filtro.getNome() != null && !filtro.getNome().trim().isEmpty()) {
                 predicates.add(cb.like(cb.lower(root.get("nomeCompleto")),
@@ -556,5 +600,31 @@ public class ClienteService {
 
             return cb.and(predicates.toArray(new Predicate[0]));
         };
+    }
+
+    // --------------------
+    // Métodos de Validação
+    // --------------------
+
+    private void validarOrganizacao(Long entityOrganizacaoId) {
+        Long organizacaoId = TenantContext.getCurrentOrganizacaoId();
+
+        if (organizacaoId == null) {
+            throw new SecurityException("Organização não identificada no token");
+        }
+
+        if (!organizacaoId.equals(entityOrganizacaoId)) {
+            throw new SecurityException("Acesso negado: Você não tem permissão para acessar este recurso");
+        }
+    }
+
+    private Long getOrganizacaoIdFromContext() {
+        Long organizacaoId = TenantContext.getCurrentOrganizacaoId();
+
+        if (organizacaoId == null) {
+            throw new SecurityException("Organização não identificada. Token inválido ou expirado");
+        }
+
+        return organizacaoId;
     }
 }

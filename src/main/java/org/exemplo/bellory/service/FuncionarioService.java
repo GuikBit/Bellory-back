@@ -1,10 +1,9 @@
 package org.exemplo.bellory.service;
 
 import jakarta.transaction.Transactional;
+import org.exemplo.bellory.context.TenantContext;
 import org.exemplo.bellory.model.dto.*;
-import org.exemplo.bellory.model.entity.funcionario.BloqueioAgenda;
 import org.exemplo.bellory.model.entity.funcionario.Funcionario;
-import org.exemplo.bellory.model.entity.funcionario.JornadaTrabalho;
 import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 import org.exemplo.bellory.model.repository.funcionario.FuncionarioRepository;
 import org.exemplo.bellory.model.repository.organizacao.OrganizacaoRepository;
@@ -56,14 +55,20 @@ public class FuncionarioService {
             throw new IllegalArgumentException("O perfil de acesso é obrigatório.");
         }
 
+        // Validar que o ID da organização no DTO corresponde ao contexto
+        Long organizacaoId = getOrganizacaoIdFromContext();
+        if (!organizacaoId.equals(dto.getIdOrganizacao())) {
+            throw new SecurityException("Acesso negado: Você não tem permissão para criar funcionário nesta organização");
+        }
+
         // --- VERIFICAÇÃO DE UNICIDADE ---
         funcionarioRepository.findByUsername(dto.getUsername()).ifPresent(f -> {
             throw new IllegalArgumentException("O login '" + dto.getUsername() + "' já está em uso.");
         });
 
         // --- BUSCA DA ORGANIZAÇÃO ---
-        Organizacao org = organizacaoRepository.findById(dto.getIdOrganizacao())
-                .orElseThrow(() -> new IllegalArgumentException("Organização com ID " + dto.getIdOrganizacao() + " não encontrada."));
+        Organizacao org = organizacaoRepository.findById(organizacaoId)
+                .orElseThrow(() -> new IllegalArgumentException("Organização com ID " + organizacaoId + " não encontrada."));
 
         // --- CRIAÇÃO E MAPEAMENTO DA ENTIDADE ---
         Funcionario novoFuncionario = new Funcionario();
@@ -71,13 +76,13 @@ public class FuncionarioService {
         novoFuncionario.setUsername(dto.getUsername());
         novoFuncionario.setNomeCompleto(dto.getNomeCompleto());
         novoFuncionario.setEmail(dto.getEmail());
-        novoFuncionario.setPassword(passwordEncoder.encode(dto.getPassword())); // Criptografa a senha
+        novoFuncionario.setPassword(passwordEncoder.encode(dto.getPassword()));
         novoFuncionario.setCargo(dto.getCargo());
         novoFuncionario.setTelefone(dto.getTelefone());
         novoFuncionario.setNivel(dto.getNivel());
         novoFuncionario.setVisivelExterno(dto.isVisibleExterno());
-        novoFuncionario.setAtivo(true); // Define como ativo por padrão
-        novoFuncionario.setRole(dto.getRole()); // Define uma role padrão
+        novoFuncionario.setAtivo(true);
+        novoFuncionario.setRole(dto.getRole());
         novoFuncionario.setDataContratacao(LocalDateTime.now());
         novoFuncionario.setDataCriacao(LocalDateTime.now());
 
@@ -86,11 +91,13 @@ public class FuncionarioService {
 
     @Transactional
     public Funcionario updateFuncionario(Long id, FuncionarioUpdateDTO dto) {
-        // 1. Busca o funcionário existente no banco de dados
         Funcionario funcionario = funcionarioRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Funcionário com ID " + id + " não encontrado."));
 
-        // 2. Atualiza apenas os campos que foram fornecidos no DTO
+        // Validar organização
+        validarOrganizacao(funcionario.getOrganizacao().getId());
+
+        // Atualiza apenas os campos fornecidos
         if (dto.getNomeCompleto() != null && !dto.getNomeCompleto().trim().isEmpty()) {
             funcionario.setNomeCompleto(dto.getNomeCompleto());
         }
@@ -113,30 +120,28 @@ public class FuncionarioService {
         funcionario.setComissao(dto.isComissao());
         funcionario.setDataUpdate(LocalDateTime.now());
 
-        // 3. Salva e retorna o funcionário atualizado
         return funcionarioRepository.save(funcionario);
     }
 
     @Transactional
     public void deleteFuncionario(Long id) {
-        // 1. Busca o funcionário no banco
         Funcionario funcionario = funcionarioRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Funcionário com ID " + id + " não encontrado para exclusão."));
 
-        // 2. Realiza a deleção lógica (soft delete)
-        funcionario.setAtivo(false);
+        // Validar organização
+        validarOrganizacao(funcionario.getOrganizacao().getId());
 
-        // 3. Salva a alteração
+        funcionario.setAtivo(false);
         funcionarioRepository.save(funcionario);
     }
 
-    // NOVO MÉTODO: Buscar funcionário por ID retornando FuncionarioDTO
     public FuncionarioDTO getFuncionarioById(Long id) {
-        // 1. Busca o funcionário no banco
         Funcionario funcionario = funcionarioRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Funcionário com ID " + id + " não encontrado."));
 
-        // 2. Converte as listas de entidades para DTOs
+        // Validar organização
+        validarOrganizacao(funcionario.getOrganizacao().getId());
+
         List<JornadaTrabalhoDTO> jornadaDTO = funcionario.getJornadaDeTrabalho().stream()
                 .map(jornada -> new JornadaTrabalhoDTO(
                         jornada.getDiaSemana().name(),
@@ -155,18 +160,16 @@ public class FuncionarioService {
                 ))
                 .collect(Collectors.toList());
 
-        // 3. Retorna o FuncionarioDTO com todas as informações
         return new FuncionarioDTO(funcionario, bloqueiosDTO, jornadaDTO);
     }
 
-    // O método agora retorna uma lista de DTOs
     public List<FuncionarioDTO> getListAllFuncionarios() {
-        List<Funcionario> funcionarios = this.funcionarioRepository.findAll();
+        Long organizacaoId = getOrganizacaoIdFromContext();
 
-        // Lógica de mapeamento completa
+        List<Funcionario> funcionarios = funcionarioRepository.findAllByOrganizacao_Id(organizacaoId);
+
         return funcionarios.stream()
                 .map(funcionario -> {
-                    // Converte o Set<JornadaTrabalho> em List<JornadaTrabalhoDTO>
                     List<JornadaTrabalhoDTO> jornadaDTO = funcionario.getJornadaDeTrabalho().stream()
                             .map(jornada -> new JornadaTrabalhoDTO(
                                     jornada.getDiaSemana().name(),
@@ -176,7 +179,6 @@ public class FuncionarioService {
                             ))
                             .collect(Collectors.toList());
 
-                    // Converte o Set<BloqueioAgenda> em List<BloqueioAgendaDTO>
                     List<BloqueioAgendaDTO> bloqueiosDTO = funcionario.getBloqueiosAgenda().stream()
                             .map(bloqueio -> new BloqueioAgendaDTO(
                                     bloqueio.getInicioBloqueio(),
@@ -186,15 +188,15 @@ public class FuncionarioService {
                             ))
                             .collect(Collectors.toList());
 
-                    // Cria o DTO final do funcionário com as listas de DTOs
-                    return new FuncionarioDTO( funcionario, bloqueiosDTO, jornadaDTO
-                    );
+                    return new FuncionarioDTO(funcionario, bloqueiosDTO, jornadaDTO);
                 })
                 .collect(Collectors.toList());
     }
 
     public List<FuncionarioAgendamento> getListAllFuncionariosAgendamento() {
-        return this.funcionarioRepository.findAllProjectedBy();
+        Long organizacaoId = getOrganizacaoIdFromContext();
+
+        return funcionarioRepository.findAllProjectedByOrganizacao_Id(organizacaoId);
     }
 
     public boolean existeUsername(String username) {
@@ -202,7 +204,34 @@ public class FuncionarioService {
             throw new IllegalArgumentException("Username não pode ser nulo ou vazio.");
         }
 
-        return funcionarioRepository.findByUsername(username.trim()).isPresent();
+        Long organizacaoId = getOrganizacaoIdFromContext();
+
+        return funcionarioRepository.findByUsernameAndOrganizacao_Id(username.trim(), organizacaoId).isPresent();
     }
 
+    // --------------------
+    // Métodos de Validação
+    // --------------------
+
+    private void validarOrganizacao(Long entityOrganizacaoId) {
+        Long organizacaoId = TenantContext.getCurrentOrganizacaoId();
+
+        if (organizacaoId == null) {
+            throw new SecurityException("Organização não identificada no token");
+        }
+
+        if (!organizacaoId.equals(entityOrganizacaoId)) {
+            throw new SecurityException("Acesso negado: Você não tem permissão para acessar este recurso");
+        }
+    }
+
+    private Long getOrganizacaoIdFromContext() {
+        Long organizacaoId = TenantContext.getCurrentOrganizacaoId();
+
+        if (organizacaoId == null) {
+            throw new SecurityException("Organização não identificada. Token inválido ou expirado");
+        }
+
+        return organizacaoId;
+    }
 }

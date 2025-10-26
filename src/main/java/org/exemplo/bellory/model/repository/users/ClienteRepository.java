@@ -61,4 +61,31 @@ public interface ClienteRepository extends JpaRepository<Cliente, Long> {
     List<Cliente> findAll(Specification<Cliente> spec, Sort sort);
 
     Optional<Object> findByCpf(String cpf);
+
+    // Buscar por organização
+    List<Cliente> findAllByOrganizacao_Id(Long organizacaoId);
+
+    // Verificações com organização
+    Optional<Cliente> findByUsernameAndOrganizacao_Id(String username, Long organizacaoId);
+    Optional<Cliente> findByCpfAndOrganizacao_Id(String cpf, Long organizacaoId);
+    Optional<Cliente> findByEmailAndOrganizacao_Id(String email, Long organizacaoId);
+
+    // Top clientes por organização
+    List<Cliente> findTopClientesByOrganizacao_Id(Long organizacaoId);
+
+    // Contadores com organização
+    Long countByOrganizacao_Id(Long organizacaoId);
+    Long countByOrganizacao_IdAndAtivo(Long organizacaoId, Boolean ativo);
+    Long countByOrganizacao_IdAndDtCriacaoBetween(Long organizacaoId, LocalDateTime inicio, LocalDateTime fim);
+
+    // Aniversariantes por organização
+    Long countAniversariantesHojeByOrganizacao_Id(Long organizacaoId);
+    @Query("SELECT COUNT(c) FROM Cliente c WHERE c.organizacao.id = :organizacaoId " +
+            "AND FUNCTION('MONTH', c.dataNascimento) = FUNCTION('MONTH', :hoje) " +
+            "AND FUNCTION('DAY', c.dataNascimento) BETWEEN FUNCTION('DAY', :inicio) AND FUNCTION('DAY', :fim)")
+    Long countAniversariantesEstaSemanaByOrganizacao(@Param("organizacaoId") Long organizacaoId,
+                                                     @Param("hoje") LocalDate hoje,
+                                                     @Param("inicio") LocalDate inicio,
+                                                     @Param("fim") LocalDate fim);
+    Long countClientesRecorrentesByOrganizacao_Id(Long organizacaoId);
 }

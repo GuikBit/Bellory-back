@@ -26,7 +26,7 @@ public class FuncionarioController {
     }
 
     @GetMapping
-    public ResponseEntity<ResponseAPI<List<FuncionarioDTO>>> getFuncionarioList(@RequestParam String id_organizacao) {
+    public ResponseEntity<ResponseAPI<List<FuncionarioDTO>>> getFuncionarioList() {
         List<FuncionarioDTO> funcionariosDTO = funcionarioService.getListAllFuncionarios();
 
         if (funcionariosDTO.isEmpty()) {
@@ -37,6 +37,7 @@ public class FuncionarioController {
                             .message("Nenhum funcionário encontrado.")
                             .dados(funcionariosDTO)
                             .build());
+
         }
 
         return ResponseEntity

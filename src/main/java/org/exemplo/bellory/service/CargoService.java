@@ -1,10 +1,12 @@
 package org.exemplo.bellory.service;
 
 import jakarta.transaction.Transactional;
+import org.exemplo.bellory.context.TenantContext;
 import org.exemplo.bellory.model.dto.CargoDTO;
 import org.exemplo.bellory.model.entity.funcionario.Cargo;
-import org.exemplo.bellory.model.entity.servico.Categoria;
+import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 import org.exemplo.bellory.model.repository.funcionario.CargoRepository;
+import org.exemplo.bellory.model.repository.organizacao.OrganizacaoRepository;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -16,16 +18,23 @@ import java.util.stream.Collectors;
 public class CargoService {
 
     private final CargoRepository cargoRepository;
+    private final OrganizacaoRepository organizacaoRepository;
 
-    public CargoService(CargoRepository cargoRepository) {
+    public CargoService(CargoRepository cargoRepository, OrganizacaoRepository organizacaoRepository) {
         this.cargoRepository = cargoRepository;
+        this.organizacaoRepository = organizacaoRepository;
     }
 
     @Transactional
     public CargoDTO createCargo(CargoDTO dto) {
         validar(dto);
+        Long organizacaoId = getOrganizacaoIdFromContext();
+
+        Organizacao organizacao = organizacaoRepository.findById(organizacaoId)
+                .orElseThrow(() -> new IllegalArgumentException("Organização com ID " + organizacaoId + " não encontrada."));
 
         Cargo cargo = new Cargo();
+        cargo.setOrganizacao(organizacao);
         cargo.setNome(dto.getNome().trim());
         cargo.setDescricao(dto.getDescricao());
         cargo.setDataCriacao(LocalDateTime.now());
@@ -36,16 +45,27 @@ public class CargoService {
     }
 
     public List<CargoDTO> getAllCargos() {
-        return cargoRepository.findAll()
+        Long organizacaoId = getOrganizacaoIdFromContext();
+
+        return cargoRepository.findAllByOrganizacao_IdAndAtivoTrue(organizacaoId)
                 .stream()
-                .filter(Cargo::isAtivo) // apenas ativos
-                .map(this::toDTO)
+                .map(this::convertToDTO)
                 .collect(Collectors.toList());
+    }
+
+    private CargoDTO convertToDTO(Cargo cargo){
+        return CargoDTO.builder()
+                .nome(cargo.getNome())
+                .descricao(cargo.getDescricao())
+                .build();
     }
 
     public CargoDTO getCargoById(Long id) {
         Cargo cargo = cargoRepository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Cargo com ID " + id + " não encontrado."));
+
+        validarOrganizacao(cargo.getOrganizacao().getId());
+
         if (!cargo.isAtivo()) {
             throw new NoSuchElementException("Cargo com ID " + id + " não encontrado.");
         }
@@ -58,6 +78,8 @@ public class CargoService {
 
         Cargo cargo = cargoRepository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Cargo com ID " + id + " não encontrado."));
+
+        validarOrganizacao(cargo.getOrganizacao().getId());
 
         if (!cargo.isAtivo()) {
             throw new NoSuchElementException("Cargo com ID " + id + " não encontrado.");
@@ -75,13 +97,42 @@ public class CargoService {
         Cargo cargo = cargoRepository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Cargo com ID " + id + " não encontrado."));
 
+        validarOrganizacao(cargo.getOrganizacao().getId());
+
         cargo.setAtivo(false); // soft delete
         cargoRepository.save(cargo);
     }
 
     // --------------------
+    // Métodos de Validação
+    // --------------------
+
+    private void validarOrganizacao(Long entityOrganizacaoId) {
+        Long organizacaoId = TenantContext.getCurrentOrganizacaoId();
+
+        if (organizacaoId == null) {
+            throw new SecurityException("Organização não identificada no token");
+        }
+
+        if (!organizacaoId.equals(entityOrganizacaoId)) {
+            throw new SecurityException("Acesso negado: Você não tem permissão para acessar este recurso");
+        }
+    }
+
+    private Long getOrganizacaoIdFromContext() {
+        Long organizacaoId = TenantContext.getCurrentOrganizacaoId();
+
+        if (organizacaoId == null) {
+            throw new SecurityException("Organização não identificada. Token inválido ou expirado");
+        }
+
+        return organizacaoId;
+    }
+
+    // --------------------
     // Helpers
     // --------------------
+
     private void validar(CargoDTO dto) {
         if (dto == null) {
             throw new IllegalArgumentException("Dados do cargo não informados.");
@@ -99,12 +150,8 @@ public class CargoService {
 
     private CargoDTO toDTO(Cargo cargo) {
         CargoDTO dto = new CargoDTO();
-
         dto.setNome(cargo.getNome());
         dto.setDescricao(cargo.getDescricao());
-        // Se seu CargoDTO tiver mais campos (ex.: dataCriacao/ativo), ajuste aqui:
-        // dto.setDataCriacao(cargo.getDataCriacao());
-        // dto.setAtivo(cargo.isAtivo());
         return dto;
     }
 }

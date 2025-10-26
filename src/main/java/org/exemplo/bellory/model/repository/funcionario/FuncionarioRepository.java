@@ -23,4 +23,12 @@ public interface FuncionarioRepository extends JpaRepository<Funcionario, Long> 
     Long countByAtivo(boolean ativo);
 
     Optional<Object> findByCpf(String cpf);
+
+    Optional<Object> findByUsernameAndOrganizacao_Id(String trim, Long organizacaoId);
+
+    List<FuncionarioAgendamento> findAllProjectedByOrganizacao_Id(Long organizacaoId);
+
+    List<Funcionario> findAllByOrganizacao_Id(Long organizacaoId);
+
+
 }

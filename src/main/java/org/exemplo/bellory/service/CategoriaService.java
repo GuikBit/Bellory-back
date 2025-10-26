@@ -1,9 +1,12 @@
 package org.exemplo.bellory.service;
 
 import jakarta.transaction.Transactional;
+import org.exemplo.bellory.context.TenantContext;
 import org.exemplo.bellory.model.entity.enums.TipoCategoria;
+import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 import org.exemplo.bellory.model.entity.servico.Categoria;
 import org.exemplo.bellory.model.repository.categoria.CategoriaRepository;
+import org.exemplo.bellory.model.repository.organizacao.OrganizacaoRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -12,13 +15,17 @@ import java.util.List;
 public class CategoriaService {
 
     private final CategoriaRepository categoriaRepository;
+    private final OrganizacaoRepository organizacaoRepository;
 
-    public CategoriaService(CategoriaRepository categoriaRepository) {
+    public CategoriaService(CategoriaRepository categoriaRepository, OrganizacaoRepository organizacaoRepository) {
         this.categoriaRepository = categoriaRepository;
+        this.organizacaoRepository = organizacaoRepository;
     }
 
     public List<Categoria> findByTipo(TipoCategoria tipo) {
-        return categoriaRepository.findByTipo(tipo);
+        Long organizacaoId = getOrganizacaoIdFromContext();
+
+        return categoriaRepository.findByOrganizacao_IdAndTipoAndAtivoTrue(organizacaoId, tipo);
     }
 
     @Transactional
@@ -32,6 +39,15 @@ public class CategoriaService {
         if (categoria.getTipo() == null) {
             throw new IllegalArgumentException("O campo 'tipo' da categoria é obrigatório.");
         }
+
+        Long organizacaoId = getOrganizacaoIdFromContext();
+
+        Organizacao organizacao = organizacaoRepository.findById(organizacaoId)
+                .orElseThrow(() -> new IllegalArgumentException("Organização com ID " + organizacaoId + " não encontrada."));
+
+        categoria.setOrganizacao(organizacao);
+        categoria.setAtivo(true);
+
         return categoriaRepository.save(categoria);
     }
 
@@ -39,6 +55,8 @@ public class CategoriaService {
     public Categoria updateCategoria(Long id, Categoria categoriaDetails) {
         Categoria categoria = categoriaRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Categoria com ID " + id + " não encontrada."));
+
+        validarOrganizacao(categoria.getOrganizacao().getId());
 
         if (categoriaDetails.getLabel() != null) {
             categoria.setLabel(categoriaDetails.getLabel());
@@ -58,7 +76,36 @@ public class CategoriaService {
     public void deleteCategoria(Long id) {
         Categoria categoria = categoriaRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Categoria com ID " + id + " não encontrada."));
+
+        validarOrganizacao(categoria.getOrganizacao().getId());
+
         categoria.setAtivo(false);
         categoriaRepository.save(categoria);
+    }
+
+    // --------------------
+    // Métodos de Validação
+    // --------------------
+
+    private void validarOrganizacao(Long entityOrganizacaoId) {
+        Long organizacaoId = TenantContext.getCurrentOrganizacaoId();
+
+        if (organizacaoId == null) {
+            throw new SecurityException("Organização não identificada no token");
+        }
+
+        if (!organizacaoId.equals(entityOrganizacaoId)) {
+            throw new SecurityException("Acesso negado: Você não tem permissão para acessar este recurso");
+        }
+    }
+
+    private Long getOrganizacaoIdFromContext() {
+        Long organizacaoId = TenantContext.getCurrentOrganizacaoId();
+
+        if (organizacaoId == null) {
+            throw new SecurityException("Organização não identificada. Token inválido ou expirado");
+        }
+
+        return organizacaoId;
     }
 }
