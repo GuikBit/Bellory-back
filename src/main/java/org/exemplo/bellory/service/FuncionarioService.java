@@ -1,12 +1,14 @@
 package org.exemplo.bellory.service;
 
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import org.exemplo.bellory.context.TenantContext;
 import org.exemplo.bellory.model.dto.*;
 import org.exemplo.bellory.model.entity.funcionario.Funcionario;
 import org.exemplo.bellory.model.entity.organizacao.Organizacao;
+import org.exemplo.bellory.model.entity.servico.Servico;
 import org.exemplo.bellory.model.repository.funcionario.FuncionarioRepository;
 import org.exemplo.bellory.model.repository.organizacao.OrganizacaoRepository;
+import org.exemplo.bellory.model.repository.servico.ServicoRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -19,12 +21,14 @@ public class FuncionarioService {
 
     private final FuncionarioRepository funcionarioRepository;
     private final OrganizacaoRepository organizacaoRepository;
+    private final ServicoRepository servicoRepository;
     private final PasswordEncoder passwordEncoder;
 
-    public FuncionarioService(FuncionarioRepository funcionarioRepository, OrganizacaoRepository organizacaoRepository, PasswordEncoder passwordEncoder) {
+    public FuncionarioService(FuncionarioRepository funcionarioRepository, OrganizacaoRepository organizacaoRepository,  ServicoRepository servicoRepository, PasswordEncoder passwordEncoder) {
         this.funcionarioRepository = funcionarioRepository;
         this.organizacaoRepository = organizacaoRepository;
         this.passwordEncoder = passwordEncoder;
+        this.servicoRepository = servicoRepository;
     }
 
     @Transactional
@@ -86,7 +90,38 @@ public class FuncionarioService {
         novoFuncionario.setDataContratacao(LocalDateTime.now());
         novoFuncionario.setDataCriacao(LocalDateTime.now());
 
+        if (dto.getTelefone() != null && !dto.getTelefone().trim().isEmpty()) {
+            novoFuncionario.setTelefone(dto.getTelefone());
+        }
+
+        if (dto.getCpf() != null && !dto.getCpf().trim().isEmpty()) {
+            // Validação básica de CPF (você pode adicionar uma validação mais robusta)
+            String cpfLimpo = dto.getCpf().replaceAll("[^0-9]", "");
+            if (cpfLimpo.length() != 11) {
+                throw new IllegalArgumentException("CPF inválido. Deve conter 11 dígitos.");
+            }
+
+            // Verifica se o CPF já está em uso
+            funcionarioRepository.findByCpf(cpfLimpo).ifPresent(f -> {
+                throw new IllegalArgumentException("O CPF '" + dto.getCpf() + "' já está cadastrado.");
+            });
+
+            novoFuncionario.setCpf(cpfLimpo);
+        }
+
+        if (dto.getServicosId() != null && !dto.getServicosId().isEmpty()) {
+            List<Servico> servicos = servicoRepository.findAllById(dto.getServicosId());
+
+            // Valida se todos os serviços foram encontrados
+            if (servicos.size() != dto.getServicosId().size()) {
+                throw new IllegalArgumentException("Um ou mais serviços informados não foram encontrados.");
+            }
+
+            novoFuncionario.setServicos(servicos);
+        }
+
         return funcionarioRepository.save(novoFuncionario);
+
     }
 
     @Transactional
@@ -135,11 +170,12 @@ public class FuncionarioService {
         funcionarioRepository.save(funcionario);
     }
 
+    @Transactional(readOnly = true) // Adicione esta anotação
     public FuncionarioDTO getFuncionarioById(Long id) {
         Funcionario funcionario = funcionarioRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Funcionário com ID " + id + " não encontrado."));
 
-        // Validar organização
+        // Agora a organização será carregada corretamente
         validarOrganizacao(funcionario.getOrganizacao().getId());
 
         List<JornadaTrabalhoDTO> jornadaDTO = funcionario.getJornadaDeTrabalho().stream()
@@ -160,7 +196,9 @@ public class FuncionarioService {
                 ))
                 .collect(Collectors.toList());
 
-        return new FuncionarioDTO(funcionario, bloqueiosDTO, jornadaDTO);
+        List<Servico> servicos = funcionario.getServicos();
+
+        return new FuncionarioDTO(funcionario, bloqueiosDTO, jornadaDTO, servicos);
     }
 
     public List<FuncionarioDTO> getListAllFuncionarios() {
@@ -188,7 +226,9 @@ public class FuncionarioService {
                             ))
                             .collect(Collectors.toList());
 
-                    return new FuncionarioDTO(funcionario, bloqueiosDTO, jornadaDTO);
+                    List<Servico> servicos = funcionario.getServicos();
+
+                    return new FuncionarioDTO(funcionario, bloqueiosDTO, jornadaDTO, servicos);
                 })
                 .collect(Collectors.toList());
     }
