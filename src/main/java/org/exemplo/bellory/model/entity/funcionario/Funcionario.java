@@ -155,8 +155,9 @@ public class Funcionario extends User {
     // --- CAMPO DE ROLE COMO STRING ---
     private String role;
 
+    // NOVO RELACIONAMENTO: JornadaDia ao invés de JornadaTrabalho
     @OneToMany(mappedBy = "funcionario", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    private List<JornadaTrabalho> jornadaDeTrabalho = new ArrayList<>();
+    private List<JornadaDia> jornadasDia = new ArrayList<>();
 
     @OneToMany(mappedBy = "funcionario", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<BloqueioAgenda> bloqueiosAgenda = new ArrayList<>();
@@ -169,15 +170,15 @@ public class Funcionario extends User {
     )
     private List<Servico> servicos;
 
-    // Métodos para ajudar a gerenciar a sincronia dos relacionamentos (opcional, mas boa prática)
-    public void addJornada(JornadaTrabalho jornada) {
-        jornadaDeTrabalho.add(jornada);
-        jornada.setFuncionario(this);
+    // Métodos para ajudar a gerenciar a sincronia dos relacionamentos
+    public void addJornadaDia(JornadaDia jornadaDia) {
+        jornadasDia.add(jornadaDia);
+        jornadaDia.setFuncionario(this);
     }
 
-    public void removeJornada(JornadaTrabalho jornada) {
-        jornadaDeTrabalho.remove(jornada);
-        jornada.setFuncionario(null);
+    public void removeJornadaDia(JornadaDia jornadaDia) {
+        jornadasDia.remove(jornadaDia);
+        jornadaDia.setFuncionario(null);
     }
 
     public void addBloqueio(BloqueioAgenda bloqueio) {

@@ -24,7 +24,7 @@ public class FuncionarioService {
     private final ServicoRepository servicoRepository;
     private final PasswordEncoder passwordEncoder;
 
-    public FuncionarioService(FuncionarioRepository funcionarioRepository, OrganizacaoRepository organizacaoRepository,  ServicoRepository servicoRepository, PasswordEncoder passwordEncoder) {
+    public FuncionarioService(FuncionarioRepository funcionarioRepository, OrganizacaoRepository organizacaoRepository, ServicoRepository servicoRepository, PasswordEncoder passwordEncoder) {
         this.funcionarioRepository = funcionarioRepository;
         this.organizacaoRepository = organizacaoRepository;
         this.passwordEncoder = passwordEncoder;
@@ -49,13 +49,13 @@ public class FuncionarioService {
         if (dto.getPassword() == null || dto.getPassword().trim().isEmpty()) {
             throw new IllegalArgumentException("A senha é obrigatória.");
         }
-        if (dto.getCargo() == null || dto.getCargo().trim().isEmpty()){
+        if (dto.getCargo() == null || dto.getCargo().trim().isEmpty()) {
             throw new IllegalArgumentException("O cargo é obrigatório.");
         }
-        if (dto.getNivel() == null ){
+        if (dto.getNivel() == null) {
             throw new IllegalArgumentException("O nível é obrigatório.");
         }
-        if (dto.getRole() == null || dto.getRole().trim().isEmpty()){
+        if (dto.getRole() == null || dto.getRole().trim().isEmpty()) {
             throw new IllegalArgumentException("O perfil de acesso é obrigatório.");
         }
 
@@ -95,7 +95,7 @@ public class FuncionarioService {
         }
 
         if (dto.getCpf() != null && !dto.getCpf().trim().isEmpty()) {
-            // Validação básica de CPF (você pode adicionar uma validação mais robusta)
+            // Validação básica de CPF
             String cpfLimpo = dto.getCpf().replaceAll("[^0-9]", "");
             if (cpfLimpo.length() != 11) {
                 throw new IllegalArgumentException("CPF inválido. Deve conter 11 dígitos.");
@@ -121,7 +121,6 @@ public class FuncionarioService {
         }
 
         return funcionarioRepository.save(novoFuncionario);
-
     }
 
     @Transactional
@@ -170,21 +169,29 @@ public class FuncionarioService {
         funcionarioRepository.save(funcionario);
     }
 
-    @Transactional(readOnly = true) // Adicione esta anotação
+    @Transactional
     public FuncionarioDTO getFuncionarioById(Long id) {
         Funcionario funcionario = funcionarioRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Funcionário com ID " + id + " não encontrado."));
 
-        // Agora a organização será carregada corretamente
+        // Validar organização
         validarOrganizacao(funcionario.getOrganizacao().getId());
 
-        List<JornadaTrabalhoDTO> jornadaDTO = funcionario.getJornadaDeTrabalho().stream()
-                .map(jornada -> new JornadaTrabalhoDTO(
-                        jornada.getDiaSemana().name(),
-                        jornada.getHoraInicio(),
-                        jornada.getHoraFim(),
-                        jornada.getAtivo()
-                ))
+        // ATUALIZADO: Converte JornadaDia para JornadaDiaDTO (novo modelo)
+        List<JornadaDiaDTO> jornadasDTO = funcionario.getJornadasDia().stream()
+                .map(jornadaDia -> {
+                    // Converte os horários do dia
+                    List<HorarioTrabalhoDTO> horariosDTO = jornadaDia.getHorarios().stream()
+                            .map(h -> new HorarioTrabalhoDTO(h.getId(), h.getHoraInicio(), h.getHoraFim()))
+                            .collect(Collectors.toList());
+
+                    return new JornadaDiaDTO(
+                            jornadaDia.getId(),
+                            jornadaDia.getDiaSemana().getDescricao(),
+                            jornadaDia.getAtivo(),
+                            horariosDTO
+                    );
+                })
                 .collect(Collectors.toList());
 
         List<BloqueioAgendaDTO> bloqueiosDTO = funcionario.getBloqueiosAgenda().stream()
@@ -198,9 +205,10 @@ public class FuncionarioService {
 
         List<Servico> servicos = funcionario.getServicos();
 
-        return new FuncionarioDTO(funcionario, bloqueiosDTO, jornadaDTO, servicos);
+        return new FuncionarioDTO(funcionario, bloqueiosDTO, jornadasDTO, servicos);
     }
 
+    @Transactional
     public List<FuncionarioDTO> getListAllFuncionarios() {
         Long organizacaoId = getOrganizacaoIdFromContext();
 
@@ -208,13 +216,21 @@ public class FuncionarioService {
 
         return funcionarios.stream()
                 .map(funcionario -> {
-                    List<JornadaTrabalhoDTO> jornadaDTO = funcionario.getJornadaDeTrabalho().stream()
-                            .map(jornada -> new JornadaTrabalhoDTO(
-                                    jornada.getDiaSemana().name(),
-                                    jornada.getHoraInicio(),
-                                    jornada.getHoraFim(),
-                                    jornada.getAtivo()
-                            ))
+                    // ATUALIZADO: Converte JornadaDia para JornadaDiaDTO (novo modelo)
+                    List<JornadaDiaDTO> jornadasDTO = funcionario.getJornadasDia().stream()
+                            .map(jornadaDia -> {
+                                // Converte os horários do dia
+                                List<HorarioTrabalhoDTO> horariosDTO = jornadaDia.getHorarios().stream()
+                                        .map(h -> new HorarioTrabalhoDTO(h.getId(), h.getHoraInicio(), h.getHoraFim()))
+                                        .collect(Collectors.toList());
+
+                                return new JornadaDiaDTO(
+                                        jornadaDia.getId(),
+                                        jornadaDia.getDiaSemana().getDescricao(),
+                                        jornadaDia.getAtivo(),
+                                        horariosDTO
+                                );
+                            })
                             .collect(Collectors.toList());
 
                     List<BloqueioAgendaDTO> bloqueiosDTO = funcionario.getBloqueiosAgenda().stream()
@@ -228,7 +244,7 @@ public class FuncionarioService {
 
                     List<Servico> servicos = funcionario.getServicos();
 
-                    return new FuncionarioDTO(funcionario, bloqueiosDTO, jornadaDTO, servicos);
+                    return new FuncionarioDTO(funcionario, bloqueiosDTO, jornadasDTO, servicos);
                 })
                 .collect(Collectors.toList());
     }

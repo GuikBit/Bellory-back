@@ -28,7 +28,6 @@ public abstract class User implements UserDetails {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "organizacao_id", nullable = false)
-    @JsonIgnore
     private Organizacao organizacao;
 
     @Column(unique = true, nullable = false)

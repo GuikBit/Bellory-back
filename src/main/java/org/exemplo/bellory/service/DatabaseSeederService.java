@@ -396,7 +396,7 @@ public class DatabaseSeederService {
                     });
 
             // Criar jornada de trabalho se não existe
-            if (funcionario.getJornadaDeTrabalho().isEmpty()) {
+            if (funcionario.getJornadasDia().isEmpty()) {
                 criarJornadaParaFuncionario(funcionario);
                 criarBloqueiosParaFuncionario(funcionario);
                 funcionarioRepository.save(funcionario);
@@ -951,19 +951,107 @@ public class DatabaseSeederService {
         // Jornadas variadas para diferentes funcionários
         boolean temSabado = ThreadLocalRandom.current().nextDouble() < 0.8; // 80% trabalham sábado
         boolean temDomingo = ThreadLocalRandom.current().nextDouble() < 0.3; // 30% trabalham domingo
+        boolean temIntervaloAlmoco = ThreadLocalRandom.current().nextDouble() < 0.7; // 70% têm intervalo de almoço
 
-        funcionario.addJornada(new JornadaTrabalho(null, funcionario, DiaSemana.SEGUNDA, LocalTime.of(9, 0), LocalTime.of(18, 0), true));
-        funcionario.addJornada(new JornadaTrabalho(null, funcionario, DiaSemana.TERCA, LocalTime.of(9, 0), LocalTime.of(18, 0), true));
-        funcionario.addJornada(new JornadaTrabalho(null, funcionario, DiaSemana.QUARTA, LocalTime.of(9, 0), LocalTime.of(18, 0), true));
-        funcionario.addJornada(new JornadaTrabalho(null, funcionario, DiaSemana.QUINTA, LocalTime.of(10, 0), LocalTime.of(20, 0), true));
-        funcionario.addJornada(new JornadaTrabalho(null, funcionario, DiaSemana.SEXTA, LocalTime.of(10, 0), LocalTime.of(20, 0), true));
+        // SEGUNDA-FEIRA - Horário comercial
+        JornadaDia segunda = new JornadaDia();
+        segunda.setFuncionario(funcionario);
+        segunda.setDiaSemana(DiaSemana.SEGUNDA);
+        segunda.setAtivo(true);
 
+        if (temIntervaloAlmoco) {
+            // Com intervalo de almoço (2 horários)
+            HorarioTrabalho manha = new HorarioTrabalho(segunda, LocalTime.of(9, 0), LocalTime.of(12, 0));
+            HorarioTrabalho tarde = new HorarioTrabalho(segunda, LocalTime.of(13, 0), LocalTime.of(18, 0));
+            segunda.addHorario(manha);
+            segunda.addHorario(tarde);
+        } else {
+            // Sem intervalo (1 horário corrido)
+            HorarioTrabalho corrido = new HorarioTrabalho(segunda, LocalTime.of(9, 0), LocalTime.of(18, 0));
+            segunda.addHorario(corrido);
+        }
+        funcionario.addJornadaDia(segunda);
+
+        // TERÇA-FEIRA - Similar à segunda
+        JornadaDia terca = new JornadaDia();
+        terca.setFuncionario(funcionario);
+        terca.setDiaSemana(DiaSemana.TERCA);
+        terca.setAtivo(true);
+
+        if (temIntervaloAlmoco) {
+            terca.addHorario(new HorarioTrabalho(terca, LocalTime.of(9, 0), LocalTime.of(12, 0)));
+            terca.addHorario(new HorarioTrabalho(terca, LocalTime.of(13, 0), LocalTime.of(18, 0)));
+        } else {
+            terca.addHorario(new HorarioTrabalho(terca, LocalTime.of(9, 0), LocalTime.of(18, 0)));
+        }
+        funcionario.addJornadaDia(terca);
+
+        // QUARTA-FEIRA
+        JornadaDia quarta = new JornadaDia();
+        quarta.setFuncionario(funcionario);
+        quarta.setDiaSemana(DiaSemana.QUARTA);
+        quarta.setAtivo(true);
+
+        if (temIntervaloAlmoco) {
+            quarta.addHorario(new HorarioTrabalho(quarta, LocalTime.of(9, 0), LocalTime.of(12, 0)));
+            quarta.addHorario(new HorarioTrabalho(quarta, LocalTime.of(13, 0), LocalTime.of(18, 0)));
+        } else {
+            quarta.addHorario(new HorarioTrabalho(quarta, LocalTime.of(9, 0), LocalTime.of(18, 0)));
+        }
+        funcionario.addJornadaDia(quarta);
+
+        // QUINTA-FEIRA - Horário estendido (até 20h)
+        JornadaDia quinta = new JornadaDia();
+        quinta.setFuncionario(funcionario);
+        quinta.setDiaSemana(DiaSemana.QUINTA);
+        quinta.setAtivo(true);
+
+        if (temIntervaloAlmoco) {
+            quinta.addHorario(new HorarioTrabalho(quinta, LocalTime.of(10, 0), LocalTime.of(13, 0)));
+            quinta.addHorario(new HorarioTrabalho(quinta, LocalTime.of(14, 0), LocalTime.of(20, 0)));
+        } else {
+            quinta.addHorario(new HorarioTrabalho(quinta, LocalTime.of(10, 0), LocalTime.of(20, 0)));
+        }
+        funcionario.addJornadaDia(quinta);
+
+        // SEXTA-FEIRA - Horário estendido
+        JornadaDia sexta = new JornadaDia();
+        sexta.setFuncionario(funcionario);
+        sexta.setDiaSemana(DiaSemana.SEXTA);
+        sexta.setAtivo(true);
+
+        if (temIntervaloAlmoco) {
+            sexta.addHorario(new HorarioTrabalho(sexta, LocalTime.of(10, 0), LocalTime.of(13, 0)));
+            sexta.addHorario(new HorarioTrabalho(sexta, LocalTime.of(14, 0), LocalTime.of(20, 0)));
+        } else {
+            sexta.addHorario(new HorarioTrabalho(sexta, LocalTime.of(10, 0), LocalTime.of(20, 0)));
+        }
+        funcionario.addJornadaDia(sexta);
+
+        // SÁBADO (80% dos funcionários)
         if (temSabado) {
-            funcionario.addJornada(new JornadaTrabalho(null, funcionario, DiaSemana.SABADO, LocalTime.of(8, 0), LocalTime.of(16, 0), true));
+            JornadaDia sabado = new JornadaDia();
+            sabado.setFuncionario(funcionario);
+            sabado.setDiaSemana(DiaSemana.SABADO);
+            sabado.setAtivo(true);
+
+            // Sábado geralmente é meio período
+            sabado.addHorario(new HorarioTrabalho(sabado, LocalTime.of(8, 0), LocalTime.of(16, 0)));
+
+            funcionario.addJornadaDia(sabado);
         }
 
+        // DOMINGO (30% dos funcionários)
         if (temDomingo) {
-            funcionario.addJornada(new JornadaTrabalho(null, funcionario, DiaSemana.DOMINGO, LocalTime.of(9, 0), LocalTime.of(15, 0), true));
+            JornadaDia domingo = new JornadaDia();
+            domingo.setFuncionario(funcionario);
+            domingo.setDiaSemana(DiaSemana.DOMINGO);
+            domingo.setAtivo(true);
+
+            // Domingo geralmente é período reduzido
+            domingo.addHorario(new HorarioTrabalho(domingo, LocalTime.of(9, 0), LocalTime.of(15, 0)));
+
+            funcionario.addJornadaDia(domingo);
         }
     }
 
