@@ -195,6 +195,10 @@ public class FuncionarioService {
                 .collect(Collectors.toList());
 
         List<BloqueioAgendaDTO> bloqueiosDTO = funcionario.getBloqueiosAgenda().stream()
+                .filter(bloqueio ->
+                        // Filtro para incluir SOMENTE os bloqueios cujo TipoBloqueio seja DIFERENTE de "AGENDAMENTO"
+                        !bloqueio.getTipoBloqueio().name().equals("AGENDAMENTO")
+                )
                 .map(bloqueio -> new BloqueioAgendaDTO(
                         bloqueio.getInicioBloqueio(),
                         bloqueio.getFimBloqueio(),
@@ -202,7 +206,6 @@ public class FuncionarioService {
                         bloqueio.getTipoBloqueio().name()
                 ))
                 .collect(Collectors.toList());
-
         List<Servico> servicos = funcionario.getServicos();
 
         return new FuncionarioDTO(funcionario, bloqueiosDTO, jornadasDTO, servicos);

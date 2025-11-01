@@ -1,6 +1,7 @@
 package org.exemplo.bellory.model.dto;
 
 import lombok.*;
+import org.exemplo.bellory.model.entity.servico.Categoria;
 import org.exemplo.bellory.model.entity.servico.Servico;
 
 import java.math.BigDecimal;
@@ -16,7 +17,7 @@ public class ServicoDTO {
     private Long id;
     private Long organizacaoId;
     private String nome;
-    private String categoria;
+    private Categoria categoria;
     private String genero;
     private String descricao;
     private Integer tempoEstimadoMinutos;
@@ -31,7 +32,7 @@ public class ServicoDTO {
         this.id = servico.getId();
         this.organizacaoId = servico.getOrganizacao().getId();
         this.nome = servico.getNome();
-        this.categoria = servico.getCategoria().getLabel();
+        this.categoria = servico.getCategoria();
         this.genero = servico.getGenero();
         this.descricao = servico.getDescricao();
         this.tempoEstimadoMinutos = servico.getTempoEstimadoMinutos();
