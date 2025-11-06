@@ -1,28 +1,36 @@
-# Etapa 1: build (opcional se já tiver o JAR pronto)
-# FROM maven:3.9.6-eclipse-temurin-21 AS builder
-# WORKDIR /app
-# COPY pom.xml .
-# RUN mvn dependency:go-offline
-# COPY src ./src
-# RUN mvn clean package -DskipTests -Dfile.encoding=UTF-8
-
-# Etapa 2: runtime
+## ESTÁGIO 1: Build - Usando Maven e JDK 21 para compilar o projeto
+#FROM maven:3.9.6-eclipse-temurin-21 AS builder
+#WORKDIR /app
+#
+## Otimização de cache: copia primeiro o pom.xml para baixar dependências
+#COPY pom.xml .
+#RUN mvn dependency:go-offline
+#
+## Copia o código-fonte e empacota a aplicação
+#COPY src ./src
+#RUN mvn clean package -DskipTests -Dfile.encoding=UTF-8
+#
+## ESTÁGIO 2: Runtime - Usando uma imagem JRE leve para rodar
+#FROM eclipse-temurin:21-jre
+#WORKDIR /app
+#
+## Copia apenas o .jar final do estágio de build
+#COPY --from=builder /app/target/Bellory-1.0-SNAPSHOT.jar app.jar
+#
+## Expõe a porta da aplicação
+#EXPOSE 8080
+#
+## Comando para iniciar a aplicação
+#ENTRYPOINT ["java", "--enable-preview", "-jar", "app.jar"]
+# Imagem JRE leve
 FROM eclipse-temurin:21-jre
 WORKDIR /app
 
-# Argumentos e variáveis de ambiente
-ARG JAR_FILE=Bellory-1.0-SNAPSHOT.jar
-ARG SERVER_PORT=8080
-ARG SPRING_PROFILE=prod
+# Copia o JAR existente
+COPY Bellory-1.0-SNAPSHOT.jar app.jar
 
-ENV SPRING_PROFILES_ACTIVE=${SPRING_PROFILE}
-ENV SERVER_PORT=${SERVER_PORT}
+# Expõe a porta da aplicação
+EXPOSE 8081
 
-# Copia o JAR
-COPY ${JAR_FILE} app.jar
-
-# Expõe a porta configurada
-EXPOSE ${SERVER_PORT}
-
-# Comando de inicialização
-ENTRYPOINT ["sh", "-c", "java --enable-preview -jar app.jar --spring.profiles.active=${SPRING_PROFILES_ACTIVE} --server.port=${SERVER_PORT}"]
+# Comando para iniciar a aplicação
+ENTRYPOINT ["java", "--enable-preview", "-jar", "app.jar"]
