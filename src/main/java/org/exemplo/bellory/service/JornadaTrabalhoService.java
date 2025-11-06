@@ -58,9 +58,11 @@ public class JornadaTrabalhoService {
 
         DiaSemana diaSemana;
         try {
+            // Tenta primeiro pelo nome do enum (SEGUNDA, TERCA, etc.)
             diaSemana = DiaSemana.valueOf(dto.getDiaSemana().toUpperCase());
         } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Dia da semana inválido: " + dto.getDiaSemana());
+            // Se falhar, tenta pela descrição (Segunda-feira, Sexta-Feira, etc.)
+            diaSemana = DiaSemana.fromDescricao(dto.getDiaSemana());
         }
 
         // Busca ou cria a jornada do dia
@@ -155,9 +157,11 @@ public class JornadaTrabalhoService {
 
         DiaSemana diaSemana;
         try {
+            // Tenta primeiro pelo nome do enum (SEGUNDA, TERCA, etc.)
             diaSemana = DiaSemana.valueOf(diaSemanaStr.toUpperCase());
         } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Dia da semana inválido: " + diaSemanaStr);
+            // Se falhar, tenta pela descrição (Segunda-feira, Sexta-Feira, etc.)
+            diaSemana = DiaSemana.fromDescricao(diaSemanaStr);
         }
 
         JornadaDia jornadaDia = jornadaDiaRepository.findByFuncionarioAndDiaSemana(funcionario, diaSemana)
