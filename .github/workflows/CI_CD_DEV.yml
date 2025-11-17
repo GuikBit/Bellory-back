@@ -36,6 +36,8 @@ jobs:
               echo "--- Repositório existe. Atualizando..."
               cd "$TARGET_DIR"
               git checkout dev
+              git reset --hard
+              git clean -fd
               git pull origin dev
             else
               echo "--- Clonando repositório..."
