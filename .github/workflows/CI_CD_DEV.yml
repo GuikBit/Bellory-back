@@ -69,8 +69,7 @@ jobs:
 
             # Reinicia os containers usando o docker-compose-dev.yml
             cd /opt/api-dev
-            docker system prune -f
-            docker compose -f docker-compose-dev.yml down
+            docker compose -f docker-compose-dev.yml down --remove-orphans
             docker compose -f docker-compose-dev.yml up -d --build
 
             echo "--- Deploy de DEV concluído com sucesso!"

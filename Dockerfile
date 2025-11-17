@@ -34,4 +34,4 @@ EXPOSE 8081
 
 # Comando para iniciar a aplicação
 #ENTRYPOINT ["sh", "-c", "java --enable-preview -jar app.jar --server.port=${SERVER_PORT:-8080} --spring.profiles.active=${SPRING_PROFILES_ACTIVE:-prod}"]
-ENTRYPOINT ["java", "--enable-preview", "-jar", "app.jar --spring.profiles.active=${SPRING_PROFILES_ACTIVE:-prod}"]
+ENTRYPOINT ["java", "--enable-preview", "-jar", "app.jar"]
