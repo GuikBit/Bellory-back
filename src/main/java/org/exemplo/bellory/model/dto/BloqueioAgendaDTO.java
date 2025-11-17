@@ -11,6 +11,7 @@ public class BloqueioAgendaDTO {
     private LocalDateTime fimBloqueio;
     private String descricao;
     private String tipoBloqueio;
+    private String titulo;
 
     public BloqueioAgendaDTO(LocalDateTime inicioBloqueio, LocalDateTime fimBloqueio, String descricao, String tipoBloqueio) {
         this.inicioBloqueio = inicioBloqueio;
