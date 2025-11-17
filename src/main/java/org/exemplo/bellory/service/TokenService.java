@@ -18,126 +18,158 @@ import java.util.stream.Collectors;
 @Service
 public class TokenService {
 
-    @Value("${security.jwt.signing-key}")
+    @Value("${api.security.token.secret:my-secret-key}")
     private String secret;
 
-    @Value("${security.jwt.expiration-hours:2}")
-    private int expirationHours;
+    @Value("${api.security.token.expiration:36000}") // 10 horas em segundos
+    private Long expirationTime;
 
-    private static final String ISSUER = "Bellory-API";
-
+    /**
+     * Gera token JWT com username, userId, organizacaoId e role
+     */
     public String generateToken(User user) {
         try {
             Algorithm algorithm = Algorithm.HMAC256(secret);
 
             return JWT.create()
-                    .withIssuer(ISSUER)
+                    .withIssuer("bellory-api")
                     .withSubject(user.getUsername())
-                    .withClaim("userId", user.getId()) // Assumindo que User tem getId()
-                    .withClaim("roles", user.getAuthorities().stream()
-                            .map(authority -> authority.getAuthority())
-                            .collect(Collectors.toList()))
-                    .withIssuedAt(new Date())
-                    .withExpiresAt(generateExpirationDate())
+                    .withClaim("userId", user.getId())
+                    .withClaim("organizacaoId", user.getOrganizacao().getId())
+                    .withClaim("role", user.getRole())
+                    .withClaim("nomeCompleto", user.getNomeCompleto())
+                    .withExpiresAt(genExpirationDate())
                     .sign(algorithm);
-
-        } catch (JWTCreationException exception){
-            throw new RuntimeException("Erro ao gerar token JWT: " + exception.getMessage(), exception);
+        } catch (JWTCreationException exception) {
+            throw new RuntimeException("Erro ao gerar token JWT", exception);
         }
     }
 
+    /**
+     * Valida o token e retorna o username
+     */
     public String validateToken(String token) {
-        try {
-            if (token == null || token.trim().isEmpty()) {
-                return null;
-            }
-
-            Algorithm algorithm = Algorithm.HMAC256(secret);
-            DecodedJWT jwt = JWT.require(algorithm)
-                    .withIssuer(ISSUER)
-                    .build()
-                    .verify(token.trim());
-
-            return jwt.getSubject();
-
-        } catch (JWTVerificationException exception) {
-            System.err.println("Token validation failed: " + exception.getMessage());
-            return null; // Token inválido
-        }
-    }
-
-    public DecodedJWT decodeToken(String token) {
         try {
             Algorithm algorithm = Algorithm.HMAC256(secret);
             return JWT.require(algorithm)
-                    .withIssuer(ISSUER)
+                    .withIssuer("bellory-api")
                     .build()
-                    .verify(token);
+                    .verify(token)
+                    .getSubject();
+        } catch (JWTVerificationException exception) {
+            return "";
+        }
+    }
+
+    /**
+     * Extrai o ID do usuário do token
+     */
+    public Long getUserIdFromToken(String token) {
+        try {
+            Algorithm algorithm = Algorithm.HMAC256(secret);
+            return JWT.require(algorithm)
+                    .withIssuer("bellory-api")
+                    .build()
+                    .verify(token)
+                    .getClaim("userId")
+                    .asLong();
         } catch (JWTVerificationException exception) {
             return null;
         }
     }
 
+    /**
+     * Extrai o ID da organização do token
+     */
+    public Long getOrganizacaoIdFromToken(String token) {
+        try {
+            Algorithm algorithm = Algorithm.HMAC256(secret);
+            return JWT.require(algorithm)
+                    .withIssuer("bellory-api")
+                    .build()
+                    .verify(token)
+                    .getClaim("organizacaoId")
+                    .asLong();
+        } catch (JWTVerificationException exception) {
+            return null;
+        }
+    }
+
+    /**
+     * Extrai a role do token
+     */
+    public String getRoleFromToken(String token) {
+        try {
+            Algorithm algorithm = Algorithm.HMAC256(secret);
+            return JWT.require(algorithm)
+                    .withIssuer("bellory-api")
+                    .build()
+                    .verify(token)
+                    .getClaim("role")
+                    .asString();
+        } catch (JWTVerificationException exception) {
+            return null;
+        }
+    }
+
+    /**
+     * Verifica se o token está expirado
+     */
     public boolean isTokenExpired(String token) {
         try {
-            DecodedJWT jwt = decodeToken(token);
-            if (jwt == null) {
-                return true;
-            }
-            return jwt.getExpiresAt().before(new Date());
-        } catch (Exception e) {
+            Algorithm algorithm = Algorithm.HMAC256(secret);
+            Instant expiration = JWT.require(algorithm)
+                    .withIssuer("bellory-api")
+                    .build()
+                    .verify(token)
+                    .getExpiresAt()
+                    .toInstant();
+
+            return expiration.isBefore(Instant.now());
+        } catch (JWTVerificationException exception) {
             return true;
         }
     }
 
-    public Long getUserIdFromToken(String token) {
+    /**
+     * Renova o token (se ainda válido)
+     */
+    public String refreshToken(String token) {
         try {
-            DecodedJWT jwt = decodeToken(token);
-            if (jwt != null) {
-                return jwt.getClaim("userId").asLong();
-            }
-            return null;
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
-    public String refreshToken(String oldToken) {
-        try {
-            DecodedJWT jwt = decodeToken(oldToken);
-            if (jwt == null) {
-                throw new RuntimeException("Token inválido para refresh");
+            String username = validateToken(token);
+            if (username == null || username.isEmpty()) {
+                throw new RuntimeException("Token inválido");
             }
 
-            // Verificar se o token ainda tem pelo menos 15 minutos de vida
-            long fifteenMinutesInMs = 15 * 60 * 1000;
-            if (jwt.getExpiresAt().getTime() - System.currentTimeMillis() > fifteenMinutesInMs) {
-                throw new RuntimeException("Token ainda válido, refresh não necessário");
-            }
+            Long userId = getUserIdFromToken(token);
+            Long organizacaoId = getOrganizacaoIdFromToken(token);
+            String role = getRoleFromToken(token);
 
             Algorithm algorithm = Algorithm.HMAC256(secret);
-
             return JWT.create()
-                    .withIssuer(ISSUER)
-                    .withSubject(jwt.getSubject())
-                    .withClaim("userId", jwt.getClaim("userId").asLong())
-                    .withClaim("roles", jwt.getClaim("roles").asList(String.class))
-                    .withIssuedAt(new Date())
-                    .withExpiresAt(generateExpirationDate())
+                    .withIssuer("bellory-api")
+                    .withSubject(username)
+                    .withClaim("userId", userId)
+                    .withClaim("organizacaoId", organizacaoId)
+                    .withClaim("role", role)
+                    .withExpiresAt(genExpirationDate())
                     .sign(algorithm);
-
         } catch (JWTCreationException exception) {
-            throw new RuntimeException("Erro ao fazer refresh do token: " + exception.getMessage(), exception);
+            throw new RuntimeException("Erro ao renovar token", exception);
         }
     }
 
-    private Instant generateExpirationDate() {
-        return LocalDateTime.now()
-                .plusHours(expirationHours)
-                .toInstant(ZoneOffset.of("-03:00"));
+    /**
+     * Retorna a data/hora de expiração do próximo token
+     */
+    public LocalDateTime getExpirationDateTime() {
+        return LocalDateTime.ofInstant(genExpirationDate(), ZoneOffset.UTC);
     }
 
-    public LocalDateTime getExpirationDateTime() {
-        return LocalDateTime.now().plusHours(expirationHours);
+    /**
+     * Gera a data de expiração
+     */
+    private Instant genExpirationDate() {
+        return Instant.now().plusSeconds(expirationTime);
     }
 }

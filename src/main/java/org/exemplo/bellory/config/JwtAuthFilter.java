@@ -4,6 +4,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.exemplo.bellory.context.TenantContext;
 import org.exemplo.bellory.service.CustomUserDetailsService;
 import org.exemplo.bellory.service.TokenService;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -51,20 +52,37 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             return;
         }
 
-        // Processar JWT apenas se não for OPTIONS
-        String token = recoverToken(request);
-        if (token != null) {
-            String subject = tokenService.validateToken(token);
-            if (subject != null && !subject.isEmpty()) {
-                UserDetails user = userDetailsService.loadUserByUsername(subject);
-                if (user != null) {
-                    var authentication = new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
-                    SecurityContextHolder.getContext().setAuthentication(authentication);
+        try {
+            // Processar JWT apenas se não for OPTIONS
+            String token = recoverToken(request);
+
+            if (token != null) {
+                String subject = tokenService.validateToken(token);
+
+                if (subject != null && !subject.isEmpty()) {
+                    // Extrair informações do token
+                    Long organizacaoId = tokenService.getOrganizacaoIdFromToken(token);
+                    Long userId = tokenService.getUserIdFromToken(token);
+                    String role = tokenService.getRoleFromToken(token);
+
+                    // Armazenar no contexto do tenant
+                    TenantContext.setContext(organizacaoId, userId, subject, role);
+
+                    // Configurar autenticação do Spring Security
+                    UserDetails user = userDetailsService.loadUserByUsername(subject);
+                    if (user != null) {
+                        var authentication = new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
+                        SecurityContextHolder.getContext().setAuthentication(authentication);
+                    }
                 }
             }
-        }
 
-        filterChain.doFilter(request, response);
+            filterChain.doFilter(request, response);
+
+        } finally {
+            // CRÍTICO: Limpar o contexto após a requisição
+            TenantContext.clear();
+        }
     }
 
     private String recoverToken(HttpServletRequest request) {

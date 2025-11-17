@@ -1,4 +1,4 @@
-package org.exemplo.bellory.model.entity.funcionario; // No mesmo pacote ou em um pacote de enums
+package org.exemplo.bellory.model.entity.funcionario;
 
 import java.time.DayOfWeek;
 
@@ -21,7 +21,7 @@ public enum DiaSemana {
         return descricao;
     }
 
-    // --- NOVO MÉTODO DE CONVERSÃO ---
+    // Método para converter DayOfWeek
     public static DiaSemana fromDayOfWeek(DayOfWeek dayOfWeek) {
         switch (dayOfWeek) {
             case MONDAY: return SEGUNDA;
@@ -33,5 +33,37 @@ public enum DiaSemana {
             case SUNDAY: return DOMINGO;
             default: throw new IllegalArgumentException("Dia da semana inválido: " + dayOfWeek);
         }
+    }
+
+    // --- NOVO MÉTODO: Converter descrição para enum ---
+    public static DiaSemana fromDescricao(String descricao) {
+        if (descricao == null) {
+            throw new IllegalArgumentException("Descrição não pode ser nula");
+        }
+
+        // Normaliza a string removendo acentos e hífens, e convertendo para maiúsculas
+        String normalizada = descricao.trim()
+                .toUpperCase()
+                .replace("Ç", "C")
+                .replace("Á", "A")
+                .replace("É", "E")
+                .replace("Ó", "O")
+                .replace("-", "");
+
+        for (DiaSemana dia : DiaSemana.values()) {
+            String descricaoNormalizada = dia.descricao
+                    .toUpperCase()
+                    .replace("Ç", "C")
+                    .replace("Á", "A")
+                    .replace("É", "E")
+                    .replace("Ó", "O")
+                    .replace("-", "");
+
+            if (descricaoNormalizada.equals(normalizada)) {
+                return dia;
+            }
+        }
+
+        throw new IllegalArgumentException("Dia da semana inválido: " + descricao);
     }
 }

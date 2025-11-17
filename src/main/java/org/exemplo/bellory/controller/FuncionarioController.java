@@ -2,23 +2,27 @@ package org.exemplo.bellory.controller;
 
 import org.exemplo.bellory.model.dto.*;
 import org.exemplo.bellory.model.entity.error.ResponseAPI;
+import org.exemplo.bellory.model.entity.funcionario.Cargo;
 import org.exemplo.bellory.model.entity.funcionario.Funcionario;
+import org.exemplo.bellory.service.CargoService;
 import org.exemplo.bellory.service.FuncionarioService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.NoSuchElementException;
 
 @RestController
 @RequestMapping("/api/funcionario")
 public class FuncionarioController {
 
     FuncionarioService funcionarioService;
+    CargoService cargoService;
 
-    public FuncionarioController(FuncionarioService funcionarioService) {
+    public FuncionarioController(FuncionarioService funcionarioService, CargoService cargoService) {
         this.funcionarioService = funcionarioService;
-        //this.cargoService = cargoService;
+        this.cargoService = cargoService;
     }
 
     @GetMapping
@@ -33,6 +37,7 @@ public class FuncionarioController {
                             .message("Nenhum funcionário encontrado.")
                             .dados(funcionariosDTO)
                             .build());
+
         }
 
         return ResponseEntity
@@ -224,34 +229,165 @@ public class FuncionarioController {
         }
     }
 
-//    @PostMapping("/cargo")
-//    public ResponseEntity<ResponseAPI<Cargo>> createCargo(@RequestBody CargoDTO cargoDTO){
-//        try {
-//            CargoDTO cargo = cargoService.createCargo(cargoDTO);
-//            return ResponseEntity
-//                    .status(HttpStatus.OK)
-//                    .body(ResponseAPI.<Void>builder()
-//                            .success(true)
-//                            .message("Funcionário desativado com sucesso.")
-//                            .build());
-//        } catch (IllegalArgumentException e) {
-//            return ResponseEntity
-//                    .status(HttpStatus.NOT_FOUND)
-//                    .body(ResponseAPI.<Void>builder()
-//                            .success(false)
-//                            .message(e.getMessage())
-//                            .errorCode(404)
-//                            .build());
-//        } catch (Exception e) {
-//            return ResponseEntity
-//                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
-//                    .body(ResponseAPI.<Void>builder()
-//                            .success(false)
-//                            .message("Ocorreu um erro interno ao desativar o funcionário.")
-//                            .errorCode(500)
-//                            .build());
-//        }
-//    }
+    @PostMapping("/cargo")
+    public ResponseEntity<ResponseAPI<CargoDTO>> createCargo(@RequestBody CargoDTO cargoDTO) {
+        try {
+            CargoDTO criado = cargoService.createCargo(cargoDTO);
+            return ResponseEntity
+                    .status(HttpStatus.CREATED)
+                    .body(ResponseAPI.<CargoDTO>builder()
+                            .success(true)
+                            .message("Cargo criado com sucesso.")
+                            .dados(criado)
+                            .build());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity
+                    .status(HttpStatus.BAD_REQUEST)
+                    .body(ResponseAPI.<CargoDTO>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(400)
+                            .build());
+        } catch (Exception e) {
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseAPI.<CargoDTO>builder()
+                            .success(false)
+                            .message("Ocorreu um erro interno ao criar o cargo.")
+                            .errorCode(500)
+                            .build());
+        }
+    }
+
+    @GetMapping("/cargo")
+    public ResponseEntity<ResponseAPI<List<CargoDTO>>> getCargos() {
+        try {
+            List<CargoDTO> lista = cargoService.getAllCargos();
+
+            if (lista.isEmpty()) {
+                return ResponseEntity
+                        .status(HttpStatus.NO_CONTENT)
+                        .body(ResponseAPI.<List<CargoDTO>>builder()
+                                .success(true)
+                                .message("Nenhum cargo encontrado.")
+                                .dados(lista)
+                                .build());
+            }
+
+            return ResponseEntity
+                    .status(HttpStatus.OK)
+                    .body(ResponseAPI.<List<CargoDTO>>builder()
+                            .success(true)
+                            .message("Lista de cargos recuperada com sucesso.")
+                            .dados(lista)
+                            .build());
+        } catch (Exception e) {
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseAPI.<List<CargoDTO>>builder()
+                            .success(false)
+                            .message("Ocorreu um erro interno ao listar os cargos.")
+                            .errorCode(500)
+                            .build());
+        }
+    }
+
+    @GetMapping("/cargo/{id}")
+    public ResponseEntity<ResponseAPI<CargoDTO>> getCargoById(@PathVariable Long id) {
+        try {
+            CargoDTO dto = cargoService.getCargoById(id);
+            return ResponseEntity
+                    .status(HttpStatus.OK)
+                    .body(ResponseAPI.<CargoDTO>builder()
+                            .success(true)
+                            .message("Cargo encontrado com sucesso.")
+                            .dados(dto)
+                            .build());
+        } catch (NoSuchElementException e) {
+            return ResponseEntity
+                    .status(HttpStatus.NOT_FOUND)
+                    .body(ResponseAPI.<CargoDTO>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(404)
+                            .build());
+        } catch (Exception e) {
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseAPI.<CargoDTO>builder()
+                            .success(false)
+                            .message("Ocorreu um erro interno ao buscar o cargo.")
+                            .errorCode(500)
+                            .build());
+        }
+    }
+
+    @PutMapping("/cargo/{id}")
+    public ResponseEntity<ResponseAPI<CargoDTO>> updateCargo(@PathVariable Long id, @RequestBody CargoDTO cargoDTO) {
+        try {
+            CargoDTO atualizado = cargoService.updateCargo(id, cargoDTO);
+            return ResponseEntity
+                    .status(HttpStatus.OK)
+                    .body(ResponseAPI.<CargoDTO>builder()
+                            .success(true)
+                            .message("Cargo atualizado com sucesso.")
+                            .dados(atualizado)
+                            .build());
+        } catch (NoSuchElementException e) {
+            return ResponseEntity
+                    .status(HttpStatus.NOT_FOUND)
+                    .body(ResponseAPI.<CargoDTO>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(404)
+                            .build());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity
+                    .status(HttpStatus.BAD_REQUEST)
+                    .body(ResponseAPI.<CargoDTO>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(400)
+                            .build());
+        } catch (Exception e) {
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseAPI.<CargoDTO>builder()
+                            .success(false)
+                            .message("Ocorreu um erro interno ao atualizar o cargo.")
+                            .errorCode(500)
+                            .build());
+        }
+    }
+
+    @DeleteMapping("/cargo/{id}")
+    public ResponseEntity<ResponseAPI<Void>> deleteCargo(@PathVariable Long id) {
+        try {
+            cargoService.deleteCargo(id);
+            return ResponseEntity
+                    .status(HttpStatus.OK)
+                    .body(ResponseAPI.<Void>builder()
+                            .success(true)
+                            .message("Cargo desativado com sucesso.")
+                            .build());
+        } catch (NoSuchElementException e) {
+            return ResponseEntity
+                    .status(HttpStatus.NOT_FOUND)
+                    .body(ResponseAPI.<Void>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(404)
+                            .build());
+        } catch (Exception e) {
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseAPI.<Void>builder()
+                            .success(false)
+                            .message("Ocorreu um erro interno ao desativar o cargo.")
+                            .errorCode(500)
+                            .build());
+        }
+    }
 
 
 }

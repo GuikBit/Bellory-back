@@ -4,6 +4,7 @@ import org.exemplo.bellory.model.dto.FuncionarioAgendamento;
 import org.exemplo.bellory.model.entity.funcionario.Funcionario;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -23,4 +24,17 @@ public interface FuncionarioRepository extends JpaRepository<Funcionario, Long> 
     Long countByAtivo(boolean ativo);
 
     Optional<Object> findByCpf(String cpf);
+
+    Optional<Object> findByUsernameAndOrganizacao_Id(String trim, Long organizacaoId);
+
+    List<FuncionarioAgendamento> findAllProjectedByOrganizacao_Id(Long organizacaoId);
+
+    List<Funcionario> findAllByOrganizacao_Id(Long organizacaoId);
+
+    @Query("SELECT f FROM Funcionario f " +
+            "JOIN FETCH f.organizacao " +
+            "WHERE f.id = :id")
+    Optional<Funcionario> findByIdWithOrganizacao(@Param("id") Long id);
+
+
 }

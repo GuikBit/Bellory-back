@@ -6,7 +6,9 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.exemplo.bellory.model.entity.funcionario.BloqueioAgenda;
 import org.exemplo.bellory.model.entity.funcionario.Funcionario;
+import org.exemplo.bellory.model.entity.funcionario.JornadaDia;
 import org.exemplo.bellory.model.entity.funcionario.JornadaTrabalho;
+import org.exemplo.bellory.model.entity.servico.Servico;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -72,10 +74,11 @@ public class FuncionarioDTO {
     private String role;
 
     // As listas agora usam os novos DTOs
-    private List<JornadaTrabalhoDTO> jornadaDeTrabalho;
+    private List<JornadaDiaDTO> jornadaDia;
     private List<BloqueioAgendaDTO> bloqueiosAgenda;
+    private List<Integer> servicosId;
 
-    public FuncionarioDTO(Funcionario funcionario, List<BloqueioAgendaDTO> bloqueiosDTO,  List<JornadaTrabalhoDTO> jornadaDTO) {
+    public FuncionarioDTO(Funcionario funcionario, List<BloqueioAgendaDTO> bloqueiosDTO, List<JornadaDiaDTO> jornadaDTO, List<Servico> servicos) {
         this.id = funcionario.getId();
         this.idOrganizacao = funcionario.getOrganizacao().getId();
         this.foto = funcionario.getFoto();
@@ -129,8 +132,9 @@ public class FuncionarioDTO {
         this.role = funcionario.getRole();
 
         // Mapeia as listas de entidades para listas de DTOs
-        this.jornadaDeTrabalho = jornadaDTO;
+        this.jornadaDia = jornadaDTO;
 
         this.bloqueiosAgenda = bloqueiosDTO;
+        this.servicosId = servicos.stream().map(servico -> servico.getId().intValue()).collect(Collectors.toList());
     }
 }

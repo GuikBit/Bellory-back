@@ -19,4 +19,8 @@ public interface ServicoRepository extends JpaRepository<Servico, Long> {
     List<Servico> findAllByOrderByNomeAsc();
 
     Optional<Servico> findByNomeAndOrganizacao(String nome, Organizacao org);
+
+    List<Servico> findAllByOrganizacao_IdOrderByNomeAsc(Long organizacaoId);
+
+    List<ServicoAgendamento> findAllProjectedByOrganizacao_Id(Long organizacaoId);
 }
