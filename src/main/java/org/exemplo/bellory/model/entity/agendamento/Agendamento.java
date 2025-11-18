@@ -2,7 +2,9 @@ package org.exemplo.bellory.model.entity.agendamento;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.exemplo.bellory.model.entity.cobranca.Cobranca;
 import org.exemplo.bellory.model.entity.funcionario.BloqueioAgenda;
@@ -15,6 +17,7 @@ import java.util.List; // Importe para List
 import org.exemplo.bellory.model.entity.servico.Servico;
 
 
+@AllArgsConstructor
 @Entity
 @Table(name = "agendamento")
 @Getter
@@ -24,7 +27,6 @@ public class Agendamento {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "organizacao_id", nullable = false)
