@@ -18,7 +18,7 @@ public class Endereco {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "cliente_id", nullable = false)
+    @JoinColumn(name = "cliente_id")
     private Cliente cliente;
 
     @Column(nullable = false, length = 255)
@@ -47,6 +47,9 @@ public class Endereco {
 
     @Column(nullable = false)
     private boolean isPrincipal = false;
+
+    @Column(nullable = true)
+    private Coordenadas coordenadas;
 
     @Column(nullable = false)
     private boolean ativo = true;

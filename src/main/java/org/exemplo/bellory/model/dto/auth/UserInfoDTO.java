@@ -35,4 +35,6 @@ public class UserInfoDTO {
 
     // Dados específicos do Funcionário
     private FuncionarioInfoDTO funcionarioInfo;
+
+    private AdminInfoDTO adminInfo;
 }

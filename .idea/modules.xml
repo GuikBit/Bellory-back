@@ -3,6 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/Bellory.iml" filepath="$PROJECT_DIR$/Bellory.iml" />
+      <module fileurl="file://$PROJECT_DIR$/Cliente.iml" filepath="$PROJECT_DIR$/Cliente.iml" />
     </modules>
   </component>
 </project>

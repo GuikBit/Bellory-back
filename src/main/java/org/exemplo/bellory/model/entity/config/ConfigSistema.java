@@ -8,7 +8,7 @@ import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "config-sistema")
+@Table(name = "config_sistema")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -36,6 +36,12 @@ public class ConfigSistema {
 
     @Column(name = "dispara_notificacoes_push", nullable = false)
     private boolean disparaNotificacoesPush = true;
+
+    @Column(name = "url_acesso", nullable = false)
+    private String urlAcesso;
+
+    @Column(name = "tenant_id", nullable = false)
+    private String tenantId;
 
     @Column(name = "dt_criacao", columnDefinition = "TIMESTAMP DEFAULT now()")
     private LocalDateTime dtCriacao;
