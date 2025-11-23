@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.*;
 import org.exemplo.bellory.model.entity.config.ConfigSistema;
@@ -96,6 +97,9 @@ public class Organizacao {
     @JoinColumn(name = "plano_id", nullable = false)
     @JsonIgnore
     private Plano plano;
+
+    @Column(unique = true, nullable = false)
+    private String slug;
 
     // CORRETO: OneToOne com ConfigSistema
     @OneToOne(cascade = CascadeType.ALL, fetch = FetchType.LAZY)

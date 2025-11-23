@@ -588,7 +588,7 @@ public class DatabaseSeederService {
 
                         // Dados pessoais baseados na especialidade
                         boolean isFeminino = "Feminino".equals(sexo);
-                        f.setFoto("https://randomuser.me/api/portraits/" + (isFeminino ? "women/" : "men/") + finalI + ".jpg");
+                        //f.getFotoPerfil("https://randomuser.me/api/portraits/" + (isFeminino ? "women/" : "men/") + finalI + ".jpg");
                         f.setCpf(String.format("%03d.%03d.%03d-%02d",
                                 ThreadLocalRandom.current().nextInt(1000),
                                 ThreadLocalRandom.current().nextInt(1000),

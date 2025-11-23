@@ -5,24 +5,32 @@ import org.exemplo.bellory.model.entity.error.ResponseAPI;
 import org.exemplo.bellory.model.entity.funcionario.Cargo;
 import org.exemplo.bellory.model.entity.funcionario.Funcionario;
 import org.exemplo.bellory.service.CargoService;
+import org.exemplo.bellory.service.FileStorageService;
 import org.exemplo.bellory.service.FuncionarioService;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 
 @RestController
 @RequestMapping("/api/funcionario")
 public class FuncionarioController {
 
+    FileStorageService fileStorageService;
     FuncionarioService funcionarioService;
     CargoService cargoService;
 
-    public FuncionarioController(FuncionarioService funcionarioService, CargoService cargoService) {
+    public FuncionarioController(FuncionarioService funcionarioService, CargoService cargoService, FileStorageService fileStorageService) {
         this.funcionarioService = funcionarioService;
         this.cargoService = cargoService;
+        this.fileStorageService = fileStorageService;
     }
 
     @GetMapping
@@ -389,5 +397,104 @@ public class FuncionarioController {
         }
     }
 
+    @PostMapping("/{id}/foto-perfil")
+    public ResponseEntity<ResponseAPI<Map<String, String>>> uploadFotoPerfil(
+            @PathVariable Long id,
+            @RequestParam("file") MultipartFile file) {
+        try {
+            Map<String, String> resultado = funcionarioService.uploadFotoPerfil(id, file);
+            return ResponseEntity
+                    .status(HttpStatus.OK)
+                    .body(ResponseAPI.<Map<String, String>>builder()
+                            .success(true)
+                            .message("Foto de perfil atualizada com sucesso.")
+                            .dados(resultado)
+                            .build());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity
+                    .status(HttpStatus.BAD_REQUEST)
+                    .body(ResponseAPI.<Map<String, String>>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(400)
+                            .build());
+        } catch (SecurityException e) {
+            return ResponseEntity
+                    .status(HttpStatus.FORBIDDEN)
+                    .body(ResponseAPI.<Map<String, String>>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(403)
+                            .build());
+        } catch (Exception e) {
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseAPI.<Map<String, String>>builder()
+                            .success(false)
+                            .message("Erro ao fazer upload da foto de perfil.")
+                            .errorCode(500)
+                            .build());
+        }
+    }
+
+    @GetMapping("/{id}/foto-perfil")
+    public ResponseEntity<Resource> downloadFotoPerfil(@PathVariable Long id) {
+        try {
+            Map<String, Object> resultado = funcionarioService.downloadFotoPerfil(id);
+
+            Resource resource = (Resource) resultado.get("resource");
+            String contentType = (String) resultado.get("contentType");
+            String filename = (String) resultado.get("filename");
+
+            return ResponseEntity
+                    .ok()
+                    .contentType(MediaType.parseMediaType(contentType))
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"")
+                    .body(resource);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        } catch (SecurityException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @DeleteMapping("/{id}/foto-perfil")
+    public ResponseEntity<ResponseAPI<Void>> deleteFotoPerfil(@PathVariable Long id) {
+        try {
+            funcionarioService.deleteFotoPerfil(id);
+            return ResponseEntity
+                    .status(HttpStatus.OK)
+                    .body(ResponseAPI.<Void>builder()
+                            .success(true)
+                            .message("Foto de perfil removida com sucesso.")
+                            .build());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity
+                    .status(HttpStatus.NOT_FOUND)
+                    .body(ResponseAPI.<Void>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(404)
+                            .build());
+        } catch (SecurityException e) {
+            return ResponseEntity
+                    .status(HttpStatus.FORBIDDEN)
+                    .body(ResponseAPI.<Void>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(403)
+                            .build());
+        } catch (Exception e) {
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseAPI.<Void>builder()
+                            .success(false)
+                            .message("Erro ao remover foto de perfil.")
+                            .errorCode(500)
+                            .build());
+        }
+    }
 
 }

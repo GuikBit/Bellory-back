@@ -75,4 +75,51 @@ public interface OrganizacaoRepository extends JpaRepository<Organizacao, Long> 
     @Query("SELECT o FROM Organizacao o WHERE o.id = :id AND o.configSistema.tenantId = :tenantId AND o.ativo = true")
     Optional<Organizacao> findByIdAndTenantId(@Param("id") String id, @Param("tenantId") String tenantId);
 
+    // ========== NOVOS MÉTODOS PARA PUBLIC SITE ==========
+
+    /**
+     * Busca uma organização ativa pelo slug.
+     * Usado para identificar a organização através da URL pública.
+     *
+     * @param slug Identificador único da organização na URL
+     * @return Optional com a organização encontrada
+     */
+    Optional<Organizacao> findBySlugAndAtivoTrue(String slug);
+
+    /**
+     * Busca uma organização pelo slug (independente do status ativo).
+     *
+     * @param slug Identificador único da organização na URL
+     * @return Optional com a organização encontrada
+     */
+    Optional<Organizacao> findBySlug(String slug);
+
+    /**
+     * Verifica se existe uma organização ativa com o slug informado.
+     *
+     * @param slug Identificador a verificar
+     * @return true se existe uma organização ativa com o slug
+     */
+    boolean existsBySlugAndAtivoTrue(String slug);
+
+    /**
+     * Verifica se existe uma organização com o slug informado (qualquer status).
+     *
+     * @param slug Identificador a verificar
+     * @return true se existe uma organização com o slug
+     */
+    boolean existsBySlug(String slug);
+
+    /**
+     * Busca organização pelo slug com fetch dos dados necessários para o site público.
+     * Evita N+1 queries ao carregar relacionamentos necessários.
+     *
+     * @param slug Identificador da organização
+     * @return Optional com a organização e seus relacionamentos
+     */
+    @Query("SELECT o FROM Organizacao o " +
+            "LEFT JOIN FETCH o.enderecoPrincipal " +
+            "LEFT JOIN FETCH o.configSistema " +
+            "WHERE o.slug = :slug AND o.ativo = true")
+    Optional<Organizacao> findBySlugWithRelationships(@Param("slug") String slug);
 }

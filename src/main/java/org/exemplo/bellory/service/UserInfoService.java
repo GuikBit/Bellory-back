@@ -108,7 +108,7 @@ public class UserInfoService {
 
     private FuncionarioInfoDTO buildFuncionarioInfo(Funcionario funcionario) {
         return FuncionarioInfoDTO.builder()
-                .foto(funcionario.getFoto())
+                .foto(funcionario.getFotoPerfil())
                 .dataNasc(funcionario.getDataNasc())
                 .dataContratacao(funcionario.getDataContratacao())
                 .sexo(funcionario.getSexo())

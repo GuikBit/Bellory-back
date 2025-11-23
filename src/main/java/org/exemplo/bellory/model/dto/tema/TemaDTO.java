@@ -28,6 +28,8 @@ public class TemaDTO {
 
     // ✅ Campos opcionais com valores padrão
     private FontsDTO fonts;
+
     private BorderRadiusDTO borderRadius;
+
     private ShadowsDTO shadows;
 }

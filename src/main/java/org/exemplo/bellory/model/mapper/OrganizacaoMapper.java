@@ -199,6 +199,7 @@ public class OrganizacaoMapper {
         dto.setTelefone1(org.getTelefone1());
         dto.setTelefone2(org.getTelefone2());
         dto.setWhatsapp(org.getWhatsapp());
+        dto.setSlug(org.getSlug());
 
         // Responsavel
         if (org.getResponsavel() != null) {

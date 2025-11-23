@@ -29,6 +29,7 @@ public class OrganizacaoResponseDTO {
     private String telefone1;
     private String telefone2;
     private String whatsapp;
+    private String slug;
 
     // ✅ DTOs para Embeddables
     private Responsavel responsavel;

@@ -1,6 +1,7 @@
 package org.exemplo.bellory.model.repository.categoria;
 
 import org.exemplo.bellory.model.entity.enums.TipoCategoria;
+import org.exemplo.bellory.model.entity.produto.Produto;
 import org.exemplo.bellory.model.entity.servico.Categoria;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -10,4 +11,7 @@ public interface CategoriaRepository extends JpaRepository<Categoria, Long> {
     List<Categoria> findByTipo(TipoCategoria tipo);
 
     List<Categoria> findByOrganizacao_IdAndTipoAndAtivoTrue(Long organizacaoId, TipoCategoria tipo);
+
+    List<Categoria> findByOrganizacao_IdAndAtivoTrue(Long organizacaoId);
+
 }

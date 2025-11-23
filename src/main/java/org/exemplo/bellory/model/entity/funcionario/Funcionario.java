@@ -24,8 +24,8 @@ import java.util.Set;
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Funcionario extends User {
 
-    @Column(length = 255)
-    private String foto;
+    @Column(name = "foto_perfil")
+    private String fotoPerfil;
 
     @Column(length = 14)
     private String cpf;

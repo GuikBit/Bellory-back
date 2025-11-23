@@ -81,7 +81,7 @@ public class FuncionarioDTO {
     public FuncionarioDTO(Funcionario funcionario, List<BloqueioAgendaDTO> bloqueiosDTO, List<JornadaDiaDTO> jornadaDTO, List<Servico> servicos) {
         this.id = funcionario.getId();
         this.idOrganizacao = funcionario.getOrganizacao().getId();
-        this.foto = funcionario.getFoto();
+        this.foto = funcionario.getFotoPerfil();
         this.nomeCompleto = funcionario.getNomeCompleto();
         this.username = funcionario.getUsername();
         this.cpf = funcionario.getCpf();

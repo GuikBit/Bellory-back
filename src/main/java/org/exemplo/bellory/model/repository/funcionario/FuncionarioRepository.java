@@ -36,5 +36,20 @@ public interface FuncionarioRepository extends JpaRepository<Funcionario, Long> 
             "WHERE f.id = :id")
     Optional<Funcionario> findByIdWithOrganizacao(@Param("id") Long id);
 
+    List<Funcionario> findAllByOrganizacao_IdAndAtivoTrueAndIsVisivelExternoTrue(Long organizacaoId);
+
+    /**
+     * Busca funcionários com fetch dos serviços que atendem.
+     * Evita N+1 queries.
+     */
+    @Query("SELECT DISTINCT f FROM Funcionario f " +
+            "LEFT JOIN FETCH f.servicos " +
+            "LEFT JOIN FETCH f.jornadasDia jd " +
+            "LEFT JOIN FETCH jd.horarios " +
+            "WHERE f.organizacao.id = :orgId " +
+            "AND f.ativo = true " +
+            "AND f.isVisivelExterno = true " +
+            "ORDER BY f.nomeCompleto")
+    List<Funcionario> findAllForPublicSite(@Param("orgId") Long organizacaoId);
 
 }

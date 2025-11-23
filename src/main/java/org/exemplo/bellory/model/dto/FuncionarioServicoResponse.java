@@ -38,7 +38,7 @@ public class FuncionarioServicoResponse<T> {
             this.nomeCompleto = funcionario.getNomeCompleto();
             this.email = funcionario.getEmail();
             this.telefone = funcionario.getTelefone();
-            this.foto = funcionario.getFoto();
+            this.foto = funcionario.getFotoPerfil();
             this.isVisivelExterno = funcionario.isVisivelExterno();
 
 //            if (funcionario.getServicos() != null) {

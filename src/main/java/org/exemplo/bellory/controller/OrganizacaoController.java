@@ -324,7 +324,7 @@ public class OrganizacaoController {
                     description = "Organização não encontrada"
             )
     })
-    @PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")
+//    @PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")
     public ResponseEntity<ResponseAPI<OrganizacaoResponseDTO>> update(
             @Parameter(description = "ID da organização", required = true)
             @PathVariable @NotBlank long id,

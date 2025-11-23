@@ -1,5 +1,9 @@
 package org.exemplo.bellory.service;
 
+import org.exemplo.bellory.model.entity.error.ResponseAPI;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.exemplo.bellory.context.TenantContext;
 import org.exemplo.bellory.model.dto.*;
@@ -11,9 +15,13 @@ import org.exemplo.bellory.model.repository.organizacao.OrganizacaoRepository;
 import org.exemplo.bellory.model.repository.servico.ServicoRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -23,12 +31,15 @@ public class FuncionarioService {
     private final OrganizacaoRepository organizacaoRepository;
     private final ServicoRepository servicoRepository;
     private final PasswordEncoder passwordEncoder;
+    private final FileStorageService fileStorageService;
 
-    public FuncionarioService(FuncionarioRepository funcionarioRepository, OrganizacaoRepository organizacaoRepository, ServicoRepository servicoRepository, PasswordEncoder passwordEncoder) {
+    public FuncionarioService(FuncionarioRepository funcionarioRepository, OrganizacaoRepository organizacaoRepository,
+                              ServicoRepository servicoRepository, PasswordEncoder passwordEncoder, FileStorageService fileStorageService) {
         this.funcionarioRepository = funcionarioRepository;
         this.organizacaoRepository = organizacaoRepository;
         this.passwordEncoder = passwordEncoder;
         this.servicoRepository = servicoRepository;
+        this.fileStorageService = fileStorageService;
     }
 
     @Transactional
@@ -268,9 +279,94 @@ public class FuncionarioService {
         return funcionarioRepository.findByUsernameAndOrganizacao_Id(username.trim(), organizacaoId).isPresent();
     }
 
-    // --------------------
-    // Métodos de Validação
-    // --------------------
+    @Transactional
+    public Map<String, String> uploadFotoPerfil(Long id, MultipartFile file) {
+        Long organizacaoId = getOrganizacaoIdFromContext();
+
+        // Verificar se funcionário existe e pertence à organização
+        Funcionario funcionario = funcionarioRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Funcionário com ID " + id + " não encontrado."));
+
+        // Validar organização
+        validarOrganizacao(funcionario.getOrganizacao().getId());
+
+        // Deletar foto antiga se existir
+        if (funcionario.getFotoPerfil() != null) {
+            fileStorageService.deleteFile(funcionario.getFotoPerfil(), organizacaoId);
+        }
+
+        // Salvar nova foto
+        String filename = fileStorageService.storeProfilePicture(file, id, organizacaoId);
+
+        // Atualizar registro no banco
+        funcionario.setFotoPerfil(filename);
+        funcionario.setDataUpdate(LocalDateTime.now());
+        funcionarioRepository.save(funcionario);
+
+        Map<String, String> response = new HashMap<>();
+        response.put("filename", filename);
+        response.put("url", "/api/funcionario/" + id + "/foto-perfil");
+
+        return response;
+    }
+
+    @Transactional(readOnly = true)
+    public Map<String, Object> downloadFotoPerfil(Long id) {
+        Long organizacaoId = getOrganizacaoIdFromContext();
+
+        Funcionario funcionario = funcionarioRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Funcionário com ID " + id + " não encontrado."));
+
+        // Validar organização
+        validarOrganizacao(funcionario.getOrganizacao().getId());
+
+        if (funcionario.getFotoPerfil() == null) {
+            throw new IllegalArgumentException("Funcionário não possui foto de perfil.");
+        }
+
+        Resource resource = fileStorageService.loadFileAsResource(funcionario.getFotoPerfil(), organizacaoId);
+
+        // Determinar content type baseado na extensão
+        String contentType = "image/jpeg";
+        if (funcionario.getFotoPerfil().endsWith(".png")) {
+            contentType = "image/png";
+        } else if (funcionario.getFotoPerfil().endsWith(".gif")) {
+            contentType = "image/gif";
+        } else if (funcionario.getFotoPerfil().endsWith(".webp")) {
+            contentType = "image/webp";
+        }
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("resource", resource);
+        response.put("contentType", contentType);
+        response.put("filename", funcionario.getFotoPerfil());
+
+        return response;
+    }
+
+    @Transactional
+    public void deleteFotoPerfil(Long id) {
+        Long organizacaoId = getOrganizacaoIdFromContext();
+
+        Funcionario funcionario = funcionarioRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Funcionário com ID " + id + " não encontrado."));
+
+        // Validar organização
+        validarOrganizacao(funcionario.getOrganizacao().getId());
+
+        if (funcionario.getFotoPerfil() == null) {
+            throw new IllegalArgumentException("Funcionário não possui foto de perfil para remover.");
+        }
+
+        // Deletar arquivo físico
+        fileStorageService.deleteFile(funcionario.getFotoPerfil(), organizacaoId);
+
+        // Atualizar registro no banco
+        funcionario.setFotoPerfil(null);
+        funcionario.setDataUpdate(LocalDateTime.now());
+        funcionarioRepository.save(funcionario);
+    }
+
 
     private void validarOrganizacao(Long entityOrganizacaoId) {
         Long organizacaoId = TenantContext.getCurrentOrganizacaoId();
