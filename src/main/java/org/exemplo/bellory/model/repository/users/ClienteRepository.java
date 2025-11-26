@@ -1,5 +1,6 @@
 package org.exemplo.bellory.model.repository.users;
 
+import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 import org.exemplo.bellory.model.entity.users.Cliente;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -88,4 +89,17 @@ public interface ClienteRepository extends JpaRepository<Cliente, Long> {
                                                      @Param("inicio") LocalDate inicio,
                                                      @Param("fim") LocalDate fim);
     Long countClientesRecorrentesByOrganizacao_Id(Long organizacaoId);
+
+    Long countByOrganizacao_IdAndAtivoTrue(Long organizacaoId);
+
+//    Long countAniversariantesDoMesByOrganizacao(Organizacao organizacao);
+
+    @Query("SELECT COUNT(c) FROM Cliente c " +
+            "WHERE c.organizacao.id = :organizacaoId " +
+            "AND MONTH(c.dataNascimento) = :mes " +
+            "AND c.ativo = true")
+    Long countAniversariantesDoMesByOrganizacao(
+            @Param("organizacaoId") Long organizacaoId,    // ✅ organizacaoId primeiro
+            @Param("mes") int mes                           // ✅ mes depois
+    );
 }

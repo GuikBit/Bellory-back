@@ -38,8 +38,8 @@ public class DashboardDTO {
     private VendasResumoDTO vendas;
 
     // === GRÁFICOS E TENDÊNCIAS ===
-    private List<GraficoDTO> graficos;
-    private List<TendenciaDTO> tendencias;
+    private GraficosDTO graficos;
+    private TendenciasDTO tendencias;
 
     @Getter
     @Setter
@@ -83,9 +83,13 @@ public class DashboardDTO {
         private Long cobrancasPagas;
         private Long cobrancasPendentes;
         private Long cobrancasVencidas;
+        private BigDecimal contasReceber;
+        private BigDecimal contasVencidas;
         private BigDecimal valorPendente;
         private BigDecimal valorVencido;
         private Double percentualRecebimento;
+        private Long totalTransacoes;
+        private Map<String, Long> formasPagamento;
     }
 
     @Getter
@@ -97,6 +101,7 @@ public class DashboardDTO {
         private Long totalClientes;
         private Long clientesAtivos;
         private Long clientesInativos;
+        private Long novosClientes;
         private Long novosClientesHoje;
         private Long novosClientesEsteMes;
         private Long clientesRecorrentes;
@@ -105,6 +110,7 @@ public class DashboardDTO {
         private List<ClienteTopDTO> topClientes;
         private Long clientesAniversarioHoje;
         private Long clientesAniversarioEstaSemana;
+        private Long aniversariantesMes;
     }
 
     @Getter
@@ -138,6 +144,10 @@ public class DashboardDTO {
         private Map<String, Long> agendamentosPorFuncionario;
         private Map<String, BigDecimal> receitaPorFuncionario;
         private Double ocupacaoMediaFuncionarios;
+        private FuncionarioTopDTO funcionarioMaisAtendimentos;
+        private FuncionarioTopDTO funcionarioMaisReceita;
+        private Double taxaOcupacaoMedia;
+
     }
 
     @Getter
@@ -152,47 +162,49 @@ public class DashboardDTO {
         private BigDecimal valorVendasHoje;
         private Long pedidosPendentes;
         private Long pedidosEntregues;
+        private BigDecimal valorTotalVendido;
         private Long pedidosCancelados;
         private Double ticketMedioVenda;
-        private List<ServicoTopDTO> servicosMaisVendidos;
+        private ServicoTopDTO servicosMaisVendidos;
         private Map<String, Long> vendasPorCategoria;
         private Double crescimentoVendas;
     }
 
-    @Getter
-    @Setter
+    @Data
+    @Builder
     @NoArgsConstructor
     @AllArgsConstructor
-    @Builder
-    public static class GraficoDTO {
-        private String tipo; // "linha", "barra", "pizza"
-        private String titulo;
-        private List<String> labels;
-        private List<SerieGraficoDTO> series;
+    public static class GraficosDTO {
+        private List<GraficoReceitaDTO> receitaPorPeriodo;
+        private Map<String, Long> agendamentosPorStatus;
+        private Map<String, Long> servicosMaisProcurados;
     }
 
-    @Getter
-    @Setter
+    /**
+     * Tendências do Dashboard
+     * Contém análises de tendências comparativas
+     */
+    @Data
+    @Builder
     @NoArgsConstructor
     @AllArgsConstructor
-    @Builder
-    public static class SerieGraficoDTO {
-        private String nome;
-        private List<Object> dados;
-        private String cor;
+    public static class TendenciasDTO {
+        private List<TendenciaDTO> tendencias;
     }
 
-    @Getter
-    @Setter
+    /**
+     * Tendência individual (receita, agendamentos, clientes, etc)
+     */
+    @Data
+    @Builder
     @NoArgsConstructor
     @AllArgsConstructor
-    @Builder
     public static class TendenciaDTO {
-        private String metrica;
-        private BigDecimal valorAtual;
-        private BigDecimal valorAnterior;
-        private Double percentualMudanca;
-        private String tendencia; // "ALTA", "BAIXA", "ESTAVEL"
-        private String periodo;
+        private String metrica;                 // Ex: "Receita", "Agendamentos", "Novos Clientes"
+        private BigDecimal valorAtual;          // Valor do período atual
+        private BigDecimal valorAnterior;       // Valor do período anterior
+        private Double percentualMudanca;       // Percentual de mudança (positivo = crescimento)
+        private String tendencia;               // "ALTA", "BAIXA", "ESTAVEL"
+        private String periodo;                 // Descrição do período comparado
     }
 }

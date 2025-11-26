@@ -217,4 +217,6 @@ public interface ProdutoRepository extends JpaRepository<Produto, Long> {
             "AND (p.quantidadeEstoque IS NULL OR p.quantidadeEstoque > 0) " +
             "ORDER BY p.nome")
     List<Produto> findProdutosDestaqueDisponiveis(@Param("orgId") Long organizacaoId);
+
+    List<Produto> findAllByOrganizacao_Id(Long organizacaoId);
 }
