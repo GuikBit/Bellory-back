@@ -23,7 +23,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-
 @Service
 @Slf4j
 public class InstanceService {
@@ -33,11 +32,9 @@ public class InstanceService {
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
 
-    @Value("${evolution.api.url:https://wa.bellory.com.br}")
-    private String evolutionApiUrl;
+    private String evolutionApiUrl = "https://wa.bellory.com.br";
 
-    @Value("${evolution.api.key}")
-    private String evolutionApiKey;
+    private String evolutionApiKey = "0626f19f09bd356cc21037164c7c3ca51752fef8";
 
     public InstanceService(
             InstanceRepository instanceRepository,
@@ -466,11 +463,16 @@ public class InstanceService {
 
     /**
      * Criar headers para requisição na Evolution API
+     * IMPORTANTE: A Evolution API requer o header 'apikey' em todas as requisições
      */
     private HttpHeaders createHeaders() {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.set("apikey", evolutionApiKey);
+        headers.set("apikey", evolutionApiKey); // Header obrigatório para Evolution API
+
+        log.debug("Headers criados com apikey: {}",
+                evolutionApiKey != null ? "***" + evolutionApiKey.substring(Math.max(0, evolutionApiKey.length() - 4)) : "null");
+
         return headers;
     }
 
