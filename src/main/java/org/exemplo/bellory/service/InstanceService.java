@@ -82,10 +82,13 @@ public class InstanceService {
             String qrcode = jsonResponse.has("qrcode") && jsonResponse.get("qrcode").has("base64")
                     ? jsonResponse.get("qrcode").get("base64").asText()
                     : null;
+            JsonNode instanceNode = jsonResponse.path("instance");
 
             // 2. Criar entidade no banco de dados
             Instance instance = new Instance();
-            instance.setInstanceName(dto.getInstanceName());
+            instance.setInstanceId(instanceNode.path("instanceId").asText());
+            instance.setInstanceName(instanceNode.path("instanceName").asText());
+            instance.setIntegration(instanceNode.path("integration").asText());
             instance.setQrcode(qrcode);
             instance.setStatus(InstanceStatus.DISCONNECTED);
             instance.setOrganizacao(organizacao);

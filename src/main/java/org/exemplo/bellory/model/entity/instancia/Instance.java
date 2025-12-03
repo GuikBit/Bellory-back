@@ -28,15 +28,15 @@ public class Instance {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    /**
-     * Nome único da instância no Evolution API
-     */
+    @Column(nullable = false, unique = true, length = 100)
+    private String instanceId;
+
     @Column(nullable = false, unique = true, length = 100)
     private String instanceName;
 
-    /**
-     * QR Code em base64 para conexão do WhatsApp
-     */
+    @Column(nullable = false)
+    private String integration;
+
     @Column(columnDefinition = "TEXT")
     private String qrcode;
 
