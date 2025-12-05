@@ -22,11 +22,15 @@ public class InstanceCreateDTO {
     @Size(min = 3, max = 100, message = "O nome da instância deve ter entre 3 e 100 caracteres")
     private String instanceName;
 
-    private String webhookUrl;
+    private String instanceNumber;
 
-    private Boolean webhookEnabled = false;
+    private String webhookUrl = "https://auto.bellory.com.br/webhook/webhook/whatsapp";
+
+    private Boolean webhookEnabled = true;
 
     private List<String> webhookEvents;
+
+    private String personality;
 
     private Boolean rejectCall = false;
 

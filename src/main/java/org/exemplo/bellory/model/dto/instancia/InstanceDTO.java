@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.exemplo.bellory.model.entity.instancia.Instance;
 import org.exemplo.bellory.model.entity.instancia.InstanceStatus;
+import org.exemplo.bellory.model.entity.instancia.Tools;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -21,7 +22,11 @@ import java.util.List;
 public class InstanceDTO {
 
     private Long id;
+    private String instanceId;
     private String instanceName;
+    private String integration;
+    private String personality;
+    private String description;
     private String qrcode;
     private InstanceStatus status;
     private String phoneNumber;
@@ -39,47 +44,27 @@ public class InstanceDTO {
     private Long organizacaoId;
     private String organizacaoNome;
     private Boolean isActive;
-    private String description;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
-
+    private Tools tools;
     /**
      * Construtor que converte Entity para DTO
      */
     public InstanceDTO(Instance instance) {
         this.id = instance.getId();
         this.instanceName = instance.getInstanceName();
-        this.qrcode = instance.getQrcode();
-        this.status = instance.getStatus();
-        this.phoneNumber = instance.getPhoneNumber();
-        this.profilePictureUrl = instance.getProfilePictureUrl();
-        this.profileName = instance.getProfileName();
-        this.webhookUrl = instance.getWebhookUrl();
-        this.webhookEnabled = instance.getWebhookEnabled();
-
-        // Converter string JSON para lista
-        if (instance.getWebhookEvents() != null && !instance.getWebhookEvents().isEmpty()) {
-            this.webhookEvents = Arrays.asList(
-                    instance.getWebhookEvents()
-                            .replace("[", "")
-                            .replace("]", "")
-                            .replace("\"", "")
-                            .split(",")
-            );
-        }
-
-        this.rejectCall = instance.getRejectCall();
-        this.msgCall = instance.getMsgCall();
-        this.groupsIgnore = instance.getGroupsIgnore();
-        this.alwaysOnline = instance.getAlwaysOnline();
-        this.readMessages = instance.getReadMessages();
-        this.readStatus = instance.getReadStatus();
-        this.organizacaoId = instance.getOrganizacao().getId();
-        this.organizacaoNome = instance.getOrganizacao().getNomeFantasia();
-        this.isActive = instance.getIsActive();
+        this.instanceId = instance.getInstanceId();
+        this.integration = instance.getIntegration();
+        this.personality = instance.getPersonality();
         this.description = instance.getDescription();
-        this.createdAt = instance.getCreatedAt();
-        this.updatedAt = instance.getUpdatedAt();
+        this.organizacaoNome = instance.getOrganizacao().getNomeFantasia();
+        this.organizacaoId = instance.getOrganizacao().getId();
+
+        this.tools = instance.getTools();
+
+
+
+
     }
 }
 

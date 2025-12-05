@@ -1,23 +1,20 @@
 package org.exemplo.bellory.model.entity.instancia;
 
 public enum InstanceStatus {
-    /**
-     * Instância desconectada
-     */
-    DISCONNECTED,
+    CONNECTED("Conectado"),
+    CONNECTING("Conectando"),
+    DISCONNECTED("Desconectado"),
+    QRCODE("Aguardando QR Code"),
+    ERROR("Erro"),
+    OPEN("Open");
 
-    /**
-     * Instância em processo de conexão
-     */
-    CONNECTING,
+    private final String descricao;
 
-    /**
-     * Instância conectada
-     */
-    CONNECTED,
+    InstanceStatus(String descricao) {
+        this.descricao = descricao;
+    }
 
-    /**
-     * Instância aberta e pronta para uso
-     */
-    OPEN
+    public String getDescricao() {
+        return descricao;
+    }
 }

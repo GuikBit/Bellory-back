@@ -19,9 +19,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.time.LocalDateTime;
+import java.util.*;
 import java.util.stream.Collectors;
 @Service
 @Slf4j
@@ -52,7 +51,6 @@ public class InstanceService {
      */
     @Transactional
     public InstanceDTO createInstance(InstanceCreateDTO dto) {
-        log.info("Criando nova instância: {}", dto.getInstanceName());
 
         // Validar organização do contexto
         Long organizacaoId = getOrganizacaoIdFromContext();
@@ -73,15 +71,35 @@ public class InstanceService {
             requestBody.put("instanceName", dto.getInstanceName());
             requestBody.put("qrcode", true);
             requestBody.put("integration", "WHATSAPP-BAILEYS");
+            requestBody.put("number", dto.getInstanceNumber().toString());
+            requestBody.put("alwaysOnline", false);
+            requestBody.put("readMessages", true);
+            requestBody.put("syncFullHistory", false);
+
+
+            Map<String, Object> webhook = new HashMap<>();
+            webhook.put("url", "https://auto.bellory.com.br/webhook/webhook/whatsapp"); // URL do seu endpoint
+            webhook.put("byEvents", true);
+            webhook.put("base64", true);
+
+            Map<String, String> webhookHeaders = new HashMap<>();
+            webhookHeaders.put("authorization", "Bearer 0626f19f09bd356cc21037164c7c3ca51752fef8");
+            webhookHeaders.put("Content-Type", "application/json");
+            webhook.put("headers", webhookHeaders);
+
+            List<String> events = Arrays.asList(
+                    "MESSAGES_UPSERT"
+            );
+            webhook.put("events", events);
+
+            requestBody.put("webhook", webhook);
 
             HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
             ResponseEntity<String> response = restTemplate.postForEntity(url, request, String.class);
 
             // Parsear resposta
             JsonNode jsonResponse = objectMapper.readTree(response.getBody());
-            String qrcode = jsonResponse.has("qrcode") && jsonResponse.get("qrcode").has("base64")
-                    ? jsonResponse.get("qrcode").get("base64").asText()
-                    : null;
+
             JsonNode instanceNode = jsonResponse.path("instance");
 
             // 2. Criar entidade no banco de dados
@@ -89,38 +107,12 @@ public class InstanceService {
             instance.setInstanceId(instanceNode.path("instanceId").asText());
             instance.setInstanceName(instanceNode.path("instanceName").asText());
             instance.setIntegration(instanceNode.path("integration").asText());
-            instance.setQrcode(qrcode);
-            instance.setStatus(InstanceStatus.DISCONNECTED);
             instance.setOrganizacao(organizacao);
-            instance.setWebhookUrl(dto.getWebhookUrl());
-            instance.setWebhookEnabled(dto.getWebhookEnabled());
-            instance.setRejectCall(dto.getRejectCall());
-            instance.setMsgCall(dto.getMsgCall());
-            instance.setGroupsIgnore(dto.getGroupsIgnore());
-            instance.setAlwaysOnline(dto.getAlwaysOnline());
-            instance.setReadMessages(dto.getReadMessages());
-            instance.setReadStatus(dto.getReadStatus());
             instance.setDescription(dto.getDescription());
-
-            // Converter lista de eventos para JSON string
-            if (dto.getWebhookEvents() != null && !dto.getWebhookEvents().isEmpty()) {
-                instance.setWebhookEvents(dto.getWebhookEvents().toString());
-            }
+            instance.setPersonality(dto.getPersonality());
 
             Instance savedInstance = instanceRepository.save(instance);
 
-            // 3. Configurar settings no Evolution API
-            if (dto.getRejectCall() != null || dto.getGroupsIgnore() != null ||
-                    dto.getAlwaysOnline() != null || dto.getReadMessages() != null) {
-                configureSettings(savedInstance);
-            }
-
-            // 4. Configurar webhook se fornecido
-            if (dto.getWebhookUrl() != null && !dto.getWebhookUrl().isEmpty()) {
-                configureWebhook(savedInstance);
-            }
-
-            log.info("Instância criada com sucesso: {}", savedInstance.getInstanceName());
             return new InstanceDTO(savedInstance);
 
         } catch (Exception e) {
@@ -132,14 +124,207 @@ public class InstanceService {
     /**
      * Listar todas as instâncias da organização
      */
+    /**
+     * Listar todas as instâncias da organização com dados do Evolution API
+     */
     @Transactional(readOnly = true)
     public List<InstanceDTO> getAllInstances() {
         Long organizacaoId = getOrganizacaoIdFromContext();
         List<Instance> instances = instanceRepository.findByOrganizacaoId(organizacaoId);
 
+        // Buscar TODAS as instâncias do Evolution API de uma vez
+        Map<String, JsonNode> evolutionDataMap = fetchAllEvolutionInstances();
+
         return instances.stream()
-                .map(InstanceDTO::new)
+                .map(instance -> {
+                    InstanceDTO dto = new InstanceDTO(instance);
+
+                    // Buscar dados do Evolution API pelo instanceName
+                    JsonNode evolutionData = evolutionDataMap.get(instance.getInstanceName());
+                    if (evolutionData != null) {
+                        try {
+                            populateFromEvolutionData(dto, evolutionData);
+                        } catch (Exception e) {
+                            log.warn("Erro ao processar dados do Evolution para instância {}: {}",
+                                    instance.getInstanceName(), e.getMessage());
+                        }
+                    }
+
+                    return dto;
+                })
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Busca todas as instâncias do Evolution API de uma vez
+     */
+    private Map<String, JsonNode> fetchAllEvolutionInstances() {
+        try {
+            String url = evolutionApiUrl + "/instance/fetchInstances";
+            HttpHeaders headers = createHeaders();
+            HttpEntity<Void> request = new HttpEntity<>(headers);
+
+            ResponseEntity<String> response = restTemplate.exchange(
+                    url, HttpMethod.GET, request, String.class
+            );
+
+            JsonNode jsonResponse = objectMapper.readTree(response.getBody());
+            Map<String, JsonNode> dataMap = new HashMap<>();
+
+            // Verificar se a resposta é um array
+            if (jsonResponse.isArray()) {
+                jsonResponse.forEach(node -> {
+                    JsonNode instanceNode = node.path("instance");
+                    String instanceName = instanceNode.path("instanceName").asText();
+
+                    if (!instanceName.isEmpty()) {
+                        dataMap.put(instanceName, node);
+                    }
+                });
+            } else if (!jsonResponse.isMissingNode()) {
+                // Se for um objeto único
+                JsonNode instanceNode = jsonResponse.path("instance");
+                String instanceName = instanceNode.path("instanceName").asText();
+
+                if (!instanceName.isEmpty()) {
+                    dataMap.put(instanceName, jsonResponse);
+                }
+            }
+
+            log.info("Buscadas {} instâncias do Evolution API", dataMap.size());
+            return dataMap;
+
+        } catch (Exception e) {
+            log.error("Erro ao buscar todas as instâncias do Evolution API: {}", e.getMessage(), e);
+            return new HashMap<>();
+        }
+    }
+
+    /**
+     * Preenche o DTO com dados do Evolution API
+     */
+    private void populateFromEvolutionData(InstanceDTO dto, JsonNode instanceData) {
+        // Dados da instância
+        JsonNode instance = instanceData.path("instance");
+        if (!instance.isMissingNode()) {
+
+            // Dados do perfil
+            dto.setProfileName(instance.path("profileName").asText(null));
+            dto.setProfilePictureUrl(instance.path("profilePictureUrl").asText(null));
+            dto.setPhoneNumber(instance.path("phoneNumber").asText(null));
+
+            // Status da conexão
+            String connectionStatus = instance.path("status").asText("disconnected");
+            InstanceStatus status = mapConnectionStatus(connectionStatus);
+            dto.setStatus(status);
+
+            // Estado da instância (open/close)
+            String state = instance.path("state").asText("close");
+            dto.setIsActive("open".equalsIgnoreCase(state));
+
+            // Buscar QR Code se não estiver conectado
+            if (status != InstanceStatus.CONNECTED) {
+                try {
+                    String qrcodeUrl = evolutionApiUrl + "/instance/connect/" + dto.getInstanceName();
+                    HttpHeaders headers = createHeaders();
+                    HttpEntity<Void> request = new HttpEntity<>(headers);
+
+                    ResponseEntity<String> qrcodeResponse = restTemplate.exchange(
+                            qrcodeUrl,
+                            HttpMethod.GET,
+                            request,
+                            String.class
+                    );
+
+                    JsonNode qrcodeData = objectMapper.readTree(qrcodeResponse.getBody());
+
+                    // Verificar se tem QR Code disponível
+                    String qrcodeBase64 = qrcodeData.path("base64").asText(null);
+                    if (qrcodeBase64 != null && !qrcodeBase64.isEmpty()) {
+                        dto.setQrcode(qrcodeBase64);
+                    } else {
+                        // Tentar pegar do campo code
+                        String qrcodeCode = qrcodeData.path("code").asText(null);
+                        if (qrcodeCode != null && !qrcodeCode.isEmpty()) {
+                            dto.setQrcode(qrcodeCode);
+                        }
+                    }
+
+                    log.debug("QR Code buscado com sucesso para instância: {}", dto.getInstanceName());
+
+                } catch (Exception e) {
+                    log.warn("Erro ao buscar QR Code para instância {}: {}",
+                            dto.getInstanceName(), e.getMessage());
+                    // Não quebra o fluxo, apenas não terá QR Code
+                }
+            } else {
+                // Instância conectada, não há QR Code
+                dto.setQrcode(null);
+                log.debug("Instância {} está conectada, QR Code não disponível", dto.getInstanceName());
+            }
+
+            // Datas (se disponíveis)
+            String createdAt = instance.path("createdAt").asText(null);
+            if (createdAt != null) {
+                try {
+                    dto.setCreatedAt(LocalDateTime.parse(createdAt.substring(0, 19)));
+                } catch (Exception e) {
+                    log.debug("Erro ao parsear createdAt: {}", e.getMessage());
+                }
+            }
+
+            String updatedAt = instance.path("updatedAt").asText(null);
+            if (updatedAt != null) {
+                try {
+                    dto.setUpdatedAt(LocalDateTime.parse(updatedAt.substring(0, 19)));
+                } catch (Exception e) {
+                    log.debug("Erro ao parsear updatedAt: {}", e.getMessage());
+                }
+            }
+        }
+
+        // Dados de webhook
+        JsonNode webhook = instanceData.path("webhook");
+        if (!webhook.isMissingNode()) {
+            dto.setWebhookUrl(webhook.path("url").asText(null));
+            dto.setWebhookEnabled(webhook.path("enabled").asBoolean(false));
+
+            // Eventos do webhook
+            JsonNode eventsNode = webhook.path("events");
+            if (eventsNode.isArray()) {
+                List<String> events = new ArrayList<>();
+                eventsNode.forEach(event -> events.add(event.asText()));
+                dto.setWebhookEvents(events);
+            }
+        }
+
+        // Configurações da instância
+        JsonNode settings = instanceData.path("settings");
+        if (!settings.isMissingNode()) {
+            dto.setRejectCall(settings.path("rejectCall").asBoolean(false));
+            dto.setMsgCall(settings.path("msgCall").asText(null));
+            dto.setGroupsIgnore(settings.path("groupsIgnore").asBoolean(false));
+            dto.setAlwaysOnline(settings.path("alwaysOnline").asBoolean(false));
+            dto.setReadMessages(settings.path("readMessages").asBoolean(false));
+            dto.setReadStatus(settings.path("readStatus").asBoolean(false));
+        }
+    }
+
+    /**
+     * Mapeia o status da conexão do Evolution API para o enum interno
+     */
+    private InstanceStatus mapConnectionStatus(String evolutionStatus) {
+        if (evolutionStatus == null) {
+            return InstanceStatus.DISCONNECTED;
+        }
+
+        return switch (evolutionStatus.toLowerCase()) {
+            case "open", "connected" -> InstanceStatus.CONNECTED;
+            case "connecting" -> InstanceStatus.CONNECTING;
+            case "close", "disconnected" -> InstanceStatus.DISCONNECTED;
+            case "qrcode", "qr_code" -> InstanceStatus.QRCODE;
+            default -> InstanceStatus.DISCONNECTED;
+        };
     }
 
     /**
@@ -164,19 +349,19 @@ public class InstanceService {
 
         try {
             // Atualizar campos locais
-            if (dto.getWebhookUrl() != null) instance.setWebhookUrl(dto.getWebhookUrl());
-            if (dto.getWebhookEnabled() != null) instance.setWebhookEnabled(dto.getWebhookEnabled());
-            if (dto.getRejectCall() != null) instance.setRejectCall(dto.getRejectCall());
-            if (dto.getMsgCall() != null) instance.setMsgCall(dto.getMsgCall());
-            if (dto.getGroupsIgnore() != null) instance.setGroupsIgnore(dto.getGroupsIgnore());
-            if (dto.getAlwaysOnline() != null) instance.setAlwaysOnline(dto.getAlwaysOnline());
-            if (dto.getReadMessages() != null) instance.setReadMessages(dto.getReadMessages());
-            if (dto.getReadStatus() != null) instance.setReadStatus(dto.getReadStatus());
-            if (dto.getIsActive() != null) instance.setIsActive(dto.getIsActive());
+//            if (dto.getWebhookUrl() != null) instance.setWebhookUrl(dto.getWebhookUrl());
+//            if (dto.getWebhookEnabled() != null) instance.setWebhookEnabled(dto.getWebhookEnabled());
+//            if (dto.getRejectCall() != null) instance.setRejectCall(dto.getRejectCall());
+//            if (dto.getMsgCall() != null) instance.setMsgCall(dto.getMsgCall());
+//            if (dto.getGroupsIgnore() != null) instance.setGroupsIgnore(dto.getGroupsIgnore());
+//            if (dto.getAlwaysOnline() != null) instance.setAlwaysOnline(dto.getAlwaysOnline());
+//            if (dto.getReadMessages() != null) instance.setReadMessages(dto.getReadMessages());
+//            if (dto.getReadStatus() != null) instance.setReadStatus(dto.getReadStatus());
+//            if (dto.getIsActive() != null) instance.setIsActive(dto.getIsActive());
             if (dto.getDescription() != null) instance.setDescription(dto.getDescription());
 
             if (dto.getWebhookEvents() != null) {
-                instance.setWebhookEvents(dto.getWebhookEvents().toString());
+//                instance.setWebhookEvents(dto.getWebhookEvents().toString());
             }
 
             // Atualizar settings no Evolution API
@@ -248,11 +433,7 @@ public class InstanceService {
                     ? jsonResponse.get("base64").asText()
                     : null;
 
-            // Atualizar QR Code no banco
-            if (base64 != null) {
-                instance.setQrcode(base64);
-                instanceRepository.save(instance);
-            }
+
 
             Map<String, String> result = new HashMap<>();
             result.put("base64", base64);
@@ -285,19 +466,10 @@ public class InstanceService {
 
             // Atualizar status no banco
             String state = jsonResponse.has("state") ? jsonResponse.get("state").asText() : "disconnected";
-            instance.setStatus(mapStatusFromEvolution(state));
+
 
             if (jsonResponse.has("instance")) {
                 JsonNode instanceNode = jsonResponse.get("instance");
-                if (instanceNode.has("phoneNumber")) {
-                    instance.setPhoneNumber(instanceNode.get("phoneNumber").asText());
-                }
-                if (instanceNode.has("profileName")) {
-                    instance.setProfileName(instanceNode.get("profileName").asText());
-                }
-                if (instanceNode.has("profilePictureUrl")) {
-                    instance.setProfilePictureUrl(instanceNode.get("profilePictureUrl").asText());
-                }
             }
 
             instanceRepository.save(instance);
@@ -328,11 +500,11 @@ public class InstanceService {
             restTemplate.exchange(url, HttpMethod.DELETE, request, String.class);
 
             // Atualizar status no banco
-            instance.setStatus(InstanceStatus.DISCONNECTED);
-            instance.setQrcode(null);
-            instance.setPhoneNumber(null);
-            instance.setProfileName(null);
-            instance.setProfilePictureUrl(null);
+//            instance.setStatus(InstanceStatus.DISCONNECTED);
+//            instance.setQrcode(null);
+//            instance.setPhoneNumber(null);
+//            instance.setProfileName(null);
+//            instance.setProfilePictureUrl(null);
 
             instanceRepository.save(instance);
 
@@ -377,10 +549,10 @@ public class InstanceService {
         Instance instance = findInstanceById(id);
         validarOrganizacao(instance.getOrganizacao().getId());
 
-        if (!instance.getStatus().equals(InstanceStatus.OPEN) &&
-                !instance.getStatus().equals(InstanceStatus.CONNECTED)) {
-            throw new IllegalStateException("A instância não está conectada");
-        }
+//        if (!instance.getStatus().equals(InstanceStatus.OPEN) &&
+//                !instance.getStatus().equals(InstanceStatus.CONNECTED)) {
+//            throw new IllegalStateException("A instância não está conectada");
+//        }
 
         try {
             String url = evolutionApiUrl + "/message/sendText/" + instance.getInstanceName();
@@ -413,12 +585,12 @@ public class InstanceService {
             HttpHeaders headers = createHeaders();
 
             Map<String, Object> settings = new HashMap<>();
-            settings.put("reject_call", instance.getRejectCall());
-            settings.put("msg_call", instance.getMsgCall());
-            settings.put("groups_ignore", instance.getGroupsIgnore());
-            settings.put("always_online", instance.getAlwaysOnline());
-            settings.put("read_messages", instance.getReadMessages());
-            settings.put("read_status", instance.getReadStatus());
+//            settings.put("reject_call", instance.getRejectCall());
+//            settings.put("msg_call", instance.getMsgCall());
+//            settings.put("groups_ignore", instance.getGroupsIgnore());
+//            settings.put("always_online", instance.getAlwaysOnline());
+//            settings.put("read_messages", instance.getReadMessages());
+//            settings.put("read_status", instance.getReadStatus());
 
             HttpEntity<Map<String, Object>> request = new HttpEntity<>(settings, headers);
             restTemplate.postForEntity(url, request, String.class);
@@ -434,25 +606,15 @@ public class InstanceService {
      * Configurar webhook da instância no Evolution API
      */
     private void configureWebhook(Instance instance) {
-        if (instance.getWebhookUrl() == null || instance.getWebhookUrl().isEmpty()) {
-            return;
-        }
+//        if (instance.getWebhookUrl() == null || instance.getWebhookUrl().isEmpty()) {
+//            return;
+//        }
 
         try {
             String url = evolutionApiUrl + "/webhook/set/" + instance.getInstanceName();
             HttpHeaders headers = createHeaders();
 
             Map<String, Object> webhook = new HashMap<>();
-            webhook.put("url", instance.getWebhookUrl());
-            webhook.put("enabled", instance.getWebhookEnabled());
-
-            if (instance.getWebhookEvents() != null && !instance.getWebhookEvents().isEmpty()) {
-                String eventsStr = instance.getWebhookEvents()
-                        .replace("[", "")
-                        .replace("]", "")
-                        .replace("\"", "");
-                webhook.put("events", List.of(eventsStr.split(",")));
-            }
 
             HttpEntity<Map<String, Object>> request = new HttpEntity<>(webhook, headers);
             restTemplate.postForEntity(url, request, String.class);
@@ -484,7 +646,7 @@ public class InstanceService {
      */
     private InstanceStatus mapStatusFromEvolution(String status) {
         return switch (status.toLowerCase()) {
-            case "open", "connected" -> InstanceStatus.OPEN;
+            case "open", "connected" -> InstanceStatus.CONNECTED;
             case "connecting" -> InstanceStatus.CONNECTING;
             default -> InstanceStatus.DISCONNECTED;
         };
