@@ -24,6 +24,13 @@ public interface InstanceRepository extends JpaRepository<Instance, Long> {
      */
     boolean existsByInstanceName(String instanceName);
 
+    @Query("SELECT i FROM Instance i " +
+            "LEFT JOIN FETCH i.tools " +
+            "LEFT JOIN FETCH i.webhookConfig " +
+            "LEFT JOIN FETCH i.organizacao " +
+            "WHERE i.organizacao.id = :organizacaoId")
+    List<Instance> findByOrganizacaoIdWithRelations(@Param("organizacaoId") Long organizacaoId);
+
 
 
 }

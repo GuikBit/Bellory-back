@@ -73,14 +73,17 @@ public class InstanceService {
             requestBody.put("integration", "WHATSAPP-BAILEYS");
             requestBody.put("number", dto.getInstanceNumber().toString());
             requestBody.put("alwaysOnline", false);
-            requestBody.put("readMessages", true);
+            requestBody.put("readMessages", false);
             requestBody.put("syncFullHistory", false);
+            requestBody.put("readStatus", false);
+            requestBody.put("groupsIgnore", false);
+            requestBody.put("rejectCall", true);
 
 
             Map<String, Object> webhook = new HashMap<>();
             webhook.put("url", "https://auto.bellory.com.br/webhook/webhook/whatsapp"); // URL do seu endpoint
-            webhook.put("byEvents", true);
-            webhook.put("base64", true);
+            webhook.put("byEvents", false);
+            webhook.put("base64", false);
 
             Map<String, String> webhookHeaders = new HashMap<>();
             webhookHeaders.put("authorization", "Bearer 0626f19f09bd356cc21037164c7c3ca51752fef8");
@@ -130,7 +133,9 @@ public class InstanceService {
     @Transactional(readOnly = true)
     public List<InstanceDTO> getAllInstances() {
         Long organizacaoId = getOrganizacaoIdFromContext();
-        List<Instance> instances = instanceRepository.findByOrganizacaoId(organizacaoId);
+
+        // Buscar instâncias com EAGER fetch para evitar lazy loading
+        List<Instance> instances = instanceRepository.findByOrganizacaoIdWithRelations(organizacaoId);
 
         // Buscar TODAS as instâncias do Evolution API de uma vez
         Map<String, JsonNode> evolutionDataMap = fetchAllEvolutionInstances();
@@ -142,12 +147,7 @@ public class InstanceService {
                     // Buscar dados do Evolution API pelo instanceName
                     JsonNode evolutionData = evolutionDataMap.get(instance.getInstanceName());
                     if (evolutionData != null) {
-                        try {
-                            populateFromEvolutionData(dto, evolutionData);
-                        } catch (Exception e) {
-                            log.warn("Erro ao processar dados do Evolution para instância {}: {}",
-                                    instance.getInstanceName(), e.getMessage());
-                        }
+                        populateFromEvolutionData(dto, evolutionData);
                     }
 
                     return dto;
@@ -174,8 +174,8 @@ public class InstanceService {
             // Verificar se a resposta é um array
             if (jsonResponse.isArray()) {
                 jsonResponse.forEach(node -> {
-                    JsonNode instanceNode = node.path("instance");
-                    String instanceName = instanceNode.path("instanceName").asText();
+                    String instanceName = node.path("name").asText();
+//                    String instanceName = instanceNode.path("instanceName").asText();
 
                     if (!instanceName.isEmpty()) {
                         dataMap.put(instanceName, node);
@@ -200,133 +200,113 @@ public class InstanceService {
         }
     }
 
-    /**
-     * Preenche o DTO com dados do Evolution API
-     */
-    private void populateFromEvolutionData(InstanceDTO dto, JsonNode instanceData) {
-        // Dados da instância
-        JsonNode instance = instanceData.path("instance");
-        if (!instance.isMissingNode()) {
-
-            // Dados do perfil
-            dto.setProfileName(instance.path("profileName").asText(null));
-            dto.setProfilePictureUrl(instance.path("profilePictureUrl").asText(null));
-            dto.setPhoneNumber(instance.path("phoneNumber").asText(null));
+    private void populateFromEvolutionData(InstanceDTO dto, JsonNode evolutionData) {
+        try {
+            // Campos principais da instância
+            dto.setInstanceId(evolutionData.path("id").asText(dto.getInstanceId()));
+            dto.setInstanceName(evolutionData.path("name").asText(dto.getInstanceName()));
+            dto.setIntegration(evolutionData.path("integration").asText(dto.getIntegration()));
 
             // Status da conexão
-            String connectionStatus = instance.path("status").asText("disconnected");
-            InstanceStatus status = mapConnectionStatus(connectionStatus);
-            dto.setStatus(status);
+            String connectionStatus = evolutionData.path("connectionStatus").asText("close");
+            dto.setStatus(mapConnectionStatus(connectionStatus));
 
-            // Estado da instância (open/close)
-            String state = instance.path("state").asText("close");
-            dto.setIsActive("open".equalsIgnoreCase(state));
-
-            // Buscar QR Code se não estiver conectado
-            if (status != InstanceStatus.CONNECTED) {
-                try {
-                    String qrcodeUrl = evolutionApiUrl + "/instance/connect/" + dto.getInstanceName();
-                    HttpHeaders headers = createHeaders();
-                    HttpEntity<Void> request = new HttpEntity<>(headers);
-
-                    ResponseEntity<String> qrcodeResponse = restTemplate.exchange(
-                            qrcodeUrl,
-                            HttpMethod.GET,
-                            request,
-                            String.class
-                    );
-
-                    JsonNode qrcodeData = objectMapper.readTree(qrcodeResponse.getBody());
-
-                    // Verificar se tem QR Code disponível
-                    String qrcodeBase64 = qrcodeData.path("base64").asText(null);
-                    if (qrcodeBase64 != null && !qrcodeBase64.isEmpty()) {
-                        dto.setQrcode(qrcodeBase64);
-                    } else {
-                        // Tentar pegar do campo code
-                        String qrcodeCode = qrcodeData.path("code").asText(null);
-                        if (qrcodeCode != null && !qrcodeCode.isEmpty()) {
-                            dto.setQrcode(qrcodeCode);
-                        }
-                    }
-
-                    log.debug("QR Code buscado com sucesso para instância: {}", dto.getInstanceName());
-
-                } catch (Exception e) {
-                    log.warn("Erro ao buscar QR Code para instância {}: {}",
-                            dto.getInstanceName(), e.getMessage());
-                    // Não quebra o fluxo, apenas não terá QR Code
-                }
-            } else {
-                // Instância conectada, não há QR Code
-                dto.setQrcode(null);
-                log.debug("Instância {} está conectada, QR Code não disponível", dto.getInstanceName());
+            // Dados do perfil do WhatsApp
+            String ownerJid = evolutionData.path("ownerJid").asText(null);
+            if (ownerJid != null && !ownerJid.isEmpty()) {
+                String phoneNumber = ownerJid.split("@")[0];
+                dto.setPhoneNumber(phoneNumber);
             }
 
-            // Datas (se disponíveis)
-            String createdAt = instance.path("createdAt").asText(null);
-            if (createdAt != null) {
-                try {
-                    dto.setCreatedAt(LocalDateTime.parse(createdAt.substring(0, 19)));
-                } catch (Exception e) {
-                    log.debug("Erro ao parsear createdAt: {}", e.getMessage());
-                }
+            // Número formatado (sobrescreve se existir)
+            String number = evolutionData.path("number").asText(null);
+            if (number != null && !number.isEmpty()) {
+                dto.setPhoneNumber(number);
             }
 
-            String updatedAt = instance.path("updatedAt").asText(null);
-            if (updatedAt != null) {
-                try {
-                    dto.setUpdatedAt(LocalDateTime.parse(updatedAt.substring(0, 19)));
-                } catch (Exception e) {
-                    log.debug("Erro ao parsear updatedAt: {}", e.getMessage());
-                }
+            dto.setProfileName(evolutionData.path("profileName").asText(null));
+            dto.setProfilePictureUrl(evolutionData.path("profilePicUrl").asText(null));
+
+            // Campos adicionais
+            dto.setToken(evolutionData.path("token").asText(null));
+            dto.setClientName(evolutionData.path("clientName").asText(null));
+            dto.setBusinessId(evolutionData.path("businessId").asText(null));
+
+            // Parsing de datas ISO 8601
+            dto.setDisconnectionAt(parseIsoDateTime(evolutionData.path("disconnectionAt").asText(null)));
+            dto.setCreatedAt(parseIsoDateTime(evolutionData.path("createdAt").asText(null)));
+            dto.setUpdatedAt(parseIsoDateTime(evolutionData.path("updatedAt").asText(null)));
+
+            // Configurações (Setting object)
+            JsonNode settings = evolutionData.path("Setting");
+            if (!settings.isMissingNode() && !settings.isNull()) {
+                dto.setRejectCall(settings.path("rejectCall").asBoolean(false));
+                dto.setMsgCall(settings.path("msgCall").asText(""));
+                dto.setGroupsIgnore(settings.path("groupsIgnore").asBoolean(false));
+                dto.setAlwaysOnline(settings.path("alwaysOnline").asBoolean(false));
+                dto.setReadMessages(settings.path("readMessages").asBoolean(false));
+                dto.setReadStatus(settings.path("readStatus").asBoolean(false));
             }
-        }
 
-        // Dados de webhook
-        JsonNode webhook = instanceData.path("webhook");
-        if (!webhook.isMissingNode()) {
-            dto.setWebhookUrl(webhook.path("url").asText(null));
-            dto.setWebhookEnabled(webhook.path("enabled").asBoolean(false));
-
-            // Eventos do webhook
-            JsonNode eventsNode = webhook.path("events");
-            if (eventsNode.isArray()) {
-                List<String> events = new ArrayList<>();
-                eventsNode.forEach(event -> events.add(event.asText()));
-                dto.setWebhookEvents(events);
+            // Contadores (_count)
+            JsonNode count = evolutionData.path("_count");
+            if (!count.isMissingNode() && !count.isNull()) {
+                dto.setMessageCount(count.path("Message").asInt(0));
+                dto.setContactCount(count.path("Contact").asInt(0));
+                dto.setChatCount(count.path("Chat").asInt(0));
             }
-        }
 
-        // Configurações da instância
-        JsonNode settings = instanceData.path("settings");
-        if (!settings.isMissingNode()) {
-            dto.setRejectCall(settings.path("rejectCall").asBoolean(false));
-            dto.setMsgCall(settings.path("msgCall").asText(null));
-            dto.setGroupsIgnore(settings.path("groupsIgnore").asBoolean(false));
-            dto.setAlwaysOnline(settings.path("alwaysOnline").asBoolean(false));
-            dto.setReadMessages(settings.path("readMessages").asBoolean(false));
-            dto.setReadStatus(settings.path("readStatus").asBoolean(false));
+            // Determinar se está ativa baseado no status
+            InstanceStatus currentStatus = dto.getStatus();
+            dto.setIsActive(currentStatus == InstanceStatus.CONNECTED ||
+                    currentStatus == InstanceStatus.OPEN);
+
+            // QR Code será buscado APENAS quando solicitado individualmente
+            // Não buscar aqui para evitar N+1 queries
+            dto.setQrcode(null);
+
+        } catch (Exception e) {
+            log.error("Erro ao preencher dados da Evolution API para instância {}: {}",
+                    dto.getInstanceName(), e.getMessage(), e);
         }
     }
 
     /**
-     * Mapeia o status da conexão do Evolution API para o enum interno
+     * Parse de datas ISO 8601 com timezone
      */
-    private InstanceStatus mapConnectionStatus(String evolutionStatus) {
-        if (evolutionStatus == null) {
+    private LocalDateTime parseIsoDateTime(String dateTimeStr) {
+        if (dateTimeStr == null || dateTimeStr.isEmpty()) {
+            return null;
+        }
+
+        try {
+            // Remover timezone e milissegundos extras para parsing
+            // De: "2025-12-05T17:12:24.681Z" para "2025-12-05T17:12:24"
+            if (dateTimeStr.contains(".")) {
+                dateTimeStr = dateTimeStr.substring(0, dateTimeStr.indexOf('.'));
+            } else if (dateTimeStr.endsWith("Z")) {
+                dateTimeStr = dateTimeStr.substring(0, dateTimeStr.length() - 1);
+            }
+
+            return LocalDateTime.parse(dateTimeStr);
+        } catch (Exception e) {
+            log.debug("Erro ao parsear data/hora: {} - {}", dateTimeStr, e.getMessage());
+            return null;
+        }
+    }
+
+    private InstanceStatus mapConnectionStatus(String connectionStatus) {
+        if (connectionStatus == null) {
             return InstanceStatus.DISCONNECTED;
         }
 
-        return switch (evolutionStatus.toLowerCase()) {
-            case "open", "connected" -> InstanceStatus.CONNECTED;
+        return switch (connectionStatus.toLowerCase()) {
+            case "open" -> InstanceStatus.OPEN;
             case "connecting" -> InstanceStatus.CONNECTING;
-            case "close", "disconnected" -> InstanceStatus.DISCONNECTED;
-            case "qrcode", "qr_code" -> InstanceStatus.QRCODE;
-            default -> InstanceStatus.DISCONNECTED;
+            case "close", "closed" -> InstanceStatus.DISCONNECTED;
+            default -> InstanceStatus.ERROR;
         };
     }
-
     /**
      * Buscar instância por ID
      */
