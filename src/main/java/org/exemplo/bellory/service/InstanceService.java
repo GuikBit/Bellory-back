@@ -239,14 +239,14 @@ public class InstanceService {
 
             // Configurações (Setting object)
             JsonNode settings = evolutionData.path("Setting");
-            if (!settings.isMissingNode() && !settings.isNull()) {
-                dto.setRejectCall(settings.path("rejectCall").asBoolean(false));
-                dto.setMsgCall(settings.path("msgCall").asText(""));
-                dto.setGroupsIgnore(settings.path("groupsIgnore").asBoolean(false));
-                dto.setAlwaysOnline(settings.path("alwaysOnline").asBoolean(false));
-                dto.setReadMessages(settings.path("readMessages").asBoolean(false));
-                dto.setReadStatus(settings.path("readStatus").asBoolean(false));
-            }
+//            if (!settings.isMissingNode() && !settings.isNull()) {
+//                dto.setRejectCall(settings.path("rejectCall").asBoolean(false));
+//                dto.setMsgCall(settings.path("msgCall").asText(""));
+//                dto.setGroupsIgnore(settings.path("groupsIgnore").asBoolean(false));
+//                dto.setAlwaysOnline(settings.path("alwaysOnline").asBoolean(false));
+//                dto.setReadMessages(settings.path("readMessages").asBoolean(false));
+//                dto.setReadStatus(settings.path("readStatus").asBoolean(false));
+//            }
 
             // Contadores (_count)
             JsonNode count = evolutionData.path("_count");
