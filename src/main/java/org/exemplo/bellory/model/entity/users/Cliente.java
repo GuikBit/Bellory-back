@@ -1,5 +1,6 @@
 package org.exemplo.bellory.model.entity.users;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -19,6 +20,7 @@ import java.util.List;
 @Table(name = "cliente")
 @Getter
 @Setter
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Cliente extends User {
 
     @Column(length = 15)

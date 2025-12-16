@@ -3,12 +3,15 @@ package org.exemplo.bellory.service;
 
 import org.exemplo.bellory.model.dto.auth.*;
 import org.exemplo.bellory.model.entity.funcionario.Funcionario;
+import org.exemplo.bellory.model.entity.users.Admin;
 import org.exemplo.bellory.model.entity.users.Cliente;
 import org.exemplo.bellory.model.entity.users.User;
 import org.exemplo.bellory.model.repository.funcionario.FuncionarioRepository;
+import org.exemplo.bellory.model.repository.users.AdminRepository;
 import org.exemplo.bellory.model.repository.users.ClienteRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -25,6 +28,10 @@ public class UserInfoService {
     @Autowired
     private FuncionarioRepository funcionarioRepository;
 
+    @Autowired
+    private AdminRepository adminRepository;
+
+    @Transactional(readOnly = true)
     public UserInfoDTO buildUserInfo(User user) {
         // Construir informações básicas
         UserInfoDTO.UserInfoDTOBuilder userInfoBuilder = UserInfoDTO.builder()
@@ -68,6 +75,17 @@ public class UserInfoService {
             return userInfoBuilder.build();
         }
 
+        Optional<Admin> adminOpt = adminRepository.findByUsername(user.getUsername());
+        if (adminOpt.isPresent()) {
+            Admin admin = adminOpt.get();
+            userInfoBuilder
+                    .userType("ADMIN")
+                    .dataCriacao(admin.getDtCriacao())
+                    .adminInfo(buildAdminInfo(admin));
+
+            return userInfoBuilder.build();
+        }
+
         // Se não encontrar em nenhum dos dois, retornar apenas dados básicos
         return userInfoBuilder
                 .userType("USER")
@@ -90,7 +108,7 @@ public class UserInfoService {
 
     private FuncionarioInfoDTO buildFuncionarioInfo(Funcionario funcionario) {
         return FuncionarioInfoDTO.builder()
-                .foto(funcionario.getFoto())
+                .foto(funcionario.getFotoPerfil())
                 .dataNasc(funcionario.getDataNasc())
                 .dataContratacao(funcionario.getDataContratacao())
                 .sexo(funcionario.getSexo())
@@ -104,9 +122,18 @@ public class UserInfoService {
                 .jornadaSemanal(funcionario.getJornadaSemanal())
                 .isVisivelExterno(funcionario.isVisivelExterno())
                 .role(funcionario.getRole())
-                .endereco(buildEndereco(funcionario))
-                .documentos(buildDocumentos(funcionario))
-                .dadosBancarios(buildDadosBancarios(funcionario))
+//                .endereco(buildEndereco(funcionario))
+//                .documentos(buildDocumentos(funcionario))
+//                .dadosBancarios(buildDadosBancarios(funcionario))
+                .build();
+    }
+
+    private AdminInfoDTO buildAdminInfo(Admin admin) {
+        return AdminInfoDTO.builder()
+                .nomeCompleto(admin.getNomeCompleto())
+                .email(admin.getEmail())
+                .dtCriacao(admin.getDtCriacao())
+                .role(admin.getRole())
                 .build();
     }
 

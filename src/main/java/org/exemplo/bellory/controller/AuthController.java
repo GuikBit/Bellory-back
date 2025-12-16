@@ -76,13 +76,13 @@ public class AuthController {
 
             OrganizacaoInfoDTO organizacaoInfo = new OrganizacaoInfoDTO();
             organizacaoInfo.setId(org.getId());
-            organizacaoInfo.setNome(org.getNome());
+            organizacaoInfo.setNome(org.getNomeFantasia());
             organizacaoInfo.setDtCadastro(org.getDtCadastro());
             organizacaoInfo.setNomeFantasia(org.getNomeFantasia());
 //            organizacaoInfo.setPlano(org.getPlano());
             organizacaoInfo.setConfigSistema(org.getConfigSistema());
-            organizacaoInfo.setAtivo(org.isAtivo());
-            organizacaoInfo.setLimitesPersonalizados(org.getLimitesPersonalizados());
+            organizacaoInfo.setAtivo(org.getAtivo());
+//            organizacaoInfo.setLimitesPersonalizados(org.getLimitesPersonalizados());
 
             // Gerar token
             String token = tokenService.generateToken(user);

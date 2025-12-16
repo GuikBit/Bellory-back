@@ -204,4 +204,19 @@ public interface ProdutoRepository extends JpaRepository<Produto, Long> {
     default List<Produto> findProdutosComImagens(int limite) {
         return findProdutosComImagens(Pageable.ofSize(limite));
     }
+
+    List<Produto> findByOrganizacao_IdAndAtivoTrueAndDestaqueTrue(Long organizacaoId);
+
+    /**
+     * Busca produtos com estoque disponível e em destaque.
+     */
+    @Query("SELECT p FROM Produto p " +
+            "WHERE p.organizacao.id = :orgId " +
+            "AND p.ativo = true " +
+            "AND p.destaque = true " +
+            "AND (p.quantidadeEstoque IS NULL OR p.quantidadeEstoque > 0) " +
+            "ORDER BY p.nome")
+    List<Produto> findProdutosDestaqueDisponiveis(@Param("orgId") Long organizacaoId);
+
+    List<Produto> findAllByOrganizacao_Id(Long organizacaoId);
 }

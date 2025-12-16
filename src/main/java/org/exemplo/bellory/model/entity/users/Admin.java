@@ -1,0 +1,22 @@
+package org.exemplo.bellory.model.entity.users;
+
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+import org.exemplo.bellory.model.entity.organizacao.Organizacao;
+
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "admin")
+@Getter
+@Setter
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+public class Admin extends User {
+
+    private String role = "ROLE_SUPERADMIN";
+
+    @Column(name = "dt_criacao", columnDefinition = "TIMESTAMP DEFAULT now()")
+    private LocalDateTime dtCriacao;
+}

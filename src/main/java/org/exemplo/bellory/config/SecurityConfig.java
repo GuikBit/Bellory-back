@@ -49,6 +49,7 @@ public class SecurityConfig {
                 "http://localhost:*",
                 "https://dev.bellory.com.br",
                 "https://app.bellory.com.br",
+                "https://*.bellory.com.br",  // Importante para subdomínios
                 "https://localhost:*"
         ));
 
@@ -95,6 +96,8 @@ public class SecurityConfig {
                                 "/api/produto/**",
                                 "/api/cliente/**",
                                 "/api/dashboard/**",
+
+                               "/api/public/site/**",
 
                                 // NOVAS ROTAS MULTI-TENANT
                                 "/api/pages/**",        // Páginas multi-tenant (públicas)

@@ -437,7 +437,7 @@ public class ProdutoService {
         // Relacionamentos
         if (produto.getOrganizacao() != null) {
             dto.setOrganizacaoId(produto.getOrganizacao().getId());
-            dto.setNomeOrganizacao(produto.getOrganizacao().getNome());
+            dto.setNomeOrganizacao(produto.getOrganizacao().getNomeFantasia());
         }
 
         if (produto.getCategoria() != null) {

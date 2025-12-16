@@ -534,6 +534,79 @@ public class AgendamentoService {
     }
 
 
+    //@Transactional
+//    public Agendamento criarAgendamento(Agendamento novoAgendamento) {
+//        // 1. Validar a Data e Hora do Agendamento
+//        if (novoAgendamento.getDtAgendamento().isBefore(LocalDateTime.now())) {
+//            throw new IllegalArgumentException("Não é possível agendar para o passado.");
+//        }
+//
+//        // 2. Calcular a Duração Total dos Serviços
+//        int duracaoTotalMinutos = novoAgendamento.getServicos().stream()
+//                .mapToInt(Servico::getTempoEstimadoMinutos)
+//                .sum();
+//
+//        // 3. Definir o Horário de Término do Agendamento
+//        LocalDateTime dataHoraFimAgendamento = novoAgendamento.getDtAgendamento().plusMinutes(duracaoTotalMinutos);
+//
+//        // 4. Para cada funcionário envolvido no agendamento:
+//        for (Funcionario funcionario : novoAgendamento.getFuncionarios()) {
+//            // a. Verificar a Jornada de Trabalho do Funcionário
+//            DayOfWeek diaSemanaAgendamento = novoAgendamento.getDtAgendamento().getDayOfWeek();
+//            LocalTime horaInicioAgendamento = novoAgendamento.getDtAgendamento().toLocalTime();
+//            LocalTime horaFimAgendamento = dataHoraFimAgendamento.toLocalTime();
+//
+//            // Encontre a jornada de trabalho para o dia específico
+//            JornadaTrabalho jornada = jornadaTrabalhoRepository.findByFuncionarioAndDiaSemana(
+//                    funcionario,
+//                    DiaSemana.fromDayOfWeek(diaSemanaAgendamento) // <- Use o método de conversão
+//            ).orElseThrow(() ->
+//                    new RuntimeException("Funcionário não tem jornada de trabalho definida para este dia.")
+//            );
+//
+//            // Verifica se o agendamento está dentro da jornada
+//            if (horaInicioAgendamento.isBefore(jornada.getHoraInicio()) ||
+//                    horaFimAgendamento.isAfter(jornada.getHoraFim())) {
+//                throw new IllegalArgumentException("Funcionário " + funcionario.getNomeCompleto() + " não está disponível neste horário de acordo com sua jornada.");
+//            }
+//
+//            // b. Verificar Conflitos de Bloqueio na Agenda do Funcionário
+//            List<BloqueioAgenda> bloqueiosConflitantes = disponibilidadeRepository.findByFuncionarioAndInicioBloqueioBetween(
+//                    funcionario,
+//                    novoAgendamento.getDtAgendamento(),
+//                    dataHoraFimAgendamento
+//            );
+//
+//            // Filtra bloqueios que realmente se sobrepõem
+//            boolean temConflito = bloqueiosConflitantes.stream().anyMatch(bloqueio ->
+//                    (novoAgendamento.getDtAgendamento().isBefore(bloqueio.getFimBloqueio()) &&
+//                            dataHoraFimAgendamento.isAfter(bloqueio.getInicioBloqueio()))
+//            );
+//
+//            if (temConflito) {
+//                throw new IllegalArgumentException("Funcionário " + funcionario.getNomeCompleto() + " já possui um bloqueio na agenda neste período.");
+//            }
+//        }
+//
+//        // 5. Se todas as validações passarem, salve o agendamento
+//        Agendamento agendamentoSalvo = agendamentoRepository.save(novoAgendamento);
+//
+//        // 6. Crie os Bloqueios de Agenda para os funcionários envolvidos
+//        for (Funcionario funcionario : novoAgendamento.getFuncionarios()) {
+//            BloqueioAgenda bloqueio = new BloqueioAgenda(
+//                    funcionario,
+//                    novoAgendamento.getDtAgendamento(),
+//                    dataHoraFimAgendamento,
+//                    "Agendamento de Serviço",
+//                    TipoBloqueio.AGENDAMENTO,
+//                    agendamentoSalvo
+//            );
+//            disponibilidadeRepository.save(bloqueio);
+//        }
+//
+//        return agendamentoSalvo;
+//    }
+
     @Transactional
     public Agendamento criarAgendamento(Agendamento novoAgendamento) {
         // 1. Validar a Data e Hora do Agendamento
@@ -547,45 +620,11 @@ public class AgendamentoService {
                 .sum();
 
         // 3. Definir o Horário de Término do Agendamento
-        LocalDateTime dataHoraFimAgendamento = novoAgendamento.getDtAgendamento().plusMinutes(duracaoTotalMinutos);
+        LocalDateTime dataHoraFimAgendamento = novoAgendamento.getDtAgendamento().plusMinutes(duracaoTotalMinutos+15);
 
-        // 4. Para cada funcionário envolvido no agendamento:
+        // 4. Para cada funcionário envolvido no agendamento, validar disponibilidade
         for (Funcionario funcionario : novoAgendamento.getFuncionarios()) {
-            // a. Verificar a Jornada de Trabalho do Funcionário
-            DayOfWeek diaSemanaAgendamento = novoAgendamento.getDtAgendamento().getDayOfWeek();
-            LocalTime horaInicioAgendamento = novoAgendamento.getDtAgendamento().toLocalTime();
-            LocalTime horaFimAgendamento = dataHoraFimAgendamento.toLocalTime();
-
-            // Encontre a jornada de trabalho para o dia específico
-            JornadaTrabalho jornada = jornadaTrabalhoRepository.findByFuncionarioAndDiaSemana(
-                    funcionario,
-                    DiaSemana.fromDayOfWeek(diaSemanaAgendamento) // <- Use o método de conversão
-            ).orElseThrow(() ->
-                    new RuntimeException("Funcionário não tem jornada de trabalho definida para este dia.")
-            );
-
-            // Verifica se o agendamento está dentro da jornada
-            if (horaInicioAgendamento.isBefore(jornada.getHoraInicio()) ||
-                    horaFimAgendamento.isAfter(jornada.getHoraFim())) {
-                throw new IllegalArgumentException("Funcionário " + funcionario.getNomeCompleto() + " não está disponível neste horário de acordo com sua jornada.");
-            }
-
-            // b. Verificar Conflitos de Bloqueio na Agenda do Funcionário
-            List<BloqueioAgenda> bloqueiosConflitantes = disponibilidadeRepository.findByFuncionarioAndInicioBloqueioBetween(
-                    funcionario,
-                    novoAgendamento.getDtAgendamento(),
-                    dataHoraFimAgendamento
-            );
-
-            // Filtra bloqueios que realmente se sobrepõem
-            boolean temConflito = bloqueiosConflitantes.stream().anyMatch(bloqueio ->
-                    (novoAgendamento.getDtAgendamento().isBefore(bloqueio.getFimBloqueio()) &&
-                            dataHoraFimAgendamento.isAfter(bloqueio.getInicioBloqueio()))
-            );
-
-            if (temConflito) {
-                throw new IllegalArgumentException("Funcionário " + funcionario.getNomeCompleto() + " já possui um bloqueio na agenda neste período.");
-            }
+            validarDisponibilidade(funcionario, novoAgendamento.getDtAgendamento(), dataHoraFimAgendamento, duracaoTotalMinutos);
         }
 
         // 5. Se todas as validações passarem, salve o agendamento
@@ -621,27 +660,67 @@ public class AgendamentoService {
         LocalTime horaInicioAgendamento = inicioAgendamento.toLocalTime();
         LocalTime horaFimAgendamento = fimAgendamento.toLocalTime();
 
-        // 1. Verificar a Jornada de Trabalho
-        JornadaTrabalho jornada = jornadaTrabalhoRepository.findByFuncionarioAndDiaSemana(
-                funcionario,
-                DiaSemana.fromDayOfWeek(diaSemanaAgendamento) // <- Use o método de conversão aqui também
-        ).orElseThrow(() -> new RuntimeException("Funcionário não tem jornada de trabalho definida para este dia."));
+        // 1. Verificar a Jornada de Trabalho (NOVO MODELO)
+        DiaSemana diaSemanaEnum = DiaSemana.fromDayOfWeek(diaSemanaAgendamento);
 
-        if (horaInicioAgendamento.isBefore(jornada.getHoraInicio()) ||
-                horaFimAgendamento.isAfter(jornada.getHoraFim())) {
-            throw new IllegalArgumentException("Funcionário " + funcionario.getNomeCompleto() + " não está disponível neste horário de acordo com sua jornada.");
+        JornadaDia jornadaDia = funcionario.getJornadasDia().stream()
+                .filter(j -> j.getDiaSemana().equals(diaSemanaEnum) && j.getAtivo())
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException(
+                        "Funcionário " + funcionario.getNomeCompleto() + " não tem jornada de trabalho ativa para " + diaSemanaEnum.getDescricao() + "."
+                ));
+
+        // Verificar se há horários de trabalho definidos
+        if (jornadaDia.getHorarios() == null || jornadaDia.getHorarios().isEmpty()) {
+            throw new RuntimeException(
+                    "Funcionário " + funcionario.getNomeCompleto() + " não possui horários de trabalho definidos para " + diaSemanaEnum.getDescricao() + "."
+            );
         }
 
-        // 2. Verificar Conflitos de Bloqueio
-        List<BloqueioAgenda> bloqueiosConflitantes = disponibilidadeRepository.findByFuncionarioAndInicioBloqueioBetween(
-                funcionario, inicioAgendamento.toLocalDate().atStartOfDay(), inicioAgendamento.toLocalDate().plusDays(1).atStartOfDay());
+        // 2. Validar se o agendamento está dentro de algum período de trabalho
+        boolean dentroDeAlgumPeriodo = jornadaDia.getHorarios().stream()
+                .anyMatch(horario -> {
+                    LocalTime horaInicioTrabalho = horario.getHoraInicio();
+                    LocalTime horaFimTrabalho = horario.getHoraFim();
 
-        boolean temConflito = bloqueiosConflitantes.stream().anyMatch(bloqueio ->
-                (inicioAgendamento.isBefore(bloqueio.getFimBloqueio()) && fimAgendamento.isAfter(bloqueio.getInicioBloqueio()))
-        );
+                    // O agendamento deve começar e terminar dentro do mesmo período
+                    return !horaInicioAgendamento.isBefore(horaInicioTrabalho)
+                            && !horaFimAgendamento.isAfter(horaFimTrabalho);
+                });
+
+        if (!dentroDeAlgumPeriodo) {
+            // Montar mensagem com os períodos disponíveis
+            String periodosDisponiveis = jornadaDia.getHorarios().stream()
+                    .map(h -> h.getHoraInicio() + " às " + h.getHoraFim())
+                    .collect(Collectors.joining(", "));
+
+            throw new IllegalArgumentException(
+                    "Funcionário " + funcionario.getNomeCompleto() +
+                            " não está disponível neste horário. Períodos de trabalho: " + periodosDisponiveis
+            );
+        }
+
+        // 3. Verificar Conflitos de Bloqueio (EXCLUINDO AGENDAMENTOS)
+        List<BloqueioAgenda> bloqueiosConflitantes = disponibilidadeRepository
+                .findByFuncionarioAndInicioBloqueioBetween(
+                        funcionario,
+                        inicioAgendamento.toLocalDate().atStartOfDay(),
+                        inicioAgendamento.toLocalDate().plusDays(1).atStartOfDay()
+                );
+
+        // Filtrar apenas bloqueios que NÃO são do tipo AGENDAMENTO
+        boolean temConflito = bloqueiosConflitantes.stream()
+                .filter(bloqueio -> !bloqueio.getTipoBloqueio().equals(TipoBloqueio.AGENDAMENTO))
+                .anyMatch(bloqueio ->
+                        (inicioAgendamento.isBefore(bloqueio.getFimBloqueio()) &&
+                                fimAgendamento.isAfter(bloqueio.getInicioBloqueio()))
+                );
 
         if (temConflito) {
-            throw new IllegalArgumentException("Funcionário " + funcionario.getNomeCompleto() + " já possui um bloqueio na agenda neste período.");
+            throw new IllegalArgumentException(
+                    "Funcionário " + funcionario.getNomeCompleto() +
+                            " já possui um bloqueio na agenda neste período."
+            );
         }
     }
 
@@ -650,7 +729,10 @@ public class AgendamentoService {
         Funcionario funcionario = funcionarioRepository.findById(request.getFuncionarioId())
                 .orElseThrow(() -> new RuntimeException("Funcionário não encontrado."));
 
-        // 2. Calcular a Duração Total dos Serviços + Tolerância
+        // 2. Validar organização
+        validarOrganizacao(funcionario.getOrganizacao().getId());
+
+        // 3. Calcular a Duração Total dos Serviços + Tolerância
         int duracaoServicos = request.getServicoIds().stream()
                 .map(servicoRepository::findById)
                 .filter(Optional::isPresent)
@@ -660,101 +742,162 @@ public class AgendamentoService {
 
         int duracaoTotalNecessaria = duracaoServicos + TOLERANCIA_MINUTOS;
 
-        // 3. Obter a Jornada de Trabalho para o dia desejado
+        // 4. Obter a JornadaDia para o dia da semana desejado
         DayOfWeek diaDaSemana = request.getDataDesejada().getDayOfWeek();
-        JornadaTrabalho jornada = jornadaTrabalhoRepository.findByFuncionarioAndDiaSemana(
-                        funcionario, DiaSemana.fromDayOfWeek(diaDaSemana))
+        DiaSemana diaSemanaEnum = DiaSemana.fromDayOfWeek(diaDaSemana);
+
+        JornadaDia jornadaDia = funcionario.getJornadasDia().stream()
+                .filter(j -> j.getDiaSemana().equals(diaSemanaEnum) && j.getAtivo())
+                .findFirst()
                 .orElse(null);
 
-        if (jornada == null) {
+        // Se não há jornada ativa para o dia, retorna vazio
+        if (jornadaDia == null || jornadaDia.getHorarios() == null || jornadaDia.getHorarios().isEmpty()) {
             return new ArrayList<>();
         }
 
-        // 4. Obter todos os bloqueios para o funcionário no dia
+        // 5. Obter TODOS os bloqueios para o funcionário no dia (INCLUINDO AGENDAMENTOS)
         LocalDateTime inicioDoDia = request.getDataDesejada().atStartOfDay();
         LocalDateTime fimDoDia = request.getDataDesejada().plusDays(1).atStartOfDay().minusNanos(1);
 
         List<BloqueioAgenda> bloqueios = disponibilidadeRepository.findByFuncionarioAndInicioBloqueioBetween(
                 funcionario, inicioDoDia, fimDoDia);
 
-        List<BloqueioAgenda> todosBloqueiosOrdenados = new ArrayList<>(bloqueios);
+        // INCLUIR TODOS os bloqueios (incluindo AGENDAMENTO)
+        List<BloqueioAgenda> bloqueiosValidos = new ArrayList<>(bloqueios);
 
-        todosBloqueiosOrdenados.add(new BloqueioAgenda(
-                funcionario,
-                request.getDataDesejada().atStartOfDay(),
-                request.getDataDesejada().atTime(jornada.getHoraInicio()),
-                "Fora da Jornada (Antes)",
-                TipoBloqueio.OUTRO, null
-        ));
-        todosBloqueiosOrdenados.add(new BloqueioAgenda(
-                funcionario,
-                request.getDataDesejada().atTime(jornada.getHoraFim()),
-                request.getDataDesejada().plusDays(1).atStartOfDay(),
-                "Fora da Jornada (Depois)",
-                TipoBloqueio.OUTRO, null
-        ));
+        // ✅ NOVO: Adicionar bloqueio para horários no passado se for o dia atual
+        LocalDateTime agora = LocalDateTime.now();
+        boolean isDiaAtual = request.getDataDesejada().isEqual(agora.toLocalDate());
 
-        todosBloqueiosOrdenados.sort(Comparator.comparing(BloqueioAgenda::getInicioBloqueio));
+        if (isDiaAtual) {
+            // Criar bloqueio virtual do início do dia até o momento atual
+            bloqueiosValidos.add(new BloqueioAgenda(
+                    funcionario,
+                    inicioDoDia,
+                    agora,
+                    "Horário já passou",
+                    TipoBloqueio.OUTRO,
+                    null
+            ));
+        }
 
+        // 6. Processar cada período de trabalho do dia
         List<HorarioDisponivelResponse> horariosDisponiveis = new ArrayList<>();
-        LocalDateTime ponteiroAtual = request.getDataDesejada().atTime(jornada.getHoraInicio());
 
-        for (BloqueioAgenda bloqueio : todosBloqueiosOrdenados) {
-            LocalDateTime inicioBloqueioAtual = bloqueio.getInicioBloqueio();
-            LocalDateTime fimBloqueioAtual = bloqueio.getFimBloqueio();
+        for (HorarioTrabalho horarioTrabalho : jornadaDia.getHorarios()) {
+            LocalDateTime inicioTrabalho = request.getDataDesejada().atTime(horarioTrabalho.getHoraInicio());
+            LocalDateTime fimTrabalho = request.getDataDesejada().atTime(horarioTrabalho.getHoraFim());
 
-            inicioBloqueioAtual = inicioBloqueioAtual.isBefore(inicioDoDia) ? inicioDoDia : inicioBloqueioAtual;
-            fimBloqueioAtual = fimBloqueioAtual.isAfter(fimDoDia) ? fimDoDia : fimBloqueioAtual;
+            // 7. Criar lista de bloqueios para este período específico
+            List<BloqueioAgenda> bloqueiosDoPeriodo = new ArrayList<>();
 
-            if (ponteiroAtual.isBefore(inicioBloqueioAtual)) {
-                long duracaoGapMinutos = java.time.Duration.between(ponteiroAtual, inicioBloqueioAtual).toMinutes();
+            // Adicionar bloqueio ANTES do início do trabalho (desde o início do dia)
+            bloqueiosDoPeriodo.add(new BloqueioAgenda(
+                    funcionario,
+                    inicioDoDia,
+                    inicioTrabalho,
+                    "Fora da Jornada (Antes)",
+                    TipoBloqueio.OUTRO,
+                    null
+            ));
 
-                while (duracaoGapMinutos >= duracaoTotalNecessaria) {
+            // Adicionar bloqueios reais que estão dentro ou próximos deste período
+            bloqueiosValidos.forEach(bloqueio -> {
+                LocalDateTime inicioBloqueio = bloqueio.getInicioBloqueio().isBefore(inicioDoDia)
+                        ? inicioDoDia : bloqueio.getInicioBloqueio();
+                LocalDateTime fimBloqueio = bloqueio.getFimBloqueio().isAfter(fimDoDia)
+                        ? fimDoDia : bloqueio.getFimBloqueio();
+
+                // Adiciona apenas se o bloqueio intercepta este período de trabalho
+                if (inicioBloqueio.isBefore(fimTrabalho) && fimBloqueio.isAfter(inicioTrabalho)) {
+                    bloqueiosDoPeriodo.add(new BloqueioAgenda(
+                            funcionario,
+                            inicioBloqueio,
+                            fimBloqueio,
+                            bloqueio.getDescricao(),
+                            bloqueio.getTipoBloqueio(),
+                            null
+                    ));
+                }
+            });
+
+            // Adicionar bloqueio DEPOIS do fim do trabalho (até o fim do dia)
+            bloqueiosDoPeriodo.add(new BloqueioAgenda(
+                    funcionario,
+                    fimTrabalho,
+                    fimDoDia,
+                    "Fora da Jornada (Depois)",
+                    TipoBloqueio.OUTRO,
+                    null
+            ));
+
+            // Ordenar bloqueios
+            bloqueiosDoPeriodo.sort(Comparator.comparing(BloqueioAgenda::getInicioBloqueio));
+
+            // 8. Encontrar horários disponíveis entre os bloqueios
+            LocalDateTime ponteiroAtual = inicioTrabalho;
+
+            for (BloqueioAgenda bloqueio : bloqueiosDoPeriodo) {
+                LocalDateTime inicioBloqueioAtual = bloqueio.getInicioBloqueio();
+                LocalDateTime fimBloqueioAtual = bloqueio.getFimBloqueio();
+
+                // Verificar se há espaço antes do bloqueio
+                if (ponteiroAtual.isBefore(inicioBloqueioAtual)) {
+                    long duracaoGapMinutos = java.time.Duration.between(ponteiroAtual, inicioBloqueioAtual).toMinutes();
+
+                    // Gerar slots disponíveis neste gap
+                    while (duracaoGapMinutos >= duracaoTotalNecessaria) {
+                        LocalDateTime slotFim = ponteiroAtual.plusMinutes(duracaoServicos);
+
+                        if (slotFim.isAfter(inicioBloqueioAtual) || slotFim.isAfter(fimTrabalho)) {
+                            break;
+                        }
+
+                        if (slotFim.toLocalDate().isEqual(request.getDataDesejada())) {
+                            horariosDisponiveis.add(new HorarioDisponivelResponse(
+                                    ponteiroAtual.toLocalTime(),
+                                    slotFim.toLocalTime(),
+                                    ponteiroAtual.toLocalTime() + " - " + slotFim.toLocalTime()
+                            ));
+                        }
+
+                        ponteiroAtual = slotFim.plusMinutes(TOLERANCIA_MINUTOS);
+                        duracaoGapMinutos = java.time.Duration.between(ponteiroAtual, inicioBloqueioAtual).toMinutes();
+                    }
+                }
+
+                // Avançar o ponteiro para o fim do bloqueio
+                ponteiroAtual = ponteiroAtual.isAfter(fimBloqueioAtual) ? ponteiroAtual : fimBloqueioAtual;
+            }
+
+            // 9. Verificar se há espaço disponível após o último bloqueio até o fim da jornada
+            if (ponteiroAtual.isBefore(fimTrabalho)) {
+                long duracaoFinalGapMinutos = java.time.Duration.between(ponteiroAtual, fimTrabalho).toMinutes();
+
+                while (duracaoFinalGapMinutos >= duracaoTotalNecessaria) {
                     LocalDateTime slotFim = ponteiroAtual.plusMinutes(duracaoServicos);
-                    if (slotFim.isAfter(inicioBloqueioAtual)) {
+
+                    if (slotFim.isAfter(fimTrabalho)) {
                         break;
                     }
 
-                    if (slotFim.toLocalDate().isEqual(request.getDataDesejada())) {
-                        horariosDisponiveis.add(new HorarioDisponivelResponse(
-                                ponteiroAtual.toLocalTime(),
-                                slotFim.toLocalTime(),
-                                ponteiroAtual.toLocalTime() + " - " + slotFim.toLocalTime()
-                        ));
-                    }
+                    horariosDisponiveis.add(new HorarioDisponivelResponse(
+                            ponteiroAtual.toLocalTime(),
+                            slotFim.toLocalTime(),
+                            ponteiroAtual.toLocalTime() + " - " + slotFim.toLocalTime()
+                    ));
 
                     ponteiroAtual = slotFim.plusMinutes(TOLERANCIA_MINUTOS);
-                    duracaoGapMinutos = java.time.Duration.between(ponteiroAtual, inicioBloqueioAtual).toMinutes();
+                    duracaoFinalGapMinutos = java.time.Duration.between(ponteiroAtual, fimTrabalho).toMinutes();
                 }
-            }
-
-            ponteiroAtual = ponteiroAtual.isAfter(fimBloqueioAtual) ? ponteiroAtual : fimBloqueioAtual;
-        }
-
-        LocalDateTime fimDaJornada = request.getDataDesejada().atTime(jornada.getHoraFim());
-        if (ponteiroAtual.isBefore(fimDaJornada)) {
-            long duracaoFinalGapMinutos = java.time.Duration.between(ponteiroAtual, fimDaJornada).toMinutes();
-            while (duracaoFinalGapMinutos >= duracaoTotalNecessaria) {
-                LocalDateTime slotFim = ponteiroAtual.plusMinutes(duracaoServicos);
-                if (slotFim.isAfter(fimDaJornada)) {
-                    break;
-                }
-                horariosDisponiveis.add(new HorarioDisponivelResponse(
-                        ponteiroAtual.toLocalTime(),
-                        slotFim.toLocalTime(),
-                        ponteiroAtual.toLocalTime() + " - " + slotFim.toLocalTime()
-                ));
-                ponteiroAtual = slotFim.plusMinutes(TOLERANCIA_MINUTOS);
-                duracaoFinalGapMinutos = java.time.Duration.between(ponteiroAtual, fimDaJornada).toMinutes();
             }
         }
 
-        LocalTime inicioJornada = jornada.getHoraInicio();
-        LocalTime fimJornada = jornada.getHoraFim();
-
+        // 10. Ordenar e retornar os horários disponíveis
         return horariosDisponiveis.stream()
-                .filter(horario -> !horario.getHoraInicio().isBefore(inicioJornada) && !horario.getHoraFim().isAfter(fimJornada))
                 .sorted(Comparator.comparing(HorarioDisponivelResponse::getHoraInicio))
+                .distinct() // Remove possíveis duplicatas entre períodos
                 .collect(Collectors.toList());
     }
 

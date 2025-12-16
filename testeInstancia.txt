@@ -1,0 +1,763 @@
+# 📱 Integração Evolution API - Spring Boot
+
+## 📋 Visão Geral
+
+Sistema completo de integração com **Evolution API v2.3.6** para gerenciamento de instâncias WhatsApp em aplicações de agendamento (barbearias, salões de beleza, etc).
+
+---
+
+## 🚀 Instalação e Configuração
+
+### 1. Adicionar Dependências no `pom.xml`
+
+```xml
+<!-- Já deve estar no projeto -->
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-web</artifactId>
+</dependency>
+
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-data-jpa</artifactId>
+</dependency>
+
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-validation</artifactId>
+</dependency>
+
+<!-- Para comunicação HTTP -->
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-webflux</artifactId>
+</dependency>
+```
+
+### 2. Configurar `application.properties`
+
+```properties
+# Evolution API Configuration
+evolution.api.url=http://localhost:8080
+evolution.api.key=SUA_CHAVE_API_AQUI
+
+# Timeout configurations
+spring.http.client.connect-timeout=5000
+spring.http.client.read-timeout=30000
+```
+
+### 3. Executar Migration SQL
+
+Execute o arquivo `V001__create_table_instance.sql` no seu banco de dados:
+
+```bash
+# MySQL
+mysql -u usuario -p database_name < V001__create_table_instance.sql
+
+# Ou deixe o Flyway/Liquibase executar automaticamente
+```
+
+### 4. Adicionar Arquivos ao Projeto
+
+Copie os seguintes arquivos para as respectivas pastas:
+
+```
+src/main/java/org/exemplo/bellory/
+├── model/
+│   ├── entity/whatsapp/
+│   │   ├── Instance.java
+│   │   └── InstanceStatus.java
+│   ├── dto/whatsapp/
+│   │   ├── InstanceDTO.java
+│   │   ├── InstanceCreateDTO.java
+│   │   ├── InstanceUpdateDTO.java
+│   │   └── WhatsAppMessagingDTOs.java
+│   └── repository/whatsapp/
+│       └── InstanceRepository.java
+├── service/
+│   └── InstanceService.java
+├── controller/
+│   └── InstanceController.java
+└── config/
+    └── RestTemplateConfig.java
+```
+
+---
+
+## 📡 Endpoints da API
+
+### Base URL
+```
+http://localhost:8080/api/instances
+```
+
+---
+
+### 1️⃣ Criar Nova Instância
+
+**POST** `/api/instances`
+
+Cria uma nova instância do WhatsApp no Evolution API.
+
+**Request Body:**
+```json
+{
+  "instanceName": "barbearia_centro",
+  "webhookUrl": "https://seu-dominio.com/webhook",
+  "webhookEnabled": true,
+  "webhookEvents": [
+    "MESSAGES_UPSERT",
+    "CONNECTION_UPDATE",
+    "QRCODE_UPDATED"
+  ],
+  "rejectCall": true,
+  "msgCall": "Desculpe, não aceitamos ligações. Por favor, envie mensagem.",
+  "groupsIgnore": true,
+  "alwaysOnline": true,
+  "readMessages": true,
+  "readStatus": false,
+  "description": "WhatsApp principal da barbearia"
+}
+```
+
+**Response (201 Created):**
+```json
+{
+  "success": true,
+  "message": "Instância criada com sucesso. Escaneie o QR Code para conectar.",
+  "dados": {
+    "id": 1,
+    "instanceName": "barbearia_centro",
+    "qrcode": "data:image/png;base64,iVBORw0KGgo...",
+    "status": "DISCONNECTED",
+    "phoneNumber": null,
+    "profileName": null,
+    "webhookUrl": "https://seu-dominio.com/webhook",
+    "webhookEnabled": true,
+    "webhookEvents": ["MESSAGES_UPSERT", "CONNECTION_UPDATE"],
+    "organizacaoId": 1,
+    "organizacaoNome": "Barbearia Centro",
+    "isActive": true,
+    "createdAt": "2024-01-15T10:30:00"
+  }
+}
+```
+
+**Exemplo Java (RestTemplate):**
+```java
+InstanceCreateDTO dto = new InstanceCreateDTO();
+dto.setInstanceName("barbearia_centro");
+dto.setRejectCall(true);
+dto.setGroupsIgnore(true);
+
+ResponseEntity<ResponseAPI<InstanceDTO>> response = restTemplate.postForEntity(
+    "http://localhost:8080/api/instances",
+    dto,
+    new ParameterizedTypeReference<ResponseAPI<InstanceDTO>>() {}
+);
+
+InstanceDTO instance = response.getBody().getDados();
+```
+
+---
+
+### 2️⃣ Listar Todas as Instâncias
+
+**GET** `/api/instances`
+
+Lista todas as instâncias da organização atual.
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "Instâncias recuperadas com sucesso.",
+  "dados": [
+    {
+      "id": 1,
+      "instanceName": "barbearia_centro",
+      "status": "CONNECTED",
+      "phoneNumber": "5511999999999",
+      "profileName": "Barbearia Centro",
+      "organizacaoId": 1,
+      "isActive": true
+    },
+    {
+      "id": 2,
+      "instanceName": "barbearia_filial",
+      "status": "DISCONNECTED",
+      "phoneNumber": null,
+      "organizacaoId": 1,
+      "isActive": true
+    }
+  ]
+}
+```
+
+---
+
+### 3️⃣ Buscar Instância por ID
+
+**GET** `/api/instances/{id}`
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "Instância encontrada com sucesso.",
+  "dados": {
+    "id": 1,
+    "instanceName": "barbearia_centro",
+    "status": "CONNECTED",
+    "phoneNumber": "5511999999999",
+    "profileName": "Barbearia Centro",
+    "profilePictureUrl": "https://...",
+    "webhookUrl": "https://seu-dominio.com/webhook",
+    "organizacaoId": 1
+  }
+}
+```
+
+---
+
+### 4️⃣ Atualizar Instância
+
+**PUT** `/api/instances/{id}`
+
+**Request Body:**
+```json
+{
+  "webhookUrl": "https://novo-webhook.com/webhook",
+  "webhookEnabled": true,
+  "rejectCall": false,
+  "alwaysOnline": false,
+  "description": "Atualizado para novo webhook"
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "Instância atualizada com sucesso.",
+  "dados": { ... }
+}
+```
+
+---
+
+### 5️⃣ Deletar Instância
+
+**DELETE** `/api/instances/{id}`
+
+Remove a instância do Evolution API e do banco de dados.
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "Instância deletada com sucesso."
+}
+```
+
+---
+
+### 6️⃣ Obter QR Code
+
+**GET** `/api/instances/{id}/qrcode`
+
+Retorna o QR Code em base64 para conectar o WhatsApp.
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "QR Code obtido com sucesso. Escaneie para conectar.",
+  "dados": {
+    "base64": "data:image/png;base64,iVBORw0KGgo...",
+    "instanceName": "barbearia_centro"
+  }
+}
+```
+
+**Exemplo de uso no Frontend:**
+```html
+<img src="data:image/png;base64,iVBORw0KGgo..." alt="QR Code WhatsApp" />
+```
+
+---
+
+### 7️⃣ Verificar Status de Conexão
+
+**GET** `/api/instances/{id}/status`
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "Status da conexão obtido com sucesso.",
+  "dados": {
+    "state": "open",
+    "instance": {
+      "instanceName": "barbearia_centro",
+      "phoneNumber": "5511999999999",
+      "profileName": "Barbearia Centro",
+      "profilePictureUrl": "https://...",
+      "status": "connected"
+    }
+  }
+}
+```
+
+**Estados possíveis:**
+- `disconnected`: Desconectado
+- `connecting`: Conectando
+- `open`: Conectado e pronto
+- `connected`: Conectado
+
+---
+
+### 8️⃣ Desconectar Instância (Logout)
+
+**POST** `/api/instances/{id}/logout`
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "Instância desconectada com sucesso."
+}
+```
+
+---
+
+### 9️⃣ Reiniciar Instância
+
+**POST** `/api/instances/{id}/restart`
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "Instância reiniciada com sucesso."
+}
+```
+
+---
+
+### 🔟 Enviar Mensagem de Texto
+
+**POST** `/api/instances/{id}/send-text`
+
+**Request Body:**
+```json
+{
+  "number": "5511999999999",
+  "text": "Olá! Seu agendamento foi confirmado para amanhã às 14h. 😊"
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "Mensagem enviada com sucesso.",
+  "dados": {
+    "key": {
+      "remoteJid": "5511999999999@s.whatsapp.net",
+      "fromMe": true,
+      "id": "BAE5F3..."
+    },
+    "message": {
+      "conversation": "Olá! Seu agendamento foi confirmado..."
+    },
+    "messageTimestamp": "1705326000"
+  }
+}
+```
+
+---
+
+## 🎯 Casos de Uso Práticos
+
+### 1. Confirmação de Agendamento
+
+```java
+@Service
+public class AgendamentoNotificationService {
+
+    @Autowired
+    private InstanceService instanceService;
+
+    @Autowired
+    private InstanceRepository instanceRepository;
+
+    public void enviarConfirmacaoAgendamento(Agendamento agendamento) {
+        // Buscar instância ativa da organização
+        List<Instance> instances = instanceRepository
+            .findByOrganizacaoIdAndStatusIn(
+                agendamento.getOrganizacao().getId(),
+                Arrays.asList(InstanceStatus.OPEN, InstanceStatus.CONNECTED)
+            );
+
+        if (instances.isEmpty()) {
+            log.warn("Nenhuma instância conectada para enviar mensagem");
+            return;
+        }
+
+        Instance instance = instances.get(0);
+
+        // Montar mensagem
+        String mensagem = String.format(
+            """
+            Olá %s! 👋
+
+            Seu agendamento foi confirmado! ✅
+
+            📅 Data: %s
+            ⏰ Horário: %s
+            💈 Serviço: %s
+            👨‍🦲 Profissional: %s
+
+            Endereço: %s
+
+            Chegue com 10 minutos de antecedência.
+
+            Até lá! 😊
+            """,
+            agendamento.getCliente().getNome(),
+            agendamento.getDtAgendamento().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
+            agendamento.getDtAgendamento().format(DateTimeFormatter.ofPattern("HH:mm")),
+            agendamento.getServicos().stream()
+                .map(Servico::getNome)
+                .collect(Collectors.joining(", ")),
+            agendamento.getFuncionarios().get(0).getNome(),
+            agendamento.getOrganizacao().getEndereco()
+        );
+
+        // Enviar mensagem
+        SendTextMessageDTO dto = new SendTextMessageDTO();
+        dto.setNumber(agendamento.getCliente().getTelefone());
+        dto.setText(mensagem);
+
+        try {
+            instanceService.sendTextMessage(instance.getId(), dto);
+            log.info("Confirmação enviada para: {}", agendamento.getCliente().getTelefone());
+        } catch (Exception e) {
+            log.error("Erro ao enviar confirmação: {}", e.getMessage());
+        }
+    }
+}
+```
+
+### 2. Lembrete Automático (1 dia antes)
+
+```java
+@Service
+public class LembreteAgendamentoService {
+
+    @Scheduled(cron = "0 0 9 * * *") // Todos os dias às 9h
+    public void enviarLembretes() {
+        LocalDate amanha = LocalDate.now().plusDays(1);
+        LocalDateTime inicioDia = amanha.atStartOfDay();
+        LocalDateTime fimDia = amanha.atTime(23, 59, 59);
+
+        List<Agendamento> agendamentos = agendamentoRepository
+            .findByDtAgendamentoBetween(inicioDia, fimDia);
+
+        for (Agendamento agendamento : agendamentos) {
+            enviarLembrete(agendamento);
+        }
+    }
+
+    private void enviarLembrete(Agendamento agendamento) {
+        String mensagem = String.format(
+            """
+            🔔 LEMBRETE
+
+            Olá %s!
+
+            Você tem agendamento AMANHÃ:
+            📅 %s às %s
+            💈 %s
+
+            Nos vemos em breve! ✨
+            """,
+            agendamento.getCliente().getNome(),
+            agendamento.getDtAgendamento().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
+            agendamento.getDtAgendamento().format(DateTimeFormatter.ofPattern("HH:mm")),
+            agendamento.getServicos().stream()
+                .map(Servico::getNome)
+                .collect(Collectors.joining(", "))
+        );
+
+        // Lógica para enviar mensagem...
+    }
+}
+```
+
+### 3. Envio de Promoções em Massa
+
+```java
+@Service
+public class PromocaoService {
+
+    public void enviarPromocaoParaClientes(Long organizacaoId, String mensagem) {
+        // Buscar instância conectada
+        List<Instance> instances = instanceRepository
+            .findByOrganizacaoIdAndStatusIn(
+                organizacaoId,
+                Arrays.asList(InstanceStatus.OPEN, InstanceStatus.CONNECTED)
+            );
+
+        if (instances.isEmpty()) {
+            throw new IllegalStateException("Nenhuma instância conectada");
+        }
+
+        Instance instance = instances.get(0);
+
+        // Buscar clientes da organização
+        List<Cliente> clientes = clienteRepository
+            .findByOrganizacaoIdAndIsActive(organizacaoId, true);
+
+        for (Cliente cliente : clientes) {
+            try {
+                SendTextMessageDTO dto = new SendTextMessageDTO();
+                dto.setNumber(cliente.getTelefone());
+                dto.setText(mensagem);
+
+                instanceService.sendTextMessage(instance.getId(), dto);
+
+                // Aguardar 2 segundos entre envios (evitar bloqueio)
+                Thread.sleep(2000);
+
+            } catch (Exception e) {
+                log.error("Erro ao enviar para {}: {}",
+                    cliente.getTelefone(), e.getMessage());
+            }
+        }
+    }
+}
+```
+
+### 4. Fluxo Completo de Conexão
+
+```java
+@Service
+public class WhatsAppConnectionService {
+
+    public InstanceDTO conectarNovaInstancia(String instanceName) {
+        // 1. Criar instância
+        InstanceCreateDTO createDto = new InstanceCreateDTO();
+        createDto.setInstanceName(instanceName);
+        createDto.setRejectCall(true);
+        createDto.setGroupsIgnore(true);
+        createDto.setAlwaysOnline(true);
+
+        InstanceDTO instance = instanceService.createInstance(createDto);
+        log.info("Instância criada: {}", instance.getId());
+
+        // 2. O QR Code já vem na criação
+        String qrcode = instance.getQrcode();
+        // Exibir QR Code para o usuário escanear
+
+        // 3. Verificar status periodicamente
+        boolean conectado = false;
+        int tentativas = 0;
+        int maxTentativas = 60; // 5 minutos (verificando a cada 5 segundos)
+
+        while (!conectado && tentativas < maxTentativas) {
+            try {
+                Thread.sleep(5000); // Aguardar 5 segundos
+
+                Map<String, Object> status = instanceService
+                    .getConnectionStatus(instance.getId());
+
+                String state = (String) status.get("state");
+
+                if ("open".equals(state) || "connected".equals(state)) {
+                    conectado = true;
+                    log.info("WhatsApp conectado com sucesso!");
+
+                    // Obter dados do perfil
+                    Map<String, Object> instanceInfo =
+                        (Map<String, Object>) status.get("instance");
+
+                    String phoneNumber = (String) instanceInfo.get("phoneNumber");
+                    String profileName = (String) instanceInfo.get("profileName");
+
+                    log.info("Número: {}, Nome: {}", phoneNumber, profileName);
+                }
+
+                tentativas++;
+
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
+
+        if (!conectado) {
+            log.warn("Timeout: WhatsApp não foi conectado dentro do tempo limite");
+        }
+
+        return instanceService.getInstanceById(instance.getId());
+    }
+}
+```
+
+---
+
+## ⚙️ Configurações Avançadas
+
+### Eventos de Webhook Disponíveis
+
+```java
+public enum WebhookEvent {
+    MESSAGES_UPSERT,        // Nova mensagem recebida
+    MESSAGES_UPDATE,        // Mensagem atualizada (lida, entregue)
+    CONNECTION_UPDATE,      // Status de conexão alterado
+    QRCODE_UPDATED,        // QR Code foi atualizado
+    CALL,                  // Chamada recebida
+    GROUPS_UPSERT,         // Grupo criado/atualizado
+    GROUPS_UPDATE,         // Informações do grupo atualizadas
+    GROUP_PARTICIPANTS_UPDATE, // Participantes do grupo atualizados
+    PRESENCE_UPDATE,       // Status de presença (online/offline)
+    CHATS_UPDATE,          // Chat atualizado
+    CHATS_UPSERT,          // Novo chat
+    CHATS_DELETE,          // Chat deletado
+    CONTACTS_UPDATE,       // Contato atualizado
+    CONTACTS_UPSERT        // Novo contato
+}
+```
+
+### Receber Webhooks
+
+```java
+@RestController
+@RequestMapping("/api/webhook")
+public class WebhookController {
+
+    @PostMapping
+    public ResponseEntity<Void> receberWebhook(@RequestBody Map<String, Object> payload) {
+        String event = (String) payload.get("event");
+        String instanceName = (String) payload.get("instance");
+
+        log.info("Webhook recebido - Evento: {}, Instância: {}", event, instanceName);
+
+        switch (event) {
+            case "MESSAGES_UPSERT":
+                processarNovaMensagem(payload);
+                break;
+
+            case "CONNECTION_UPDATE":
+                processarMudancaConexao(payload);
+                break;
+
+            case "QRCODE_UPDATED":
+                processarQRCodeAtualizado(payload);
+                break;
+
+            default:
+                log.debug("Evento não tratado: {}", event);
+        }
+
+        return ResponseEntity.ok().build();
+    }
+
+    private void processarNovaMensagem(Map<String, Object> payload) {
+        Map<String, Object> data = (Map<String, Object>) payload.get("data");
+        List<Map<String, Object>> messages = (List<Map<String, Object>>) data.get("messages");
+
+        for (Map<String, Object> message : messages) {
+            Map<String, Object> key = (Map<String, Object>) message.get("key");
+            String from = (String) key.get("remoteJid");
+            boolean fromMe = (Boolean) key.get("fromMe");
+
+            if (!fromMe) { // Apenas mensagens recebidas
+                Map<String, Object> messageContent = (Map<String, Object>) message.get("message");
+                String text = (String) messageContent.get("conversation");
+
+                log.info("Mensagem de {}: {}", from, text);
+
+                // Aqui você pode implementar lógica de resposta automática
+                // Por exemplo, responder com menu de opções
+            }
+        }
+    }
+
+    private void processarMudancaConexao(Map<String, Object> payload) {
+        Map<String, Object> data = (Map<String, Object>) payload.get("data");
+        String state = (String) data.get("state");
+
+        log.info("Status de conexão mudou para: {}", state);
+
+        // Atualizar no banco de dados se necessário
+    }
+
+    private void processarQRCodeAtualizado(Map<String, Object> payload) {
+        Map<String, Object> data = (Map<String, Object>) payload.get("data");
+        String qrcode = (String) data.get("qrcode");
+
+        log.info("QR Code atualizado");
+
+        // Notificar o usuário para escanear o novo QR Code
+    }
+}
+```
+
+---
+
+## 🔒 Segurança
+
+### Validação Multi-Tenant
+
+O sistema já implementa validação automática de organização:
+
+```java
+// Toda requisição valida se o recurso pertence à organização do usuário
+private void validarOrganizacao(Long entityOrganizacaoId) {
+    Long organizacaoId = TenantContext.getCurrentOrganizacaoId();
+
+    if (!organizacaoId.equals(entityOrganizacaoId)) {
+        throw new SecurityException("Acesso negado");
+    }
+}
+```
+
+---
+
+## ⚠️ Observações Importantes
+
+1. **Rate Limiting**: Aguarde 2-3 segundos entre envios de mensagens para evitar bloqueio do WhatsApp
+2. **Formato de Número**: Use sempre formato internacional: `5511999999999` (código país + DDD + número)
+3. **Backup**: Mantenha backup das instâncias no banco de dados
+4. **Webhooks**: Configure uma URL pública acessível para receber eventos
+5. **Segurança**: Nunca exponha credenciais da Evolution API
+
+---
+
+## 🐛 Troubleshooting
+
+### Instância não conecta
+- Verifique se o QR Code está sendo exibido
+- Confirme se está usando o mesmo telefone
+- Tente reiniciar: `POST /api/instances/{id}/restart`
+
+### Mensagens não são enviadas
+- Verifique se a instância está com status "CONNECTED" ou "OPEN"
+- Confirme o formato do número (5511999999999)
+- Verifique logs do Evolution API
+
+### Webhook não recebe eventos
+- Confirme se a URL está acessível publicamente
+- Teste com ferramentas como webhook.site
+- Verifique os eventos configurados
+
+---
+
+## 📚 Recursos Adicionais
+
+- [Documentação Evolution API](https://doc.evolution-api.com/)
+- [WhatsApp Business Policy](https://www.whatsapp.com/legal/business-policy)
+- [Spring Boot Documentation](https://docs.spring.io/spring-boot/docs/current/reference/html/)

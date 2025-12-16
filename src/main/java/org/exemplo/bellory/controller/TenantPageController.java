@@ -1,4 +1,4 @@
-package org.exemplo.bellory.controller.tenant;
+package org.exemplo.bellory.controller;
 
 import org.exemplo.bellory.config.tenant.TenantContext;
 import org.exemplo.bellory.model.dto.tenant.PageComponentDTO;
@@ -189,7 +189,7 @@ public class TenantPageController {
                 .metaKeywords(page.getMetaKeywords())
                 .dtCriacao(page.getDtCriacao())
                 .dtAtualizacao(page.getDtAtualizacao())
-                .components(componentDTOs)
+//                .components(componentDTOs)
                 .componentCount(componentDTOs.size())
                 .tenant(PageDTO.TenantSummaryDTO.builder()
                         .id(page.getTenant().getId())

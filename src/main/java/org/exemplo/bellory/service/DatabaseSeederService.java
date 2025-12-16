@@ -2,16 +2,22 @@ package org.exemplo.bellory.service;
 
 import org.exemplo.bellory.model.entity.agendamento.Agendamento;
 import org.exemplo.bellory.model.entity.agendamento.Status;
+import org.exemplo.bellory.model.entity.endereco.Endereco;
 import org.exemplo.bellory.model.entity.enums.TipoCategoria;
 import org.exemplo.bellory.model.entity.funcionario.*;
+import org.exemplo.bellory.model.entity.organizacao.AcessoAdm;
 import org.exemplo.bellory.model.entity.organizacao.Organizacao;
+import org.exemplo.bellory.model.entity.organizacao.RedesSociais;
+import org.exemplo.bellory.model.entity.organizacao.Responsavel;
 import org.exemplo.bellory.model.entity.plano.Plano;
 import org.exemplo.bellory.model.entity.produto.Produto;
 import org.exemplo.bellory.model.entity.servico.Categoria;
 import org.exemplo.bellory.model.entity.servico.Servico;
+import org.exemplo.bellory.model.entity.tema.*;
 import org.exemplo.bellory.model.entity.tenant.Page;
 import org.exemplo.bellory.model.entity.tenant.PageComponent;
 import org.exemplo.bellory.model.entity.tenant.Tenant;
+import org.exemplo.bellory.model.entity.users.Admin;
 import org.exemplo.bellory.model.entity.users.Cliente;
 import org.exemplo.bellory.model.entity.users.Role;
 import org.exemplo.bellory.model.repository.agendamento.AgendamentoRepository;
@@ -24,6 +30,7 @@ import org.exemplo.bellory.model.repository.servico.ServicoRepository;
 import org.exemplo.bellory.model.repository.tenant.PageComponentRepository;
 import org.exemplo.bellory.model.repository.tenant.PageRepository;
 import org.exemplo.bellory.model.repository.tenant.TenantRepository;
+import org.exemplo.bellory.model.repository.users.AdminRepository;
 import org.exemplo.bellory.model.repository.users.ClienteRepository;
 import org.exemplo.bellory.model.repository.users.RoleRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -31,6 +38,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.nio.charset.CoderResult;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -51,6 +59,7 @@ public class DatabaseSeederService {
     private final ProdutoRepository produtoRepository;
     private final PasswordEncoder passwordEncoder;
     private final CategoriaRepository categoriaRepository;
+    private final AdminRepository adminRepository;
 
     private final TenantRepository tenantRepository;
     private final PageRepository pageRepository;
@@ -80,7 +89,8 @@ public class DatabaseSeederService {
                                  ServicoRepository servicoRepository, AgendamentoRepository agendamentoRepository,
                                  PlanoRepository planoRepository, ProdutoRepository produtoRepository,
                                  PasswordEncoder passwordEncoder, CategoriaRepository categoriaRepository,
-                                 PageComponentRepository componentRepository, PageRepository pageRepository, TenantRepository tenantRepository) {
+                                 PageComponentRepository componentRepository, PageRepository pageRepository, TenantRepository tenantRepository,
+                                 AdminRepository adminRepository) {
         this.organizacaoRepository = organizacaoRepository;
         this.roleRepository = roleRepository;
         this.funcionarioRepository = funcionarioRepository;
@@ -94,6 +104,7 @@ public class DatabaseSeederService {
         this.componentRepository = componentRepository;
         this.pageRepository = pageRepository;
         this.tenantRepository = tenantRepository;
+        this.adminRepository = adminRepository;
     }
 
     @Transactional
@@ -235,32 +246,252 @@ public class DatabaseSeederService {
         System.out.println("🏢 Criando organizações...");
         List<Organizacao> organizacoes = new ArrayList<>();
 
+        // Dados de exemplo para organizações
         String[][] orgData = {
-                {"Bellory Salon", "Bellory Salon & Spa", "00.000.000/0001-00", "Admin do Sistema", "admin@bellory.com", "000.000.000-00"},
-                {"Studio Elegance", "Studio Elegance Premium", "11.111.111/0001-11", "Maria Fernanda", "contato@elegance.com", "111.111.111-11"},
-                {"Salon Moderno", "Salon Moderno Hair & Beauty", "22.222.222/0001-22", "Carlos Roberto", "info@moderno.com", "222.222.222-22"}
+                // {nomeFantasia, razaoSocial, cnpj, telefone1, telefone2, whatsapp, emailPrincipal,
+                //  inscricaoEstadual, responsavelNome, responsavelEmail, responsavelTelefone,
+                //  adminLogin, adminSenha, adminRole}
+                {
+                        "Bellory Salon",
+                        "Bellory Salon & Spa LTDA",
+                        "00.000.000/0001-00",
+                        "(11) 3000-1000",
+                        "(11) 3000-1001",
+                        "(11) 99000-1000",
+                        "contato@bellorysalon.com.br",
+                        "110.042.490.114",
+                        "Admin do Sistema",
+                        "admin@bellory.com",
+                        "(11) 99999-0001",
+                        "admin",
+                        "admin123",
+                        "ROLE_ADMIN"
+                },
+                {
+                        "Studio Elegance",
+                        "Studio Elegance Premium LTDA",
+                        "11.111.111/0001-11",
+                        "(11) 3100-2000",
+                        "(11) 3100-2001",
+                        "(11) 99100-2000",
+                        "contato@elegance.com.br",
+                        "110.042.490.115",
+                        "Maria Fernanda Silva",
+                        "maria@elegance.com.br",
+                        "(11) 99999-0002",
+                        "elegance_admin",
+                        "elegance123",
+                        "ROLE_ADMIN"
+                },
+                {
+                        "Salon Moderno",
+                        "Salon Moderno Hair & Beauty LTDA",
+                        "22.222.222/0001-22",
+                        "(11) 3200-3000",
+                        "(11) 3200-3001",
+                        "(11) 99200-3000",
+                        "info@moderno.com.br",
+                        "110.042.490.116",
+                        "Carlos Roberto Santos",
+                        "carlos@moderno.com.br",
+                        "(11) 99999-0003",
+                        "moderno_admin",
+                        "moderno123",
+                        "ROLE_ADMIN"
+                }
         };
 
         for (int i = 0; i < orgData.length; i++) {
             String[] data = orgData[i];
             int finalI = i;
-            Organizacao org = organizacaoRepository.findByNome(data[0]).orElseGet(() -> {
+
+            Organizacao org = organizacaoRepository.findByNomeFantasia(data[0]).orElseGet(() -> {
                 Organizacao o = new Organizacao();
-                o.setNome(data[0]);
-                o.setNomeFantasia(data[1]);
+
+                // === DADOS BÁSICOS DA ORGANIZAÇÃO ===
+                o.setNomeFantasia(data[0]);
+                o.setRazaoSocial(data[1]);
                 o.setCnpj(data[2]);
-                o.setNomeResponsavel(data[3]);
-                o.setEmailResponsavel(data[4]);
-                o.setCpfResponsavel(data[5]);
+                o.setTelefone1(data[3]);
+                o.setTelefone2(data[4]);
+                o.setWhatsapp(data[5]);
+                o.setEmailPrincipal(data[6]);
+                o.setInscricaoEstadual(data[7]);
+
+                // === RESPONSÁVEL (Embeddable) ===
+                Responsavel responsavel = new Responsavel();
+                responsavel.setNome(data[8]);
+                responsavel.setEmail(data[9]);
+                responsavel.setTelefone(data[10]);
+                o.setResponsavel(responsavel);
+
+                // === ACESSO ADM (Embeddable) ===
+//                Admin acessoAdm = new Admin();
+//                acessoAdm.setUsername(data[11]);
+//                acessoAdm.setPassword(passwordEncoder.encode(data[12]));
+//                acessoAdm.setRole(data[13]);
+//                o.setAcessoAdm(acessoAdm);
+
+
+                Endereco end = new Endereco();
+                end.setCep("36048310");
+                end.setLogradouro("Rua Diomar Monteiro");
+                end.setNumero("1509");
+                end.setComplemento("Rua Diomar Monteiro");
+                end.setBairro("Grama");
+                end.setCidade("Juiz de Fora");
+                end.setUf("MG");
+                end.setPrincipal(true);
+
+                o.setEnderecoPrincipal(end);
+
+                // === REDES SOCIAIS (Embeddable) ===
+                RedesSociais redesSociais = new RedesSociais();
+                redesSociais.setInstagram("@" + data[0].toLowerCase().replaceAll(" ", ""));
+                redesSociais.setFacebook("facebook.com/" + data[0].toLowerCase().replaceAll(" ", ""));
+                redesSociais.setWhatsapp(data[5]);
+                redesSociais.setLinkedin("linkedin.com/company/" + data[0].toLowerCase().replaceAll(" ", ""));
+                redesSociais.setMessenger(null);
+                redesSociais.setSite("www." + data[0].toLowerCase().replaceAll(" ", "") + ".com.br");
+                redesSociais.setYoutube(null);
+                o.setRedesSociais(redesSociais);
+
+                // === TEMA (Embeddable) ===
+                Tema tema = criarTemaPersonalizado(finalI);
+                o.setTema(tema);
+
+                // === PLANO (ManyToOne) ===
                 o.setPlano(planos.get(finalI % planos.size()));
-                o.setDtCadastro(LocalDateTime.now());
+
+                // === ENDERECO PRINCIPAL (OneToOne) ===
+                // Nota: Assumindo que você tem uma entidade Endereco
+                // Se precisar criar endereços, descomente e ajuste:
+            /*
+            Endereco endereco = new Endereco();
+            endereco.setCep("01310-100");
+            endereco.setLogradouro("Av. Paulista");
+            endereco.setNumero(String.valueOf(1000 + finalI * 100));
+            endereco.setBairro("Bela Vista");
+            endereco.setCidade("São Paulo");
+            endereco.setUf("SP");
+            endereco.setComplemento("Sala " + (finalI + 1));
+            o.setEnderecoPrincipal(endereco);
+            */
+
+                // === CAMPOS DE CONTROLE ===
                 o.setAtivo(true);
+                o.setDtCadastro(LocalDateTime.now());
+                o.setDtAtualizacao(LocalDateTime.now());
+
                 return organizacaoRepository.save(o);
             });
+
+            Optional<Admin> adminEx = adminRepository.findByUsername(data[11]);
+
+            if (adminEx.isEmpty()) {
+                Admin admin = new Admin();
+
+                admin.setOrganizacao(org);
+                admin.setEmail(data[6]);
+                admin.setNomeCompleto(data[1]);
+                admin.setUsername(data[11]);
+                admin.setPassword(passwordEncoder.encode(data[12]));
+
+                adminRepository.save(admin);
+            }
+
             organizacoes.add(org);
+            System.out.println("   ✓ Organização criada: " + org.getNomeFantasia());
         }
 
         return organizacoes;
+    }
+
+    private Tema criarTemaPersonalizado(int indice) {
+        Tema tema = new Tema();
+
+        // Definir nome e tipo do tema baseado no índice
+        String[] nomesTemas = {"Tema Elegante", "Tema Moderno", "Tema Clássico"};
+        String[] tiposTemas = {"LIGHT", "DARK", "LIGHT"};
+
+        tema.setNome(nomesTemas[indice % nomesTemas.length]);
+        tema.setTipo(tiposTemas[indice % tiposTemas.length]);
+
+        // === CORES ===
+        Cores cores = new Cores();
+
+        // Paletas de cores diferentes por tema
+        if (indice == 0) { // Tema Elegante (Rosa/Pink)
+            cores.setPrimary("#E91E63");
+            cores.setSecondary("#F48FB1");
+            cores.setAccent("#C2185B");
+        } else if (indice == 1) { // Tema Moderno (Azul)
+            cores.setPrimary("#2196F3");
+            cores.setSecondary("#64B5F6");
+            cores.setAccent("#1976D2");
+        } else { // Tema Clássico (Roxo)
+            cores.setPrimary("#9C27B0");
+            cores.setSecondary("#BA68C8");
+            cores.setAccent("#7B1FA2");
+        }
+
+        // Cores comuns
+        cores.setBackground("#FFFFFF");
+        cores.setText("#212121");
+        cores.setTextSecondary("#757575");
+        cores.setCardBackground("#FAFAFA");
+        cores.setCardBackgroundSecondary("#F5F5F5");
+        cores.setButtonText("#FFFFFF");
+        cores.setBackgroundLinear("linear-gradient(135deg, " + cores.getPrimary() + " 0%, " + cores.getSecondary() + " 100%)");
+        cores.setSuccess("#4CAF50");
+        cores.setWarning("#FF9800");
+        cores.setError("#F44336");
+        cores.setInfo("#2196F3");
+        cores.setBorder("#E0E0E0");
+        cores.setBorderLight("#F5F5F5");
+        cores.setDivider("#BDBDBD");
+        cores.setOverlay("rgba(0, 0, 0, 0.5)");
+        cores.setModalBackground("#FFFFFF");
+        cores.setInputBackground("#FAFAFA");
+        cores.setInputBorder("#E0E0E0");
+        cores.setInputFocus(cores.getPrimary());
+        cores.setPlaceholder("#9E9E9E");
+        cores.setNavBackground("#FFFFFF");
+        cores.setNavHover("#F5F5F5");
+        cores.setNavActive(cores.getPrimary());
+        cores.setOnline("#4CAF50");
+        cores.setOffline("#9E9E9E");
+        cores.setAway("#FF9800");
+        cores.setBusy("#F44336");
+
+        tema.setCores(cores);
+
+        // === FONTS ===
+        Fonts fonts = new Fonts();
+        fonts.setHeading("Poppins, sans-serif");
+        fonts.setBody("Inter, sans-serif");
+        fonts.setMono("JetBrains Mono, monospace");
+        tema.setFonts(fonts);
+
+        // === BORDER RADIUS ===
+        BorderRadius borderRadius = new BorderRadius();
+        borderRadius.setSmall("4px");
+        borderRadius.setMedium("8px");
+        borderRadius.setLarge("12px");
+        borderRadius.setXl("16px");
+        borderRadius.setFull("9999px");
+        tema.setBorderRadius(borderRadius);
+
+        // === SHADOWS ===
+        Shadows shadows = new Shadows();
+        shadows.setBase("0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24)");
+        shadows.setMd("0 4px 6px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.06)");
+        shadows.setLg("0 10px 15px rgba(0, 0, 0, 0.1), 0 4px 6px rgba(0, 0, 0, 0.05)");
+        shadows.setPrimaryGlow("0 0 20px " + cores.getPrimary() + "80");
+        shadows.setAccentGlow("0 0 20px " + cores.getAccent() + "80");
+        tema.setShadows(shadows);
+
+        return tema;
     }
 
     private List<Role> criarRoles() {
@@ -357,7 +588,7 @@ public class DatabaseSeederService {
 
                         // Dados pessoais baseados na especialidade
                         boolean isFeminino = "Feminino".equals(sexo);
-                        f.setFoto("https://randomuser.me/api/portraits/" + (isFeminino ? "women/" : "men/") + finalI + ".jpg");
+                        //f.getFotoPerfil("https://randomuser.me/api/portraits/" + (isFeminino ? "women/" : "men/") + finalI + ".jpg");
                         f.setCpf(String.format("%03d.%03d.%03d-%02d",
                                 ThreadLocalRandom.current().nextInt(1000),
                                 ThreadLocalRandom.current().nextInt(1000),
