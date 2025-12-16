@@ -99,6 +99,8 @@ public class SecurityConfig {
 
                                "/api/public/site/**",
 
+                                "/api/organizacao",
+
                                 // NOVAS ROTAS MULTI-TENANT
                                 "/api/pages/**",        // Páginas multi-tenant (públicas)
                                 "/api/tenant/**",       // Gestão de tenants (pode precisar auth dependendo do caso)
