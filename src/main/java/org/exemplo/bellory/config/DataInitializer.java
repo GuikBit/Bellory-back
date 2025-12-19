@@ -21,7 +21,7 @@ public class DataInitializer {
     public CommandLineRunner loadData(DatabaseSeederService seederService) {
         return args -> {
             System.out.println("Iniciando a carga de dados iniciais via Seeder Service...");
-             //seederService.seedDatabase();
+             seederService.seedDatabase();
             System.out.println("Carga de dados iniciais finalizada com sucesso.");
         };
     }

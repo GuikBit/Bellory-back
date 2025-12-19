@@ -44,8 +44,7 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
 
         configuration.setAllowedOriginPatterns(Arrays.asList(
-                "https://bellory.vercel.app",
-                "https://*.vercel.app",
+                "https://bellory.com.br",
                 "http://localhost:*",
                 "https://dev.bellory.com.br",
                 "https://app.bellory.com.br",
