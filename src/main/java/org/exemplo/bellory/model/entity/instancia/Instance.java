@@ -9,7 +9,7 @@ import lombok.Setter;
 import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 
 @Entity
-@Table(name = "instance")
+@Table(name = "instance", schema = "app")
 @Getter
 @Setter
 @NoArgsConstructor

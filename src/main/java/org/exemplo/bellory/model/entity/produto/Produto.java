@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 
 @Entity
-@Table(name = "produto")
+@Table(name = "produto", schema = "app")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -91,24 +91,24 @@ public class Produto {
 
     // Lista de URLs de imagens do produto
     @ElementCollection(fetch = FetchType.LAZY)
-    @CollectionTable(name = "produto_imagens", joinColumns = @JoinColumn(name = "produto_id"))
+    @CollectionTable(name = "produto_imagens", schema = "app", joinColumns = @JoinColumn(name = "produto_id"))
     @Column(name = "url_imagem", nullable = false, length = 1000)
     private List<String> urlsImagens = new ArrayList<>();
 
     @ElementCollection(fetch = FetchType.LAZY)
-    @CollectionTable(name = "produto_ingredientes", joinColumns = @JoinColumn(name = "produto_id"))
+    @CollectionTable(name = "produto_ingredientes", schema = "app", joinColumns = @JoinColumn(name = "produto_id"))
     @Column(name = "ingrediente", nullable = false, columnDefinition = "TEXT")
     private List<String> ingredientes;
 
     @ElementCollection(fetch = FetchType.LAZY)
-    @CollectionTable(name = "produto_como_usar", joinColumns = @JoinColumn(name = "produto_id"))
+    @CollectionTable(name = "produto_como_usar", schema = "app", joinColumns = @JoinColumn(name = "produto_id"))
     @Column(name = "passo", nullable = false, columnDefinition = "TEXT")
     @OrderColumn(name = "passo_ordem") // Mantém a ordem da lista
     private List<String> comoUsar;
 
     // Mapeia um mapa de Chave-Valor. Ótimo caso de uso para @ElementCollection.
     @ElementCollection(fetch = FetchType.LAZY)
-    @CollectionTable(name = "produto_especificacoes", joinColumns = @JoinColumn(name = "produto_id"))
+    @CollectionTable(name = "produto_especificacoes", schema = "app", joinColumns = @JoinColumn(name = "produto_id"))
     @MapKeyColumn(name = "chave", length = 100)
     @Column(name = "valor", columnDefinition = "TEXT")
     private Map<String, String> especificacoes;
@@ -116,6 +116,7 @@ public class Produto {
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = "produto_relacionados_assoc",
+            schema = "app",
             joinColumns = @JoinColumn(name = "produto_id"),
             inverseJoinColumns = @JoinColumn(name = "relacionado_id")
     )
@@ -125,6 +126,7 @@ public class Produto {
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = "produto_utilizados_assoc",
+            schema = "app",
             joinColumns = @JoinColumn(name = "produto_id"),
             inverseJoinColumns = @JoinColumn(name = "utilizado_id")
     )

@@ -5,7 +5,7 @@ import lombok.*;
 import org.exemplo.bellory.model.entity.users.Cliente;
 
 @Entity
-@Table(name = "endereco")
+@Table(name = "endereco", schema = "app")
 @Getter
 @Setter
 @NoArgsConstructor

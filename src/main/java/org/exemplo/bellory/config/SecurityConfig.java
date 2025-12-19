@@ -100,6 +100,9 @@ public class SecurityConfig {
                                "/api/public/site/**",
 
                                 "/api/organizacao",
+                                "/api/organizacao/verificar-cnpj/**",
+                                "/api/organizacao/verificar-email/**",
+                                "/api/organizacao/verificar-username/**",
 
                                 // NOVAS ROTAS MULTI-TENANT
                                 "/api/pages/**",        // Páginas multi-tenant (públicas)

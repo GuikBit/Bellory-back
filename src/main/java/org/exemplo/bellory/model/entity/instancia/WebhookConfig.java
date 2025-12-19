@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Map;
 
 @Entity
-@Table(name = "instance_webhook")
+@Table(name = "instance_webhook", schema = "app")
 @Getter
 @Setter
 @NoArgsConstructor

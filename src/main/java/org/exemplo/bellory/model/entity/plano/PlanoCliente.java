@@ -11,7 +11,7 @@ import org.exemplo.bellory.model.entity.users.Cliente;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "plano_cliente")
+@Table(name = "plano_cliente", schema = "app")
 @Getter
 @Setter
 @AllArgsConstructor

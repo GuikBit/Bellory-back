@@ -13,7 +13,7 @@ import org.exemplo.bellory.model.entity.agendamento.Agendamento;
 
 
 @Entity
-@Table(name = "bloqueio_agenda")
+@Table(name = "bloqueio_agenda", schema = "app")
 @Getter
 @Setter
 @AllArgsConstructor

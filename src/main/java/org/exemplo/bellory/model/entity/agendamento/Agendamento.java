@@ -19,7 +19,7 @@ import org.exemplo.bellory.model.entity.servico.Servico;
 
 @AllArgsConstructor
 @Entity
-@Table(name = "agendamento")
+@Table(name = "agendamento", schema = "app")
 @Getter
 @Setter
 public class Agendamento {
@@ -29,7 +29,7 @@ public class Agendamento {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "organizacao_id", nullable = false)
+    @JoinColumn(name = "organizacao_id",  nullable = false)
     @JsonIgnore
     private Organizacao organizacao;
 
@@ -40,6 +40,7 @@ public class Agendamento {
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = "agendamento_servico",
+            schema = "app",
             joinColumns = @JoinColumn(name = "agendamento_id"),
             inverseJoinColumns = @JoinColumn(name = "servico_id")
     )
@@ -48,6 +49,7 @@ public class Agendamento {
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = "agendamento_funcionario",
+            schema = "app",
             joinColumns = @JoinColumn(name = "agendamento_id"),
             inverseJoinColumns = @JoinColumn(name = "funcionario_id")
     )

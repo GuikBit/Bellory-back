@@ -15,7 +15,7 @@ import java.util.List;
  * Cada página pode ter múltiplos componentes organizados por ordem.
  */
 @Entity
-@Table(name = "page", indexes = {
+@Table(name = "page", schema = "app", indexes = {
         @Index(name = "idx_page_tenant_slug", columnList = "tenant_id, slug", unique = true)
 })
 @Getter

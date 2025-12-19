@@ -7,7 +7,7 @@ import org.exemplo.bellory.model.entity.users.Cliente;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "cartao_credito")
+@Table(name = "cartao_credito", schema = "app")
 @Getter
 @Setter
 @NoArgsConstructor

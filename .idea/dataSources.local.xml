@@ -24,8 +24,18 @@
       <user-name>bellory_dev</user-name>
       <schema-mapping>
         <introspection-scope>
-          <node kind="database" qname="@">
-            <node kind="schema" qname="@" />
+          <node negative="1">
+            <node kind="database" qname="@">
+              <node kind="schema" qname="@" />
+            </node>
+            <node kind="database" qname="bellory_dev">
+              <node kind="schema">
+                <name qname="admin" />
+                <name qname="app" />
+                <name qname="auto" />
+                <name qname="site" />
+              </node>
+            </node>
           </node>
         </introspection-scope>
       </schema-mapping>

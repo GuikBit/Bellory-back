@@ -9,7 +9,7 @@ import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "admin")
+@Table(name = "admin", schema = "app")
 @Getter
 @Setter
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})

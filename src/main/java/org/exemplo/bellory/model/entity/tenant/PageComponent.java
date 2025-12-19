@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
  * Cada componente tem um tipo (ex: "HERO", "SERVICES", "CONTACT") e propriedades em JSON.
  */
 @Entity
-@Table(name = "page_component", indexes = {
+@Table(name = "page_component", schema = "app",  indexes = {
         @Index(name = "idx_component_page_order", columnList = "page_id, order_index")
 })
 @Getter

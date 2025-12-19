@@ -33,6 +33,7 @@ public class OrganizacaoMapper {
         org.setTelefone1(dto.getTelefone1());
         org.setTelefone2(dto.getTelefone2());
         org.setWhatsapp(dto.getWhatsapp());
+        org.setPublicoAlvo(dto.getPublicoAlvo());
 
         // Responsavel (Embeddable)
         if (dto.getResponsavel() != null) {

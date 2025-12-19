@@ -18,7 +18,7 @@ import java.util.List;
 import java.util.Set;
 
 @Entity
-@Table(name = "funcionario")
+@Table(name = "funcionario", schema = "app")
 @Getter
 @Setter
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
@@ -166,6 +166,7 @@ public class Funcionario extends User {
     @ManyToMany
     @JoinTable(
             name = "funcionario_servico",
+            schema = "app",
             joinColumns = @JoinColumn(name = "funcionario_id"),
             inverseJoinColumns = @JoinColumn(name = "servico_id")
     )

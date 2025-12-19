@@ -20,7 +20,7 @@ import java.util.UUID;
  * manicure, etc.
  */
 @Entity
-@Table(name = "servico")
+@Table(name = "servico", schema = "app")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -63,7 +63,7 @@ public class Servico {
     // Mapeia a lista de nomes de produtos para uma tabela de suporte.
     // Lista de produtos usados no serviço
     @ElementCollection(fetch = FetchType.LAZY)
-    @CollectionTable(name = "servico_produtos", joinColumns = @JoinColumn(name = "servico_id"))
+    @CollectionTable(name = "servico_produtos",schema = "app", joinColumns = @JoinColumn(name = "servico_id"))
     @Column(name = "produto_nome", nullable = false)
     private List<String> produtos;
 
@@ -72,7 +72,7 @@ public class Servico {
 
     // Lista de URLs de imagens associadas ao serviço
     @ElementCollection(fetch = FetchType.LAZY)
-    @CollectionTable(name = "servico_imagens", joinColumns = @JoinColumn(name = "servico_id"))
+    @CollectionTable(name = "servico_imagens",schema = "app", joinColumns = @JoinColumn(name = "servico_id"))
     @Column(name = "url_imagem", nullable = false, length = 1000)
     private List<String> urlsImagens;
 

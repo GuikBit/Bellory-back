@@ -12,7 +12,7 @@ import org.exemplo.bellory.model.entity.funcionario.Funcionario;
 import java.time.LocalTime; // Para representar apenas a hora
 
 @Entity
-@Table(name = "jornada_trabalho")
+@Table(name = "jornada_trabalho", schema = "app")
 @Getter
 @Setter
 @AllArgsConstructor

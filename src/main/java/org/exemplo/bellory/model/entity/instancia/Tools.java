@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "instance_tools")
+@Table(name = "instance_tools", schema = "app")
 @Getter
 @Setter
 @NoArgsConstructor
