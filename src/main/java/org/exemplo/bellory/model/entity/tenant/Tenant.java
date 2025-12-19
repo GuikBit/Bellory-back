@@ -13,7 +13,7 @@ import java.util.List;
  * Cada tenant tem suas próprias páginas e configurações.
  */
 @Entity
-@Table(name = "tenant", indexes = {
+@Table(name = "tenant", schema = "app", indexes = {
         @Index(name = "idx_tenant_subdomain", columnList = "subdomain", unique = true)
 })
 @Getter

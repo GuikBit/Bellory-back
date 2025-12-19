@@ -11,10 +11,12 @@ import org.exemplo.bellory.model.mapper.OrganizacaoMapper;
 import org.exemplo.bellory.model.repository.organizacao.OrganizacaoRepository;
 import org.exemplo.bellory.model.repository.organizacao.PlanoRepository;
 import org.exemplo.bellory.model.repository.users.AdminRepository;
+import org.exemplo.bellory.util.CNPJUtil;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -42,42 +44,90 @@ public class OrganizacaoService {
     public boolean existsByCnpj(String cnpj) {
         return organizacaoRepository.existsByCnpj(cnpj);
     }
+
+    public boolean existsByUsername(String username) {
+        return adminRepository.existsByUsername(username);
+    }
+
+    public boolean existsByEmail(String email) {
+        return adminRepository.existsByEmail(email);
+    }
+
+
     /**
      * Cria uma nova organização
      */
     public OrganizacaoResponseDTO create(CreateOrganizacaoDTO createDTO) {
 
+        // Normaliza e valida CNPJ
+        String cnpjLimpo = CNPJUtil.removerFormatacao(createDTO.getCnpj());
+
+        if (!CNPJUtil.validarCNPJ(cnpjLimpo)) {
+            throw new IllegalArgumentException("CNPJ inválido");
+        }
 
         // Valida se já existe organização com o mesmo CNPJ
-        if (organizacaoRepository.existsByCnpj(createDTO.getCnpj())) {
+        if (organizacaoRepository.existsByCnpj(cnpjLimpo)) {
             throw new IllegalArgumentException("Já existe uma organização cadastrada com este CNPJ");
+        }
+
+        // Valida dados do administrador antes de criar a organização
+        if (createDTO.getAcessoAdm() != null) {
+
+            // Valida username
+            if (createDTO.getAcessoAdm().getLogin() == null ||
+                    createDTO.getAcessoAdm().getLogin().isBlank()) {
+                throw new IllegalArgumentException("Username do administrador é obrigatório");
+            }
+
+            if (adminRepository.existsByUsername(createDTO.getAcessoAdm().getLogin())) {
+                throw new IllegalArgumentException("Username '" + createDTO.getAcessoAdm().getLogin() +
+                        "' já está em uso por outro administrador");
+            }
+
+            // Valida email
+            if (createDTO.getEmail() == null || createDTO.getEmail().isBlank()) {
+                throw new IllegalArgumentException("Email do administrador é obrigatório");
+            }
+
+            if (adminRepository.existsByEmail(createDTO.getEmail())) {
+                throw new IllegalArgumentException("Email '" + createDTO.getEmail() +
+                        "' já está em uso por outro administrador");
+            }
+
+            // Valida senha
+            if (createDTO.getAcessoAdm().getSenha() == null ||
+                    createDTO.getAcessoAdm().getSenha().length() < 6) {
+                throw new IllegalArgumentException("Senha do administrador deve ter no mínimo 6 caracteres");
+            }
+        } else {
+            throw new IllegalArgumentException("Dados de acesso do administrador são obrigatórios");
         }
 
         // Converte DTO para Entity
         Organizacao organizacao = organizacaoMapper.toEntity(createDTO);
+        organizacao.setCnpj(cnpjLimpo); // Salva CNPJ sem formatação
 
-        List<Plano> plano = planoRepository.findAll();
-
-        organizacao.setPlano(plano.get(0));
+        // Busca e atribui plano
+        List<Plano> planos = planoRepository.findAll();
+        if (planos.isEmpty()) {
+            throw new IllegalStateException("Nenhum plano disponível no sistema");
+        }
+        organizacao.setPlano(planos.get(0));
 
         // Salva a organização
         Organizacao savedOrganizacao = organizacaoRepository.save(organizacao);
 
-        // Criptografa a senha do administrador
-        if (createDTO.getAcessoAdm() != null && createDTO.getAcessoAdm().getSenha() != null) {
+        // Cria o administrador
+        Admin admin = new Admin();
+        admin.setOrganizacao(savedOrganizacao);
+        admin.setEmail(createDTO.getEmail());
+        admin.setNomeCompleto(createDTO.getRazaoSocial());
+        admin.setUsername(createDTO.getAcessoAdm().getLogin());
+        admin.setPassword(passwordEncoder.encode(createDTO.getAcessoAdm().getSenha()));
+        admin.setDtCriacao(LocalDateTime.now());
 
-            Admin admin = new Admin();
-
-            admin.setOrganizacao(savedOrganizacao);
-            admin.setEmail(createDTO.getEmail());
-            admin.setNomeCompleto(createDTO.getRazaoSocial());
-            admin.setUsername(createDTO.getAcessoAdm().getLogin());
-            admin.setPassword(passwordEncoder.encode(createDTO.getAcessoAdm().getSenha()));
-
-            Admin saveAdmin = adminRepository.save(admin);
-
-//            organizacao.setAcessoAdm(saveAdmin.getId());
-        }
+        adminRepository.save(admin);
 
         return organizacaoMapper.toResponseDTO(savedOrganizacao);
     }

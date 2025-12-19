@@ -18,7 +18,7 @@ import org.exemplo.bellory.model.entity.tema.Tema;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "organizacao")
+@Table(name = "organizacao", schema = "app")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -44,6 +44,8 @@ public class Organizacao {
     @Size(max = 255, message = "Nome fantasia deve ter no máximo 255 caracteres")
     @Column(name = "nome_fantasia")
     private String nomeFantasia;
+
+    private String publicoAlvo;
 
     @Size(max = 50, message = "Inscrição estadual deve ter no máximo 50 caracteres")
     @Column(name = "inscricao_estadual", length = 50)

@@ -8,7 +8,7 @@ import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "config_sistema")
+@Table(name = "config_sistema", schema = "app")
 @Getter
 @Setter
 @NoArgsConstructor

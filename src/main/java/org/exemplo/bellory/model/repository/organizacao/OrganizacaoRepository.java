@@ -54,7 +54,9 @@ public interface OrganizacaoRepository extends JpaRepository<Organizacao, Long> 
     /**
      * Verifica se existe uma organização com o CNPJ informado
      */
-    boolean existsByCnpj(String cnpj);
+    @Query("SELECT CASE WHEN COUNT(o) > 0 THEN true ELSE false END " +
+            "FROM Organizacao o WHERE REPLACE(REPLACE(REPLACE(o.cnpj, '.', ''), '/', ''), '-', '') = :cnpj")
+    boolean existsByCnpj(@Param("cnpj") String cnpj);
 
     /**
      * Verifica se existe uma organização com o CNPJ informado, excluindo o ID fornecido

@@ -250,7 +250,7 @@ public class DatabaseSeederService {
         String[][] orgData = {
                 // {nomeFantasia, razaoSocial, cnpj, telefone1, telefone2, whatsapp, emailPrincipal,
                 //  inscricaoEstadual, responsavelNome, responsavelEmail, responsavelTelefone,
-                //  adminLogin, adminSenha, adminRole}
+                //  adminLogin, adminSenha, adminRole, slug}
                 {
                         "Bellory Salon",
                         "Bellory Salon & Spa LTDA",
@@ -265,7 +265,8 @@ public class DatabaseSeederService {
                         "(11) 99999-0001",
                         "admin",
                         "admin123",
-                        "ROLE_ADMIN"
+                        "ROLE_ADMIN",
+                        "bellory-salon",
                 },
                 {
                         "Studio Elegance",
@@ -281,7 +282,8 @@ public class DatabaseSeederService {
                         "(11) 99999-0002",
                         "elegance_admin",
                         "elegance123",
-                        "ROLE_ADMIN"
+                        "ROLE_ADMIN",
+                        "studio-elegance"
                 },
                 {
                         "Salon Moderno",
@@ -297,7 +299,8 @@ public class DatabaseSeederService {
                         "(11) 99999-0003",
                         "moderno_admin",
                         "moderno123",
-                        "ROLE_ADMIN"
+                        "ROLE_ADMIN",
+                        "salon-moderno",
                 }
         };
 
@@ -317,7 +320,7 @@ public class DatabaseSeederService {
                 o.setWhatsapp(data[5]);
                 o.setEmailPrincipal(data[6]);
                 o.setInscricaoEstadual(data[7]);
-
+                o.setSlug(data[14]);
                 // === RESPONSÁVEL (Embeddable) ===
                 Responsavel responsavel = new Responsavel();
                 responsavel.setNome(data[8]);

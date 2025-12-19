@@ -21,7 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "cobranca")
+@Table(name = "cobranca", schema = "app")
 @Getter
 @Setter
 @AllArgsConstructor

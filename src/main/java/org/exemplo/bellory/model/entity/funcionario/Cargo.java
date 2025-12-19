@@ -9,7 +9,7 @@ import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "cargo_funcionario")
+@Table(name = "cargo_funcionario", schema = "app")
 @Getter
 @Setter
 public class Cargo {

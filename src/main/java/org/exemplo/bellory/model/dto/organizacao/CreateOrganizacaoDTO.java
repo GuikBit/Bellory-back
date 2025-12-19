@@ -50,6 +50,8 @@ public class CreateOrganizacaoDTO {
 
     private String whatsapp;
 
+    private String publicoAlvo;
+
     @Valid
     @NotNull(message = "Responsável é obrigatório")
     private ResponsavelDTO responsavel;

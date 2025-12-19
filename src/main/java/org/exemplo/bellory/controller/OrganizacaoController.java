@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,6 +17,7 @@ import org.exemplo.bellory.model.dto.organizacao.OrganizacaoResponseDTO;
 import org.exemplo.bellory.model.dto.UpdateOrganizacaoDTO;
 import org.exemplo.bellory.model.entity.error.ResponseAPI;
 import org.exemplo.bellory.service.OrganizacaoService;
+import org.exemplo.bellory.util.CNPJUtil;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -565,7 +567,20 @@ public class OrganizacaoController {
             @Parameter(description = "CNPJ a ser verificado", required = true)
             @PathVariable @NotBlank String cnpj) {
         try {
-            boolean existe = organizacaoService.existsByCnpj(cnpj);
+            // Remove formatação do CNPJ recebido
+            String cnpjLimpo = CNPJUtil.removerFormatacao(cnpj);
+
+            // Valida o CNPJ (opcional, mas recomendado)
+            if (!CNPJUtil.validarCNPJ(cnpjLimpo)) {
+                return ResponseEntity.badRequest()
+                        .body(ResponseAPI.<Boolean>builder()
+                                .success(false)
+                                .message("CNPJ inválido.")
+                                .errorCode(400)
+                                .build());
+            }
+
+            boolean existe = organizacaoService.existsByCnpj(cnpjLimpo);
 
             return ResponseEntity.ok(ResponseAPI.<Boolean>builder()
                     .success(true)
@@ -579,6 +594,54 @@ public class OrganizacaoController {
                     .body(ResponseAPI.<Boolean>builder()
                             .success(false)
                             .message("Ocorreu um erro interno ao verificar o CNPJ: " + e.getMessage())
+                            .errorCode(500)
+                            .build());
+        }
+    }
+
+    @GetMapping("/verificar-username/{username}")
+    @Operation(summary = "Verifica se o username está disponível")
+    public ResponseEntity<ResponseAPI<Boolean>> verificarUsername(
+            @Parameter(description = "Username a ser verificado", required = true)
+            @PathVariable @NotBlank String username) {
+        try {
+            boolean existe = organizacaoService.existsByUsername(username);
+
+            return ResponseEntity.ok(ResponseAPI.<Boolean>builder()
+                    .success(true)
+                    .message(existe ? "Username já cadastrado no sistema." : "Username disponível para cadastro.")
+                    .dados(existe)
+                    .build());
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseAPI.<Boolean>builder()
+                            .success(false)
+                            .message("Ocorreu um erro interno ao verificar o username: " + e.getMessage())
+                            .errorCode(500)
+                            .build());
+        }
+    }
+
+    @GetMapping("/verificar-email/{email}")
+    @Operation(summary = "Verifica se o email está disponível")
+    public ResponseEntity<ResponseAPI<Boolean>> verificarEmail(
+            @Parameter(description = "Email a ser verificado", required = true)
+            @PathVariable @NotBlank @Email String email) {
+        try {
+            boolean existe = organizacaoService.existsByEmail(email);
+
+            return ResponseEntity.ok(ResponseAPI.<Boolean>builder()
+                    .success(true)
+                    .message(existe ? "Email já cadastrado no sistema." : "Email disponível para cadastro.")
+                    .dados(existe)
+                    .build());
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseAPI.<Boolean>builder()
+                            .success(false)
+                            .message("Ocorreu um erro interno ao verificar o email: " + e.getMessage())
                             .errorCode(500)
                             .build());
         }

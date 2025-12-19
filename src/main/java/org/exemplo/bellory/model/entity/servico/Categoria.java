@@ -7,7 +7,7 @@ import org.exemplo.bellory.model.entity.enums.TipoCategoria;
 import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 
 @Entity
-@Table(name = "categoria")
+@Table(name = "categoria", schema = "app")
 @Getter
 @Setter
 @NoArgsConstructor
