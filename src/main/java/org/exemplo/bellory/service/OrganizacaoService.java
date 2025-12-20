@@ -4,6 +4,7 @@ import org.exemplo.bellory.context.TenantContext;
 import org.exemplo.bellory.model.dto.organizacao.CreateOrganizacaoDTO;
 import org.exemplo.bellory.model.dto.organizacao.OrganizacaoResponseDTO;
 import org.exemplo.bellory.model.dto.UpdateOrganizacaoDTO;
+import org.exemplo.bellory.model.entity.email.EmailTemplate;
 import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 import org.exemplo.bellory.model.entity.plano.Plano;
 import org.exemplo.bellory.model.entity.users.Admin;
@@ -12,12 +13,16 @@ import org.exemplo.bellory.model.repository.organizacao.OrganizacaoRepository;
 import org.exemplo.bellory.model.repository.organizacao.PlanoRepository;
 import org.exemplo.bellory.model.repository.users.AdminRepository;
 import org.exemplo.bellory.util.CNPJUtil;
+import org.exemplo.bellory.util.SlugUtil;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class OrganizacaoService {
@@ -28,14 +33,19 @@ public class OrganizacaoService {
     PasswordEncoder passwordEncoder;
     PlanoRepository planoRepository;
     AdminRepository adminRepository;
+    private EmailService emailService;
+    private static final int MAX_TENTATIVAS_SLUG = 10;
 
+    @Value("${app.url}")
+    private String appUrl;
 
-    public OrganizacaoService(OrganizacaoRepository organizacaoRepository, OrganizacaoMapper organizacaoMapper, PasswordEncoder passwordEncoder, PlanoRepository planoRepository, AdminRepository adminRepository) {
+    public OrganizacaoService(OrganizacaoRepository organizacaoRepository, OrganizacaoMapper organizacaoMapper, PasswordEncoder passwordEncoder, PlanoRepository planoRepository, AdminRepository adminRepository, EmailService emailService) {
         this.organizacaoRepository = organizacaoRepository;
         this.organizacaoMapper = organizacaoMapper;
         this.passwordEncoder = passwordEncoder;
         this.planoRepository = planoRepository;
         this.adminRepository = adminRepository;
+        this.emailService = emailService;
     }
 
     public Organizacao getOrganizacaoPadrao() {
@@ -51,6 +61,10 @@ public class OrganizacaoService {
 
     public boolean existsByEmail(String email) {
         return adminRepository.existsByEmail(email);
+    }
+
+    public boolean existsBySlug(String slug) {
+        return organizacaoRepository.existsBySlug(slug);
     }
 
 
@@ -108,6 +122,9 @@ public class OrganizacaoService {
         Organizacao organizacao = organizacaoMapper.toEntity(createDTO);
         organizacao.setCnpj(cnpjLimpo); // Salva CNPJ sem formatação
 
+        String slug = gerarSlugUnico(createDTO.getNomeFantasia());
+        organizacao.setSlug(slug);
+
         // Busca e atribui plano
         List<Plano> planos = planoRepository.findAll();
         if (planos.isEmpty()) {
@@ -128,6 +145,8 @@ public class OrganizacaoService {
         admin.setDtCriacao(LocalDateTime.now());
 
         adminRepository.save(admin);
+
+        enviarEmailBoasVindas(savedOrganizacao, admin);
 
         return organizacaoMapper.toResponseDTO(savedOrganizacao);
     }
@@ -254,6 +273,50 @@ public class OrganizacaoService {
                 .orElseThrow(() -> new IllegalArgumentException("Organização não encontrada com CNPJ: " + cnpj));
 
         return organizacaoMapper.toResponseDTO(organizacao);
+    }
+
+    private String gerarSlugUnico(String nomeFantasia) {
+        String slug;
+        int tentativas = 0;
+
+        do {
+            slug = SlugUtil.gerarSlug(nomeFantasia);
+            tentativas++;
+
+            if (tentativas > MAX_TENTATIVAS_SLUG) {
+                throw new IllegalStateException(
+                        "Não foi possível gerar um slug único após " + MAX_TENTATIVAS_SLUG + " tentativas"
+                );
+            }
+
+        } while (organizacaoRepository.existsBySlug(slug));
+
+        return slug;
+    }
+
+    private void enviarEmailBoasVindas(Organizacao organizacao, Admin admin) {
+        try {
+            Map<String, Object> variables = new HashMap<>();
+            variables.put("nomeOrganizacao", organizacao.getNomeFantasia());
+            variables.put("razaoSocial", organizacao.getRazaoSocial());
+            variables.put("cnpj", CNPJUtil.formatarCNPJ(organizacao.getCnpj()));
+            variables.put("slug", organizacao.getSlug());
+            variables.put("email", organizacao.getEmailPrincipal());
+            variables.put("username", admin.getUsername());
+            variables.put("emailAdmin", admin.getEmail());
+            variables.put("urlSistema", appUrl + "/login");
+
+            emailService.enviarEmailComTemplate(
+                    List.of(organizacao.getEmailPrincipal()),
+                    EmailTemplate.BEM_VINDO_ORGANIZACAO,
+                    variables
+            );
+
+
+        } catch (Exception e) {
+            // Não falha a criação da organização se o e-mail não for enviado
+//            log.error("Erro ao enviar e-mail de boas-vindas para: {}", organizacao.getEmail(), e);
+        }
     }
 
     private void validarOrganizacao(Long entityOrganizacaoId) {
