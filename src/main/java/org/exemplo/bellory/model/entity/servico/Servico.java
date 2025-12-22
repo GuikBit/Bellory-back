@@ -97,12 +97,12 @@ public class Servico {
      * Este método é chamado automaticamente pelo JPA antes de a entidade ser guardada
      * pela primeira vez. Ele garante que cada serviço tenha um ID único.
      */
-//    @PrePersist
-//    public void prePersist() {
-//        if (dtCriacao == null ) {
-//            dtCriacao = new DateTime();
-//        }
-//    }
+    @PrePersist
+    public void prePersist() {
+        if (dtCriacao == null ) {
+            dtCriacao = LocalDateTime.now();
+        }
+    }
 
 
 

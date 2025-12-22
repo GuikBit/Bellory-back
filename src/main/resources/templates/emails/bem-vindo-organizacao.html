@@ -3,86 +3,481 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bem-vindo ao Bellory</title>
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Raleway', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
             line-height: 1.6;
-            color: #333;
+            color: #2a2420;
+            background: linear-gradient(135deg, #faf8f6 0%, #f5f2ef 100%);
+            padding: 40px 20px;
+        }
+
+        .email-container {
             max-width: 600px;
             margin: 0 auto;
-            padding: 20px;
+            background: #ffffff;
+            border-radius: 24px;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(139, 61, 53, 0.08);
         }
+
+        /* Header com gradiente */
         .header {
-            background-color: #4CAF50;
-            color: white;
-            padding: 20px;
+            background: linear-gradient(135deg, #db6f57 0%, #8b3d35 100%);
+            padding: 50px 40px;
             text-align: center;
-            border-radius: 5px 5px 0 0;
+            position: relative;
+            overflow: hidden;
         }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            animation: float 15s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            50% { transform: translate(-20px, 20px) rotate(180deg); }
+        }
+
+        .logo {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 42px;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 10px;
+            position: relative;
+            z-index: 1;
+            letter-spacing: 2px;
+        }
+
+        .header-subtitle {
+            color: rgba(255, 255, 255, 0.95);
+            font-size: 16px;
+            font-weight: 400;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Icon decorativo */
+        .welcome-icon {
+            width: 80px;
+            height: 80px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            z-index: 1;
+            backdrop-filter: blur(10px);
+        }
+
+        .welcome-icon::before {
+            content: '✨';
+            font-size: 40px;
+        }
+
+        /* Content */
         .content {
-            background-color: #f9f9f9;
-            padding: 30px;
-            border-radius: 0 0 5px 5px;
+            padding: 50px 40px;
         }
-        .button {
+
+        .greeting {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 28px;
+            font-weight: 700;
+            color: #2a2420;
+            margin-bottom: 20px;
+            line-height: 1.3;
+        }
+
+        .greeting-name {
+            color: #db6f57;
+        }
+
+        .intro-text {
+            color: #4f6f64;
+            font-size: 16px;
+            margin-bottom: 30px;
+            line-height: 1.8;
+        }
+
+        /* Info boxes */
+        .info-box {
+            background: linear-gradient(135deg, #faf8f6 0%, #f8f5f3 100%);
+            border-left: 4px solid #db6f57;
+            border-radius: 12px;
+            padding: 25px;
+            margin: 25px 0;
+            box-shadow: 0 2px 8px rgba(139, 61, 53, 0.05);
+        }
+
+        .info-box-title {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 20px;
+            font-weight: 700;
+            color: #2a2420;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .info-box-title::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            background: #db6f57;
+            border-radius: 50%;
+        }
+
+        .info-item {
+            margin: 12px 0;
+            display: flex;
+            flex-wrap: wrap;
+            font-size: 15px;
+        }
+
+        .info-label {
+            font-weight: 600;
+            color: #4f6f64;
+            min-width: 120px;
+            margin-right: 10px;
+        }
+
+        .info-value {
+            color: #2a2420;
+            font-weight: 500;
+            word-break: break-all;
+        }
+
+        /* Destaque especial */
+        .highlight-box {
+            background: linear-gradient(135deg, #4f6f64 0%, #5a7a6e 100%);
+            color: white;
+            border-radius: 12px;
+            padding: 25px;
+            margin: 30px 0;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(79, 111, 100, 0.2);
+        }
+
+        .highlight-text {
+            font-size: 16px;
+            margin-bottom: 20px;
+            opacity: 0.95;
+        }
+
+        /* Button */
+        .cta-button {
             display: inline-block;
-            padding: 12px 24px;
-            background-color: #4CAF50;
+            padding: 16px 40px;
+            background: linear-gradient(135deg, #db6f57 0%, #c55a42 100%);
             color: white;
             text-decoration: none;
-            border-radius: 5px;
-            margin-top: 20px;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(219, 111, 87, 0.3);
+            letter-spacing: 0.5px;
         }
-        .footer {
+
+        .cta-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(219, 111, 87, 0.4);
+        }
+
+        /* Divider */
+        .divider {
+            height: 1px;
+            background: linear-gradient(90deg, transparent 0%, #d8ccc4 50%, transparent 100%);
+            margin: 40px 0;
+        }
+
+        /* Support section */
+        .support-section {
             text-align: center;
-            margin-top: 20px;
-            font-size: 12px;
-            color: #666;
+            padding: 30px 20px;
+            background: #faf8f6;
+            border-radius: 12px;
+            margin-top: 30px;
         }
-        .info-box {
-            background-color: #e8f5e9;
-            padding: 15px;
-            border-left: 4px solid #4CAF50;
-            margin: 20px 0;
+
+        .support-title {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 20px;
+            font-weight: 700;
+            color: #2a2420;
+            margin-bottom: 10px;
+        }
+
+        .support-text {
+            color: #4f6f64;
+            font-size: 15px;
+            margin-bottom: 15px;
+        }
+
+        .support-email {
+            color: #db6f57;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        /* Footer */
+        .footer {
+            background: #2a2420;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .footer-logo {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 24px;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 15px;
+            letter-spacing: 1px;
+        }
+
+        .footer-text {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 13px;
+            margin: 8px 0;
+        }
+
+        .footer-links {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .footer-link {
+            color: #db6f57;
+            text-decoration: none;
+            margin: 0 15px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .social-icons {
+            margin-top: 20px;
+        }
+
+        .social-icon {
+            display: inline-block;
+            width: 36px;
+            height: 36px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            margin: 0 8px;
+            line-height: 36px;
+            color: #ffffff;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        .social-icon:hover {
+            background: #db6f57;
+            transform: translateY(-2px);
+        }
+
+        /* Badge */
+        .badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #5a7a6e 0%, #4f6f64 100%);
+            color: white;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            margin-bottom: 15px;
+        }
+
+        /* Responsive */
+        @media only screen and (max-width: 600px) {
+            .email-container {
+                border-radius: 16px;
+            }
+
+            .header {
+                padding: 40px 30px;
+            }
+
+            .logo {
+                font-size: 36px;
+            }
+
+            .content {
+                padding: 40px 30px;
+            }
+
+            .greeting {
+                font-size: 24px;
+            }
+
+            .info-box {
+                padding: 20px;
+            }
+
+            .info-item {
+                flex-direction: column;
+            }
+
+            .info-label {
+                margin-bottom: 4px;
+            }
+
+            .footer {
+                padding: 30px 20px;
+            }
+
+            .footer-link {
+                display: block;
+                margin: 10px 0;
+            }
         }
     </style>
 </head>
 <body>
-<div class="header">
-    <h1>Bem-vindo à Bellory!</h1>
-</div>
-
-<div class="content">
-    <h2>Olá, <span th:text="${nomeOrganizacao}">Nome da Organização</span>!</h2>
-
-    <p>É um prazer tê-los conosco! Sua organização foi cadastrada com sucesso em nossa plataforma.</p>
-
-    <div class="info-box">
-        <h3>Informações da sua organização:</h3>
-        <p><strong>Razão Social:</strong> <span th:text="${razaoSocial}">Razão Social</span></p>
-        <p><strong>CNPJ:</strong> <span th:text="${cnpj}">00.000.000/0001-00</span></p>
-        <p><strong>Slug:</strong> <span th:text="${slug}">minha-empresa-abc12</span></p>
-        <p><strong>E-mail:</strong> <span th:text="${email}">email@empresa.com</span></p>
+<div class="email-container">
+    <!-- Header -->
+    <div class="header">
+        <div class="welcome-icon"></div>
+        <div class="logo">Bellory</div>
+        <div class="header-subtitle">Transformando a gestão da beleza</div>
     </div>
 
-    <div class="info-box">
-        <h3>Dados de acesso do administrador:</h3>
-        <p><strong>Usuário:</strong> <span th:text="${username}">admin</span></p>
-        <p><strong>E-mail:</strong> <span th:text="${emailAdmin}">admin@empresa.com</span></p>
+    <!-- Content -->
+    <div class="content">
+        <div class="badge">🎉 CONTA CRIADA COM SUCESSO</div>
+
+        <h1 class="greeting">
+            Olá, <span class="greeting-name" th:text="${nomeOrganizacao}">Nome da Organização</span>!
+        </h1>
+
+        <p class="intro-text">
+            É uma grande alegria receber você na família Bellory! Sua jornada para revolucionar a gestão do seu negócio de beleza começa agora. Preparamos tudo com muito carinho para que você tenha a melhor experiência possível.
+        </p>
+
+        <!-- Informações da Organização -->
+        <div class="info-box">
+            <h3 class="info-box-title">Informações da sua organização</h3>
+            <div class="info-item">
+                <span class="info-label">Razão Social:</span>
+                <span class="info-value" th:text="${razaoSocial}">Razão Social</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Nome Fantasia:</span>
+                <span class="info-value" th:text="${nomeOrganizacao}">Nome Fantasia</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">CNPJ:</span>
+                <span class="info-value" th:text="${cnpj}">00.000.000/0001-00</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Identificador:</span>
+                <span class="info-value" th:text="${slug}">minha-empresa-abc12</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">E-mail:</span>
+                <span class="info-value" th:text="${email}">email@empresa.com</span>
+            </div>
+        </div>
+
+        <!-- Dados de Acesso -->
+        <div class="info-box">
+            <h3 class="info-box-title">Dados de acesso do administrador</h3>
+            <div class="info-item">
+                <span class="info-label">Usuário:</span>
+                <span class="info-value" th:text="${username}">admin</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">E-mail:</span>
+                <span class="info-value" th:text="${emailAdmin}">admin@empresa.com</span>
+            </div>
+            <p style="margin-top: 15px; color: #4f6f64; font-size: 14px;">
+                <strong>⚠️ Importante:</strong> Guarde essas informações em local seguro. Por questões de segurança, sua senha não é exibida neste e-mail.
+            </p>
+        </div>
+
+        <!-- CTA Principal -->
+        <div class="highlight-box">
+            <p class="highlight-text">
+                Tudo pronto! Acesse agora mesmo o seu painel e comece a explorar todas as funcionalidades que preparamos para você.
+            </p>
+            <a th:href="${urlSistema}" class="cta-button">🚀 Acessar Meu Painel</a>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- Primeiros Passos -->
+        <div style="margin: 30px 0;">
+            <h3 style="font-family: 'Cormorant Garamond', serif; font-size: 22px; color: #2a2420; margin-bottom: 20px;">
+                🎯 Primeiros passos recomendados
+            </h3>
+            <ol style="color: #4f6f64; line-height: 2; padding-left: 20px;">
+                <li>Configure o perfil da sua empresa</li>
+                <li>Adicione seus serviços e produtos</li>
+                <li>Cadastre sua equipe de profissionais</li>
+                <li>Personalize seu tema e identidade visual</li>
+                <li>Comece a agendar seus primeiros clientes</li>
+            </ol>
+        </div>
+
+        <!-- Suporte -->
+        <div class="support-section">
+            <h3 class="support-title">Precisa de ajuda?</h3>
+            <p class="support-text">
+                Nossa equipe está sempre pronta para auxiliar você!
+            </p>
+            <a href="mailto:suporte@bellory.com.br" class="support-email">suporte@bellory.com.br</a>
+            <p style="color: #4f6f64; font-size: 13px; margin-top: 10px;">
+                Respondemos em até 24 horas úteis
+            </p>
+        </div>
     </div>
 
-    <p>Você pode acessar o sistema através do link abaixo:</p>
+    <!-- Footer -->
+    <div class="footer">
+        <div class="footer-logo">Bellory</div>
+        <p class="footer-text">Transformando a gestão da beleza com tecnologia e elegância</p>
+        <p class="footer-text">© 2025 Bellory - Todos os direitos reservados</p>
 
-    <a th:href="${urlSistema}" class="button">Acessar Sistema</a>
+        <div class="footer-links">
+            <a href="#" class="footer-link">Central de Ajuda</a>
+            <a href="#" class="footer-link">Política de Privacidade</a>
+            <a href="#" class="footer-link">Termos de Uso</a>
+        </div>
 
-    <p style="margin-top: 30px;">
-        Se tiver qualquer dúvida, nossa equipe está à disposição para ajudar!
-    </p>
-</div>
+        <div class="social-icons">
+            <a href="#" class="social-icon">📘</a>
+            <a href="#" class="social-icon">📸</a>
+            <a href="#" class="social-icon">🐦</a>
+            <a href="#" class="social-icon">💼</a>
+        </div>
 
-<div class="footer">
-    <p>© 2025 Bellory - Todos os direitos reservados</p>
-    <p>Este é um e-mail automático, por favor não responda.</p>
+        <p class="footer-text" style="margin-top: 20px; font-size: 12px;">
+            Este é um e-mail automático, por favor não responda diretamente.<br>
+            Para suporte, utilize o e-mail <a href="mailto:suporte@bellory.com.br" style="color: #db6f57;">suporte@bellory.com.br</a>
+        </p>
+    </div>
 </div>
 </body>
 </html>

@@ -304,7 +304,7 @@ public class OrganizacaoService {
             variables.put("email", organizacao.getEmailPrincipal());
             variables.put("username", admin.getUsername());
             variables.put("emailAdmin", admin.getEmail());
-            variables.put("urlSistema", appUrl + "/login");
+            variables.put("urlSistema", appUrl);
 
             emailService.enviarEmailComTemplate(
                     List.of(organizacao.getEmailPrincipal()),
