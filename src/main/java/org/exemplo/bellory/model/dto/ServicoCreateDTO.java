@@ -19,7 +19,7 @@ public class ServicoCreateDTO {
     private Integer desconto;
     private List<String> urlsImagens;
     private List<String> produtos;
-    private boolean isHome;
-    private boolean isAvaliacao;
+    private boolean home;
+    private boolean avaliacao;
     private boolean ativo;
 }

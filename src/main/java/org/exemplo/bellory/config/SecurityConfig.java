@@ -103,6 +103,7 @@ public class SecurityConfig {
                                 "/api/organizacao/verificar-email/**",
                                 "/api/organizacao/verificar-username/**",
 
+                                "/api/email/teste",
                                 // NOVAS ROTAS MULTI-TENANT
                                 "/api/pages/**",        // Páginas multi-tenant (públicas)
                                 "/api/tenant/**",       // Gestão de tenants (pode precisar auth dependendo do caso)

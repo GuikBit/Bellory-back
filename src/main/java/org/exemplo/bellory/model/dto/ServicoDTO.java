@@ -22,8 +22,12 @@ public class ServicoDTO {
     private String descricao;
     private Integer tempoEstimadoMinutos;
     private BigDecimal preco;
+    private Integer desconto;
     private List<String> urlsImagens;
     private boolean ativo;
+    private boolean isAvaliacao;
+    private boolean isHome;
+
     private LocalDateTime dtCriacao;
     private LocalDateTime dtAtualizacao;
 
@@ -37,8 +41,11 @@ public class ServicoDTO {
         this.descricao = servico.getDescricao();
         this.tempoEstimadoMinutos = servico.getTempoEstimadoMinutos();
         this.preco = servico.getPreco();
+        this.desconto = servico.getDesconto();
         this.urlsImagens = servico.getUrlsImagens();
         this.ativo = servico.isAtivo();
+        this.isAvaliacao = servico.isAvaliacao();
+        this.isHome = servico.isHome();
         this.dtCriacao = servico.getDtCriacao();
         this.dtAtualizacao = servico.getDtAtualizacao();
     }

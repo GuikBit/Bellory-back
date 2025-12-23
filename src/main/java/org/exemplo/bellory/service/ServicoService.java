@@ -131,6 +131,17 @@ public class ServicoService {
         if (dto.getUrlsImagens() != null) {
             servicoExistente.setUrlsImagens(dto.getUrlsImagens());
         }
+        if(dto.getDesconto() != null) {
+            servicoExistente.setDesconto(dto.getDesconto());
+        }
+
+
+        servicoExistente.setAtivo(dto.isAtivo());
+        servicoExistente.setHome(dto.isHome());
+        servicoExistente.setAvaliacao(dto.isAvaliacao());
+
+        servicoExistente.setUsuarioAtualizacao(getUserIdFromContext().toString());
+
 
         servicoExistente.setDtAtualizacao(LocalDateTime.now());
         return servicoRepository.save(servicoExistente);
@@ -166,5 +177,15 @@ public class ServicoService {
         }
 
         return organizacaoId;
+    }
+
+    private Long getUserIdFromContext() {
+        Long userId = TenantContext.getCurrentUserId();
+
+        if (userId == null) {
+            throw new SecurityException("Organização não identificada. Token inválido ou expirado");
+        }
+
+        return userId;
     }
 }

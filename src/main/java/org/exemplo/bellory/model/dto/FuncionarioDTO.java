@@ -127,6 +127,7 @@ public class FuncionarioDTO {
         this.operacao = funcionario.getOperacao();
         this.jornadaSemanal = funcionario.getJornadaSemanal();
         this.ativo = funcionario.isAtivo();
+        this.isVisivelExterno = funcionario.isVisivelExterno();
 
         // Extrai a primeira role encontrada (simplificação)
         this.role = funcionario.getRole();
