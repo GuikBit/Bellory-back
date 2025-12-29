@@ -6,6 +6,7 @@ import org.exemplo.bellory.model.dto.organizacao.ResponsavelDTO;
 import org.exemplo.bellory.model.entity.config.ConfigSistema;
 import org.exemplo.bellory.model.entity.endereco.Endereco;
 import org.exemplo.bellory.model.entity.organizacao.*;
+import org.exemplo.bellory.model.entity.plano.Plano;
 import org.exemplo.bellory.model.entity.tema.*;
 import org.springframework.stereotype.Component;
 
@@ -323,8 +324,11 @@ public class OrganizacaoMapper {
 
         // Plano
         if (org.getPlano() != null) {
-            dto.setPlanoId(org.getPlano().getId());
-            dto.setPlanoNome(org.getPlano().getNome());
+            dto.setPlano(org.getPlano());
+        }
+
+        if(org.getLimitesPersonalizados() != null) {
+            dto.setLimitesPersonalizados(org.getLimitesPersonalizados());
         }
 
         // Endereco

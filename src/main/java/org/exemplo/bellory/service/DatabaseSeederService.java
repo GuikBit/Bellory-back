@@ -10,6 +10,7 @@ import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 import org.exemplo.bellory.model.entity.organizacao.RedesSociais;
 import org.exemplo.bellory.model.entity.organizacao.Responsavel;
 import org.exemplo.bellory.model.entity.plano.Plano;
+import org.exemplo.bellory.model.entity.plano.PlanoBellory;
 import org.exemplo.bellory.model.entity.produto.Produto;
 import org.exemplo.bellory.model.entity.servico.Categoria;
 import org.exemplo.bellory.model.entity.servico.Servico;
@@ -24,6 +25,7 @@ import org.exemplo.bellory.model.repository.agendamento.AgendamentoRepository;
 import org.exemplo.bellory.model.repository.categoria.CategoriaRepository;
 import org.exemplo.bellory.model.repository.funcionario.FuncionarioRepository;
 import org.exemplo.bellory.model.repository.organizacao.OrganizacaoRepository;
+import org.exemplo.bellory.model.repository.organizacao.PlanoBelloryRepository;
 import org.exemplo.bellory.model.repository.organizacao.PlanoRepository;
 import org.exemplo.bellory.model.repository.produtos.ProdutoRepository;
 import org.exemplo.bellory.model.repository.servico.ServicoRepository;
@@ -56,6 +58,7 @@ public class DatabaseSeederService {
     private final ServicoRepository servicoRepository;
     private final AgendamentoRepository agendamentoRepository;
     private final PlanoRepository planoRepository;
+    private final PlanoBelloryRepository planoBelloryRepository;
     private final ProdutoRepository produtoRepository;
     private final PasswordEncoder passwordEncoder;
     private final CategoriaRepository categoriaRepository;
@@ -90,7 +93,7 @@ public class DatabaseSeederService {
                                  PlanoRepository planoRepository, ProdutoRepository produtoRepository,
                                  PasswordEncoder passwordEncoder, CategoriaRepository categoriaRepository,
                                  PageComponentRepository componentRepository, PageRepository pageRepository, TenantRepository tenantRepository,
-                                 AdminRepository adminRepository) {
+                                 AdminRepository adminRepository, PlanoBelloryRepository planoBelloryRepository) {
         this.organizacaoRepository = organizacaoRepository;
         this.roleRepository = roleRepository;
         this.funcionarioRepository = funcionarioRepository;
@@ -105,6 +108,7 @@ public class DatabaseSeederService {
         this.pageRepository = pageRepository;
         this.tenantRepository = tenantRepository;
         this.adminRepository = adminRepository;
+        this.planoBelloryRepository = planoBelloryRepository;
     }
 
     @Transactional
@@ -112,7 +116,7 @@ public class DatabaseSeederService {
         System.out.println("🚀 Iniciando seeding completo do banco de dados...");
 
         // 1. PLANOS
-        List<Plano> planos = criarPlanos();
+        List<PlanoBellory> planos = planoBelloryRepository.findAll();
 
         // 2. ORGANIZAÇÕES
         List<Organizacao> organizacoes = criarOrganizacoes(planos);
@@ -242,7 +246,7 @@ public class DatabaseSeederService {
         System.out.println("✅ Total de vínculos serviço-funcionário criados: " + vinculosCriados);
     }
 
-    private List<Organizacao> criarOrganizacoes(List<Plano> planos) {
+    private List<Organizacao> criarOrganizacoes(List<PlanoBellory> planos) {
         System.out.println("🏢 Criando organizações...");
         List<Organizacao> organizacoes = new ArrayList<>();
 

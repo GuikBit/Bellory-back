@@ -7,9 +7,11 @@ import org.exemplo.bellory.model.dto.UpdateOrganizacaoDTO;
 import org.exemplo.bellory.model.entity.email.EmailTemplate;
 import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 import org.exemplo.bellory.model.entity.plano.Plano;
+import org.exemplo.bellory.model.entity.plano.PlanoBellory;
 import org.exemplo.bellory.model.entity.users.Admin;
 import org.exemplo.bellory.model.mapper.OrganizacaoMapper;
 import org.exemplo.bellory.model.repository.organizacao.OrganizacaoRepository;
+import org.exemplo.bellory.model.repository.organizacao.PlanoBelloryRepository;
 import org.exemplo.bellory.model.repository.organizacao.PlanoRepository;
 import org.exemplo.bellory.model.repository.users.AdminRepository;
 import org.exemplo.bellory.util.CNPJUtil;
@@ -32,6 +34,7 @@ public class OrganizacaoService {
     OrganizacaoMapper organizacaoMapper;
     PasswordEncoder passwordEncoder;
     PlanoRepository planoRepository;
+    PlanoBelloryRepository planoBelloryRepository;
     AdminRepository adminRepository;
     private EmailService emailService;
     private static final int MAX_TENTATIVAS_SLUG = 10;
@@ -39,13 +42,14 @@ public class OrganizacaoService {
     @Value("${app.url}")
     private String appUrl;
 
-    public OrganizacaoService(OrganizacaoRepository organizacaoRepository, OrganizacaoMapper organizacaoMapper, PasswordEncoder passwordEncoder, PlanoRepository planoRepository, AdminRepository adminRepository, EmailService emailService) {
+    public OrganizacaoService(OrganizacaoRepository organizacaoRepository, OrganizacaoMapper organizacaoMapper, PasswordEncoder passwordEncoder, PlanoRepository planoRepository, AdminRepository adminRepository, EmailService emailService, PlanoBelloryRepository planoBelloryRepository) {
         this.organizacaoRepository = organizacaoRepository;
         this.organizacaoMapper = organizacaoMapper;
         this.passwordEncoder = passwordEncoder;
         this.planoRepository = planoRepository;
         this.adminRepository = adminRepository;
         this.emailService = emailService;
+        this.planoBelloryRepository = planoBelloryRepository;
     }
 
     public Organizacao getOrganizacaoPadrao() {
@@ -126,7 +130,7 @@ public class OrganizacaoService {
         organizacao.setSlug(slug);
 
         // Busca e atribui plano
-        List<Plano> planos = planoRepository.findAll();
+        List<PlanoBellory> planos = planoBelloryRepository.findAll();
         if (planos.isEmpty()) {
             throw new IllegalStateException("Nenhum plano disponível no sistema");
         }

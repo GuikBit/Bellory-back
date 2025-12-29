@@ -25,7 +25,7 @@ public class CategoriaService {
     public List<Categoria> findByTipo(TipoCategoria tipo) {
         Long organizacaoId = getOrganizacaoIdFromContext();
 
-        return categoriaRepository.findByOrganizacao_IdAndTipoAndAtivoTrue(organizacaoId, tipo);
+        return categoriaRepository.findByOrganizacao_IdAndTipoAndAtivoTrueOrderByLabelAsc(organizacaoId, tipo);
     }
 
     @Transactional

@@ -1,7 +1,9 @@
 package org.exemplo.bellory.model.entity.pagamento;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
+import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 import org.exemplo.bellory.model.entity.users.Cliente;
 
 import java.time.LocalDate;
@@ -20,8 +22,13 @@ public class CartaoCredito {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "cliente_id", nullable = false)
+    @JoinColumn(name = "cliente_id")
     private Cliente cliente;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "organizacao_id")
+    @JsonIgnore
+    private Organizacao organizacao;
 
     @Column(nullable = false, length = 100)
     private String nomePortador;
