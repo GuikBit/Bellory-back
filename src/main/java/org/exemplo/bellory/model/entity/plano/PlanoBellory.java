@@ -8,7 +8,9 @@ import lombok.Setter;
 import org.exemplo.bellory.model.entity.cobranca.Cobranca;
 import org.exemplo.bellory.model.entity.pagamento.CartaoCredito;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -73,6 +75,7 @@ public class PlanoBellory {
     private Double descontoPercentualAnual; // Ex: 20.0 (20%)
 
     // Features - OPÇÃO 1: JSONB (mais flexível)
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
     private String features; // Armazena JSON: [{"text": "...", "included": true}]
 
