@@ -68,6 +68,7 @@ public class Servico {
     private List<String> produtos;
 
     @ManyToMany(mappedBy = "servicos")
+    @JsonIgnore
     private List<Funcionario> funcionarios;
 
     // Lista de URLs de imagens associadas ao serviço

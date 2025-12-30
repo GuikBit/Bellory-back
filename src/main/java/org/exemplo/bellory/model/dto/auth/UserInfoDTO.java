@@ -26,6 +26,7 @@ public class UserInfoDTO {
     private List<String> roles;
     private boolean active;
     private String userType; // "CLIENTE" ou "FUNCIONARIO"
+    private boolean isPrimeiroAcesso;
 
     @JsonFormat(pattern = "dd/MM/yyyy HH:mm:ss")
     private LocalDateTime dataCriacao;

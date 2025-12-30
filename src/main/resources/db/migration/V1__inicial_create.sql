@@ -255,13 +255,14 @@ CREATE TABLE app.funcionario
     salario            DECIMAL(10, 2),
     is_comissao        BOOLEAN,
     is_visivel_externo BOOLEAN,
+    is_primeiro_acesso BOOLEAN,
     comissao           VARCHAR(50),
     nome_mae           VARCHAR(255),
     nome_pai           VARCHAR(255),
     banco              VARCHAR(100),
     agencia            VARCHAR(20),
     conta              VARCHAR(30),
-    cargo              VARCHAR(30),
+    cargo_id           BIGINT,
     operacao           VARCHAR(20),
     jornada_semanal    VARCHAR(50),
     role               VARCHAR(255),
@@ -697,17 +698,17 @@ CREATE TABLE admin.plano_bellory
     CONSTRAINT pk_plano_bellory PRIMARY KEY (id)
 );
 
-ALTER TABLE admin.plano_bellory
-    ADD CONSTRAINT uc_plano_bellory_codigo UNIQUE (codigo);
-
 ALTER TABLE admin.plano_limites_bellory
-    ADD CONSTRAINT uc_plano_limites_bellory_plano_bellory UNIQUE (plano_bellory_id);
+    ADD CONSTRAINT FK_PLANO_LIMITES_BELLORY_ON_PLANO_BELLORY FOREIGN KEY (plano_bellory_id) REFERENCES admin.plano_bellory (id);
 
 ALTER TABLE admin.plano_bellory
     ADD CONSTRAINT FK_PLANO_BELLORY_ON_CARTAOCREDITO FOREIGN KEY (cartao_credito_id) REFERENCES app.cartao_credito (id);
 
 ALTER TABLE admin.plano_limites_bellory
-    ADD CONSTRAINT FK_PLANO_LIMITES_BELLORY_ON_PLANO_BELLORY FOREIGN KEY (plano_bellory_id) REFERENCES admin.plano_bellory (id);
+    ADD CONSTRAINT uc_plano_limites_bellory_plano_bellory UNIQUE (plano_bellory_id);
+
+ALTER TABLE admin.plano_bellory
+    ADD CONSTRAINT uc_plano_bellory_codigo UNIQUE (codigo);
 
 ALTER TABLE app.admin
     ADD CONSTRAINT uc_admin_email UNIQUE (email);
@@ -861,6 +862,9 @@ ALTER TABLE app.dados_faturamento_organizacao
 
 ALTER TABLE app.endereco
     ADD CONSTRAINT FK_ENDERECO_ON_CLIENTE FOREIGN KEY (cliente_id) REFERENCES app.cliente (id);
+
+ALTER TABLE app.funcionario
+    ADD CONSTRAINT FK_FUNCIONARIO_ON_CARGO FOREIGN KEY (cargo_id) REFERENCES app.cargo_funcionario (id);
 
 ALTER TABLE app.funcionario
     ADD CONSTRAINT FK_FUNCIONARIO_ON_ORGANIZACAO FOREIGN KEY (organizacao_id) REFERENCES app.organizacao (id);

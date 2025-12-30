@@ -125,6 +125,9 @@ public class Funcionario extends User {
     @Column(name = "isVisivelExterno")
     private boolean isVisivelExterno;
 
+    @Column(name= "isPrimeiroAcesso")
+    private boolean isPrimeiroAcesso;
+
     // A comissão pode ser um percentual ou valor fixo, por isso String
     @Column(length = 50)
     private String comissao;
@@ -144,8 +147,9 @@ public class Funcionario extends User {
     @Column(length = 30)
     private String conta;
 
-    @Column(length = 30)
-    private String cargo;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "cargo_id")
+    private Cargo cargo;
 
     @Column(length = 20)
     private String operacao; // Para contas como Poupança na CEF
