@@ -14,4 +14,5 @@ public interface CategoriaRepository extends JpaRepository<Categoria, Long> {
 
     List<Categoria> findByOrganizacao_IdAndAtivoTrue(Long organizacaoId);
 
+    List<Categoria> findByOrganizacao_IdAndTipoAndAtivoTrueOrderByLabelAsc(Long organizacaoId, TipoCategoria tipo);
 }

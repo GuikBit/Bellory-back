@@ -10,7 +10,9 @@ import org.exemplo.bellory.model.entity.organizacao.AcessoAdm;
 import org.exemplo.bellory.model.entity.organizacao.RedesSociais;
 import org.exemplo.bellory.model.entity.organizacao.Responsavel;
 import org.exemplo.bellory.model.entity.plano.Plano;
+import org.exemplo.bellory.model.entity.plano.PlanoBellory;
 import org.exemplo.bellory.model.entity.plano.PlanoLimites;
+import org.exemplo.bellory.model.entity.plano.PlanoLimitesBellory;
 import org.exemplo.bellory.model.entity.tema.Tema;
 
 import java.time.LocalDateTime;
@@ -40,10 +42,10 @@ public class OrganizacaoResponseDTO {
     // Relacionamentos
     private Long planoId;
     private String planoNome;
-    private Plano plano;
+    private PlanoBellory plano;
     private ConfigSistema configSistema;
     private Endereco enderecoPrincipal;
-    private PlanoLimites limitesPersonalizados;
+    private PlanoLimitesBellory limitesPersonalizados;
 
     // Controle
     private Boolean ativo;

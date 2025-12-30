@@ -12,7 +12,9 @@ import lombok.*;
 import org.exemplo.bellory.model.entity.config.ConfigSistema;
 import org.exemplo.bellory.model.entity.plano.Plano;
 import org.exemplo.bellory.model.entity.endereco.Endereco;
+import org.exemplo.bellory.model.entity.plano.PlanoBellory;
 import org.exemplo.bellory.model.entity.plano.PlanoLimites;
+import org.exemplo.bellory.model.entity.plano.PlanoLimitesBellory;
 import org.exemplo.bellory.model.entity.tema.Tema;
 
 import java.time.LocalDateTime;
@@ -98,7 +100,7 @@ public class Organizacao {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "plano_id", nullable = false)
     @JsonIgnore
-    private Plano plano;
+    private PlanoBellory plano;
 
     @Column(unique = true, nullable = false)
     private String slug;
@@ -140,7 +142,7 @@ public class Organizacao {
     // CORRETO: OneToOne com PlanoLimites
     @OneToOne(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @JoinColumn(name = "limites_personalizados_id")
-    private PlanoLimites limitesPersonalizados;
+    private PlanoLimitesBellory limitesPersonalizados;
 
     @Column(name = "ativo", nullable = false)
     private Boolean ativo = true;

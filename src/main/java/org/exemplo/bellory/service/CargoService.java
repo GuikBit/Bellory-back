@@ -55,8 +55,10 @@ public class CargoService {
 
     private CargoDTO convertToDTO(Cargo cargo){
         return CargoDTO.builder()
+                .id(cargo.getId())
                 .nome(cargo.getNome())
                 .descricao(cargo.getDescricao())
+                .ativo(cargo.isAtivo())
                 .build();
     }
 
@@ -150,8 +152,10 @@ public class CargoService {
 
     private CargoDTO toDTO(Cargo cargo) {
         CargoDTO dto = new CargoDTO();
+        dto.setId(cargo.getId());
         dto.setNome(cargo.getNome());
         dto.setDescricao(cargo.getDescricao());
+        dto.setAtivo(cargo.isAtivo());
         return dto;
     }
 }
