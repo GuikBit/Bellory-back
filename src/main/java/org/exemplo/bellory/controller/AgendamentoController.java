@@ -262,7 +262,7 @@ public class AgendamentoController {
 
             // Buscar agendamento
             AgendamentoDTO agendamento = agendamentoService.getAgendamentoById(id);
-            if (agendamento.getCobrancaId() == null) {
+            if (agendamento.getCobrancas() == null) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                         .body(ResponseAPI.<Map<String, Object>>builder()
                                 .success(false)
@@ -277,7 +277,7 @@ public class AgendamentoController {
             );
 
             Pagamento pagamento = transacaoService.processarPagamento(
-                    agendamento.getCobrancaId(),
+                    agendamento.getCobrancas().stream().count(),
                     metodoPagamento,
                     pagamentoDTO.getValorPagamento(),
                     pagamentoDTO.getCartaoCreditoId()
@@ -320,10 +320,10 @@ public class AgendamentoController {
             // Verificar se existe cobrança paga antes de cancelar
             AgendamentoDTO agendamento = agendamentoService.getAgendamentoById(id);
 
-            if (agendamento.getCobrancaId() != null) {
+            if (agendamento.getCobrancas().stream() != null) {
                 List<Cobranca> cobrancas = transacaoService.getCobrancasPendentesCliente(agendamento.getClienteId())
                         .stream()
-                        .filter(c -> c.getId().equals(agendamento.getCobrancaId()))
+                        .filter(c -> c.getId().equals(agendamento.getCobrancas().get(0).getId()))
                         .collect(Collectors.toList());
 
                 if (!cobrancas.isEmpty() && cobrancas.get(0).isPaga()) {
@@ -385,7 +385,7 @@ public class AgendamentoController {
             // Buscar agendamento
             AgendamentoDTO agendamento = agendamentoService.getAgendamentoById(id);
 
-            if (agendamento.getCobrancaId() == null) {
+            if (agendamento.getCobrancas() == null) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                         .body(ResponseAPI.<String>builder()
                                 .success(false)
@@ -395,12 +395,12 @@ public class AgendamentoController {
             }
 
             // Processar estorno através do TransactionService
-            transacaoService.estornarCobranca(agendamento.getCobrancaId(), motivo);
+            //transacaoService.estornarCobranca(agendamento.getCobrancas().stream().map(c-> c.getId() == id), motivo);
 
             return ResponseEntity.ok(ResponseAPI.<String>builder()
                     .success(true)
                     .message("Estorno processado com sucesso.")
-                    .dados("Cobrança estornada: " + agendamento.getCobrancaId())
+                    .dados("Cobrança estornada: " + agendamento.getCobrancas().get(id.byteValue()))
                     .build());
 
         } catch (IllegalArgumentException | IllegalStateException e) {

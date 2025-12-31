@@ -10,6 +10,7 @@ import org.exemplo.bellory.model.entity.agendamento.Status;
 import org.exemplo.bellory.model.entity.cobranca.Cobranca;
 import org.exemplo.bellory.model.entity.funcionario.Funcionario;
 import org.exemplo.bellory.model.entity.produto.Produto;
+import org.exemplo.bellory.model.entity.servico.Servico;
 import org.exemplo.bellory.model.entity.users.Cliente;
 import org.exemplo.bellory.model.repository.Transacao.CobrancaRepository;
 import org.exemplo.bellory.model.repository.agendamento.AgendamentoRepository;
@@ -116,8 +117,10 @@ public class DashboardService {
                 .count();
 
         BigDecimal receitaGerada = agendamentos.stream()
-                .filter(a -> a.getCobranca() != null && a.getCobranca().getStatusCobranca() == Cobranca.StatusCobranca.PAGO)
-                .map(a -> a.getCobranca().getValor())
+                .filter(a -> a.getCobrancas() != null && !a.getCobrancas().isEmpty())
+                .flatMap(a -> a.getCobrancas().stream())
+                .filter(c -> c.getStatusCobranca() == Cobranca.StatusCobranca.PAGO)
+                .map(Cobranca::getValor)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         Double taxaConclusao = totalAtendimentos > 0 ?
@@ -494,7 +497,7 @@ public class DashboardService {
         LocalDateTime inicioDateTime = dataInicio.atStartOfDay();
         LocalDateTime fimDateTime = dataFim.atTime(23, 59, 59);
 
-        // Buscar agendamentos do período com serviços
+        // Buscar agendamentos do período
         List<Agendamento> agendamentos = agendamentoRepository.findByDtAgendamentoBetweenAndClienteOrganizacaoId(
                 inicioDateTime, fimDateTime, organizacaoId);
 
@@ -527,18 +530,20 @@ public class DashboardService {
             }
         }
 
-        // Total de vendas (agendamentos concluídos com pagamento)
+        // CORRIGIDO: Total de vendas (agendamentos concluídos E totalmente pagos)
         Long totalVendas = agendamentos.stream()
                 .filter(a -> a.getStatus() == Status.CONCLUIDO &&
-                        a.getCobranca() != null &&
-                        a.getCobranca().getStatusCobranca() == Cobranca.StatusCobranca.PAGO)
+                        a.getCobrancas() != null &&
+                        !a.getCobrancas().isEmpty() &&
+                        todasCobrancasPagas(a))
                 .count();
 
-        // Valor total vendido
+        // CORRIGIDO: Valor total vendido (soma de TODAS as cobranças PAGAS)
         BigDecimal valorTotalVendido = agendamentos.stream()
-                .filter(a -> a.getCobranca() != null &&
-                        a.getCobranca().getStatusCobranca() == Cobranca.StatusCobranca.PAGO)
-                .map(a -> a.getCobranca().getValor())
+                .filter(a -> a.getCobrancas() != null && !a.getCobrancas().isEmpty())
+                .flatMap(a -> a.getCobrancas().stream())
+                .filter(c -> c.getStatusCobranca() == Cobranca.StatusCobranca.PAGO)
+                .map(Cobranca::getValor)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         return DashboardDTO.VendasResumoDTO.builder()
@@ -547,6 +552,15 @@ public class DashboardService {
                 .servicosMaisVendidos(servicoMaisVendido)
                 .build();
     }
+    private boolean todasCobrancasPagas(Agendamento agendamento) {
+        if (agendamento.getCobrancas() == null || agendamento.getCobrancas().isEmpty()) {
+            return false;
+        }
+
+        return agendamento.getCobrancas().stream()
+                .allMatch(c -> c.getStatusCobranca() == Cobranca.StatusCobranca.PAGO);
+    }
+
 
     private DashboardDTO.GraficosDTO getGraficos(LocalDate dataInicio, LocalDate dataFim,
                                                  DashboardFiltroDTO filtro, Long organizacaoId) {
@@ -620,11 +634,16 @@ public class DashboardService {
 
         String servicos = agendamento.getServicos() != null ?
                 agendamento.getServicos().stream()
-                        .map(s -> s.getNome())
+                        .map(Servico::getNome)
                         .collect(Collectors.joining(", ")) : "";
 
-        BigDecimal valor = agendamento.getCobranca() != null ?
-                agendamento.getCobranca().getValor() : BigDecimal.ZERO;
+        // CORRIGIDO: Calcular valor total de TODAS as cobranças
+        BigDecimal valor = BigDecimal.ZERO;
+        if (agendamento.getCobrancas() != null && !agendamento.getCobrancas().isEmpty()) {
+            valor = agendamento.getCobrancas().stream()
+                    .map(Cobranca::getValor)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+        }
 
         return AgendamentoRecenteDTO.builder()
                 .id(agendamento.getId())
@@ -710,14 +729,24 @@ public class DashboardService {
 
         for (Agendamento agendamento : agendamentos) {
             if (agendamento.getFuncionarios() != null &&
-                    agendamento.getCobranca() != null &&
-                    agendamento.getCobranca().getStatusCobranca() == Cobranca.StatusCobranca.PAGO) {
+                    agendamento.getCobrancas() != null &&
+                    !agendamento.getCobrancas().isEmpty()) {
 
-                BigDecimal valorDividido = agendamento.getCobranca().getValor()
-                        .divide(BigDecimal.valueOf(agendamento.getFuncionarios().size()), 2, RoundingMode.HALF_UP);
+                // Somar TODAS as cobranças PAGAS deste agendamento
+                BigDecimal valorTotalPago = agendamento.getCobrancas().stream()
+                        .filter(c -> c.getStatusCobranca() == Cobranca.StatusCobranca.PAGO)
+                        .map(Cobranca::getValor)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-                for (Funcionario func : agendamento.getFuncionarios()) {
-                    receitaPorFuncionario.merge(func.getId(), valorDividido, BigDecimal::add);
+                // Se tem valor pago, dividir entre os funcionários
+                if (valorTotalPago.compareTo(BigDecimal.ZERO) > 0) {
+                    BigDecimal valorDividido = valorTotalPago
+                            .divide(BigDecimal.valueOf(agendamento.getFuncionarios().size()),
+                                    2, RoundingMode.HALF_UP);
+
+                    for (Funcionario func : agendamento.getFuncionarios()) {
+                        receitaPorFuncionario.merge(func.getId(), valorDividido, BigDecimal::add);
+                    }
                 }
             }
         }

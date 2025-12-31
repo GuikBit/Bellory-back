@@ -1,24 +1,36 @@
 package org.exemplo.bellory.model.dto.compra;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
+import org.exemplo.bellory.model.entity.pagamento.Pagamento;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-@Data
-@Builder
+@Getter
+@Setter
 @NoArgsConstructor
-@AllArgsConstructor
 public class PagamentoDTO {
     private Long id;
     private Long cobrancaId;
+    private Long clienteId;
+    private String clienteNome;
     private BigDecimal valor;
-    private LocalDateTime dataPagamento;
-    private String metodoPagamento;
-    private String statusPagamento;
-    private String transacaoId;
-    private String descricaoTransacao;
+    private Pagamento.FormaPagamento formaPagamento;
+    private Pagamento.StatusPagamento statusPagamento;
+    private LocalDateTime dtPagamento;
+    private String observacoes;
+    private String numeroTransacao;
+
+    public PagamentoDTO(Pagamento pagamento) {
+        this.id = pagamento.getId();
+        this.cobrancaId = pagamento.getCobranca() != null ? pagamento.getCobranca().getId() : null;
+        this.clienteId = pagamento.getCliente() != null ? pagamento.getCliente().getId() : null;
+        this.clienteNome = pagamento.getCliente() != null ? pagamento.getCliente().getNomeCompleto() : null;
+        this.valor = pagamento.getValor();
+        this.formaPagamento = pagamento.getFormaPagamento();
+        this.statusPagamento = pagamento.getStatusPagamento();
+        this.dtPagamento = pagamento.getDtPagamento();
+        this.observacoes = pagamento.getObservacoes();
+        this.numeroTransacao = pagamento.getNumeroTransacao();
+    }
 }

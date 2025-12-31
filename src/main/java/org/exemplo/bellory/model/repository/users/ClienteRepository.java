@@ -31,11 +31,11 @@ public interface ClienteRepository extends JpaRepository<Cliente, Long> {
     @Query("SELECT COUNT(DISTINCT a.cliente.id) FROM Agendamento a GROUP BY a.cliente.id HAVING COUNT(a.id) > 1")
     Long countClientesRecorrentes();
 
-    @Query("SELECT c FROM Cliente c WHERE c.id IN (" +
-            "SELECT a.cliente.id FROM Agendamento a " +
-            "GROUP BY a.cliente.id " +
-            "ORDER BY COUNT(a.id) DESC, SUM(COALESCE(a.cobranca.valor, 0)) DESC)")
-    List<Cliente> findTopClientes();
+//    @Query("SELECT c FROM Cliente c WHERE c.id IN (" +
+//            "SELECT a.cliente.id FROM Agendamento a " +
+//            "GROUP BY a.cliente.id " +
+//            "ORDER BY COUNT(a.id) DESC, SUM(COALESCE(a.cobrancas.valor, 0)) DESC)")
+//    List<Cliente> findTopClientes();
 
     @Query("SELECT COUNT(c) FROM Cliente c WHERE DAY(c.dataNascimento) = DAY(CURRENT_DATE) AND MONTH(c.dataNascimento) = MONTH(CURRENT_DATE)")
     Long countAniversariantesHoje();
