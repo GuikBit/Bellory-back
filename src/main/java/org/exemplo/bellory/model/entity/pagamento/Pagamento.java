@@ -7,6 +7,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.exemplo.bellory.model.entity.cobranca.Cobranca;
+import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 import org.exemplo.bellory.model.entity.users.Cliente;
 
 import java.math.BigDecimal;
@@ -29,12 +30,16 @@ public class Pagamento {
     @JsonBackReference("cobranca-pagamentos")
     private Cobranca cobranca;
 
-    // === NOVO RELACIONAMENTO COM CLIENTE ===
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cliente_id", nullable = false)
     private Cliente cliente;
 
-    // === RELACIONAMENTO COM CARTÃO (OPCIONAL) ===
+    // NOVO: Relacionamento com Organização
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "organizacao_id", nullable = false)
+    private Organizacao organizacao;
+
+    // RELACIONAMENTO COM CARTÃO (OPCIONAL)
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cartao_credito_id")
     private CartaoCredito cartaoCredito;
@@ -42,16 +47,27 @@ public class Pagamento {
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal valor;
 
-    @Column(name = "data_pagamento")
-    private LocalDateTime dataPagamento;
+    // ATUALIZADO: Campo renomeado para dt_pagamento
+    @Column(name = "dt_pagamento")
+    private LocalDateTime dtPagamento;
 
+    // NOVO: Forma de pagamento (compatível com o sistema antigo)
     @Enumerated(EnumType.STRING)
-    @Column(name = "metodo_pagamento", nullable = false, length = 50)
+    @Column(name = "forma_pagamento", length = 50)
+    private FormaPagamento formaPagamento;
+
+    // MANTIDO: Método de pagamento (para compatibilidade)
+    @Enumerated(EnumType.STRING)
+    @Column(name = "metodo_pagamento", length = 50)
     private MetodoPagamento metodoPagamento;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status_pagamento", nullable = false, length = 20)
     private StatusPagamento statusPagamento;
+
+    // NOVO: Número da transação único
+    @Column(name = "numero_transacao", unique = true, length = 50)
+    private String numeroTransacao;
 
     @Column(name = "transacao_id", length = 255)
     private String transacaoId;
@@ -69,6 +85,28 @@ public class Pagamento {
     private LocalDateTime dtAtualizacao;
 
     // === ENUMS ===
+
+    // NOVO: Forma de pagamento (simplificada)
+    public enum FormaPagamento {
+        DINHEIRO("Dinheiro"),
+        CARTAO_CREDITO("Cartão de Crédito"),
+        CARTAO_DEBITO("Cartão de Débito"),
+        PIX("PIX"),
+        TRANSFERENCIA("Transferência Bancária"),
+        BOLETO("Boleto Bancário"),
+        CHEQUE("Cheque");
+
+        private final String descricao;
+
+        FormaPagamento(String descricao) {
+            this.descricao = descricao;
+        }
+
+        public String getDescricao() {
+            return descricao;
+        }
+    }
+
     public enum MetodoPagamento {
         CARTAO_CREDITO("Cartão de Crédito"),
         CARTAO_DEBITO("Cartão de Débito"),
@@ -108,6 +146,7 @@ public class Pagamento {
     }
 
     // === MÉTODOS DE CONVENIÊNCIA ===
+
     public boolean isPago() {
         return this.statusPagamento == StatusPagamento.CONFIRMADO;
     }
@@ -119,7 +158,7 @@ public class Pagamento {
 
     public void confirmarPagamento() {
         this.statusPagamento = StatusPagamento.CONFIRMADO;
-        this.dataPagamento = LocalDateTime.now();
+        this.dtPagamento = LocalDateTime.now();
         this.dtAtualizacao = LocalDateTime.now();
     }
 
@@ -136,10 +175,35 @@ public class Pagamento {
         if (this.statusPagamento == null) {
             this.statusPagamento = StatusPagamento.PENDENTE;
         }
+        if (this.numeroTransacao == null) {
+            gerarNumeroTransacao();
+        }
+
+        // Sincronizar formaPagamento com metodoPagamento se não estiver definido
+        if (this.formaPagamento == null && this.metodoPagamento != null) {
+            this.formaPagamento = converterMetodoParaForma(this.metodoPagamento);
+        }
     }
 
     @PreUpdate
     public void preUpdate() {
         this.dtAtualizacao = LocalDateTime.now();
+    }
+
+    private void gerarNumeroTransacao() {
+        this.numeroTransacao = "PAG" + System.currentTimeMillis() +
+                (this.cliente != null ? this.cliente.getId() : "");
+    }
+
+    // Método auxiliar para converter MetodoPagamento para FormaPagamento
+    private FormaPagamento converterMetodoParaForma(MetodoPagamento metodo) {
+        return switch (metodo) {
+            case CARTAO_CREDITO -> FormaPagamento.CARTAO_CREDITO;
+            case CARTAO_DEBITO -> FormaPagamento.CARTAO_DEBITO;
+            case DINHEIRO -> FormaPagamento.DINHEIRO;
+            case PIX -> FormaPagamento.PIX;
+            case TRANSFERENCIA_BANCARIA -> FormaPagamento.TRANSFERENCIA;
+            case BOLETO -> FormaPagamento.BOLETO;
+        };
     }
 }

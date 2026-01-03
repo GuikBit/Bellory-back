@@ -207,7 +207,8 @@ public class AgendamentoService {
         Cobranca cobranca = transacaoService.criarCobrancaParaAgendamento(agendamentoSalvo);
 
         // 5. Estabelecer relacionamento bidirecional
-        agendamentoSalvo.setCobranca(cobranca);
+        agendamentoSalvo.adicionarCobranca(cobranca);
+
         agendamentoRepository.save(agendamentoSalvo);
 
         return new AgendamentoDTO(agendamentoSalvo);
@@ -349,12 +350,12 @@ public class AgendamentoService {
         }
 
         // Cancelar cobrança associada se existir e estiver pendente
-        if (agendamento.getCobranca() != null &&
-                agendamento.getCobranca().getStatusCobranca() != Cobranca.StatusCobranca.PAGO) {
-
-            agendamento.getCobranca().cancelar();
-            cobrancaRepository.save(agendamento.getCobranca());
-        }
+//        if (agendamento.getCobrancas() != null &&
+//                agendamento.getCobrancas().getStatusCobranca() != Cobranca.StatusCobranca.PAGO) {
+//
+//            agendamento.getCobranca().cancelar();
+//            cobrancaRepository.save(agendamento.getCobranca());
+//        }
 
         agendamentoRepository.save(agendamento);
     }
@@ -443,8 +444,8 @@ public class AgendamentoService {
     }
 
     private void atualizarCobrancaAgendamento(Agendamento agendamento) {
-        if (agendamento.getCobranca() != null) {
-            Cobranca cobranca = agendamento.getCobranca();
+        if (agendamento.getCobrancas() != null) {
+            Cobranca cobranca = agendamento.getCobrancas().get(0);
 
             // Só permitir atualização se cobrança não estiver paga
             if (!cobranca.isPaga()) {
@@ -490,11 +491,11 @@ public class AgendamentoService {
             case CANCELADO:
                 agendamento.cancelarAgendamento();
                 // Cancelar cobrança somente se não estiver paga
-                if (agendamento.getCobranca() != null &&
-                        !agendamento.getCobranca().isPaga()) {
-                    agendamento.getCobranca().cancelar();
-                    cobrancaRepository.save(agendamento.getCobranca());
-                }
+//                if (agendamento.getCobranca() != null &&
+//                        !agendamento.getCobranca().isPaga()) {
+//                    agendamento.getCobranca().cancelar();
+//                    cobrancaRepository.save(agendamento.getCobranca());
+//                }
                 break;
 
             case EM_ESPERA:
@@ -903,8 +904,16 @@ public class AgendamentoService {
 
     public List<AgendamentoDTO> getAgendamentosComCobrancasPendentes() {
         List<Agendamento> agendamentos = agendamentoRepository.findAll().stream()
-                .filter(a -> a.getCobranca() != null && a.getCobranca().isPendente())
-                .sorted((a1, a2) -> a1.getDtAgendamento().compareTo(a2.getDtAgendamento()))
+                .filter(a -> {
+                    if (a.getCobrancas() == null || a.getCobrancas().isEmpty()) {
+                        return false;
+                    }
+
+                    return a.getCobrancas().stream()
+                            .anyMatch(c -> c.isPendente() &&
+                                    (c.isSinal() || c.isRestante() || c.isIntegral()));
+                })
+                .sorted(Comparator.comparing(Agendamento::getDtAgendamento))
                 .collect(Collectors.toList());
 
         return agendamentos.stream()
@@ -914,12 +923,28 @@ public class AgendamentoService {
 
     public List<AgendamentoDTO> getAgendamentosVencidos() {
         LocalDate hoje = LocalDate.now();
+
         List<Agendamento> agendamentos = agendamentoRepository.findAll().stream()
-                .filter(a -> a.getCobranca() != null &&
-                        a.getCobranca().getDtVencimento() != null &&
-                        a.getCobranca().getDtVencimento().isBefore(hoje) &&
-                        a.getCobranca().isPendente())
-                .sorted((a1, a2) -> a1.getCobranca().getDtVencimento().compareTo(a2.getCobranca().getDtVencimento()))
+                .filter(a -> {
+                    if (a.getCobrancas() == null || a.getCobrancas().isEmpty()) {
+                        return false;
+                    }
+
+                    return a.getCobrancas().stream()
+                            .anyMatch(c -> c.getDtVencimento() != null &&
+                                    c.getDtVencimento().isBefore(hoje) &&
+                                    c.isPendente() &&
+                                    (c.isSinal() || c.isIntegral()));
+                })
+                .sorted(Comparator.comparing(a ->
+                        a.getCobrancas().stream()
+                                .filter(c -> c.getDtVencimento() != null &&
+                                        c.isPendente() &&
+                                        (c.isSinal() || c.isIntegral()))
+                                .map(Cobranca::getDtVencimento)
+                                .min(LocalDate::compareTo)
+                                .orElse(LocalDate.MAX)
+                ))
                 .collect(Collectors.toList());
 
         return agendamentos.stream()
@@ -968,9 +993,7 @@ public class AgendamentoService {
         Long organizacaoId = getOrganizacaoIdFromContext();
 
         LocalDateTime inicioDia = data.atStartOfDay();
-        LocalDateTime fimDia = data.atTime(23, 59, 59);
-
-//        List<Agendamento> agendamentos = agendamentoRepository.findByDtAgendamentoBetween(inicioDia, fimDia);
+        LocalDateTime fimDia = data.plusDays(1).atStartOfDay(); // MUDANÇA: próximo dia às 00:00:00
 
         List<Agendamento> agendamentos = agendamentoRepository.findByDtAgendamentoBetweenAndClienteOrganizacaoId(inicioDia, fimDia, organizacaoId);
 

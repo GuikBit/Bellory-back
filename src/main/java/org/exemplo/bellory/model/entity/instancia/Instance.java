@@ -8,6 +8,9 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Entity
 @Table(name = "instance", schema = "app")
 @Getter
@@ -49,6 +52,21 @@ public class Instance {
     @JsonIgnore
     private WebhookConfig webhookConfig;
 
+    @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    @JoinColumn(name = "settings_id")
+    @JsonIgnore
+    private Settings settings;
+
+    // Relacionamento OneToMany com KnowledgeBase
+    @OneToMany(
+            mappedBy = "instance",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true,
+            fetch = FetchType.LAZY
+    )
+    @JsonIgnore
+    private List<KnowledgeBase> knowledgeBase = new ArrayList<>();
+
     @PrePersist
     @PreUpdate
     private void ensureConfigurations() {
@@ -58,7 +76,20 @@ public class Instance {
         if (this.webhookConfig == null) {
             this.webhookConfig = new WebhookConfig();
         }
+
+        if(this.settings == null) {
+            this.settings = new Settings();
+        }
     }
 
+    public void addKnowledgeBase(KnowledgeBase knowledge) {
+        knowledgeBase.add(knowledge);
+        knowledge.setInstance(this);
+    }
+
+    public void removeKnowledgeBase(KnowledgeBase knowledge) {
+        knowledgeBase.remove(knowledge);
+        knowledge.setInstance(null);
+    }
 
 }

@@ -70,6 +70,7 @@ public class UserInfoService {
             userInfoBuilder
                     .userType("FUNCIONARIO")
                     .dataCriacao(funcionario.getDataCriacao())
+                    .isPrimeiroAcesso(funcionario.isPrimeiroAcesso())
                     .funcionarioInfo(buildFuncionarioInfo(funcionario));
 
             return userInfoBuilder.build();
@@ -115,7 +116,7 @@ public class UserInfoService {
                 .nivel(funcionario.getNivel())
                 .apelido(funcionario.getApelido())
                 .situacao(funcionario.getSituacao())
-                .cargo(funcionario.getCargo())
+                .cargo(funcionario.getCargo().getNome())
                 .salario(funcionario.getSalario())
                 .isComissao(funcionario.isComissao())
                 .comissao(funcionario.getComissao())

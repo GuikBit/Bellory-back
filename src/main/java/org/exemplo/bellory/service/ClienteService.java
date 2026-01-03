@@ -243,7 +243,7 @@ public class ClienteService {
         List<Cobranca> cobrancas;
         if (status != null && !status.isEmpty()) {
             Status statusEnum = Status.valueOf(status.toUpperCase());
-            cobrancas = cobrancaRepository.findByClienteAndStatusCobranca(cliente, statusEnum);
+            cobrancas = cobrancaRepository.findByClienteAndStatusCobranca(cliente, Cobranca.StatusCobranca.valueOf(status));
         } else {
             cobrancas = cobrancaRepository.findByCliente(cliente);
         }
@@ -449,8 +449,10 @@ public class ClienteService {
     }
 
     private BigDecimal calcularValorAgendamento(Agendamento agendamento) {
-        if (agendamento.getCobranca() != null) {
-            return agendamento.getCobranca().getValor();
+        if (agendamento.getCobrancas() != null) {
+            return agendamento.getCobrancas().stream()
+                    .map(Cobranca::getValor)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
         }
 
         if (agendamento.getServicos() != null) {
@@ -548,12 +550,11 @@ public class ClienteService {
                 .agendamentoId(cobranca.getAgendamento() != null ? cobranca.getAgendamento().getId() : null)
                 .compraId(cobranca.getCompra() != null ? cobranca.getCompra().getId() : null)
                 .valor(cobranca.getValor())
-                .statusCobranca(cobranca.getStatusCobranca().name())
+                .statusCobranca(cobranca.getStatusCobranca())
                 .dtVencimento(cobranca.getDtVencimento())
                 .dtCriacao(cobranca.getDtCriacao())
-                .tipoTransacao(cobranca.getAgendamento() != null ? "AGENDAMENTO" : "COMPRA")
-                .descricaoServicos(cobranca.getAgendamento() != null ?
-                        getDescricaoServicos(cobranca.getAgendamento()) : "Compra de produtos")
+                .tipoCobranca(cobranca.getTipoCobranca())
+
                 .build();
     }
 

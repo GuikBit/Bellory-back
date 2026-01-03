@@ -139,24 +139,24 @@ public interface AgendamentoRepository extends JpaRepository<Agendamento, Long> 
     /**
      * Busca agendamentos com cobranças pendentes por organização
      */
-    @Query("SELECT a FROM Agendamento a " +
-            "JOIN a.cobranca c " +
-            "WHERE c.statusCobranca = 'PENDENTE' " +
-            "AND a.cliente.organizacao.id = :organizacaoId")
-    List<Agendamento> findComCobrancasPendentesByOrganizacaoId(@Param("organizacaoId") Long organizacaoId);
+//    @Query("SELECT a FROM Agendamento a " +
+//            "JOIN a.cobranca c " +
+//            "WHERE c.statusCobranca = 'PENDENTE' " +
+//            "AND a.cliente.organizacao.id = :organizacaoId")
+//    List<Agendamento> findComCobrancasPendentesByOrganizacaoId(@Param("organizacaoId") Long organizacaoId);
 
     /**
      * Busca agendamentos vencidos por organização
      */
-    @Query("SELECT a FROM Agendamento a " +
-            "JOIN a.cobranca c " +
-            "WHERE c.statusCobranca = 'PENDENTE' " +
-            "AND c.dtVencimento < :dataAtual " +
-            "AND a.cliente.organizacao.id = :organizacaoId")
-    List<Agendamento> findVencidosByOrganizacaoId(
-            @Param("dataAtual") LocalDateTime dataAtual,
-            @Param("organizacaoId") Long organizacaoId
-    );
+//    @Query("SELECT a FROM Agendamento a " +
+//            "JOIN a.cobranca c " +
+//            "WHERE c.statusCobranca = 'PENDENTE' " +
+//            "AND c.dtVencimento < :dataAtual " +
+//            "AND a.cliente.organizacao.id = :organizacaoId")
+//    List<Agendamento> findVencidosByOrganizacaoId(
+//            @Param("dataAtual") LocalDateTime dataAtual,
+//            @Param("organizacaoId") Long organizacaoId
+//    );
 
     /**
      * Busca agendamentos por funcionário e data
@@ -213,4 +213,10 @@ public interface AgendamentoRepository extends JpaRepository<Agendamento, Long> 
             @Param("dataHora") LocalDateTime dataHora,
             @Param("organizacaoId") Long organizacaoId
     );
+
+    List<Agendamento> findByOrganizacaoId(Long organizacaoId);
+
+    List<Agendamento> findByClienteId(Long clienteId);
+
+    List<Agendamento> findByOrganizacaoIdAndStatus(Long organizacaoId, Status status);
 }

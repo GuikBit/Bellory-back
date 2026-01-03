@@ -3,6 +3,7 @@ package org.exemplo.bellory.model.dto;
 import lombok.*;
 import org.exemplo.bellory.model.entity.agendamento.Agendamento;
 import org.exemplo.bellory.model.entity.agendamento.Status;
+import org.exemplo.bellory.model.entity.cobranca.Cobranca;
 import org.exemplo.bellory.model.entity.servico.Servico;
 
 import java.math.BigDecimal;
@@ -24,21 +25,24 @@ public class AgendamentoDTO {
     private List<ServicoResumoDTO> servicos;
     private List<FuncionarioResumoDTO> funcionarios;
     private LocalDateTime dtAgendamento;
-    private CobrancaDTO cobranca;
+    private List<CobrancaDTO> cobrancas; // Plural para deixar claro que são múltiplas
     private String observacao;
     private Status status;
     private BigDecimal valorTotal;
     private LocalDateTime dtCriacao;
     private LocalDateTime dtAtualizacao;
-    private Long cobrancaId;
-    private BigDecimal valorCobranca;
-    private String statusCobranca;
-    private LocalDate dtVencimentoCobranca;
-    private BigDecimal valorPago;
-    private BigDecimal valorPendente;
-    private boolean cobrancaVencida;
+    private LocalDateTime dtConfirmacao;
 
-    // Construtor que converte de Agendamento para AgendamentoDTO
+    // Novos campos relacionados ao sinal
+    private Boolean requerSinal;
+    private BigDecimal percentualSinal;
+    private Boolean isSinalPago;
+    private Boolean isPagamentoCompleto;
+    private Boolean isConfirmado;
+
+    // Informações resumidas de cobrança
+    private CobrancaResumoDTO resumoCobranca;
+
     public AgendamentoDTO(Agendamento agendamento) {
         this.id = agendamento.getId();
         this.organizacaoId = agendamento.getOrganizacao().getId();
@@ -52,7 +56,10 @@ public class AgendamentoDTO {
                 agendamento.getCliente().getTelefone()
         );
 
-        this.cobranca = new CobrancaDTO(agendamento.getCobranca());
+        // Cobranças completas
+        this.cobrancas = agendamento.getCobrancas().stream()
+                .map(CobrancaDTO::new)
+                .collect(Collectors.toList());
 
         // Serviços resumo
         this.servicos = agendamento.getServicos().stream()
@@ -70,20 +77,70 @@ public class AgendamentoDTO {
                         funcionario.getId(),
                         funcionario.getNomeCompleto(),
                         funcionario.getEmail(),
-                        funcionario.getCargo()
+                        funcionario.getCargo().getNome()
                 ))
                 .collect(Collectors.toList());
 
         this.dtAgendamento = agendamento.getDtAgendamento();
         this.observacao = agendamento.getObservacao();
         this.status = agendamento.getStatus();
-
-        // Calcular valor total dos serviços
-        this.valorTotal = agendamento.getServicos().stream()
-                .map(Servico::getPreco)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
+        this.valorTotal = agendamento.calcularValorTotal();
         this.dtCriacao = agendamento.getDtCriacao();
         this.dtAtualizacao = agendamento.getDtAtualizacao();
+        this.dtConfirmacao = agendamento.getDtConfirmacao();
+
+        // Informações do sinal
+        this.requerSinal = agendamento.getRequerSinal();
+        this.percentualSinal = agendamento.getPercentualSinal();
+        this.isSinalPago = agendamento.isSinalPago();
+        this.isPagamentoCompleto = agendamento.isPagamentoCompleto();
+        this.isConfirmado = agendamento.isConfirmado();
+
+        // Resumo consolidado das cobranças
+        this.resumoCobranca = construirResumoCobranca(agendamento);
+    }
+
+    private CobrancaResumoDTO construirResumoCobranca(Agendamento agendamento) {
+        if (agendamento.getCobrancas() == null || agendamento.getCobrancas().isEmpty()) {
+            return null;
+        }
+
+        BigDecimal valorTotalCobrancas = BigDecimal.ZERO;
+        BigDecimal valorTotalPago = BigDecimal.ZERO;
+        BigDecimal valorTotalPendente = BigDecimal.ZERO;
+        boolean temCobrancaVencida = false;
+
+        CobrancaDTO cobrancaSinal = null;
+        CobrancaDTO cobrancaRestante = null;
+        CobrancaDTO cobrancaIntegral = null;
+
+        for (Cobranca cobranca : agendamento.getCobrancas()) {
+            valorTotalCobrancas = valorTotalCobrancas.add(cobranca.getValor());
+            valorTotalPago = valorTotalPago.add(cobranca.getValorPago());
+            valorTotalPendente = valorTotalPendente.add(cobranca.getValorPendente());
+
+            if (cobranca.isVencida()) {
+                temCobrancaVencida = true;
+            }
+
+            // Separar as cobranças por tipo
+            if (cobranca.isSinal()) {
+                cobrancaSinal = new CobrancaDTO(cobranca);
+            } else if (cobranca.isRestante()) {
+                cobrancaRestante = new CobrancaDTO(cobranca);
+            } else if (cobranca.isIntegral()) {
+                cobrancaIntegral = new CobrancaDTO(cobranca);
+            }
+        }
+
+        return CobrancaResumoDTO.builder()
+                .valorTotal(valorTotalCobrancas)
+                .valorPago(valorTotalPago)
+                .valorPendente(valorTotalPendente)
+                .temCobrancaVencida(temCobrancaVencida)
+                .cobrancaSinal(cobrancaSinal)
+                .cobrancaRestante(cobrancaRestante)
+                .cobrancaIntegral(cobrancaIntegral)
+                .build();
     }
 }

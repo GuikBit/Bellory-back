@@ -182,7 +182,7 @@ public class PublicSiteService {
                 .nome(func.getNomeCompleto())
                 .apelido(func.getApelido())
                 .foto(func.getFotoPerfil())
-                .cargo(func.getCargo())
+                .cargo(func.getCargo().getNome())
                 .servicoIds(servicoIds)
                 .servicoNomes(servicoNomes)
                 .horarios(convertJornadasDia(func.getJornadasDia()))

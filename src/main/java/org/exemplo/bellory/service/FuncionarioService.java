@@ -1,6 +1,9 @@
 package org.exemplo.bellory.service;
 
 import org.exemplo.bellory.model.entity.error.ResponseAPI;
+import org.exemplo.bellory.model.entity.funcionario.Cargo;
+import org.exemplo.bellory.model.entity.users.RoleEnum;
+import org.exemplo.bellory.model.repository.funcionario.CargoRepository;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -32,14 +35,16 @@ public class FuncionarioService {
     private final ServicoRepository servicoRepository;
     private final PasswordEncoder passwordEncoder;
     private final FileStorageService fileStorageService;
+    private final CargoRepository cargoRepository;
 
     public FuncionarioService(FuncionarioRepository funcionarioRepository, OrganizacaoRepository organizacaoRepository,
-                              ServicoRepository servicoRepository, PasswordEncoder passwordEncoder, FileStorageService fileStorageService) {
+                              ServicoRepository servicoRepository, PasswordEncoder passwordEncoder, FileStorageService fileStorageService, CargoRepository cargoRepository) {
         this.funcionarioRepository = funcionarioRepository;
         this.organizacaoRepository = organizacaoRepository;
         this.passwordEncoder = passwordEncoder;
         this.servicoRepository = servicoRepository;
         this.fileStorageService = fileStorageService;
+        this.cargoRepository = cargoRepository;
     }
 
     @Transactional
@@ -60,7 +65,7 @@ public class FuncionarioService {
         if (dto.getPassword() == null || dto.getPassword().trim().isEmpty()) {
             throw new IllegalArgumentException("A senha é obrigatória.");
         }
-        if (dto.getCargo() == null || dto.getCargo().trim().isEmpty()) {
+        if ( dto.getCargo().getId() == null && dto.getCargo().isAtivo()) {
             throw new IllegalArgumentException("O cargo é obrigatório.");
         }
         if (dto.getNivel() == null) {
@@ -85,6 +90,8 @@ public class FuncionarioService {
         Organizacao org = organizacaoRepository.findById(organizacaoId)
                 .orElseThrow(() -> new IllegalArgumentException("Organização com ID " + organizacaoId + " não encontrada."));
 
+        Cargo cargo = cargoRepository.findById(dto.getCargo().getId()).orElseThrow(() -> new IllegalArgumentException("O Cargo " + dto.getCargo().getNome() +" não encontrado."));
+
         // --- CRIAÇÃO E MAPEAMENTO DA ENTIDADE ---
         Funcionario novoFuncionario = new Funcionario();
         novoFuncionario.setOrganizacao(org);
@@ -92,14 +99,15 @@ public class FuncionarioService {
         novoFuncionario.setNomeCompleto(dto.getNomeCompleto());
         novoFuncionario.setEmail(dto.getEmail());
         novoFuncionario.setPassword(passwordEncoder.encode(dto.getPassword()));
-        novoFuncionario.setCargo(dto.getCargo());
+        novoFuncionario.setCargo(cargo);
         novoFuncionario.setTelefone(dto.getTelefone());
         novoFuncionario.setNivel(dto.getNivel());
         novoFuncionario.setVisivelExterno(dto.isVisibleExterno());
         novoFuncionario.setAtivo(true);
-        novoFuncionario.setRole(dto.getRole());
+        novoFuncionario.setRole(RoleEnum.FUNCIONARIO.getDescricao());
         novoFuncionario.setDataContratacao(LocalDateTime.now());
         novoFuncionario.setDataCriacao(LocalDateTime.now());
+        novoFuncionario.setPrimeiroAcesso(true);
 
         if (dto.getTelefone() != null && !dto.getTelefone().trim().isEmpty()) {
             novoFuncionario.setTelefone(dto.getTelefone());
@@ -139,6 +147,7 @@ public class FuncionarioService {
         Funcionario funcionario = funcionarioRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Funcionário com ID " + id + " não encontrado."));
 
+        Cargo cargo = cargoRepository.findById(funcionario.getCargo().getId()).orElseThrow(()-> new IllegalArgumentException("Cargo nao encontrado."));
         // Validar organização
         validarOrganizacao(funcionario.getOrganizacao().getId());
 
@@ -156,7 +165,7 @@ public class FuncionarioService {
             funcionario.setDataNasc(dto.getDataNasc());
         }
         if (dto.getCargo() != null && !dto.getCargo().trim().isEmpty()) {
-            funcionario.setCargo(dto.getCargo());
+            funcionario.setCargo(cargo);
         }
         if (dto.getSalario() != null) {
             funcionario.setSalario(dto.getSalario());
@@ -247,18 +256,18 @@ public class FuncionarioService {
                             })
                             .collect(Collectors.toList());
 
-                    List<BloqueioAgendaDTO> bloqueiosDTO = funcionario.getBloqueiosAgenda().stream()
-                            .map(bloqueio -> new BloqueioAgendaDTO(
-                                    bloqueio.getInicioBloqueio(),
-                                    bloqueio.getFimBloqueio(),
-                                    bloqueio.getDescricao(),
-                                    bloqueio.getTipoBloqueio().name()
-                            ))
-                            .collect(Collectors.toList());
+//                    List<BloqueioAgendaDTO> bloqueiosDTO = funcionario.getBloqueiosAgenda().stream()
+//                            .map(bloqueio -> new BloqueioAgendaDTO(
+//                                    bloqueio.getInicioBloqueio(),
+//                                    bloqueio.getFimBloqueio(),
+//                                    bloqueio.getDescricao(),
+//                                    bloqueio.getTipoBloqueio().name()
+//                            ))
+//                            .collect(Collectors.toList());
 
                     List<Servico> servicos = funcionario.getServicos();
 
-                    return new FuncionarioDTO(funcionario, bloqueiosDTO, jornadasDTO, servicos);
+                    return new FuncionarioDTO(funcionario, null, jornadasDTO, servicos);
                 })
                 .collect(Collectors.toList());
     }

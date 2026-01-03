@@ -11,6 +11,7 @@ import org.exemplo.bellory.model.entity.organizacao.RedesSociais;
 import org.exemplo.bellory.model.entity.organizacao.Responsavel;
 import org.exemplo.bellory.model.entity.plano.Plano;
 import org.exemplo.bellory.model.entity.plano.PlanoBellory;
+import org.exemplo.bellory.model.entity.plano.PlanoLimitesBellory;
 import org.exemplo.bellory.model.entity.produto.Produto;
 import org.exemplo.bellory.model.entity.servico.Categoria;
 import org.exemplo.bellory.model.entity.servico.Servico;
@@ -23,9 +24,11 @@ import org.exemplo.bellory.model.entity.users.Cliente;
 import org.exemplo.bellory.model.entity.users.Role;
 import org.exemplo.bellory.model.repository.agendamento.AgendamentoRepository;
 import org.exemplo.bellory.model.repository.categoria.CategoriaRepository;
+import org.exemplo.bellory.model.repository.funcionario.CargoRepository;
 import org.exemplo.bellory.model.repository.funcionario.FuncionarioRepository;
 import org.exemplo.bellory.model.repository.organizacao.OrganizacaoRepository;
 import org.exemplo.bellory.model.repository.organizacao.PlanoBelloryRepository;
+import org.exemplo.bellory.model.repository.organizacao.PlanoLimiteBelloryRepository;
 import org.exemplo.bellory.model.repository.organizacao.PlanoRepository;
 import org.exemplo.bellory.model.repository.produtos.ProdutoRepository;
 import org.exemplo.bellory.model.repository.servico.ServicoRepository;
@@ -58,6 +61,8 @@ public class DatabaseSeederService {
     private final ServicoRepository servicoRepository;
     private final AgendamentoRepository agendamentoRepository;
     private final PlanoRepository planoRepository;
+
+    private final PlanoLimiteBelloryRepository planoLimiteBelloryRepository;
     private final PlanoBelloryRepository planoBelloryRepository;
     private final ProdutoRepository produtoRepository;
     private final PasswordEncoder passwordEncoder;
@@ -86,6 +91,7 @@ public class DatabaseSeederService {
             "Tem pressa - horário apertado",
             "Cliente com mobilidade reduzida"
     };
+    private final CargoRepository cargoRepository;
 
     public DatabaseSeederService(OrganizacaoRepository organizacaoRepository, RoleRepository roleRepository,
                                  FuncionarioRepository funcionarioRepository, ClienteRepository clienteRepository,
@@ -93,7 +99,7 @@ public class DatabaseSeederService {
                                  PlanoRepository planoRepository, ProdutoRepository produtoRepository,
                                  PasswordEncoder passwordEncoder, CategoriaRepository categoriaRepository,
                                  PageComponentRepository componentRepository, PageRepository pageRepository, TenantRepository tenantRepository,
-                                 AdminRepository adminRepository, PlanoBelloryRepository planoBelloryRepository) {
+                                 AdminRepository adminRepository, PlanoBelloryRepository planoBelloryRepository, CargoRepository cargoRepository, PlanoLimiteBelloryRepository planoLimiteBelloryRepository) {
         this.organizacaoRepository = organizacaoRepository;
         this.roleRepository = roleRepository;
         this.funcionarioRepository = funcionarioRepository;
@@ -109,6 +115,8 @@ public class DatabaseSeederService {
         this.tenantRepository = tenantRepository;
         this.adminRepository = adminRepository;
         this.planoBelloryRepository = planoBelloryRepository;
+        this.cargoRepository = cargoRepository;
+        this.planoLimiteBelloryRepository = planoLimiteBelloryRepository;
     }
 
     @Transactional
@@ -116,7 +124,9 @@ public class DatabaseSeederService {
         System.out.println("🚀 Iniciando seeding completo do banco de dados...");
 
         // 1. PLANOS
-        List<PlanoBellory> planos = planoBelloryRepository.findAll();
+
+
+        List<PlanoBellory> planos = criarPlanos();
 
         // 2. ORGANIZAÇÕES
         List<Organizacao> organizacoes = criarOrganizacoes(planos);
@@ -159,32 +169,266 @@ public class DatabaseSeederService {
         System.out.println("   - Agendamentos: 100");
     }
 
-    private List<Plano> criarPlanos() {
+    private List<PlanoBellory> criarPlanos() {
         System.out.println("📋 Criando planos...");
-        List<Plano> planos = new ArrayList<>();
+        List<PlanoBellory> planos = new ArrayList<>();
 
+        // Estrutura: [codigo, nome, tagline, descricao_completa, popular, cta, badge, icone, cor, gradiente,
+        //             preco_mensal, preco_anual, desconto_percentual_anual, ordem_exibicao]
         String[][] planosData = {
-                {"Plano Básico", "Funcionalidades essenciais para salões pequenos", "99.90", "mensal"},
-                {"Plano Profissional", "Funcionalidades avançadas para salões médios", "199.90", "mensal"},
-                {"Plano Premium", "Todas as funcionalidades para grandes salões", "399.90", "mensal"},
-                {"Plano Anual Básico", "Plano básico com desconto anual", "999.00", "anual"},
-                {"Plano Enterprise", "Solução completa para redes de salões", "799.90", "mensal"}
+                {
+                        "gratuito",
+                        "Gratuito",
+                        "Experimente sem compromisso",
+                        "Plano gratuito com recursos básicos para você conhecer nossa plataforma sem nenhum custo.",
+                        "false",
+                        "Começar grátis",
+                        "",
+                        "Gift",
+                        "#4f6f64",
+                        "linear-gradient(135deg, #4f6f64 0%, #3d574f 100%)",
+                        "0.00",
+                        "0.00",
+                        "0.0",
+                        "1"
+                },
+                {
+                        "basico",
+                        "Básico",
+                        "Para começar a crescer",
+                        "Plano básico com recursos essenciais para gerenciar seu negócio de forma profissional.",
+                        "false",
+                        "Experimentar 14 dias grátis",
+                        "",
+                        "Zap",
+                        "#db6f57",
+                        "linear-gradient(135deg, #db6f57 0%, #c55a42 100%)",
+                        "79.90",
+                        "64.90",
+                        "18.74",
+                        "2"
+                },
+                {
+                        "plus",
+                        "Plus",
+                        "Tudo que você precisa",
+                        "Plano completo com todos os recursos necessários para escalar seu negócio com inteligência artificial.",
+                        "true",
+                        "Experimentar 14 dias grátis",
+                        "🔥 Mais popular",
+                        "Sparkles",
+                        "#8b3d35",
+                        "linear-gradient(135deg, #8b3d35 0%, #a8524a 100%)",
+                        "129.90",
+                        "99.90",
+                        "23.09",
+                        "3"
+                },
+                {
+                        "premium",
+                        "Premium",
+                        "Para quem quer o máximo",
+                        "Plano premium com recursos exclusivos, suporte dedicado e customizações ilimitadas para grandes operações.",
+                        "false",
+                        "Falar com especialista",
+                        "👑 Premium",
+                        "Crown",
+                        "#db6f57",
+                        "linear-gradient(135deg, #db6f57 0%, #e88c76 100%)",
+                        "199.90",
+                        "159.90",
+                        "20.01",
+                        "4"
+                }
         };
 
         for (String[] data : planosData) {
-            Plano plano = planoRepository.findByNome(data[0]).orElseGet(() -> {
-                Plano p = new Plano();
-                p.setNome(data[0]);
-                p.setDescricao(data[1]);
-                p.setValorUnitario(new BigDecimal(data[2]));
-                p.setRecorrencia(data[3]);
+            PlanoBellory plano = planoBelloryRepository.findByCodigo(data[0]).orElseGet(() -> {
+                PlanoBellory p = new PlanoBellory();
+                p.setCodigo(data[0]);
+                p.setNome(data[1]);
+                p.setTagline(data[2]);
+                p.setDescricaoCompleta(data[3]);
                 p.setAtivo(true);
-                return planoRepository.save(p);
+                p.setPopular(Boolean.parseBoolean(data[4]));
+                p.setCta(data[5]);
+                p.setBadge(data[6].isEmpty() ? null : data[6]);
+                p.setIcone(data[7]);
+                p.setCor(data[8]);
+                p.setGradiente(data[9]);
+                p.setPrecoMensal(new BigDecimal(data[10]));
+                p.setPrecoAnual(new BigDecimal(data[11]));
+                p.setDescontoPercentualAnual(new BigDecimal(data[12]).doubleValue());
+                p.setDtCriacao(LocalDateTime.now());
+                p.setOrdemExibicao(Integer.parseInt(data[13]));
+
+                // Features
+                p.setFeatures(criarFeaturesPlano(data[0]));
+
+                PlanoBellory planoSalvo = planoBelloryRepository.save(p);
+
+                // Criar limites do plano
+                criarLimitesPlano(planoSalvo);
+
+                return planoSalvo;
             });
             planos.add(plano);
         }
 
         return planos;
+    }
+
+    private String criarFeaturesPlano(String codigoPlano) {
+        switch (codigoPlano) {
+            case "gratuito":
+                return """
+                [
+                    {"text": "Até 50 agendamentos/mês", "included": true},
+                    {"text": "1 usuário", "included": true},
+                    {"text": "Cadastro de clientes", "included": true},
+                    {"text": "Agendamento manual", "included": true},
+                    {"text": "Dashboard básico", "included": true},
+                    {"text": "Agendamento online 24/7", "included": false},
+                    {"text": "Agente virtual no WhatsApp", "included": false},
+                    {"text": "Site personalizado", "included": false}
+                ]
+                """;
+
+            case "basico":
+                return """
+                [
+                    {"text": "Agendamentos ilimitados", "included": true},
+                    {"text": "Até 3 usuários", "included": true},
+                    {"text": "Gestão completa de clientes", "included": true},
+                    {"text": "Agendamento online 24/7", "included": true},
+                    {"text": "Lembretes automáticos", "included": true},
+                    {"text": "Dashboard inteligente", "included": true},
+                    {"text": "Controle financeiro", "included": true},
+                    {"text": "Agente virtual no WhatsApp", "included": false}
+                ]
+                """;
+
+            case "plus":
+                return """
+                [
+                    {"text": "Tudo do Básico +", "included": true},
+                    {"text": "Usuários ilimitados", "included": true},
+                    {"text": "Agente virtual no WhatsApp", "included": true},
+                    {"text": "Site personalizado completo", "included": true},
+                    {"text": "Mini e-commerce integrado", "included": true},
+                    {"text": "Relatórios avançados", "included": true},
+                    {"text": "Programa de fidelidade", "included": true},
+                    {"text": "Suporte prioritário", "included": true}
+                ]
+                """;
+
+            case "premium":
+                return """
+                [
+                    {"text": "Tudo do Plus +", "included": true},
+                    {"text": "Múltiplas unidades", "included": true},
+                    {"text": "API completa", "included": true},
+                    {"text": "Integrações personalizadas", "included": true},
+                    {"text": "Gerente de conta dedicado", "included": true},
+                    {"text": "Suporte 24/7", "included": true},
+                    {"text": "Onboarding personalizado", "included": true},
+                    {"text": "Customizações sob demanda", "included": true}
+                ]
+                """;
+
+            default:
+                return "[]";
+        }
+    }
+
+    private void criarLimitesPlano(PlanoBellory plano) {
+        System.out.println("📊 Criando limites para plano: " + plano.getNome());
+
+        // Verifica se já existem limites para este plano
+        if (planoLimiteBelloryRepository.existsByPlanoId(plano.getId())) {
+            System.out.println("⚠️ Limites já existem para o plano: " + plano.getNome());
+            return;
+        }
+
+        PlanoLimitesBellory limites = new PlanoLimitesBellory();
+        limites.setPlano(plano);
+
+        switch (plano.getCodigo()) {
+            case "gratuito":
+                limites.setMaxAgendamentosMes(50);
+                limites.setMaxUsuarios(1);
+                limites.setMaxClientes(100);
+                limites.setMaxServicos(10);
+                limites.setMaxUnidades(1);
+                limites.setPermiteAgendamentoOnline(false);
+                limites.setPermiteWhatsapp(false);
+                limites.setPermiteSite(false);
+                limites.setPermiteEcommerce(false);
+                limites.setPermiteRelatoriosAvancados(false);
+                limites.setPermiteApi(false);
+                limites.setPermiteIntegracaoPersonalizada(false);
+                limites.setSuportePrioritario(false);
+                limites.setSuporte24x7(false);
+                break;
+
+            case "basico":
+                limites.setMaxAgendamentosMes(null); // Ilimitado
+                limites.setMaxUsuarios(3);
+                limites.setMaxClientes(null); // Ilimitado
+                limites.setMaxServicos(null); // Ilimitado
+                limites.setMaxUnidades(1);
+                limites.setPermiteAgendamentoOnline(true);
+                limites.setPermiteWhatsapp(false);
+                limites.setPermiteSite(false);
+                limites.setPermiteEcommerce(false);
+                limites.setPermiteRelatoriosAvancados(false);
+                limites.setPermiteApi(false);
+                limites.setPermiteIntegracaoPersonalizada(false);
+                limites.setSuportePrioritario(false);
+                limites.setSuporte24x7(false);
+                break;
+
+            case "plus":
+                limites.setMaxAgendamentosMes(null); // Ilimitado
+                limites.setMaxUsuarios(null); // Ilimitado
+                limites.setMaxClientes(null); // Ilimitado
+                limites.setMaxServicos(null); // Ilimitado
+                limites.setMaxUnidades(1);
+                limites.setPermiteAgendamentoOnline(true);
+                limites.setPermiteWhatsapp(true);
+                limites.setPermiteSite(true);
+                limites.setPermiteEcommerce(true);
+                limites.setPermiteRelatoriosAvancados(true);
+                limites.setPermiteApi(false);
+                limites.setPermiteIntegracaoPersonalizada(false);
+                limites.setSuportePrioritario(true);
+                limites.setSuporte24x7(false);
+                break;
+
+            case "premium":
+                limites.setMaxAgendamentosMes(null); // Ilimitado
+                limites.setMaxUsuarios(null); // Ilimitado
+                limites.setMaxClientes(null); // Ilimitado
+                limites.setMaxServicos(null); // Ilimitado
+                limites.setMaxUnidades(null); // Ilimitado - Múltiplas unidades
+                limites.setPermiteAgendamentoOnline(true);
+                limites.setPermiteWhatsapp(true);
+                limites.setPermiteSite(true);
+                limites.setPermiteEcommerce(true);
+                limites.setPermiteRelatoriosAvancados(true);
+                limites.setPermiteApi(true);
+                limites.setPermiteIntegracaoPersonalizada(true);
+                limites.setSuportePrioritario(true);
+                limites.setSuporte24x7(true);
+                break;
+
+            default:
+                System.out.println("⚠️ Código de plano desconhecido: " + plano.getCodigo());
+                return;
+        }
+
+        planoLimiteBelloryRepository.save(limites);
+        System.out.println("✅ Limites criados para o plano: " + plano.getNome());
     }
 
     private void vincularServicosComFuncionarios(List<Funcionario> funcionarios, List<Servico> servicos) {
@@ -583,12 +827,17 @@ public class DatabaseSeederService {
                         String sexo = dados[1];
                         String cargo = dados[2];
 
+                        Cargo c = new Cargo();
+                        c.setNome(dados[2]);
+                        c.setOrganizacao(org);
+                        cargoRepository.save(c);
+
                         Funcionario f = new Funcionario();
                         f.setUsername(username);
                         f.setNomeCompleto(nomeCompleto);
                         f.setEmail(username + "@bellory.com");
                         f.setPassword(passwordEncoder.encode("password123"));
-                        f.setCargo(cargo);
+                        f.setCargo(c);
                         f.setRole(finalI <= 2 ? "ROLE_ADMIN" : (finalI <= 5 ? "ROLE_GERENTE" : "ROLE_FUNCIONARIO"));
                         f.setOrganizacao(org);
                         f.setAtivo(ThreadLocalRandom.current().nextDouble() < 0.9); // 90% ativos

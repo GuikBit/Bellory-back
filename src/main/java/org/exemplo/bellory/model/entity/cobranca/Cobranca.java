@@ -15,6 +15,7 @@ import org.exemplo.bellory.model.entity.pagamento.Pagamento;
 import org.exemplo.bellory.model.entity.users.Cliente;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -40,8 +41,8 @@ public class Cobranca {
     @JoinColumn(name = "cliente_id", nullable = false)
     private Cliente cliente;
 
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "agendamento_id", referencedColumnName = "id")
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "agendamento_id")
     @JsonIgnore
     private Agendamento agendamento;
 
@@ -65,6 +66,11 @@ public class Cobranca {
     @Enumerated(EnumType.STRING)
     @Column(name = "tipo_cobranca", nullable = false, length = 30)
     private TipoCobranca tipoCobranca;
+
+    // NOVO: Subtipo específico para agendamentos
+    @Enumerated(EnumType.STRING)
+    @Column(name = "subtipo_cobranca_agendamento", length = 30)
+    private SubtipoCobrancaAgendamento subtipoCobrancaAgendamento;
 
     @Column(name = "dt_vencimento")
     private LocalDate dtVencimento;
@@ -96,6 +102,23 @@ public class Cobranca {
 
     @Column(name = "multa_atraso", precision = 10, scale = 2)
     private BigDecimal multaAtraso = BigDecimal.ZERO;
+
+    // NOVO: Percentual do sinal (ex: 30% = 30.00)
+    @Column(name = "percentual_sinal", precision = 5, scale = 2)
+    private BigDecimal percentualSinal;
+
+    // NOVO: Referência para cobrança relacionada (sinal <-> restante)
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "cobranca_relacionada_id")
+    private Cobranca cobrancaRelacionada;
+
+    // NOVO: ID do pagamento no gateway (Stripe, etc)
+    @Column(name = "gateway_payment_id", length = 100)
+    private String gatewayPaymentId;
+
+    // NOVO: ID da intenção de pagamento (Stripe PaymentIntent)
+    @Column(name = "gateway_payment_intent_id", length = 100)
+    private String gatewayPaymentIntentId;
 
     // === ENUMS ===
     public enum StatusCobranca {
@@ -134,6 +157,23 @@ public class Cobranca {
         }
     }
 
+    // NOVO: Subtipo para diferenciar sinal e pagamento final
+    public enum SubtipoCobrancaAgendamento {
+        SINAL("Sinal/Entrada"),
+        RESTANTE("Pagamento Final"),
+        INTEGRAL("Pagamento Integral");
+
+        private final String descricao;
+
+        SubtipoCobrancaAgendamento(String descricao) {
+            this.descricao = descricao;
+        }
+
+        public String getDescricao() {
+            return descricao;
+        }
+    }
+
     // === MÉTODOS DE CONVENIÊNCIA PARA PAGAMENTOS ===
     public void adicionarPagamento(Pagamento pagamento) {
         pagamento.setCobranca(this);
@@ -162,7 +202,7 @@ public class Cobranca {
 
     public void aplicarJurosEMulta() {
         if (isVencida() && this.jurosAtraso.compareTo(BigDecimal.ZERO) > 0) {
-            BigDecimal juros = this.valor.multiply(this.jurosAtraso).divide(BigDecimal.valueOf(100));
+            BigDecimal juros = this.valor.multiply(this.jurosAtraso).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
             this.valor = this.valor.add(juros).add(this.multaAtraso);
             recalcularValores();
         }
@@ -230,13 +270,32 @@ public class Cobranca {
                 this.statusCobranca == StatusCobranca.VENCIDA;
     }
 
+    // NOVO: Verifica se é cobrança de sinal
+    public boolean isSinal() {
+        return this.subtipoCobrancaAgendamento == SubtipoCobrancaAgendamento.SINAL;
+    }
+
+    // NOVO: Verifica se é cobrança do restante
+    public boolean isRestante() {
+        return this.subtipoCobrancaAgendamento == SubtipoCobrancaAgendamento.RESTANTE;
+    }
+
+    // NOVO: Verifica se é cobrança integral
+    public boolean isIntegral() {
+        return this.subtipoCobrancaAgendamento == SubtipoCobrancaAgendamento.INTEGRAL;
+    }
+
     public BigDecimal getValorRestante() {
         return this.valor.subtract(this.valorPago);
     }
 
     public String getDescricaoTransacao() {
         if (this.agendamento != null) {
-            return "Agendamento - " + getDescricaoServicos();
+            String desc = "Agendamento - " + getDescricaoServicos();
+            if (this.subtipoCobrancaAgendamento != null) {
+                desc += " (" + this.subtipoCobrancaAgendamento.getDescricao() + ")";
+            }
+            return desc;
         } else if (this.compra != null) {
             return "Compra #" + this.compra.getNumeroPedido();
         }
@@ -303,8 +362,22 @@ public class Cobranca {
     }
 
     private void gerarNumeroCobranca() {
-        // Gera número da cobrança no formato: COB + timestamp + clienteId
+        // Gera número da cobrança no formato: COB + timestamp + clienteId + subtipo
+        String sufixo = "";
+        if (this.subtipoCobrancaAgendamento != null) {
+            switch (this.subtipoCobrancaAgendamento) {
+                case SINAL:
+                    sufixo = "S";
+                    break;
+                case RESTANTE:
+                    sufixo = "R";
+                    break;
+                case INTEGRAL:
+                    sufixo = "I";
+                    break;
+            }
+        }
         this.numeroCobranca = "COB" + System.currentTimeMillis() +
-                (this.cliente != null ? this.cliente.getId() : "");
+                (this.cliente != null ? this.cliente.getId() : "") + sufixo;
     }
 }

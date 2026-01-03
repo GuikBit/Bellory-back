@@ -4,10 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.exemplo.bellory.model.entity.funcionario.BloqueioAgenda;
-import org.exemplo.bellory.model.entity.funcionario.Funcionario;
-import org.exemplo.bellory.model.entity.funcionario.JornadaDia;
-import org.exemplo.bellory.model.entity.funcionario.JornadaTrabalho;
+import org.exemplo.bellory.model.entity.funcionario.*;
 import org.exemplo.bellory.model.entity.servico.Servico;
 
 import java.math.BigDecimal;
@@ -58,7 +55,7 @@ public class FuncionarioDTO {
     private String estadoCivil;
     private String grauInstrucao;
     private String formacao;
-    private String cargo;
+    private Cargo cargo;
     private BigDecimal salario;
     private boolean isComissao;
     private String comissao;

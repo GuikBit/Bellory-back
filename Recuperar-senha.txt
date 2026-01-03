@@ -1,0 +1,370 @@
+# Sistema de Recuperação de Senha - Integração Backend
+
+## Visão Geral
+
+O sistema de recuperação de senha está completo no front-end usando **validações mock**. Para integrar com seu backend real, siga as instruções abaixo.
+
+## Estrutura do Fluxo
+
+O processo é dividido em 4 etapas:
+
+1. **Identificação** - Usuário informa username ou email
+2. **Verificação** - Usuário digita código de 6 dígitos
+3. **Nova Senha** - Usuário define nova senha
+4. **Sucesso** - Confirmação e redirecionamento
+
+---
+
+## Endpoints Necessários
+
+### 1. POST `/api/auth/forgot-password`
+
+**Descrição:** Verifica se o usuário/email existe e envia código por email.
+
+**Request Body:**
+```json
+{
+  "identifier": "usuario@email.com" // pode ser username ou email
+}
+```
+
+**Response Success (200):**
+```json
+{
+  "success": true,
+  "message": "Código enviado com sucesso",
+  "email": "us****@em***.com" // email mascarado
+}
+```
+
+**Response Error (404):**
+```json
+{
+  "success": false,
+  "message": "Usuário ou e-mail não encontrado"
+}
+```
+
+**Onde substituir no código:**
+```typescript
+// Em PasswordRecovery.tsx, função handleIdentification
+// Linha ~79 - Substituir o setTimeout por:
+
+const response = await fetch('/api/auth/forgot-password', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ identifier })
+})
+
+const data = await response.json()
+
+if (data.success) {
+  setFoundUser(data.email)
+  setCurrentStep("verification")
+} else {
+  setIsError(true)
+  setErrorMessage(data.message)
+}
+```
+
+---
+
+### 2. POST `/api/auth/verify-code`
+
+**Descrição:** Valida o código de 6 dígitos enviado.
+
+**Request Body:**
+```json
+{
+  "identifier": "usuario@email.com",
+  "code": "123456"
+}
+```
+
+**Response Success (200):**
+```json
+{
+  "success": true,
+  "token": "temporary-token-xyz", // token temporário para resetar senha
+  "message": "Código validado"
+}
+```
+
+**Response Error (400):**
+```json
+{
+  "success": false,
+  "message": "Código inválido ou expirado"
+}
+```
+
+**Onde substituir no código:**
+```typescript
+// Em PasswordRecovery.tsx, função handleVerification
+// Linha ~145 - Substituir o setTimeout por:
+
+const enteredCode = code.join("")
+
+const response = await fetch('/api/auth/verify-code', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    identifier,
+    code: enteredCode
+  })
+})
+
+const data = await response.json()
+
+if (data.success) {
+  // Salvar token temporário para usar no próximo passo
+  sessionStorage.setItem('reset-token', data.token)
+  setCurrentStep("newPassword")
+} else {
+  setIsError(true)
+  setErrorMessage(data.message)
+  setCode(["", "", "", "", "", ""])
+  codeInputRefs.current[0]?.focus()
+}
+```
+
+---
+
+### 3. POST `/api/auth/reset-password`
+
+**Descrição:** Atualiza a senha do usuário.
+
+**Request Body:**
+```json
+{
+  "token": "temporary-token-xyz",
+  "newPassword": "novaSenha123"
+}
+```
+
+**Headers:**
+```
+Authorization: Bearer temporary-token-xyz
+```
+
+**Response Success (200):**
+```json
+{
+  "success": true,
+  "message": "Senha atualizada com sucesso"
+}
+```
+
+**Response Error (400):**
+```json
+{
+  "success": false,
+  "message": "Token inválido ou senha fraca"
+}
+```
+
+**Onde substituir no código:**
+```typescript
+// Em PasswordRecovery.tsx, função handleNewPassword
+// Linha ~193 - Substituir o setTimeout por:
+
+const resetToken = sessionStorage.getItem('reset-token')
+
+const response = await fetch('/api/auth/reset-password', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${resetToken}`
+  },
+  body: JSON.stringify({
+    token: resetToken,
+    newPassword
+  })
+})
+
+const data = await response.json()
+
+if (data.success) {
+  sessionStorage.removeItem('reset-token')
+  setCurrentStep("success")
+
+  setTimeout(() => {
+    navigate("/login")
+  }, 3000)
+} else {
+  setIsError(true)
+  setErrorMessage(data.message)
+}
+```
+
+---
+
+### 4. POST `/api/auth/resend-code`
+
+**Descrição:** Reenvia o código de verificação.
+
+**Request Body:**
+```json
+{
+  "identifier": "usuario@email.com"
+}
+```
+
+**Response Success (200):**
+```json
+{
+  "success": true,
+  "message": "Código reenviado com sucesso"
+}
+```
+
+**Onde substituir no código:**
+```typescript
+// Em PasswordRecovery.tsx, função handleResendCode
+// Linha ~203 - Substituir por:
+
+const handleResendCode = async () => {
+  setCode(["", "", "", "", "", ""])
+  setIsError(false)
+  setErrorMessage("")
+
+  try {
+    const response = await fetch('/api/auth/resend-code', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier })
+    })
+
+    const data = await response.json()
+
+    if (data.success) {
+      // Mostrar toast de sucesso se tiver
+      console.log('Código reenviado')
+    }
+  } catch (error) {
+    console.error('Erro ao reenviar código', error)
+  }
+
+  codeInputRefs.current[0]?.focus()
+}
+```
+
+---
+
+## Dados Mock Atuais
+
+Para testar o sistema, use os seguintes dados:
+
+### Usuários válidos:
+- Username: `admin` / Email: `admin@bellory.com`
+- Username: `usuario` / Email: `usuario@teste.com`
+- Username: `cliente` / Email: `cliente@email.com`
+
+### Código de verificação:
+- Código válido: `123456`
+
+---
+
+## Segurança Recomendada (Backend)
+
+1. **Código de verificação:**
+   - Gerar código aleatório de 6 dígitos
+   - Expiração de 10-15 minutos
+   - Máximo de 3 tentativas incorretas
+   - Armazenar hash do código no banco
+
+2. **Token temporário:**
+   - JWT com expiração de 15 minutos
+   - Validade única (invalidar após uso)
+   - Incluir identifier do usuário
+
+3. **Rate limiting:**
+   - Limitar requisições de envio de código (1 a cada 60 segundos)
+   - Limitar tentativas de verificação (5 por hora)
+
+4. **Validação de senha:**
+   - Mínimo 8 caracteres
+   - Ao menos 1 letra maiúscula
+   - Ao menos 1 número
+   - Ao menos 1 caractere especial
+
+---
+
+## Integração com React Query (Opcional)
+
+Se você usa React Query, pode criar hooks personalizados:
+
+```typescript
+// Em service/Query/Auth.ts
+
+export const useForgotPassword = () => {
+  return useMutation({
+    mutationFn: async (identifier: string) => {
+      const response = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier })
+      })
+      return response.json()
+    }
+  })
+}
+
+export const useVerifyCode = () => {
+  return useMutation({
+    mutationFn: async (data: { identifier: string; code: string }) => {
+      const response = await fetch('/api/auth/verify-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      })
+      return response.json()
+    }
+  })
+}
+
+export const useResetPassword = () => {
+  return useMutation({
+    mutationFn: async (data: { token: string; newPassword: string }) => {
+      const response = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${data.token}`
+        },
+        body: JSON.stringify(data)
+      })
+      return response.json()
+    }
+  })
+}
+```
+
+---
+
+## Testes
+
+Para testar o fluxo completo:
+
+1. Acesse `/login`
+2. Clique em "Esqueceu a senha?"
+3. Digite um dos usuários mock
+4. Digite o código `123456`
+5. Crie uma nova senha
+6. Será redirecionado para o login
+
+---
+
+## Melhorias Futuras
+
+- [ ] Adicionar contador regressivo para reenvio de código
+- [ ] Validação de força de senha em tempo real
+- [ ] Histórico de senhas (não permitir reutilizar)
+- [ ] Autenticação em 2 fatores opcional
+- [ ] Log de tentativas de recuperação
+
+---
+
+## Suporte
+
+Para dúvidas ou problemas, consulte a documentação ou entre em contato com a equipe de desenvolvimento.
