@@ -725,13 +725,14 @@ public class AgendamentoService {
         }
     }
 
+    @Transactional
     public List<HorarioDisponivelResponse> getHorariosDisponiveis(DisponibilidadeRequest request) {
         // 1. Recuperar o Funcionário
         Funcionario funcionario = funcionarioRepository.findById(request.getFuncionarioId())
                 .orElseThrow(() -> new RuntimeException("Funcionário não encontrado."));
 
         // 2. Validar organização
-        validarOrganizacao(funcionario.getOrganizacao().getId());
+        validarOrganizacao(request.getOrganizacaoId());
 
         // 3. Calcular a Duração Total dos Serviços + Tolerância
         int duracaoServicos = request.getServicoIds().stream()
