@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.exemplo.bellory.model.dto.clienteDTO.AgentamentoClienteDTO;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
