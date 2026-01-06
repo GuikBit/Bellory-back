@@ -301,7 +301,7 @@ public class FuncionarioService {
 
         // Deletar foto antiga se existir
         if (funcionario.getFotoPerfil() != null) {
-            fileStorageService.deleteFile(funcionario.getFotoPerfil(), organizacaoId);
+            fileStorageService.deleteFile(funcionario.getFotoPerfil(), organizacaoId, FileStorageService.TipoUpload.FOTO_PERFIL_COLABORADOR);
         }
 
         // Salvar nova foto
@@ -333,7 +333,7 @@ public class FuncionarioService {
             throw new IllegalArgumentException("Funcionário não possui foto de perfil.");
         }
 
-        Resource resource = fileStorageService.loadFileAsResource(funcionario.getFotoPerfil(), organizacaoId);
+        Resource resource = fileStorageService.loadFileAsResource(funcionario.getFotoPerfil(), organizacaoId, FileStorageService.TipoUpload.FOTO_PERFIL_COLABORADOR);
 
         // Determinar content type baseado na extensão
         String contentType = "image/jpeg";
@@ -368,7 +368,7 @@ public class FuncionarioService {
         }
 
         // Deletar arquivo físico
-        fileStorageService.deleteFile(funcionario.getFotoPerfil(), organizacaoId);
+        fileStorageService.deleteFile(funcionario.getFotoPerfil(), organizacaoId, FileStorageService.TipoUpload.FOTO_PERFIL_COLABORADOR);
 
         // Atualizar registro no banco
         funcionario.setFotoPerfil(null);

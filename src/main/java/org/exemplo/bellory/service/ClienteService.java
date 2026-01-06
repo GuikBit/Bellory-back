@@ -107,14 +107,18 @@ public class ClienteService {
     public ClienteDTO createCliente(ClienteCreateDTO dto) {
         Long organizacaoId = getOrganizacaoIdFromContext();
 
-        // Validações
-        if (clienteRepository.findByEmailAndOrganizacao_Id(dto.getEmail(), organizacaoId).isPresent()) {
-            throw new IllegalArgumentException("E-mail já existe.");
+        // Validações - só valida se os campos não estiverem vazios
+        if (dto.getEmail() != null && !dto.getEmail().trim().isEmpty()) {
+            if (clienteRepository.findByEmailAndOrganizacao_Id(dto.getEmail(), organizacaoId).isPresent()) {
+                throw new IllegalArgumentException("E-mail já cadastrado.");
+            }
         }
 
-        if (clienteRepository.findByCpfAndOrganizacao_Id(
-                dto.getCpf().replaceAll("[^0-9]", ""), organizacaoId).isPresent()) {
-            throw new IllegalArgumentException("CPF já existe.");
+        if (dto.getCpf() != null && !dto.getCpf().trim().isEmpty()) {
+            String cpfLimpo = dto.getCpf().replaceAll("[^0-9]", "");
+            if (clienteRepository.findByCpfAndOrganizacao_Id(cpfLimpo, organizacaoId).isPresent()) {
+                throw new IllegalArgumentException("CPF já cadastrado.");
+            }
         }
 
         Organizacao organizacao = organizacaoRepository.findById(organizacaoId)
@@ -123,12 +127,15 @@ public class ClienteService {
         Cliente cliente = new Cliente();
         cliente.setOrganizacao(organizacao);
         cliente.setNomeCompleto(dto.getNomeCompleto());
-        cliente.setEmail(dto.getEmail());
+
+        // Salva email e CPF apenas se preenchidos, caso contrário salva null
+        cliente.setEmail(dto.getEmail() != null && !dto.getEmail().trim().isEmpty() ? dto.getEmail() : "cliente_rapido@gmail.com");
+        cliente.setCpf(dto.getCpf() != null && !dto.getCpf().trim().isEmpty() ? dto.getCpf().replaceAll("[^0-9]", "") : null);
+
         cliente.setUsername(dto.getUsername());
         cliente.setPassword(passwordEncoder.encode(dto.getPassword()));
         cliente.setTelefone(dto.getTelefone());
         cliente.setDataNascimento(dto.getDataNascimento());
-        cliente.setCpf(dto.getCpf().replaceAll("[^0-9]", ""));
         cliente.setRole("ROLE_CLIENTE");
         cliente.setAtivo(true);
         cliente.setIsCadastroIncompleto(true);
