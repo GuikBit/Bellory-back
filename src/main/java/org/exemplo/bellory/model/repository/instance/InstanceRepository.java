@@ -31,8 +31,18 @@ public interface InstanceRepository extends JpaRepository<Instance, Long> {
             "WHERE i.organizacao.id = :organizacaoId")
     List<Instance> findByOrganizacaoIdWithRelations(@Param("organizacaoId") Long organizacaoId);
 
+    @Query("""
+        SELECT i FROM Instance i
+        LEFT JOIN FETCH i.organizacao
+        LEFT JOIN FETCH i.tools
+        LEFT JOIN FETCH i.webhookConfig
+        LEFT JOIN FETCH i.settings
+        LEFT JOIN FETCH i.knowledgeBase
+        WHERE i.instanceName = :instanceName
+    """)
+    Optional<Instance> findByInstanceNameWithRelations(@Param("instanceName") String instanceName);
 
-
+    Optional<Instance> findByInstanceName(String instanceName);
 }
 
 

@@ -2,6 +2,7 @@ package org.exemplo.bellory.controller;
 
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
+import org.exemplo.bellory.model.dto.instancia.InstanceByNameDTO;
 import org.exemplo.bellory.model.dto.instancia.InstanceCreateDTO;
 import org.exemplo.bellory.model.dto.instancia.InstanceDTO;
 import org.exemplo.bellory.model.dto.instancia.InstanceUpdateDTO;
@@ -498,4 +499,47 @@ public class InstanceController {
                             .build());
         }
     }
+
+    @GetMapping("/by-name/{instanceName}")
+    public ResponseEntity<ResponseAPI<InstanceByNameDTO>> getInstanceByName(@PathVariable String instanceName) {
+        try {
+            log.info("Requisição para buscar instância pelo nome: {}", instanceName);
+
+            InstanceByNameDTO instance = instanceService.getInstanceByNameCustom(instanceName);
+
+            return ResponseEntity.ok(ResponseAPI.<InstanceByNameDTO>builder()
+                    .success(true)
+                    .message("Instância encontrada com sucesso.")
+                    .dados(instance)
+                    .build());
+
+        } catch (IllegalArgumentException e) {
+            log.error("Instância não encontrada: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ResponseAPI.<InstanceByNameDTO>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(404)
+                            .build());
+
+        } catch (SecurityException e) {
+            log.error("Erro de segurança ao buscar instância: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ResponseAPI.<InstanceByNameDTO>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(403)
+                            .build());
+
+        } catch (Exception e) {
+            log.error("Erro interno ao buscar instância: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseAPI.<InstanceByNameDTO>builder()
+                            .success(false)
+                            .message("Erro ao buscar instância: " + e.getMessage())
+                            .errorCode(500)
+                            .build());
+        }
+    }
+
 }

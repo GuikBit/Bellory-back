@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.exemplo.bellory.context.TenantContext;
+import org.exemplo.bellory.model.dto.instancia.InstanceByNameDTO;
 import org.exemplo.bellory.model.dto.instancia.InstanceCreateDTO;
 import org.exemplo.bellory.model.dto.instancia.InstanceDTO;
 import org.exemplo.bellory.model.dto.instancia.InstanceUpdateDTO;
@@ -666,5 +667,65 @@ public class InstanceService {
         }
 
         return organizacaoId;
+    }
+
+    @Transactional(readOnly = true)
+    public InstanceByNameDTO getInstanceByNameCustom(String instanceName) {
+        log.info("Buscando instância pelo nome: {}", instanceName);
+
+        // Buscar a instância no banco de dados com todas as relações
+        Instance instance = instanceRepository.findByInstanceNameWithRelations(instanceName)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Instância não encontrada com o nome: " + instanceName));
+
+        // Validar organização
+        // validarOrganizacao(instance.getOrganizacao().getId());
+
+        // Criar DTO customizado
+        InstanceByNameDTO dto = new InstanceByNameDTO(instance);
+
+        // Buscar dados atualizados do Evolution API
+        try {
+            String url = evolutionApiUrl + "/instance/fetchInstances?instanceName=" + instanceName;
+            HttpHeaders headers = createHeaders();
+            HttpEntity<Void> request = new HttpEntity<>(headers);
+
+            ResponseEntity<String> response = restTemplate.exchange(
+                    url, HttpMethod.GET, request, String.class
+            );
+
+            JsonNode jsonResponse = objectMapper.readTree(response.getBody());
+
+            // Extrair dados do Evolution API
+            String phoneNumber = null;
+            String profileName = null;
+            String profilePictureUrl = null;
+
+            // Verificar se a resposta é um array
+            if (jsonResponse.isArray() && jsonResponse.size() > 0) {
+                JsonNode instanceNode = jsonResponse.get(0).path("instance");
+                phoneNumber = instanceNode.path("owner").asText(null);
+                profileName = instanceNode.path("profileName").asText(null);
+                profilePictureUrl = instanceNode.path("profilePictureUrl").asText(null);
+            } else if (!jsonResponse.isMissingNode()) {
+                // Se for um objeto único
+                JsonNode instanceNode = jsonResponse.path("instance");
+                phoneNumber = instanceNode.path("owner").asText(null);
+                profileName = instanceNode.path("profileName").asText(null);
+                profilePictureUrl = instanceNode.path("profilePictureUrl").asText(null);
+            }
+
+            // Atualizar DTO com dados do Evolution
+            dto.updateFromEvolutionData(phoneNumber, profileName, profilePictureUrl);
+
+            log.info("Dados do Evolution API obtidos para instância: {}", instanceName);
+
+        } catch (Exception e) {
+            log.warn("Não foi possível buscar dados do Evolution API para instância {}: {}",
+                    instanceName, e.getMessage());
+            // Continua retornando o DTO com os dados do banco
+        }
+
+        return dto;
     }
 }

@@ -98,6 +98,8 @@ public class SecurityConfig {
 
                                "/api/public/site/**",
 
+                                "/api/instances/by-name/**",
+
                                 "/api/organizacao",
                                 "/api/organizacao/verificar-cnpj/**",
                                 "/api/organizacao/verificar-email/**",
