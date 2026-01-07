@@ -46,6 +46,10 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
+    # VOLUME PERSISTENTE PARA UPLOADS - CRÍTICO!
+    volumes:
+      - /var/bellory/dev/uploads:/var/bellory/dev/uploads
+
     # Carrega variáveis do arquivo .env
     env_file:
       - .env
@@ -64,3 +68,8 @@ services:
 
     # Reinicia automaticamente em caso de falha
     restart: unless-stopped
+
+# VOLUMES NOMEADOS - Dados persistem entre reinicializações
+volumes:
+  uploads_dev:
+    driver: local

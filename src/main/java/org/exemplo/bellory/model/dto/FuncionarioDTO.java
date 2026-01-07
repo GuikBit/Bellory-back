@@ -20,7 +20,7 @@ public class FuncionarioDTO {
 
     private Long id;
     private Long idOrganizacao;
-    private String foto;
+    private String fotoPerfilUrl;
     private String nomeCompleto; // Mantido de 'nome'
     private String username; // Mantido de 'login'
     private String password;
@@ -78,7 +78,7 @@ public class FuncionarioDTO {
     public FuncionarioDTO(Funcionario funcionario, List<BloqueioAgendaDTO> bloqueiosDTO, List<JornadaDiaDTO> jornadaDTO, List<Servico> servicos) {
         this.id = funcionario.getId();
         this.idOrganizacao = funcionario.getOrganizacao().getId();
-        this.foto = funcionario.getFotoPerfil();
+        this.fotoPerfilUrl = funcionario.getFotoPerfil();
         this.nomeCompleto = funcionario.getNomeCompleto();
         this.username = funcionario.getUsername();
         this.cpf = funcionario.getCpf();

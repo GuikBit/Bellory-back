@@ -1,14 +1,11 @@
 package org.exemplo.bellory.service;
 
-
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.Resource;
-import org.springframework.core.io.UrlResource;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import jakarta.annotation.PostConstruct;
 import java.io.IOException;
-import java.net.MalformedURLException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -22,10 +19,12 @@ public class FileStorageService {
     @Value("${file.upload.dir}")
     private String uploadDir;
 
+    @Value("${file.upload.base-url}")
+    private String baseUrl;
+
     private final List<String> ALLOWED_EXTENSIONS = Arrays.asList("jpg", "jpeg", "png", "gif", "webp");
     private final long MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
-    // Enum para tipos de upload
     public enum TipoUpload {
         FOTO_PERFIL_COLABORADOR("colaboradores"),
         FOTO_PERFIL_CLIENTE("clientes"),
@@ -43,12 +42,24 @@ public class FileStorageService {
         }
     }
 
+    @PostConstruct
+    public void init() {
+        try {
+            Path uploadPath = Paths.get(uploadDir).toAbsolutePath().normalize();
+            Files.createDirectories(uploadPath);
+
+            System.out.println("✅ Diretório de uploads criado/verificado: " + uploadPath);
+            System.out.println("✅ URL base para uploads: " + baseUrl);
+        } catch (IOException e) {
+            throw new RuntimeException("❌ Não foi possível criar diretório de uploads!", e);
+        }
+    }
+
     /**
-     * Método genérico para armazenar qualquer tipo de imagem
+     * Armazena arquivo e retorna o path relativo
      */
     public String storeFile(MultipartFile file, Long entidadeId, Long organizacaoId, TipoUpload tipo) {
         try {
-            // Validações
             validarArquivo(file);
 
             String originalFilename = file.getOriginalFilename();
@@ -72,7 +83,8 @@ public class FileStorageService {
             Path targetLocation = targetDirectory.resolve(filename);
             Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
 
-            return filename;
+            // Retornar path relativo para construir URL
+            return String.format("%d/%s/%s", organizacaoId, tipo.getPasta(), filename);
 
         } catch (IOException ex) {
             throw new RuntimeException("Erro ao armazenar arquivo", ex);
@@ -80,46 +92,42 @@ public class FileStorageService {
     }
 
     /**
-     * Método específico para foto de perfil (mantém compatibilidade)
+     * Método específico para foto de perfil (compatibilidade)
      */
     public String storeProfilePicture(MultipartFile file, Long funcionarioId, Long organizacaoId) {
         return storeFile(file, funcionarioId, organizacaoId, TipoUpload.FOTO_PERFIL_COLABORADOR);
     }
 
     /**
-     * Carregar arquivo como Resource
+     * Constrói URL completa a partir do path relativo
      */
-    public Resource loadFileAsResource(String filename, Long organizacaoId, TipoUpload tipo) {
-        try {
-            Path filePath = Paths.get(uploadDir,
-                            organizacaoId.toString(),
-                            tipo.getPasta())
-                    .resolve(filename)
-                    .normalize();
-
-            Resource resource = new UrlResource(filePath.toUri());
-
-            if (resource.exists() && resource.isReadable()) {
-                return resource;
-            } else {
-                throw new RuntimeException("Arquivo não encontrado ou não legível: " + filename);
-            }
-        } catch (MalformedURLException ex) {
-            throw new RuntimeException("Arquivo não encontrado: " + filename, ex);
+    public String getFileUrl(String relativePath) {
+        if (relativePath == null || relativePath.isEmpty()) {
+            return null;
         }
+        return baseUrl + "/" + relativePath;
     }
 
     /**
-     * Deletar arquivo
+     * Extrai path relativo de uma URL completa
      */
-    public void deleteFile(String filename, Long organizacaoId, TipoUpload tipo) {
-        try {
-            Path filePath = Paths.get(uploadDir,
-                            organizacaoId.toString(),
-                            tipo.getPasta())
-                    .resolve(filename)
-                    .normalize();
+    public String getRelativePathFromUrl(String url) {
+        if (url == null || !url.startsWith(baseUrl)) {
+            return url; // Já é path relativo ou inválido
+        }
+        return url.replace(baseUrl + "/", "");
+    }
 
+    /**
+     * Deleta arquivo usando path relativo
+     */
+    public void deleteFile(String relativePath, Long organizacaoId) {
+        try {
+            if (relativePath == null || relativePath.isEmpty()) {
+                return;
+            }
+
+            Path filePath = Paths.get(uploadDir, relativePath).normalize();
             Files.deleteIfExists(filePath);
         } catch (IOException ex) {
             throw new RuntimeException("Erro ao deletar arquivo", ex);
@@ -127,8 +135,16 @@ public class FileStorageService {
     }
 
     /**
-     * Validações centralizadas
+     * Verifica se arquivo existe
      */
+    public boolean fileExists(String relativePath) {
+        if (relativePath == null || relativePath.isEmpty()) {
+            return false;
+        }
+        Path filePath = Paths.get(uploadDir, relativePath).normalize();
+        return Files.exists(filePath);
+    }
+
     private void validarArquivo(MultipartFile file) {
         if (file.isEmpty()) {
             throw new IllegalArgumentException("Arquivo vazio");
@@ -151,20 +167,5 @@ public class FileStorageService {
             return "";
         }
         return filename.substring(filename.lastIndexOf(".") + 1);
-    }
-
-    /**
-     * Método utilitário para determinar Content-Type
-     */
-    public String getContentType(String filename) {
-        String extension = getFileExtension(filename).toLowerCase();
-
-        return switch (extension) {
-            case "png" -> "image/png";
-            case "gif" -> "image/gif";
-            case "webp" -> "image/webp";
-            case "jpg", "jpeg" -> "image/jpeg";
-            default -> "application/octet-stream";
-        };
     }
 }

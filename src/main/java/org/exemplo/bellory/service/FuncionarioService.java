@@ -301,20 +301,25 @@ public class FuncionarioService {
 
         // Deletar foto antiga se existir
         if (funcionario.getFotoPerfil() != null) {
-            fileStorageService.deleteFile(funcionario.getFotoPerfil(), organizacaoId, FileStorageService.TipoUpload.FOTO_PERFIL_COLABORADOR);
+            String oldRelativePath = fileStorageService.getRelativePathFromUrl(funcionario.getFotoPerfil());
+            fileStorageService.deleteFile(oldRelativePath, organizacaoId);
         }
 
-        // Salvar nova foto
-        String filename = fileStorageService.storeProfilePicture(file, id, organizacaoId);
+        // Salvar nova foto e obter path relativo
+        String relativePath = fileStorageService.storeProfilePicture(file, id, organizacaoId);
 
-        // Atualizar registro no banco
-        funcionario.setFotoPerfil(filename);
+        // Construir URL completa
+        String fullUrl = fileStorageService.getFileUrl(relativePath);
+
+        // Salvar URL completa no banco
+        funcionario.setFotoPerfil(fullUrl);
         funcionario.setDataUpdate(LocalDateTime.now());
         funcionarioRepository.save(funcionario);
 
         Map<String, String> response = new HashMap<>();
-        response.put("filename", filename);
-        response.put("url", "/api/funcionario/" + id + "/foto-perfil");
+        response.put("filename", relativePath.substring(relativePath.lastIndexOf("/") + 1));
+        response.put("url", fullUrl); // URL completa para acessar a imagem
+        response.put("relativePath", relativePath);
 
         return response;
     }
@@ -333,22 +338,11 @@ public class FuncionarioService {
             throw new IllegalArgumentException("Funcionário não possui foto de perfil.");
         }
 
-        Resource resource = fileStorageService.loadFileAsResource(funcionario.getFotoPerfil(), organizacaoId, FileStorageService.TipoUpload.FOTO_PERFIL_COLABORADOR);
-
-        // Determinar content type baseado na extensão
-        String contentType = "image/jpeg";
-        if (funcionario.getFotoPerfil().endsWith(".png")) {
-            contentType = "image/png";
-        } else if (funcionario.getFotoPerfil().endsWith(".gif")) {
-            contentType = "image/gif";
-        } else if (funcionario.getFotoPerfil().endsWith(".webp")) {
-            contentType = "image/webp";
-        }
-
+        // Agora o banco já tem a URL completa
+        // Esse endpoint pode redirecionar ou retornar a URL
         Map<String, Object> response = new HashMap<>();
-        response.put("resource", resource);
-        response.put("contentType", contentType);
-        response.put("filename", funcionario.getFotoPerfil());
+        response.put("url", funcionario.getFotoPerfil()); // URL completa
+        response.put("filename", funcionario.getFotoPerfil().substring(funcionario.getFotoPerfil().lastIndexOf("/") + 1));
 
         return response;
     }
@@ -367,8 +361,11 @@ public class FuncionarioService {
             throw new IllegalArgumentException("Funcionário não possui foto de perfil para remover.");
         }
 
+        // Extrair path relativo da URL completa
+        String relativePath = fileStorageService.getRelativePathFromUrl(funcionario.getFotoPerfil());
+
         // Deletar arquivo físico
-        fileStorageService.deleteFile(funcionario.getFotoPerfil(), organizacaoId, FileStorageService.TipoUpload.FOTO_PERFIL_COLABORADOR);
+        fileStorageService.deleteFile(relativePath, organizacaoId);
 
         // Atualizar registro no banco
         funcionario.setFotoPerfil(null);
