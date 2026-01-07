@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.net.URI;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -439,65 +440,67 @@ public class FuncionarioController {
     }
 
     // OPÇÃO 1: Redirecionar para URL da imagem (RECOMENDADO)
+//    @GetMapping("/{id}/foto-perfil")
+//    public ResponseEntity<?> downloadFotoPerfil(@PathVariable Long id) {
+//        try {
+//            Map<String, Object> resultado = funcionarioService.downloadFotoPerfil(id);
+//            String imageUrl = (String) resultado.get("url");
+//
+//            // Redirecionar para a URL da imagem servida pelo Nginx
+//            return ResponseEntity
+//                    .status(HttpStatus.FOUND)
+//                    .location(URI.create(imageUrl))
+//                    .build();
+//        } catch (IllegalArgumentException e) {
+//            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+//        } catch (SecurityException e) {
+//            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+//        } catch (Exception e) {
+//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+//        }
+//    }
+
+// OPÇÃO 2: Retornar JSON com URL (alternativa)
+
     @GetMapping("/{id}/foto-perfil")
-    public ResponseEntity<?> downloadFotoPerfil(@PathVariable Long id) {
+    public ResponseEntity<ResponseAPI<Map<String, String>>> downloadFotoPerfil(@PathVariable Long id) {
         try {
             Map<String, Object> resultado = funcionarioService.downloadFotoPerfil(id);
             String imageUrl = (String) resultado.get("url");
+            String filename = (String) resultado.get("filename");
 
-            // Redirecionar para a URL da imagem servida pelo Nginx
-            return ResponseEntity
-                    .status(HttpStatus.FOUND)
-                    .location(URI.create(imageUrl))
-                    .build();
+            Map<String, String> response = new HashMap<>();
+            response.put("url", imageUrl);
+            response.put("filename", filename);
+
+            return ResponseEntity.ok(ResponseAPI.<Map<String, String>>builder()
+                    .success(true)
+                    .dados(response)
+                    .build());
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ResponseAPI.<Map<String, String>>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(404)
+                            .build());
         } catch (SecurityException e) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ResponseAPI.<Map<String, String>>builder()
+                            .success(false)
+                            .message("Acesso negado")
+                            .errorCode(403)
+                            .build());
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseAPI.<Map<String, String>>builder()
+                            .success(false)
+                            .message("Erro ao buscar foto")
+                            .errorCode(500)
+                            .build());
         }
     }
 
-// OPÇÃO 2: Retornar JSON com URL (alternativa)
-/*
-@GetMapping("/{id}/foto-perfil")
-public ResponseEntity<ResponseAPI<Map<String, String>>> downloadFotoPerfil(@PathVariable Long id) {
-    try {
-        Map<String, Object> resultado = funcionarioService.downloadFotoPerfil(id);
-
-        Map<String, String> response = new HashMap<>();
-        response.put("url", (String) resultado.get("url"));
-        response.put("filename", (String) resultado.get("filename"));
-
-        return ResponseEntity.ok(ResponseAPI.<Map<String, String>>builder()
-                .success(true)
-                .dados(response)
-                .build());
-    } catch (IllegalArgumentException e) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(ResponseAPI.<Map<String, String>>builder()
-                        .success(false)
-                        .message(e.getMessage())
-                        .errorCode(404)
-                        .build());
-    } catch (SecurityException e) {
-        return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body(ResponseAPI.<Map<String, String>>builder()
-                        .success(false)
-                        .message("Acesso negado")
-                        .errorCode(403)
-                        .build());
-    } catch (Exception e) {
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ResponseAPI.<Map<String, String>>builder()
-                        .success(false)
-                        .message("Erro ao buscar foto")
-                        .errorCode(500)
-                        .build());
-    }
-}
-*/
 
     @DeleteMapping("/{id}/foto-perfil")
     public ResponseEntity<ResponseAPI<Void>> deleteFotoPerfil(@PathVariable Long id) {
