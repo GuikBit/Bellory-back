@@ -2,6 +2,7 @@ package org.exemplo.bellory.model.dto;
 
 import lombok.Getter;
 import lombok.Setter;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -17,7 +18,7 @@ public class ServicoCreateDTO {
     private Integer tempoEstimadoMinutos;
     private BigDecimal preco;
     private Integer desconto;
-    private List<String> urlsImagens;
+    private List<MultipartFile> imagens;
     private List<String> produtos;
     private boolean home;
     private boolean avaliacao;

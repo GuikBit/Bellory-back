@@ -12,10 +12,14 @@ import org.exemplo.bellory.model.repository.organizacao.OrganizacaoRepository;
 import org.exemplo.bellory.model.repository.servico.ServicoRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -24,11 +28,13 @@ public class ServicoService {
     private final ServicoRepository servicoRepository;
     private final OrganizacaoRepository organizacaoRepository;
     private final CategoriaRepository categoriaRepository; // Adicionado
+    private final FileStorageService fileStorageService;
 
-    public ServicoService(ServicoRepository servicoRepository, OrganizacaoRepository organizacaoRepository, CategoriaRepository categoriaRepository) {
+    public ServicoService(ServicoRepository servicoRepository, OrganizacaoRepository organizacaoRepository, CategoriaRepository categoriaRepository,FileStorageService fileStorageService) {
         this.servicoRepository = servicoRepository;
         this.organizacaoRepository = organizacaoRepository;
         this.categoriaRepository = categoriaRepository; // Adicionado
+        this.fileStorageService = fileStorageService;
     }
 
     public List<Servico> getListAllServicos() {
@@ -95,11 +101,101 @@ public class ServicoService {
         novoServico.setDescricao(dto.getDescricao());
         novoServico.setTempoEstimadoMinutos(dto.getTempoEstimadoMinutos());
         novoServico.setPreco(dto.getPreco());
-        novoServico.setUrlsImagens(dto.getUrlsImagens());
+        novoServico.setDesconto(dto.getDesconto());
+//        novoServico.setUrlsImagens(dto.getUrlsImagens());
         novoServico.setAtivo(true);
         novoServico.setDtCriacao(LocalDateTime.now());
 
+        Servico servicoSalvo = servicoRepository.save(novoServico);
+
+        if (dto.getImagens() != null && !dto.getImagens().isEmpty()) {
+            List<String> urlsImagens = new ArrayList<>();
+
+            for (MultipartFile imagem : dto.getImagens()) {
+                if (!imagem.isEmpty()) {
+                    // Salvar imagem e obter path relativo
+                    String relativePath = fileStorageService.storeServiceImage(
+                            imagem,
+                            servicoSalvo.getId(),
+                            organizacaoId
+                    );
+
+                    // Construir URL completa
+                    String fullUrl = fileStorageService.getFileUrl(relativePath);
+                    urlsImagens.add(fullUrl);
+                }
+            }
+
+            servicoSalvo.setUrlsImagens(urlsImagens);
+            servicoRepository.save(servicoSalvo);
+        }
+
         return servicoRepository.save(novoServico);
+    }
+
+    @Transactional
+    public Map<String, Object> uploadImagensServico(Long servicoId, List<MultipartFile> imagens) {
+        Long organizacaoId = getOrganizacaoIdFromContext();
+
+        // Verificar se serviço existe e pertence à organização
+        Servico servico = servicoRepository.findById(servicoId)
+                .orElseThrow(() -> new IllegalArgumentException("Serviço com ID " + servicoId + " não encontrado."));
+
+        validarOrganizacao(servico.getOrganizacao().getId());
+
+        List<String> novasUrls = new ArrayList<>();
+        List<String> urlsAtuais = servico.getUrlsImagens() != null ?
+                new ArrayList<>(servico.getUrlsImagens()) : new ArrayList<>();
+
+        // Processar novas imagens
+        for (MultipartFile imagem : imagens) {
+            if (!imagem.isEmpty()) {
+                String relativePath = fileStorageService.storeServiceImage(
+                        imagem,
+                        servicoId,
+                        organizacaoId
+                );
+                String fullUrl = fileStorageService.getFileUrl(relativePath);
+                novasUrls.add(fullUrl);
+                urlsAtuais.add(fullUrl);
+            }
+        }
+
+        // Atualizar serviço
+        servico.setUrlsImagens(urlsAtuais);
+        servico.setDtCriacao(LocalDateTime.now()); // ou setDtUpdate se tiver
+        servicoRepository.save(servico);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("servicoId", servicoId);
+        response.put("novasImagens", novasUrls);
+        response.put("totalImagens", urlsAtuais.size());
+
+        return response;
+    }
+
+    @Transactional
+    public void deleteImagemServico(Long servicoId, String imageUrl) {
+        Long organizacaoId = getOrganizacaoIdFromContext();
+
+        Servico servico = servicoRepository.findById(servicoId)
+                .orElseThrow(() -> new IllegalArgumentException("Serviço com ID " + servicoId + " não encontrado."));
+
+        validarOrganizacao(servico.getOrganizacao().getId());
+
+        List<String> urlsAtuais = servico.getUrlsImagens();
+        if (urlsAtuais != null && urlsAtuais.contains(imageUrl)) {
+            // Remover da lista
+            urlsAtuais.remove(imageUrl);
+
+            // Deletar arquivo físico
+            String relativePath = fileStorageService.getRelativePathFromUrl(imageUrl);
+            fileStorageService.deleteFile(relativePath, organizacaoId);
+
+            // Atualizar serviço
+            servico.setUrlsImagens(urlsAtuais);
+            servicoRepository.save(servico);
+        }
     }
 
     @Transactional
@@ -128,9 +224,9 @@ public class ServicoService {
         if (dto.getPreco() != null && dto.getPreco().compareTo(BigDecimal.ZERO) > 0) {
             servicoExistente.setPreco(dto.getPreco());
         }
-        if (dto.getUrlsImagens() != null) {
-            servicoExistente.setUrlsImagens(dto.getUrlsImagens());
-        }
+//        if (dto.getUrlsImagens() != null) {
+//            servicoExistente.setUrlsImagens(dto.getUrlsImagens());
+//        }
         if(dto.getDesconto() != null) {
             servicoExistente.setDesconto(dto.getDesconto());
         }

@@ -98,6 +98,10 @@ public class FileStorageService {
         return storeFile(file, funcionarioId, organizacaoId, TipoUpload.FOTO_PERFIL_COLABORADOR);
     }
 
+    public String storeServiceImage(MultipartFile file, Long servicoId, Long organizacaoId) {
+        return storeFile(file, servicoId, organizacaoId, TipoUpload.FOTO_SERVICO);
+    }
+
     /**
      * Constrói URL completa a partir do path relativo
      */
