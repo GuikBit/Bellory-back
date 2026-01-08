@@ -102,7 +102,7 @@ public class ServicoService {
         novoServico.setTempoEstimadoMinutos(dto.getTempoEstimadoMinutos());
         novoServico.setPreco(dto.getPreco());
         novoServico.setDesconto(dto.getDesconto());
-//        novoServico.setUrlsImagens(dto.getUrlsImagens());
+        // novoServico.setUrlsImagens(dto.getUrlsImagens());
         novoServico.setAtivo(true);
         novoServico.setDtCriacao(LocalDateTime.now());
 
