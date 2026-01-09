@@ -74,7 +74,7 @@ public class ServicoService {
         if (dto.getTempoEstimadoMinutos() == null || dto.getTempoEstimadoMinutos() <= 0) {
             throw new IllegalArgumentException("A duração estimada do serviço é obrigatória.");
         }
-        if (dto.getCategoriaId() == null) {
+        if (dto.getCategoria() == null) {
             throw new IllegalArgumentException("O ID da categoria é obrigatório.");
         }
 
@@ -88,8 +88,8 @@ public class ServicoService {
 
         validarOrganizacao(org.getId());
 
-        Categoria categoria = categoriaRepository.findById(dto.getCategoriaId())
-                .orElseThrow(() -> new IllegalArgumentException("Categoria com ID " + dto.getCategoriaId() + " não encontrada."));
+        Categoria categoria = categoriaRepository.findById(dto.getCategoria().getId())
+                .orElseThrow(() -> new IllegalArgumentException("Categoria com ID " + dto.getCategoria().getId() + " não encontrada."));
 
         validarOrganizacao(categoria.getOrganizacao().getId());
 
@@ -102,35 +102,35 @@ public class ServicoService {
         novoServico.setTempoEstimadoMinutos(dto.getTempoEstimadoMinutos());
         novoServico.setPreco(dto.getPreco());
         novoServico.setDesconto(dto.getDesconto());
-        // novoServico.setUrlsImagens(dto.getUrlsImagens());
+        novoServico.setProdutos(dto.getProdutos());
         novoServico.setAtivo(true);
         novoServico.setDtCriacao(LocalDateTime.now());
 
         Servico servicoSalvo = servicoRepository.save(novoServico);
 
         if (dto.getImagens() != null && !dto.getImagens().isEmpty()) {
-            List<String> urlsImagens = new ArrayList<>();
+            List<String> urlsImagensSalvas = new ArrayList<>();
 
-            for (MultipartFile imagem : dto.getImagens()) {
-                if (!imagem.isEmpty()) {
-                    // Salvar imagem e obter path relativo
-                    String relativePath = fileStorageService.storeServiceImage(
-                            imagem,
+            for (String imagemBase64 : dto.getImagens()) {
+                if (imagemBase64 != null && !imagemBase64.isEmpty()) {
+                    // Salvar imagem base64 e obter path relativo
+                    String relativePath = fileStorageService.storeServiceImageFromBase64(
+                            imagemBase64,
                             servicoSalvo.getId(),
                             organizacaoId
                     );
 
                     // Construir URL completa
                     String fullUrl = fileStorageService.getFileUrl(relativePath);
-                    urlsImagens.add(fullUrl);
+                    urlsImagensSalvas.add(fullUrl);
                 }
             }
 
-            servicoSalvo.setUrlsImagens(urlsImagens);
+            servicoSalvo.setUrlsImagens(urlsImagensSalvas);
             servicoRepository.save(servicoSalvo);
         }
 
-        return servicoRepository.save(novoServico);
+        return servicoSalvo;
     }
 
     @Transactional
@@ -207,9 +207,9 @@ public class ServicoService {
         if (dto.getNome() != null && !dto.getNome().trim().isEmpty()) {
             servicoExistente.setNome(dto.getNome());
         }
-        if (dto.getCategoriaId() != null) {
-            Categoria categoria = categoriaRepository.findById(dto.getCategoriaId())
-                    .orElseThrow(() -> new IllegalArgumentException("Categoria com ID " + dto.getCategoriaId() + " não encontrada."));
+        if (dto.getCategoria().getId() != null) {
+            Categoria categoria = categoriaRepository.findById(dto.getCategoria().getId())
+                    .orElseThrow(() -> new IllegalArgumentException("Categoria com ID " + dto.getCategoria().getId() + " não encontrada."));
             servicoExistente.setCategoria(categoria);
         }
         if (dto.getGenero() != null) {

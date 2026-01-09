@@ -11,6 +11,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.List;
 
 @Service
@@ -100,6 +101,57 @@ public class FileStorageService {
 
     public String storeServiceImage(MultipartFile file, Long servicoId, Long organizacaoId) {
         return storeFile(file, servicoId, organizacaoId, TipoUpload.FOTO_SERVICO);
+    }
+
+    public String storeServiceImageFromBase64(String base64Image, Long servicoId, Long organizacaoId) {
+        try {
+            // Remove o prefixo "data:image/png;base64," se existir
+            String base64Data = base64Image;
+            if (base64Image.contains(",")) {
+                base64Data = base64Image.split(",")[1];
+            }
+
+            // Decodifica o base64
+            byte[] imageBytes = Base64.getDecoder().decode(base64Data);
+
+            // Detecta a extensão da imagem
+            String extension = detectImageExtension(base64Image);
+
+            // Gerar nome único
+            String filename = String.format("%d_%d_%d.%s",
+                    organizacaoId,
+                    servicoId,
+                    System.currentTimeMillis(),
+                    extension
+            );
+
+            // Criar estrutura de diretórios
+            Path targetDirectory = Paths.get(uploadDir,
+                    organizacaoId.toString(),
+                    TipoUpload.FOTO_SERVICO.getPasta());
+            Files.createDirectories(targetDirectory);
+
+            // Salvar arquivo
+            Path targetLocation = targetDirectory.resolve(filename);
+            Files.write(targetLocation, imageBytes);
+
+            // Retornar path relativo
+            return String.format("%d/%s/%s", organizacaoId, TipoUpload.FOTO_SERVICO.getPasta(), filename);
+
+        } catch (IOException ex) {
+            throw new RuntimeException("Erro ao armazenar imagem base64", ex);
+        }
+    }
+
+    private String detectImageExtension(String base64Image) {
+        if (base64Image.startsWith("data:image/png")) {
+            return "png";
+        } else if (base64Image.startsWith("data:image/jpeg") || base64Image.startsWith("data:image/jpg")) {
+            return "jpg";
+        } else if (base64Image.startsWith("data:image/webp")) {
+            return "webp";
+        }
+        return "png"; // padrão
     }
 
     /**
