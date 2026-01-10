@@ -105,17 +105,43 @@ public class FileStorageService {
 
     public String storeServiceImageFromBase64(String base64Image, Long servicoId, Long organizacaoId) {
         try {
-            // Remove o prefixo "data:image/png;base64," se existir
-            String base64Data = base64Image;
-            if (base64Image.contains(",")) {
-                base64Data = base64Image.split(",")[1];
+            System.out.println("🔍 Iniciando salvamento de imagem base64 para serviço: " + servicoId);
+
+            if (base64Image == null || base64Image.isEmpty()) {
+                throw new IllegalArgumentException("Imagem base64 vazia ou nula");
             }
 
-            // Decodifica o base64
-            byte[] imageBytes = Base64.getDecoder().decode(base64Data);
+            // Remove o prefixo "data:image/xxx;base64," se existir
+            String base64Data = base64Image;
+            String extension = "png"; // padrão
 
-            // Detecta a extensão da imagem
-            String extension = detectImageExtension(base64Image);
+            if (base64Image.contains(",")) {
+                String[] parts = base64Image.split(",");
+                if (parts.length != 2) {
+                    throw new IllegalArgumentException("Formato base64 inválido");
+                }
+
+                // Detecta extensão do prefixo
+                extension = detectImageExtension(parts[0]);
+                base64Data = parts[1];
+            }
+
+            // Remove espaços em branco que podem ter sido adicionados
+            base64Data = base64Data.replaceAll("\\s", "");
+
+            // Decodifica o base64
+            byte[] imageBytes;
+            try {
+                imageBytes = Base64.getDecoder().decode(base64Data);
+                System.out.println("✅ Imagem decodificada: " + imageBytes.length + " bytes");
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("Erro ao decodificar base64: " + e.getMessage());
+            }
+
+            // Validar tamanho
+            if (imageBytes.length > MAX_FILE_SIZE) {
+                throw new IllegalArgumentException("Imagem muito grande. Máximo: 5MB");
+            }
 
             // Gerar nome único
             String filename = String.format("%d_%d_%d.%s",
@@ -131,15 +157,30 @@ public class FileStorageService {
                     TipoUpload.FOTO_SERVICO.getPasta());
             Files.createDirectories(targetDirectory);
 
+            System.out.println("📁 Diretório criado/verificado: " + targetDirectory);
+
             // Salvar arquivo
             Path targetLocation = targetDirectory.resolve(filename);
             Files.write(targetLocation, imageBytes);
 
-            // Retornar path relativo
-            return String.format("%d/%s/%s", organizacaoId, TipoUpload.FOTO_SERVICO.getPasta(), filename);
+            System.out.println("✅ Imagem salva em: " + targetLocation);
 
+            // Retornar path relativo
+            String relativePath = String.format("%d/%s/%s",
+                    organizacaoId,
+                    TipoUpload.FOTO_SERVICO.getPasta(),
+                    filename);
+
+            System.out.println("✅ Path relativo retornado: " + relativePath);
+            return relativePath;
+
+        } catch (IllegalArgumentException ex) {
+            System.err.println("❌ Erro de validação: " + ex.getMessage());
+            throw ex;
         } catch (IOException ex) {
-            throw new RuntimeException("Erro ao armazenar imagem base64", ex);
+            System.err.println("❌ Erro de I/O: " + ex.getMessage());
+            ex.printStackTrace();
+            throw new RuntimeException("Erro ao armazenar imagem base64: " + ex.getMessage(), ex);
         }
     }
 

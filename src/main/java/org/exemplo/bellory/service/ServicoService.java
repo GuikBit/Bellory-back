@@ -212,15 +212,16 @@ public class ServicoService {
     @Transactional
     public Servico updateServico(Long id, ServicoCreateDTO dto) {
         Servico servicoExistente = getServicoById(id);
+        Long organizacaoId = servicoExistente.getOrganizacao().getId();
 
-        validarOrganizacao(servicoExistente.getOrganizacao().getId());
+        validarOrganizacao(organizacaoId);
 
         if (dto.getNome() != null && !dto.getNome().trim().isEmpty()) {
             servicoExistente.setNome(dto.getNome());
         }
-        if (dto.getCategoria().getId() != null) {
+        if (dto.getCategoria() != null && dto.getCategoria().getId() != null) {
             Categoria categoria = categoriaRepository.findById(dto.getCategoria().getId())
-                    .orElseThrow(() -> new IllegalArgumentException("Categoria com ID " + dto.getCategoria().getId() + " não encontrada."));
+                    .orElseThrow(() -> new IllegalArgumentException("Categoria não encontrada."));
             servicoExistente.setCategoria(categoria);
         }
         if (dto.getGenero() != null) {
@@ -232,26 +233,110 @@ public class ServicoService {
         if (dto.getTempoEstimadoMinutos() != null && dto.getTempoEstimadoMinutos() > 0) {
             servicoExistente.setTempoEstimadoMinutos(dto.getTempoEstimadoMinutos());
         }
+
+        // Atualizar preço e desconto
         if (dto.getPreco() != null && dto.getPreco().compareTo(BigDecimal.ZERO) > 0) {
             servicoExistente.setPreco(dto.getPreco());
         }
-//        if (dto.getUrlsImagens() != null) {
-//            servicoExistente.setUrlsImagens(dto.getUrlsImagens());
-//        }
-        if(dto.getDesconto() != null) {
+        if (dto.getDesconto() != null) {
             servicoExistente.setDesconto(dto.getDesconto());
+
+            // Recalcular preço final
+            BigDecimal valorDesconto = servicoExistente.getPreco()
+                    .multiply(dto.getDesconto())
+                    .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
+
+            BigDecimal precoFinal = servicoExistente.getPreco().subtract(valorDesconto);
+            servicoExistente.setPrecoFinal(precoFinal);
         }
 
+        servicoExistente.setProdutos(dto.getProdutos());
+
+        // PROCESSAR IMAGENS COM LOGS DETALHADOS
+        System.out.println("🔍 ===== INÍCIO DO PROCESSAMENTO DE IMAGENS =====");
+        System.out.println("📦 Total de imagens recebidas no DTO: " + (dto.getImagens() != null ? dto.getImagens().size() : 0));
+
+        if (dto.getImagens() != null) {
+            for (int i = 0; i < dto.getImagens().size(); i++) {
+                String img = dto.getImagens().get(i);
+                System.out.println("📸 Imagem [" + i + "] - Tamanho: " + (img != null ? img.length() : 0) + " chars");
+                if (img != null && img.length() > 50) {
+                    System.out.println("   Início: " + img.substring(0, 50) + "...");
+                }
+            }
+        }
+
+        if (dto.getImagens() != null && !dto.getImagens().isEmpty()) {
+            List<String> urlsFinais = new ArrayList<>();
+
+            for (int i = 0; i < dto.getImagens().size(); i++) {
+                String imagem = dto.getImagens().get(i);
+
+                System.out.println("\n🔄 Processando imagem [" + i + "]...");
+
+                if (imagem == null || imagem.isEmpty()) {
+                    System.out.println("⚠️ Imagem vazia ou nula, pulando...");
+                    continue;
+                }
+
+                // Se for URL (começa com http), mantém a URL existente
+                if (imagem.startsWith("http://") || imagem.startsWith("https://")) {
+                    System.out.println("🔗 É uma URL existente: " + imagem);
+                    urlsFinais.add(imagem);
+                }
+                // Se for base64, salva a nova imagem
+                else if (imagem.startsWith("data:image/")) {
+                    System.out.println("🖼️ É uma imagem base64, salvando...");
+                    try {
+                        String relativePath = fileStorageService.storeServiceImageFromBase64(
+                                imagem,
+                                servicoExistente.getId(),
+                                organizacaoId
+                        );
+
+                        String fullUrl = fileStorageService.getFileUrl(relativePath);
+                        urlsFinais.add(fullUrl);
+
+                        System.out.println("✅ Nova imagem salva com sucesso!");
+                        System.out.println("   Relative path: " + relativePath);
+                        System.out.println("   Full URL: " + fullUrl);
+                    } catch (Exception e) {
+                        System.err.println("❌ ERRO ao salvar imagem: " + e.getMessage());
+                        e.printStackTrace();
+                    }
+                } else {
+                    System.out.println("❓ Formato desconhecido de imagem. Primeiros 100 chars:");
+                    System.out.println("   " + imagem.substring(0, Math.min(100, imagem.length())));
+                }
+            }
+
+            System.out.println("\n📋 RESUMO:");
+            System.out.println("   URLs antigas recebidas: " + dto.getImagens().stream().filter(img -> img != null && img.startsWith("http")).count());
+            System.out.println("   Base64 novas recebidas: " + dto.getImagens().stream().filter(img -> img != null && img.startsWith("data:image/")).count());
+            System.out.println("   Total de URLs finais: " + urlsFinais.size());
+            System.out.println("   URLs finais:");
+            for (int i = 0; i < urlsFinais.size(); i++) {
+                System.out.println("      [" + i + "] " + urlsFinais.get(i));
+            }
+
+            servicoExistente.setUrlsImagens(urlsFinais);
+        }
+
+        System.out.println("🔍 ===== FIM DO PROCESSAMENTO DE IMAGENS =====\n");
 
         servicoExistente.setAtivo(dto.isAtivo());
         servicoExistente.setHome(dto.isHome());
         servicoExistente.setAvaliacao(dto.isAvaliacao());
-
         servicoExistente.setUsuarioAtualizacao(getUserIdFromContext().toString());
-
-
         servicoExistente.setDtAtualizacao(LocalDateTime.now());
-        return servicoRepository.save(servicoExistente);
+
+        Servico servicoAtualizado = servicoRepository.save(servicoExistente);
+
+        System.out.println("💾 Serviço salvo no banco!");
+        System.out.println("   URLs de imagens no objeto salvo: " +
+                (servicoAtualizado.getUrlsImagens() != null ? servicoAtualizado.getUrlsImagens().size() : 0));
+
+        return servicoAtualizado;
     }
 
     @Transactional
