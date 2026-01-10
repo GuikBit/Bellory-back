@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -102,6 +103,16 @@ public class ServicoService {
         novoServico.setTempoEstimadoMinutos(dto.getTempoEstimadoMinutos());
         novoServico.setPreco(dto.getPreco());
         novoServico.setDesconto(dto.getDesconto());
+        novoServico.setPreco(dto.getPreco());
+        novoServico.setDesconto(dto.getDesconto());
+
+// Calcula o valor do desconto: preco * (desconto / 100)
+        BigDecimal valorDesconto = dto.getPreco()
+                .multiply(dto.getDesconto())
+                .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
+
+        BigDecimal precoFinal = dto.getPreco().subtract(valorDesconto);
+        novoServico.setPrecoFinal(precoFinal);
         novoServico.setProdutos(dto.getProdutos());
         novoServico.setAtivo(true);
         novoServico.setDtCriacao(LocalDateTime.now());
