@@ -57,8 +57,11 @@ public class Servico {
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal preco;
 
-    @Column
-    private Integer desconto;
+    @Column(precision = 4, scale = 1, nullable = false)
+    private BigDecimal desconto;
+
+    @Column(nullable = false, precision = 10, scale = 2)
+    private BigDecimal precoFinal;
 
     // Mapeia a lista de nomes de produtos para uma tabela de suporte.
     // Lista de produtos usados no serviço

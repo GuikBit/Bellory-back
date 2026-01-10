@@ -16,5 +16,5 @@ class ServicoResumoDTO {
     private String nome;
     private BigDecimal preco;
     private Integer tempoEstimadoMinutos;
-    private Integer desconto;
+    private BigDecimal desconto;
 }

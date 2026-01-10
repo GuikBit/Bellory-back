@@ -226,9 +226,9 @@ public class PublicSiteService {
 
     private ServicoPublicDTO convertServico(Servico servico) {
         BigDecimal precoComDesconto = null;
-        if (servico.getDesconto() != null && servico.getDesconto() > 0) {
+        if (servico.getDesconto() != null) {
             BigDecimal desconto = servico.getPreco()
-                    .multiply(BigDecimal.valueOf(servico.getDesconto()))
+                    .multiply(servico.getDesconto())
                     .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
             precoComDesconto = servico.getPreco().subtract(desconto);
         }
