@@ -1004,6 +1004,7 @@ public class DatabaseSeederService {
                 s.setDescricao(data[2]);
                 s.setTempoEstimadoMinutos(Integer.parseInt(data[3]));
                 s.setPreco(new BigDecimal(data[4]));
+                s.setDesconto(new BigDecimal(0));
                 s.setPrecoFinal(new BigDecimal(data[4]));
                 s.setGenero(data[5]);
                 s.setOrganizacao(org);

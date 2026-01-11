@@ -76,7 +76,7 @@ public class PublicSiteService {
                 .findAllByOrganizacao_IdAndAtivoTrueAndIsVisivelExternoTrue(orgId);
 
         List<Servico> servicos = servicoRepository
-                .findAllByOrganizacao_IdAndAtivoTrueOrderByNomeAsc(orgId);
+                .findAllByOrganizacao_IdAndAtivoTrueAndIsDeletadoFalseOrderByNomeAsc(orgId);
 
         List<Categoria> categorias = categoriaRepository
                 .findByOrganizacao_IdAndAtivoTrue(orgId);

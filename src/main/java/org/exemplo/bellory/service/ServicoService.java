@@ -41,7 +41,7 @@ public class ServicoService {
     public List<Servico> getListAllServicos() {
         Long organizacaoId = getOrganizacaoIdFromContext();
 
-        return this.servicoRepository.findAllByOrganizacao_IdOrderByNomeAsc(organizacaoId);
+        return this.servicoRepository.findAllByOrganizacao_IdAndIsDeletadoFalseOrderByNomeAsc(organizacaoId);
     }
 
     public Servico getServicoById(Long id) {
@@ -55,7 +55,7 @@ public class ServicoService {
 
     public List<ServicoAgendamento> getListAgendamentoServicos() {
         Long organizacaoId = getOrganizacaoIdFromContext();
-        return servicoRepository.findAllProjectedByOrganizacao_Id(organizacaoId);
+        return servicoRepository.findAllProjectedByOrganizacao_IdAndIsDeletadoFalse(organizacaoId);
     }
 
     @Transactional
@@ -344,7 +344,10 @@ public class ServicoService {
 
         Servico servico = getServicoById(id);
         validarOrganizacao(servico.getOrganizacao().getId());
-        servico.setAtivo(false); // Soft delete
+
+        servico.setDeletado(true); // Soft delete
+        servico.setUsuarioDeletado(getUserIdFromContext().toString());
+        servico.setDtDeletado(LocalDateTime.now());
 
         servicoRepository.save(servico);
     }

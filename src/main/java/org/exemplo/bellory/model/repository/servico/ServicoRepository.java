@@ -22,11 +22,11 @@ public interface ServicoRepository extends JpaRepository<Servico, Long> {
 
     Optional<Servico> findByNomeAndOrganizacao(String nome, Organizacao org);
 
-    List<Servico> findAllByOrganizacao_IdOrderByNomeAsc(Long organizacaoId);
+    List<Servico> findAllByOrganizacao_IdAndIsDeletadoFalseOrderByNomeAsc(Long organizacaoId);
 
     List<ServicoAgendamento> findAllProjectedByOrganizacao_Id(Long organizacaoId);
 
-    List<Servico> findAllByOrganizacao_IdAndAtivoTrueOrderByNomeAsc(Long organizacaoId);
+    List<Servico> findAllByOrganizacao_IdAndAtivoTrueAndIsDeletadoFalseOrderByNomeAsc(Long organizacaoId);
 
     /**
      * Busca serviços com fetch dos funcionários e categoria.
@@ -44,4 +44,6 @@ public interface ServicoRepository extends JpaRepository<Servico, Long> {
      * Busca serviços marcados para exibir na home.
      */
     List<Servico> findAllByOrganizacao_IdAndAtivoTrueAndIsHomeTrue(Long organizacaoId);
+
+    List<ServicoAgendamento> findAllProjectedByOrganizacao_IdAndIsDeletadoFalse(Long organizacaoId);
 }

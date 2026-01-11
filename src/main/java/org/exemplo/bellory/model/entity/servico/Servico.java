@@ -86,6 +86,8 @@ public class Servico {
     @Column(name = "dt_atualizacao")
     private LocalDateTime dtAtualizacao;
 
+    private String usuarioAtualizacao;
+
     @Column(nullable = false)
     private boolean ativo;
 
@@ -95,7 +97,13 @@ public class Servico {
     @Column(nullable = false)
     private boolean isAvaliacao;
 
-    private String usuarioAtualizacao;
+    @Column(nullable = false)
+    private boolean isDeletado = false;
+
+    private String usuarioDeletado;
+
+    @Column(name = "dt_deletado")
+    private LocalDateTime dtDeletado;
 
     /**
      * Este método é chamado automaticamente pelo JPA antes de a entidade ser guardada
@@ -107,8 +115,6 @@ public class Servico {
             dtCriacao = LocalDateTime.now();
         }
     }
-
-
 
     public void adicionarUrlImagem(String imagem) {
         if (this.urlsImagens == null) {
