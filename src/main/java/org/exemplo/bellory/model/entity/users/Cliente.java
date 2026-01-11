@@ -23,7 +23,7 @@ import java.util.List;
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Cliente extends User {
 
-    @Column(length = 15)
+    @Column(length = 15, unique = true)
     private String telefone;
 
     private LocalDate dataNascimento;

@@ -89,7 +89,7 @@ public class JornadaTrabalhoController {
     @PostMapping
     public ResponseEntity<ResponseAPI<JornadaDiaDTO>> criarOuAtualizarJornada(
             @PathVariable Long funcionarioId,
-            @RequestBody JornadaDiaCreateUpdateDTO jornadaDTO) {
+            @RequestBody JornadaDiaDTO jornadaDTO) {
         try {
             JornadaDiaDTO jornada = jornadaTrabalhoService.criarOuAtualizarJornada(funcionarioId, jornadaDTO);
 

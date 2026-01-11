@@ -102,4 +102,8 @@ public interface ClienteRepository extends JpaRepository<Cliente, Long> {
             @Param("organizacaoId") Long organizacaoId,    // ✅ organizacaoId primeiro
             @Param("mes") int mes                           // ✅ mes depois
     );
+
+    List<Cliente> findByTelefone(String telefone);
+
+    Optional<Object> findByTelefoneAndOrganizacao_Id(String telefone, Long organizacaoId);
 }

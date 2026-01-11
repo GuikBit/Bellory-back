@@ -184,6 +184,76 @@ public class FileStorageService {
         }
     }
 
+
+    // Adicione este método na classe FileStorageService
+
+    public String storeProfilePictureFromBase64(String base64Image, Long funcionarioId, Long organizacaoId) {
+        try {
+            System.out.println("🔍 Iniciando salvamento de foto de perfil base64 para funcionário: " + funcionarioId);
+
+            if (base64Image == null || base64Image.isEmpty()) {
+                throw new IllegalArgumentException("Imagem base64 vazia ou nula");
+            }
+
+            String base64Data = base64Image;
+            String extension = "png";
+
+            if (base64Image.contains(",")) {
+                String[] parts = base64Image.split(",");
+                if (parts.length != 2) {
+                    throw new IllegalArgumentException("Formato base64 inválido");
+                }
+
+                extension = detectImageExtension(parts[0]);
+                base64Data = parts[1];
+            }
+
+            base64Data = base64Data.replaceAll("\\s", "");
+
+            byte[] imageBytes;
+            try {
+                imageBytes = Base64.getDecoder().decode(base64Data);
+                System.out.println("✅ Imagem decodificada: " + imageBytes.length + " bytes");
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("Erro ao decodificar base64: " + e.getMessage());
+            }
+
+            if (imageBytes.length > MAX_FILE_SIZE) {
+                throw new IllegalArgumentException("Imagem muito grande. Máximo: 5MB");
+            }
+
+            String filename = String.format("%d_%d_%d.%s",
+                    organizacaoId,
+                    funcionarioId,
+                    System.currentTimeMillis(),
+                    extension
+            );
+
+            Path targetDirectory = Paths.get(uploadDir,
+                    organizacaoId.toString(),
+                    TipoUpload.FOTO_PERFIL_COLABORADOR.getPasta());
+            Files.createDirectories(targetDirectory);
+
+            Path targetLocation = targetDirectory.resolve(filename);
+            Files.write(targetLocation, imageBytes);
+
+            String relativePath = String.format("%d/%s/%s",
+                    organizacaoId,
+                    TipoUpload.FOTO_PERFIL_COLABORADOR.getPasta(),
+                    filename);
+
+            System.out.println("✅ Foto de perfil salva: " + relativePath);
+            return relativePath;
+
+        } catch (IllegalArgumentException ex) {
+            System.err.println("❌ Erro de validação: " + ex.getMessage());
+            throw ex;
+        } catch (IOException ex) {
+            System.err.println("❌ Erro de I/O: " + ex.getMessage());
+            throw new RuntimeException("Erro ao armazenar foto de perfil: " + ex.getMessage(), ex);
+        }
+    }
+
     private String detectImageExtension(String base64Image) {
         if (base64Image.startsWith("data:image/png")) {
             return "png";

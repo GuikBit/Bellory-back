@@ -121,6 +121,12 @@ public class ClienteService {
             }
         }
 
+        if(dto.getTelefone() != null){
+            if(clienteRepository.findByTelefoneAndOrganizacao_Id(dto.getTelefone(), organizacaoId).isPresent()){
+                throw new IllegalArgumentException("Telefone já cadastrado.");
+            }
+        }
+
         Organizacao organizacao = organizacaoRepository.findById(organizacaoId)
                 .orElseThrow(() -> new IllegalArgumentException("Organização com ID " + organizacaoId + " não encontrada."));
 
