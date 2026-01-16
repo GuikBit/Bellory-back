@@ -1,0 +1,48 @@
+package org.exemplo.bellory.model.entity.config;
+
+import com.fasterxml.jackson.annotation.JsonBackReference;
+import jakarta.persistence.*;
+
+@Embeddable
+public class ConfigAgendamento {
+
+    @Column(name = "tolerancia_agendamento")
+    private Integer toleranciaAgendamento = 15;
+
+    @Column(name = "min_dias_agendamento")
+    private Integer minDiasAgendamento = 1;
+
+    @Column(name = "max_dias_agendamento")
+    private Integer maxDiasAgendamento = 90;
+
+    @Column(name = "cancelamento_cliente")
+    private Boolean cancelamentoCliente = false;
+
+    @Column(name = "tempo_cancelamento_cliente")
+    private Integer tempoCancelamentoCliente;
+
+    @Column(name = "aprovar_agendamento")
+    private Boolean aprovarAgendamento = true;
+
+    @Column(name = "aprovar_agendamento_agente")
+    private Boolean aprovarAgendamentoAgente = false;
+
+    @Column(name = "ocultar_fimsemana")
+    private Boolean ocultarFimSemana = false;
+
+    @Column(name = "ocultar_domingo")
+    private Boolean ocultarDomingo = false;
+
+    @Column(name = "cobrar_sinal")
+    private Boolean cobrarSinal = false;
+
+    @Column(name = "porcent_sinal")
+    private Integer porcenterSinal;
+
+    @Column(name = "cobrar_sinal_agente")
+    private Boolean cobrarSinalAgente = true;
+
+    @Column(name = "porcent_sinal_agente")
+    private Integer porcentSinalAgente = 50;
+
+}

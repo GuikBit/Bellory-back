@@ -50,4 +50,10 @@ public class ConfigSistema {
     private LocalDateTime dtAtualizacao;
 
 
+    @Embedded
+    @AttributeOverrides({
+            @AttributeOverride(name = "toleranciaAgendamento", column = @Column(name = "agend_tolerancia")),
+    })
+    private ConfigAgendamento configAgendamento;
+
 }
