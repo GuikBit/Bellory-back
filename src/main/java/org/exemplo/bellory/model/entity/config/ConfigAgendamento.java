@@ -1,9 +1,14 @@
 package org.exemplo.bellory.model.entity.config;
 
-import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
+import lombok.*;
 
 @Embeddable
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class ConfigAgendamento {
 
     @Column(name = "tolerancia_agendamento")
@@ -37,12 +42,11 @@ public class ConfigAgendamento {
     private Boolean cobrarSinal = false;
 
     @Column(name = "porcent_sinal")
-    private Integer porcenterSinal;
+    private Integer porcentSinal;
 
     @Column(name = "cobrar_sinal_agente")
     private Boolean cobrarSinalAgente = true;
 
     @Column(name = "porcent_sinal_agente")
     private Integer porcentSinalAgente = 50;
-
 }
