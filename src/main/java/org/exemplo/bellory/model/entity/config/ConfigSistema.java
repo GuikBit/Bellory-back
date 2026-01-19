@@ -38,16 +38,12 @@ public class ConfigSistema {
     private boolean disparaNotificacoesPush = true;
 
     @Column(name = "url_acesso", nullable = false)
-    private String urlAcesso;
+    private String urlAcesso = "";
 
     @Column(name = "tenant_id", nullable = false)
-    private String tenantId;
+    private String tenantId = "";
 
-    @Column(name = "dt_criacao", columnDefinition = "TIMESTAMP DEFAULT now()")
-    private LocalDateTime dtCriacao;
 
-    @Column(name = "dt_atualizacao")
-    private LocalDateTime dtAtualizacao;
 
     @Embedded
     @AttributeOverrides({
@@ -56,5 +52,11 @@ public class ConfigSistema {
     private ConfigAgendamento configAgendamento;
 
 
+
+    @Column(name = "dt_criacao", columnDefinition = "TIMESTAMP DEFAULT now()")
+    private LocalDateTime dtCriacao;
+
+    @Column(name = "dt_atualizacao")
+    private LocalDateTime dtAtualizacao;
     //outras configuracoes de modulos
 }

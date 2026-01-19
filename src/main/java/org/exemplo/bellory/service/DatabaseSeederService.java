@@ -2,6 +2,8 @@ package org.exemplo.bellory.service;
 
 import org.exemplo.bellory.model.entity.agendamento.Agendamento;
 import org.exemplo.bellory.model.entity.agendamento.Status;
+import org.exemplo.bellory.model.entity.config.ConfigAgendamento;
+import org.exemplo.bellory.model.entity.config.ConfigSistema;
 import org.exemplo.bellory.model.entity.endereco.Endereco;
 import org.exemplo.bellory.model.entity.enums.TipoCategoria;
 import org.exemplo.bellory.model.entity.funcionario.*;
@@ -24,6 +26,7 @@ import org.exemplo.bellory.model.entity.users.Cliente;
 import org.exemplo.bellory.model.entity.users.Role;
 import org.exemplo.bellory.model.repository.agendamento.AgendamentoRepository;
 import org.exemplo.bellory.model.repository.categoria.CategoriaRepository;
+import org.exemplo.bellory.model.repository.config.ConfigSistemaRepository;
 import org.exemplo.bellory.model.repository.funcionario.CargoRepository;
 import org.exemplo.bellory.model.repository.funcionario.FuncionarioRepository;
 import org.exemplo.bellory.model.repository.organizacao.OrganizacaoRepository;
@@ -68,6 +71,7 @@ public class DatabaseSeederService {
     private final PasswordEncoder passwordEncoder;
     private final CategoriaRepository categoriaRepository;
     private final AdminRepository adminRepository;
+    private final ConfigSistemaRepository configSistemaRepository;
 
     private final TenantRepository tenantRepository;
     private final PageRepository pageRepository;
@@ -99,7 +103,8 @@ public class DatabaseSeederService {
                                  PlanoRepository planoRepository, ProdutoRepository produtoRepository,
                                  PasswordEncoder passwordEncoder, CategoriaRepository categoriaRepository,
                                  PageComponentRepository componentRepository, PageRepository pageRepository, TenantRepository tenantRepository,
-                                 AdminRepository adminRepository, PlanoBelloryRepository planoBelloryRepository, CargoRepository cargoRepository, PlanoLimiteBelloryRepository planoLimiteBelloryRepository) {
+                                 AdminRepository adminRepository, PlanoBelloryRepository planoBelloryRepository, CargoRepository cargoRepository,
+                                 PlanoLimiteBelloryRepository planoLimiteBelloryRepository, ConfigSistemaRepository configSistemaRepository) {
         this.organizacaoRepository = organizacaoRepository;
         this.roleRepository = roleRepository;
         this.funcionarioRepository = funcionarioRepository;
@@ -117,6 +122,7 @@ public class DatabaseSeederService {
         this.planoBelloryRepository = planoBelloryRepository;
         this.cargoRepository = cargoRepository;
         this.planoLimiteBelloryRepository = planoLimiteBelloryRepository;
+        this.configSistemaRepository = configSistemaRepository;
     }
 
     @Transactional
@@ -634,8 +640,21 @@ public class DatabaseSeederService {
                 o.setDtCadastro(LocalDateTime.now());
                 o.setDtAtualizacao(LocalDateTime.now());
 
+
+
                 return organizacaoRepository.save(o);
             });
+
+            ConfigAgendamento configAgendamento = new ConfigAgendamento();
+            ConfigSistema configSistema = new ConfigSistema();
+            configSistema.setOrganizacao(org);
+            configSistema.setConfigAgendamento(configAgendamento);
+
+            configSistemaRepository.save(configSistema);
+
+            org.setConfigSistema(configSistema);
+
+            organizacaoRepository.save(org);
 
             Optional<Admin> adminEx = adminRepository.findByUsername(data[11]);
 

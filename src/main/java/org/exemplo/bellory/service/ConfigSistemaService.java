@@ -1,6 +1,7 @@
 package org.exemplo.bellory.service;
 
 import lombok.RequiredArgsConstructor;
+import org.exemplo.bellory.context.TenantContext;
 import org.exemplo.bellory.model.dto.config.ConfigAgendamentoDTO;
 import org.exemplo.bellory.model.dto.config.ConfigSistemaDTO;
 import org.exemplo.bellory.model.entity.config.ConfigAgendamento;
@@ -21,14 +22,18 @@ public class ConfigSistemaService {
     private final OrganizacaoRepository organizacaoRepository;
 
     @Transactional(readOnly = true)
-    public ConfigSistemaDTO buscarConfigPorOrganizacao(Long organizacaoId) {
+    public ConfigSistemaDTO buscarConfigPorOrganizacao() {
+        Long organizacaoId = TenantContext.getCurrentOrganizacaoId();
+
         ConfigSistema config = configSistemaRepository.findByOrganizacaoId(organizacaoId)
                 .orElseThrow(() -> new IllegalArgumentException("Configuração não encontrada para a organização"));
         return convertToDTO(config);
     }
 
     @Transactional
-    public ConfigSistemaDTO salvarConfigCompleta(ConfigSistemaDTO dto, Long organizacaoId) {
+    public ConfigSistemaDTO salvarConfigCompleta(ConfigSistemaDTO dto) {
+        Long organizacaoId = TenantContext.getCurrentOrganizacaoId();
+
         ConfigSistema config = configSistemaRepository.findByOrganizacaoId(organizacaoId)
                 .orElseGet(() -> criarNovaConfig(organizacaoId));
 
@@ -45,7 +50,9 @@ public class ConfigSistemaService {
     }
 
     @Transactional
-    public ConfigAgendamentoDTO atualizarConfigAgendamento(Long organizacaoId, ConfigAgendamentoDTO dto) {
+    public ConfigAgendamentoDTO atualizarConfigAgendamento(ConfigAgendamento dto) {
+        Long organizacaoId = TenantContext.getCurrentOrganizacaoId();
+
         ConfigSistema config = configSistemaRepository.findByOrganizacaoId(organizacaoId)
                 .orElseThrow(() -> new IllegalArgumentException("Configuração não encontrada"));
 
@@ -85,7 +92,7 @@ public class ConfigSistemaService {
         }
     }
 
-    private void atualizarConfigAgendamento(ConfigSistema config, ConfigAgendamentoDTO dto) {
+    private void atualizarConfigAgendamento(ConfigSistema config, ConfigAgendamento dto) {
         if (config.getConfigAgendamento() == null) {
             config.setConfigAgendamento(new ConfigAgendamento());
         }
@@ -101,10 +108,15 @@ public class ConfigSistemaService {
         if (dto.getMaxDiasAgendamento() != null) {
             configAgend.setMaxDiasAgendamento(dto.getMaxDiasAgendamento());
         }
+        // Segundo bloco - Cancelamento Cliente
         if (dto.getCancelamentoCliente() != null) {
             configAgend.setCancelamentoCliente(dto.getCancelamentoCliente());
+            if (dto.getCancelamentoCliente().equals(false)) {
+                configAgend.setTempoCancelamentoCliente(null);
+            }
         }
-        if (dto.getTempoCancelamentoCliente() != null) {
+        // Só atualiza o tempo se cancelamentoCliente for true (ou null)
+        if (dto.getTempoCancelamentoCliente() != null && !Boolean.FALSE.equals(dto.getCancelamentoCliente())) {
             configAgend.setTempoCancelamentoCliente(dto.getTempoCancelamentoCliente());
         }
         if (dto.getAprovarAgendamento() != null) {
@@ -119,16 +131,26 @@ public class ConfigSistemaService {
         if (dto.getOcultarDomingo() != null) {
             configAgend.setOcultarDomingo(dto.getOcultarDomingo());
         }
+        // Primeiro bloco - Cobrar Sinal
         if (dto.getCobrarSinal() != null) {
             configAgend.setCobrarSinal(dto.getCobrarSinal());
+            if (dto.getCobrarSinal().equals(false)) {
+                configAgend.setPorcentSinal(null);
+            }
         }
-        if (dto.getPorcentSinal() != null) {
+        // Só atualiza a porcentagem se cobrarSinal for true (ou null, mantendo o valor existente)
+        if (dto.getPorcentSinal() != null && !Boolean.FALSE.equals(dto.getCobrarSinal())) {
             configAgend.setPorcentSinal(dto.getPorcentSinal());
         }
+
         if (dto.getCobrarSinalAgente() != null) {
             configAgend.setCobrarSinalAgente(dto.getCobrarSinalAgente());
+            if (dto.getCobrarSinalAgente().equals(false)) {
+                configAgend.setPorcentSinalAgente(null);
+            }
         }
-        if (dto.getPorcentSinalAgente() != null) {
+        // Só atualiza a porcentagem se cobrarSinalAgente for true (ou null)
+        if (dto.getPorcentSinalAgente() != null && !Boolean.FALSE.equals(dto.getCobrarSinalAgente())) {
             configAgend.setPorcentSinalAgente(dto.getPorcentSinalAgente());
         }
     }
@@ -143,7 +165,7 @@ public class ConfigSistemaService {
                 .disparaNotificacoesPush(config.isDisparaNotificacoesPush())
                 .urlAcesso(config.getUrlAcesso())
                 .tenantId(config.getTenantId())
-                .configAgendamento(convertConfigAgendamentoToDTO(config.getConfigAgendamento()))
+                .configAgendamento(config.getConfigAgendamento())
                 .build();
     }
 

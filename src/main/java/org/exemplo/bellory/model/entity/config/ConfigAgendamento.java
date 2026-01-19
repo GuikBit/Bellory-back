@@ -49,4 +49,8 @@ public class ConfigAgendamento {
 
     @Column(name = "porcent_sinal_agente")
     private Integer porcentSinalAgente = 50;
+
+    @Column(name= "modo_vizualizacao")
+    private String modoVizualizacao = "calendar";
+
 }

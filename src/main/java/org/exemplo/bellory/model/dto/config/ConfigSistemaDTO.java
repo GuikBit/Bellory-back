@@ -1,6 +1,7 @@
 package org.exemplo.bellory.model.dto.config;
 
 import lombok.*;
+import org.exemplo.bellory.model.entity.config.ConfigAgendamento;
 
 @Getter
 @Setter
@@ -16,7 +17,7 @@ public class ConfigSistemaDTO {
     private Boolean disparaNotificacoesPush;
     private String urlAcesso;
     private String tenantId;
-    private ConfigAgendamentoDTO configAgendamento;
+    private ConfigAgendamento configAgendamento;
     // Adicione aqui outros DTOs de configuração quando criar
     // private ConfigClienteDTO configCliente;
     // private ConfigServicoDTO configServico;

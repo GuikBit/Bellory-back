@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.exemplo.bellory.model.dto.compra.PagamentoDTO;
 import org.exemplo.bellory.model.dto.config.ConfigAgendamentoDTO;
 import org.exemplo.bellory.model.dto.config.ConfigSistemaDTO;
+import org.exemplo.bellory.model.entity.config.ConfigAgendamento;
 import org.exemplo.bellory.model.entity.error.ResponseAPI;
 import org.exemplo.bellory.service.ConfigSistemaService;
 import org.springframework.http.HttpStatus;
@@ -20,15 +21,10 @@ public class ConfigSistemaController {
 
     // Buscar todas as configurações da organização
     @GetMapping
-    public ResponseEntity<ResponseAPI<ConfigSistemaDTO>> getConfiguracao(
-            @RequestHeader("organizacao-id") Long organizacaoId) {
+    public ResponseEntity<ResponseAPI<ConfigSistemaDTO>> getConfiguracao() {
         try {
-            ConfigSistemaDTO config = configSistemaService.buscarConfigPorOrganizacao(organizacaoId);
-//            return ResponseEntity.ok(
-//                    ResponseAPI.<ConfigSistemaDTO>builder()
-//                            .data(config)
-//                            .message("Configurações recuperadas com sucesso")
-//                            .build()
+            ConfigSistemaDTO config = configSistemaService.buscarConfigPorOrganizacao();
+
 
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(ResponseAPI.<ConfigSistemaDTO>builder()
@@ -48,11 +44,9 @@ public class ConfigSistemaController {
 
     // Salvar/Atualizar todas as configurações do sistema
     @PutMapping
-    public ResponseEntity<ResponseAPI<ConfigSistemaDTO>> putConfigSistema(
-            @RequestHeader("organizacao-id") Long organizacaoId,
-            @Valid @RequestBody ConfigSistemaDTO configSistemaDTO) {
+    public ResponseEntity<ResponseAPI<ConfigSistemaDTO>> putConfigSistema(@Valid @RequestBody ConfigSistemaDTO configSistemaDTO) {
         try {
-            ConfigSistemaDTO saved = configSistemaService.salvarConfigCompleta(configSistemaDTO, organizacaoId);
+            ConfigSistemaDTO saved = configSistemaService.salvarConfigCompleta(configSistemaDTO);
 
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(ResponseAPI.<ConfigSistemaDTO>builder()
@@ -71,13 +65,9 @@ public class ConfigSistemaController {
 
     // Atualizar apenas configurações de agendamento
     @PutMapping("/agendamento")
-    public ResponseEntity<ResponseAPI<ConfigAgendamentoDTO>> putConfigAgendamento(
-            @RequestHeader("organizacao-id") Long organizacaoId,
-            @Valid @RequestBody ConfigAgendamentoDTO configAgendamentoDTO) {
+    public ResponseEntity<ResponseAPI<ConfigAgendamentoDTO>> putConfigAgendamento(@Valid @RequestBody ConfigAgendamento configAgendamento) {
         try {
-            ConfigAgendamentoDTO updated = configSistemaService.atualizarConfigAgendamento(
-                    organizacaoId, configAgendamentoDTO
-            );
+            ConfigAgendamentoDTO updated = configSistemaService.atualizarConfigAgendamento(configAgendamento);
 //            return ResponseEntity.ok(
 //                    ResponseAPI.<ConfigAgendamentoDTO>builder()
 //                            .data(updated)
