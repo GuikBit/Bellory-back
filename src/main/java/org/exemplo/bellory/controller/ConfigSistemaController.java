@@ -4,8 +4,12 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.exemplo.bellory.model.dto.compra.PagamentoDTO;
 import org.exemplo.bellory.model.dto.config.ConfigAgendamentoDTO;
+import org.exemplo.bellory.model.dto.config.ConfigClienteDTO;
+import org.exemplo.bellory.model.dto.config.ConfigServicoDTO;
 import org.exemplo.bellory.model.dto.config.ConfigSistemaDTO;
 import org.exemplo.bellory.model.entity.config.ConfigAgendamento;
+import org.exemplo.bellory.model.entity.config.ConfigCliente;
+import org.exemplo.bellory.model.entity.config.ConfigServico;
 import org.exemplo.bellory.model.entity.error.ResponseAPI;
 import org.exemplo.bellory.service.ConfigSistemaService;
 import org.springframework.http.HttpStatus;
@@ -19,12 +23,10 @@ public class ConfigSistemaController {
 
     private final ConfigSistemaService configSistemaService;
 
-    // Buscar todas as configurações da organização
     @GetMapping
     public ResponseEntity<ResponseAPI<ConfigSistemaDTO>> getConfiguracao() {
         try {
             ConfigSistemaDTO config = configSistemaService.buscarConfigPorOrganizacao();
-
 
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(ResponseAPI.<ConfigSistemaDTO>builder()
@@ -68,12 +70,7 @@ public class ConfigSistemaController {
     public ResponseEntity<ResponseAPI<ConfigAgendamentoDTO>> putConfigAgendamento(@Valid @RequestBody ConfigAgendamento configAgendamento) {
         try {
             ConfigAgendamentoDTO updated = configSistemaService.atualizarConfigAgendamento(configAgendamento);
-//            return ResponseEntity.ok(
-//                    ResponseAPI.<ConfigAgendamentoDTO>builder()
-//                            .data(updated)
-//                            .message("Configurações de agendamento atualizadas com sucesso")
-//                            .build()
-//            );
+
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(ResponseAPI.<ConfigAgendamentoDTO>builder()
                             .success(true)
@@ -83,6 +80,46 @@ public class ConfigSistemaController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(
                     ResponseAPI.<ConfigAgendamentoDTO>builder()
+                            .message(e.getMessage())
+                            .build()
+            );
+        }
+    }
+
+    @PutMapping("/servico")
+    public ResponseEntity<ResponseAPI<ConfigServicoDTO>> putConfigServico(@Valid @RequestBody ConfigServico configServico) {
+        try {
+            ConfigServicoDTO updated = configSistemaService.atualizarConfigServico(configServico);
+
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(ResponseAPI.<ConfigServicoDTO>builder()
+                            .success(true)
+                            .message("Pagamento processado com sucesso.")
+                            .dados(updated)
+                            .build());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(
+                    ResponseAPI.<ConfigServicoDTO>builder()
+                            .message(e.getMessage())
+                            .build()
+            );
+        }
+    }
+
+    @PutMapping("/cliente")
+    public ResponseEntity<ResponseAPI<ConfigClienteDTO>> putConfigCliente(@Valid @RequestBody ConfigCliente configcliente) {
+        try {
+            ConfigClienteDTO updated = configSistemaService.atualizarConfigCliente(configcliente);
+
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(ResponseAPI.<ConfigClienteDTO>builder()
+                            .success(true)
+                            .message("Pagamento processado com sucesso.")
+                            .dados(updated)
+                            .build());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(
+                    ResponseAPI.<ConfigClienteDTO>builder()
                             .message(e.getMessage())
                             .build()
             );

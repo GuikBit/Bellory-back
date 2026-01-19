@@ -43,15 +43,21 @@ public class ConfigSistema {
     @Column(name = "tenant_id", nullable = false)
     private String tenantId = "";
 
-
-
     @Embedded
     @AttributeOverrides({
             @AttributeOverride(name = "toleranciaAgendamento", column = @Column(name = "agend_tolerancia")),
     })
     private ConfigAgendamento configAgendamento;
 
+    @Embedded
+    @AttributeOverrides({
+            @AttributeOverride(name = "config_servico", column = @Column(name = "config_servico")),
+    })
+    private ConfigServico configServico;
 
+    @Embedded
+    @AttributeOverrides({ @AttributeOverride(name = "config_cliente", column = @Column(name = "config_cliente")) })
+    private ConfigCliente configCliente;
 
     @Column(name = "dt_criacao", columnDefinition = "TIMESTAMP DEFAULT now()")
     private LocalDateTime dtCriacao;
