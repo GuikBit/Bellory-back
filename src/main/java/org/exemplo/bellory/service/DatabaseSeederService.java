@@ -2,8 +2,7 @@ package org.exemplo.bellory.service;
 
 import org.exemplo.bellory.model.entity.agendamento.Agendamento;
 import org.exemplo.bellory.model.entity.agendamento.Status;
-import org.exemplo.bellory.model.entity.config.ConfigAgendamento;
-import org.exemplo.bellory.model.entity.config.ConfigSistema;
+import org.exemplo.bellory.model.entity.config.*;
 import org.exemplo.bellory.model.entity.endereco.Endereco;
 import org.exemplo.bellory.model.entity.enums.TipoCategoria;
 import org.exemplo.bellory.model.entity.funcionario.*;
@@ -76,7 +75,7 @@ public class DatabaseSeederService {
     private final TenantRepository tenantRepository;
     private final PageRepository pageRepository;
     private final PageComponentRepository componentRepository;
-
+    private final ApiKeyService apiKeyService;
 
     // Arrays com dados diversos para randomização
     private final String[] nomesFemininos = {"Ana", "Maria", "Julia", "Carla", "Fernanda", "Beatriz", "Camila", "Larissa", "Rafaela", "Amanda", "Gabriela", "Bruna", "Letícia", "Mariana", "Priscila", "Débora", "Tatiane", "Vanessa", "Patrícia", "Luciana"};
@@ -104,7 +103,7 @@ public class DatabaseSeederService {
                                  PasswordEncoder passwordEncoder, CategoriaRepository categoriaRepository,
                                  PageComponentRepository componentRepository, PageRepository pageRepository, TenantRepository tenantRepository,
                                  AdminRepository adminRepository, PlanoBelloryRepository planoBelloryRepository, CargoRepository cargoRepository,
-                                 PlanoLimiteBelloryRepository planoLimiteBelloryRepository, ConfigSistemaRepository configSistemaRepository) {
+                                 PlanoLimiteBelloryRepository planoLimiteBelloryRepository, ConfigSistemaRepository configSistemaRepository, ApiKeyService apiKeyService) {
         this.organizacaoRepository = organizacaoRepository;
         this.roleRepository = roleRepository;
         this.funcionarioRepository = funcionarioRepository;
@@ -123,6 +122,7 @@ public class DatabaseSeederService {
         this.cargoRepository = cargoRepository;
         this.planoLimiteBelloryRepository = planoLimiteBelloryRepository;
         this.configSistemaRepository = configSistemaRepository;
+        this.apiKeyService = apiKeyService;
     }
 
     @Transactional
@@ -646,15 +646,25 @@ public class DatabaseSeederService {
             });
 
             ConfigAgendamento configAgendamento = new ConfigAgendamento();
+            ConfigServico configServico = new ConfigServico();
+            ConfigColaborador configColaborador= new ConfigColaborador();
+            ConfigNotificacao configNotificacao = new ConfigNotificacao();
+            ConfigCliente configCliente = new ConfigCliente();
+
             ConfigSistema configSistema = new ConfigSistema();
             configSistema.setOrganizacao(org);
             configSistema.setConfigAgendamento(configAgendamento);
+            configSistema.setConfigServico(configServico);
+            configSistema.setConfigColaborador(configColaborador);
+            configSistema.setConfigNotificacao(configNotificacao);
+            configSistema.setConfigCliente(configCliente);
 
             configSistemaRepository.save(configSistema);
 
             org.setConfigSistema(configSistema);
 
             organizacaoRepository.save(org);
+
 
             Optional<Admin> adminEx = adminRepository.findByUsername(data[11]);
 
@@ -667,7 +677,11 @@ public class DatabaseSeederService {
                 admin.setUsername(data[11]);
                 admin.setPassword(passwordEncoder.encode(data[12]));
 
-                adminRepository.save(admin);
+                Admin saveAdmin = adminRepository.save(admin);
+
+                Map<String, Object> teste = apiKeyService.generateApiKey(saveAdmin.getId(), ApiKey.UserType.SISTEMA, "API_KEY_DEFAULT", "API Key para execução de automações internas do sistema", null);
+
+                System.out.println("   ✓ API Key criada: " + teste);
             }
 
             organizacoes.add(org);

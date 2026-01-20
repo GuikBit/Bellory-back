@@ -59,6 +59,14 @@ public class ConfigSistema {
     @AttributeOverrides({ @AttributeOverride(name = "config_cliente", column = @Column(name = "config_cliente")) })
     private ConfigCliente configCliente;
 
+    @Embedded
+    @AttributeOverrides({ @AttributeOverride(name = "config_colaborador", column = @Column(name = "config_colaborador")) })
+    private ConfigColaborador configColaborador;
+
+    @Embedded
+    @AttributeOverrides({ @AttributeOverride(name = "config_notificacao", column = @Column(name = "config_notificacao")) })
+    private ConfigNotificacao configNotificacao;
+
     @Column(name = "dt_criacao", columnDefinition = "TIMESTAMP DEFAULT now()")
     private LocalDateTime dtCriacao;
 

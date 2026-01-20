@@ -1,9 +1,7 @@
 package org.exemplo.bellory.model.dto.config;
 
 import lombok.*;
-import org.exemplo.bellory.model.entity.config.ConfigAgendamento;
-import org.exemplo.bellory.model.entity.config.ConfigCliente;
-import org.exemplo.bellory.model.entity.config.ConfigServico;
+import org.exemplo.bellory.model.entity.config.*;
 
 @Getter
 @Setter
@@ -22,6 +20,8 @@ public class ConfigSistemaDTO {
     private ConfigAgendamento configAgendamento;
     private ConfigServico configServico;
     private ConfigCliente configCliente;
+    private ConfigNotificacao configNotificacao;
+    private ConfigColaborador configColaborador;
 
 
     // Adicione aqui outros DTOs de configuração quando criar

@@ -67,6 +67,7 @@ public class ApiKeyService {
                 .username(userInfo.getUsername())
                 .organizacao(userInfo.getOrganizacao())
                 .keyHash(keyHash)
+                .apikey(rawKey)
                 .name(name)
                 .description(description)
                 .expiresAt(expiresAt)
@@ -126,6 +127,10 @@ public class ApiKeyService {
                         .map(this::mapClienteToUserInfo)
                         .orElse(null);
 
+            case SISTEMA:
+                return adminRepository.findById(userId)
+                        .map(this::mapAdminToUserInfo)
+                        .orElse(null);
             default:
                 return null;
         }

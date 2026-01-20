@@ -3,13 +3,8 @@ package org.exemplo.bellory.controller;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.exemplo.bellory.model.dto.compra.PagamentoDTO;
-import org.exemplo.bellory.model.dto.config.ConfigAgendamentoDTO;
-import org.exemplo.bellory.model.dto.config.ConfigClienteDTO;
-import org.exemplo.bellory.model.dto.config.ConfigServicoDTO;
-import org.exemplo.bellory.model.dto.config.ConfigSistemaDTO;
-import org.exemplo.bellory.model.entity.config.ConfigAgendamento;
-import org.exemplo.bellory.model.entity.config.ConfigCliente;
-import org.exemplo.bellory.model.entity.config.ConfigServico;
+import org.exemplo.bellory.model.dto.config.*;
+import org.exemplo.bellory.model.entity.config.*;
 import org.exemplo.bellory.model.entity.error.ResponseAPI;
 import org.exemplo.bellory.service.ConfigSistemaService;
 import org.springframework.http.HttpStatus;
@@ -125,6 +120,48 @@ public class ConfigSistemaController {
             );
         }
     }
+
+    @PutMapping("/colaborador")
+    public ResponseEntity<ResponseAPI<ConfigColaboradorDTO>> putConfigServico(@Valid @RequestBody ConfigColaborador configColaborador) {
+        try {
+            ConfigColaboradorDTO updated = configSistemaService.atualizarConfigColaborador(configColaborador);
+
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(ResponseAPI.<ConfigColaboradorDTO>builder()
+                            .success(true)
+                            .message("Pagamento processado com sucesso.")
+                            .dados(updated)
+                            .build());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(
+                    ResponseAPI.<ConfigColaboradorDTO>builder()
+                            .message(e.getMessage())
+                            .build()
+            );
+        }
+    }
+
+    @PutMapping("/notificacao")
+    public ResponseEntity<ResponseAPI<ConfigNotificacaoDTO>> putConfigServico(@Valid @RequestBody ConfigNotificacao configNotificacao) {
+        try {
+            ConfigNotificacaoDTO updated = configSistemaService.atualizarConfigNotificacao(configNotificacao);
+
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(ResponseAPI.<ConfigNotificacaoDTO>builder()
+                            .success(true)
+                            .message("Pagamento processado com sucesso.")
+                            .dados(updated)
+                            .build());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(
+                    ResponseAPI.<ConfigNotificacaoDTO>builder()
+                            .message(e.getMessage())
+                            .build()
+            );
+        }
+    }
+
+
 
     // Você pode criar métodos similares para cliente, serviço, colaborador
     // quando tiver as respectivas classes de configuração

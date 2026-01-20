@@ -38,6 +38,9 @@ public class ApiKey {
     @Column(nullable = false, unique = true, length = 128)
     private String keyHash; // Hash SHA-256 da chave
 
+    @Column(nullable = false, unique = true, length = 128)
+    private String apikey;
+
     @Column(nullable = false, length = 100)
     private String name; // Ex: "N8N - Automação Vendas"
 
@@ -78,6 +81,7 @@ public class ApiKey {
     public enum UserType {
         ADMIN,
         FUNCIONARIO,
-        CLIENTE
+        CLIENTE,
+        SISTEMA
     }
 }

@@ -2,14 +2,8 @@ package org.exemplo.bellory.service;
 
 import lombok.RequiredArgsConstructor;
 import org.exemplo.bellory.context.TenantContext;
-import org.exemplo.bellory.model.dto.config.ConfigAgendamentoDTO;
-import org.exemplo.bellory.model.dto.config.ConfigClienteDTO;
-import org.exemplo.bellory.model.dto.config.ConfigServicoDTO;
-import org.exemplo.bellory.model.dto.config.ConfigSistemaDTO;
-import org.exemplo.bellory.model.entity.config.ConfigAgendamento;
-import org.exemplo.bellory.model.entity.config.ConfigCliente;
-import org.exemplo.bellory.model.entity.config.ConfigServico;
-import org.exemplo.bellory.model.entity.config.ConfigSistema;
+import org.exemplo.bellory.model.dto.config.*;
+import org.exemplo.bellory.model.entity.config.*;
 import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 import org.exemplo.bellory.model.repository.config.ConfigSistemaRepository;
 import org.exemplo.bellory.model.repository.organizacao.OrganizacaoRepository;
@@ -96,6 +90,34 @@ public class ConfigSistemaService {
         return convertConfigClienteToDTO(saved.getConfigCliente());
     }
 
+    @Transactional
+    public ConfigColaboradorDTO atualizarConfigColaborador(ConfigColaborador dto) {
+        Long organizacaoId = TenantContext.getCurrentOrganizacaoId();
+
+        ConfigSistema config = configSistemaRepository.findByOrganizacaoId(organizacaoId)
+                .orElseThrow(() -> new IllegalArgumentException("Configuração não encontrada"));
+
+        atuaConfigColaborador(config, dto);
+        config.setDtAtualizacao(LocalDateTime.now());
+
+        ConfigSistema saved = configSistemaRepository.save(config);
+        return convertConfigColaboradorToDTO(saved.getConfigColaborador());
+    }
+
+    @Transactional
+    public ConfigNotificacaoDTO atualizarConfigNotificacao(ConfigNotificacao dto) {
+        Long organizacaoId = TenantContext.getCurrentOrganizacaoId();
+
+        ConfigSistema config = configSistemaRepository.findByOrganizacaoId(organizacaoId)
+                .orElseThrow(() -> new IllegalArgumentException("Configuração não encontrada"));
+
+        atuaConfigNotificacao(config, dto);
+        config.setDtAtualizacao(LocalDateTime.now());
+
+        ConfigSistema saved = configSistemaRepository.save(config);
+        return convertConfigNotificacaoToDTO(saved.getConfigNotificacao());
+    }
+
     private ConfigSistema criarNovaConfig(Long organizacaoId) {
         Organizacao organizacao = organizacaoRepository.findById(organizacaoId)
                 .orElseThrow(() -> new IllegalArgumentException("Organização não encontrada"));
@@ -158,6 +180,51 @@ public class ConfigSistemaService {
         }
         if(dto.getValorGastoUmPonto() != null){
             configServ.setValorGastoUmPonto(dto.getValorGastoUmPonto());
+        }
+    }
+
+    private void atuaConfigColaborador (ConfigSistema config, ConfigColaborador dto){
+        if(config.getConfigColaborador() == null){
+            config.setConfigColaborador(new ConfigColaborador());
+        }
+
+        ConfigColaborador configServ = config.getConfigColaborador();
+
+        if(dto.getSelecionarColaboradorAgendamento() != null){
+            configServ.setSelecionarColaboradorAgendamento(dto.getSelecionarColaboradorAgendamento());
+        }
+        if(dto.getMostrarNotasComentarioColaborador() != null){
+            configServ.setMostrarNotasComentarioColaborador(dto.getMostrarNotasComentarioColaborador());
+        }
+        if(dto.getComissaoPadrao() != null){
+            configServ.setComissaoPadrao(dto.getComissaoPadrao());
+        }
+    }
+
+    private void atuaConfigNotificacao (ConfigSistema config, ConfigNotificacao dto){
+        if(config.getConfigNotificacao() == null){
+            config.setConfigNotificacao(new ConfigNotificacao());
+        }
+
+        ConfigNotificacao configServ = config.getConfigNotificacao();
+
+        if(dto.getEnviarLembreteWhatsapp() != null){
+            configServ.setEnviarLembreteWhatsapp(dto.getEnviarLembreteWhatsapp());
+        }
+        if(dto.getEnviarLembreteSMS() != null){
+            configServ.setEnviarLembreteSMS(dto.getEnviarLembreteSMS());
+        }
+        if(dto.getEnviarLembreteEmail() != null){
+            configServ.setEnviarLembreteEmail(dto.getEnviarLembreteEmail());
+        }
+        if(dto.getEnviarConfirmacaoForaHorario() != null){
+            configServ.setEnviarConfirmacaoForaHorario(dto.getEnviarConfirmacaoForaHorario());
+        }
+        if(dto.getTempoParaConfirmacao() != null){
+            configServ.setTempoParaConfirmacao(dto.getTempoParaConfirmacao());
+        }
+        if(dto.getTempoLembretePosConfirmacao() != null){
+            configServ.setTempoLembretePosConfirmacao(dto.getTempoLembretePosConfirmacao());
         }
     }
 
@@ -237,6 +304,8 @@ public class ConfigSistemaService {
                 .configAgendamento(config.getConfigAgendamento())
                 .configServico(config.getConfigServico())
                 .configCliente(config.getConfigCliente())
+                .configColaborador(config.getConfigColaborador())
+                .configNotificacao(config.getConfigNotificacao())
                 .build();
     }
     private ConfigServicoDTO convertConfigServicoToDTO(ConfigServico config) {
@@ -256,6 +325,29 @@ public class ConfigSistemaService {
                 .programaFidelidade(config.getProgramaFidelidade())
                 .programaFidelidade(config.getProgramaFidelidade())
                 .valorGastoUmPonto(config.getValorGastoUmPonto())
+                .build();
+    }
+
+    private ConfigColaboradorDTO convertConfigColaboradorToDTO(ConfigColaborador config) {
+        if (config == null) return null;
+
+        return ConfigColaboradorDTO.builder()
+                .selecionarColaboradorAgendamento(config.getSelecionarColaboradorAgendamento())
+                .mostrarNotasComentarioColaborador(config.getMostrarNotasComentarioColaborador())
+                .comissaoPadrao(config.getComissaoPadrao())
+                .build();
+    }
+
+    private ConfigNotificacaoDTO convertConfigNotificacaoToDTO(ConfigNotificacao config) {
+        if (config == null) return null;
+
+        return ConfigNotificacaoDTO.builder()
+                .enviarLembreteWhatsapp(config.getEnviarLembreteWhatsapp())
+                .enviarLembreteSMS(config.getEnviarLembreteSMS())
+                .enviarLembreteEmail(config.getEnviarLembreteEmail())
+                .enviarConfirmacaoForaHorario(config.getEnviarConfirmacaoForaHorario())
+                .tempoParaConfirmacao(config.getTempoParaConfirmacao())
+                .tempoLembretePosConfirmacao(config.getTempoLembretePosConfirmacao())
                 .build();
     }
 
