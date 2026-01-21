@@ -1,5 +1,6 @@
 package org.exemplo.bellory.service;
 
+import org.exemplo.bellory.model.dto.instancia.InstanceCreateDTO;
 import org.exemplo.bellory.model.entity.agendamento.Agendamento;
 import org.exemplo.bellory.model.entity.agendamento.Status;
 import org.exemplo.bellory.model.entity.config.*;
@@ -77,6 +78,8 @@ public class DatabaseSeederService {
     private final PageComponentRepository componentRepository;
     private final ApiKeyService apiKeyService;
 
+    private final InstanceService instanceService;
+
     // Arrays com dados diversos para randomização
     private final String[] nomesFemininos = {"Ana", "Maria", "Julia", "Carla", "Fernanda", "Beatriz", "Camila", "Larissa", "Rafaela", "Amanda", "Gabriela", "Bruna", "Letícia", "Mariana", "Priscila", "Débora", "Tatiane", "Vanessa", "Patrícia", "Luciana"};
     private final String[] nomesMasculinos = {"Carlos", "João", "Pedro", "Lucas", "Rafael", "Bruno", "Diego", "Rodrigo", "Felipe", "Gustavo", "Thiago", "André", "Marcelo", "Vinícius", "Leonardo", "Daniel", "Eduardo", "Gabriel", "Fernando", "Ricardo"};
@@ -103,7 +106,7 @@ public class DatabaseSeederService {
                                  PasswordEncoder passwordEncoder, CategoriaRepository categoriaRepository,
                                  PageComponentRepository componentRepository, PageRepository pageRepository, TenantRepository tenantRepository,
                                  AdminRepository adminRepository, PlanoBelloryRepository planoBelloryRepository, CargoRepository cargoRepository,
-                                 PlanoLimiteBelloryRepository planoLimiteBelloryRepository, ConfigSistemaRepository configSistemaRepository, ApiKeyService apiKeyService) {
+                                 PlanoLimiteBelloryRepository planoLimiteBelloryRepository, ConfigSistemaRepository configSistemaRepository, ApiKeyService apiKeyService, InstanceService instanceService) {
         this.organizacaoRepository = organizacaoRepository;
         this.roleRepository = roleRepository;
         this.funcionarioRepository = funcionarioRepository;
@@ -123,6 +126,7 @@ public class DatabaseSeederService {
         this.planoLimiteBelloryRepository = planoLimiteBelloryRepository;
         this.configSistemaRepository = configSistemaRepository;
         this.apiKeyService = apiKeyService;
+        this.instanceService = instanceService;
     }
 
     @Transactional
@@ -683,6 +687,12 @@ public class DatabaseSeederService {
 
                 System.out.println("   ✓ API Key criada: " + teste);
             }
+            InstanceCreateDTO instance = new InstanceCreateDTO();
+            instance.setInstanceName("automacao-lembrete-"+org.getId());
+            instance.setInstanceNumber(org.getTelefone1().replaceAll("\\D", ""));
+            instance.setWebhookUrl("https://auto.bellory.com.br/webhook/automacao-lembrete-"+org.getId());
+
+            instanceService.createInstance(instance, true, org.getId());
 
             organizacoes.add(org);
             System.out.println("   ✓ Organização criada: " + org.getNomeFantasia());

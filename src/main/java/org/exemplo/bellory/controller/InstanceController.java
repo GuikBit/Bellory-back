@@ -37,7 +37,7 @@ public class InstanceController {
         try {
             log.info("Requisição para criar instância: {}", dto.getInstanceName());
 
-            InstanceDTO instance = instanceService.createInstance(dto);
+            InstanceDTO instance = instanceService.createInstance(dto, false, 0);
 
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(ResponseAPI.<InstanceDTO>builder()

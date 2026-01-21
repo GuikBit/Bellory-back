@@ -208,6 +208,9 @@ public class ConfigSistemaService {
 
         ConfigNotificacao configServ = config.getConfigNotificacao();
 
+        if(dto.getEnviarConfirmacaoWhatsapp() != null){
+            configServ.setEnviarConfirmacaoWhatsapp(dto.getEnviarConfirmacaoWhatsapp());
+        }
         if(dto.getEnviarLembreteWhatsapp() != null){
             configServ.setEnviarLembreteWhatsapp(dto.getEnviarLembreteWhatsapp());
         }
@@ -225,6 +228,13 @@ public class ConfigSistemaService {
         }
         if(dto.getTempoLembretePosConfirmacao() != null){
             configServ.setTempoLembretePosConfirmacao(dto.getTempoLembretePosConfirmacao());
+        }
+
+        if(dto.getMensagemTemplateConfirmacao() != null){
+            configServ.setMensagemTemplateConfirmacao(dto.getMensagemTemplateConfirmacao());
+        }
+        if(dto.getMensagemTemplateLembrete() != null){
+            configServ.setMensagemTemplateLembrete(dto.getMensagemTemplateLembrete());
         }
     }
 

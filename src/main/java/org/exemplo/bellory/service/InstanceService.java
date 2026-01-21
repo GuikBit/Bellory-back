@@ -51,11 +51,15 @@ public class InstanceService {
      * Criar nova instância no Evolution API e salvar no banco
      */
     @Transactional
-    public InstanceDTO createInstance(InstanceCreateDTO dto) {
+    public InstanceDTO createInstance(InstanceCreateDTO dto, boolean interno, long orgId) {
 
         // Validar organização do contexto
-        Long organizacaoId = getOrganizacaoIdFromContext();
-        Organizacao organizacao = organizacaoRepository.findById(organizacaoId)
+        Long organizacaoId = Long.parseLong("0");
+        if(!interno){
+            organizacaoId = getOrganizacaoIdFromContext();
+        }
+
+        Organizacao organizacao = organizacaoRepository.findById(interno?orgId:organizacaoId)
                 .orElseThrow(() -> new IllegalArgumentException("Organização não encontrada"));
 
         // Verificar se já existe instância com esse nome
@@ -82,7 +86,7 @@ public class InstanceService {
 
 
             Map<String, Object> webhook = new HashMap<>();
-            webhook.put("url", "https://auto.bellory.com.br/webhook/webhook/whatsapp"); // URL do seu endpoint
+            webhook.put("url", dto.getWebhookUrl()); // URL do seu endpoint
             webhook.put("byEvents", false);
             webhook.put("base64", false);
 
