@@ -11,7 +11,7 @@ import lombok.*;
 @AllArgsConstructor
 @Builder
 public class ConfigNotificacao {
-    
+
     @Column(name = "enviar_confirmacao_whatsapp")
     private Boolean enviarConfirmacaoWhatsapp = false;
 
@@ -32,4 +32,12 @@ public class ConfigNotificacao {
 
     @Column(name = "tempo_lembrete_pos_confirmacao")
     private Integer tempoLembretePosConfirmacao = 2;
+
+    @Column(name = "mensagem_template_confirmacao")
+    private String mensagemTemplateConfirmacao;
+
+    @Column(name = "mensagem_template_lembrete")
+    private String mensagemTemplateLembrete;
+
+
 }
