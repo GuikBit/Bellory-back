@@ -11,6 +11,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -37,7 +38,7 @@ public interface ClienteRepository extends JpaRepository<Cliente, Long> {
 //            "ORDER BY COUNT(a.id) DESC, SUM(COALESCE(a.cobrancas.valor, 0)) DESC)")
 //    List<Cliente> findTopClientes();
 
-    @Query("SELECT COUNT(c) FROM Cliente c WHERE DAY(c.dataNascimento) = DAY(CURRENT_DATE) AND MONTH(c.dataNascimento) = MONTH(CURRENT_DATE)")
+    @Query(value = "SELECT COUNT(*) FROM app.cliente c WHERE EXTRACT(DAY FROM c.data_nascimento) = EXTRACT(DAY FROM CURRENT_DATE) AND EXTRACT(MONTH FROM c.data_nascimento) = EXTRACT(MONTH FROM CURRENT_DATE)", nativeQuery = true)
     Long countAniversariantesHoje();
 
     // CORREÇÃO: Alterar para usar LocalDate e ajustar a query
@@ -51,12 +52,12 @@ public interface ClienteRepository extends JpaRepository<Cliente, Long> {
             "c.telefone LIKE CONCAT('%', :termo, '%')")
     List<Cliente> findByTermoBusca(@Param("termo") String termo);
 
-    // Buscar clientes aniversariantes por mês
-    @Query("SELECT c FROM Cliente c WHERE MONTH(c.dataNascimento) = :mes AND c.ativo = true")
+    // Buscar clientes aniversariantes por mês (PostgreSQL)
+    @Query(value = "SELECT * FROM app.cliente c WHERE EXTRACT(MONTH FROM c.data_nascimento) = :mes AND c.ativo = true", nativeQuery = true)
     List<Cliente> findAniversariantesByMes(@Param("mes") int mes);
 
-    // Buscar clientes aniversariantes por mês e ano
-    @Query("SELECT c FROM Cliente c WHERE MONTH(c.dataNascimento) = :mes AND YEAR(c.dataNascimento) = :ano AND c.ativo = true")
+    // Buscar clientes aniversariantes por mês e ano (PostgreSQL)
+    @Query(value = "SELECT * FROM app.cliente c WHERE EXTRACT(MONTH FROM c.data_nascimento) = :mes AND EXTRACT(YEAR FROM c.data_nascimento) = :ano AND c.ativo = true", nativeQuery = true)
     List<Cliente> findAniversariantesByMesAndAno(@Param("mes") int mes, @Param("ano") int ano);
 
     List<Cliente> findAll(Specification<Cliente> spec, Sort sort);
@@ -81,9 +82,11 @@ public interface ClienteRepository extends JpaRepository<Cliente, Long> {
 
     // Aniversariantes por organização
     Long countAniversariantesHojeByOrganizacao_Id(Long organizacaoId);
-    @Query("SELECT COUNT(c) FROM Cliente c WHERE c.organizacao.id = :organizacaoId " +
-            "AND FUNCTION('MONTH', c.dataNascimento) = FUNCTION('MONTH', :hoje) " +
-            "AND FUNCTION('DAY', c.dataNascimento) BETWEEN FUNCTION('DAY', :inicio) AND FUNCTION('DAY', :fim)")
+
+    @Query(value = "SELECT COUNT(*) FROM app.cliente c WHERE c.organizacao_id = :organizacaoId " +
+            "AND EXTRACT(MONTH FROM c.data_nascimento) = EXTRACT(MONTH FROM CAST(:hoje AS DATE)) " +
+            "AND EXTRACT(DAY FROM c.data_nascimento) BETWEEN EXTRACT(DAY FROM CAST(:inicio AS DATE)) AND EXTRACT(DAY FROM CAST(:fim AS DATE))",
+            nativeQuery = true)
     Long countAniversariantesEstaSemanaByOrganizacao(@Param("organizacaoId") Long organizacaoId,
                                                      @Param("hoje") LocalDate hoje,
                                                      @Param("inicio") LocalDate inicio,
@@ -94,16 +97,68 @@ public interface ClienteRepository extends JpaRepository<Cliente, Long> {
 
 //    Long countAniversariantesDoMesByOrganizacao(Organizacao organizacao);
 
-    @Query("SELECT COUNT(c) FROM Cliente c " +
-            "WHERE c.organizacao.id = :organizacaoId " +
-            "AND MONTH(c.dataNascimento) = :mes " +
-            "AND c.ativo = true")
+    @Query(value = "SELECT COUNT(*) FROM app.cliente c " +
+            "WHERE c.organizacao_id = :organizacaoId " +
+            "AND EXTRACT(MONTH FROM c.data_nascimento) = :mes " +
+            "AND c.ativo = true", nativeQuery = true)
     Long countAniversariantesDoMesByOrganizacao(
-            @Param("organizacaoId") Long organizacaoId,    // ✅ organizacaoId primeiro
-            @Param("mes") int mes                           // ✅ mes depois
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("mes") int mes
     );
 
     List<Cliente> findByTelefone(String telefone);
 
     Optional<Object> findByTelefoneAndOrganizacao_Id(String telefone, Long organizacaoId);
+
+    // ==================== QUERIES OTIMIZADAS PARA DASHBOARD ====================
+
+    /**
+     * Conta aniversariantes de hoje por organização (PostgreSQL)
+     */
+    @Query(value = "SELECT COUNT(*) FROM app.cliente c " +
+            "WHERE c.organizacao_id = :organizacaoId " +
+            "AND c.ativo = true " +
+            "AND EXTRACT(DAY FROM c.data_nascimento) = EXTRACT(DAY FROM CURRENT_DATE) " +
+            "AND EXTRACT(MONTH FROM c.data_nascimento) = EXTRACT(MONTH FROM CURRENT_DATE)",
+            nativeQuery = true)
+    Long countAniversariantesHojeByOrganizacao(@Param("organizacaoId") Long organizacaoId);
+
+    /**
+     * Conta aniversariantes da semana por organização (PostgreSQL)
+     */
+    @Query(value = "SELECT COUNT(*) FROM app.cliente c " +
+            "WHERE c.organizacao_id = :organizacaoId " +
+            "AND c.ativo = true " +
+            "AND EXTRACT(MONTH FROM c.data_nascimento) = :mes " +
+            "AND EXTRACT(DAY FROM c.data_nascimento) BETWEEN :diaInicio AND :diaFim",
+            nativeQuery = true)
+    Long countAniversariantesEstaSemanaByOrganizacaoOptimized(
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("mes") int mes,
+            @Param("diaInicio") int diaInicio,
+            @Param("diaFim") int diaFim
+    );
+
+    /**
+     * Top clientes por valor gasto (através das cobranças pagas)
+     */
+    @Query("SELECT c.id, c.nomeCompleto, COALESCE(SUM(cob.valor), 0) as totalGasto, COUNT(DISTINCT a.id) as totalAgendamentos " +
+            "FROM Cliente c " +
+            "LEFT JOIN Agendamento a ON a.cliente.id = c.id " +
+            "LEFT JOIN Cobranca cob ON cob.cliente.id = c.id AND cob.statusCobranca = 'PAGO' " +
+            "WHERE c.organizacao.id = :organizacaoId " +
+            "AND c.ativo = true " +
+            "GROUP BY c.id, c.nomeCompleto " +
+            "ORDER BY totalGasto DESC")
+    List<Object[]> findTopClientesByOrganizacao(
+            @Param("organizacaoId") Long organizacaoId
+    );
+
+    /**
+     * Ticket médio por cliente
+     */
+    @Query("SELECT COALESCE(AVG(cob.valor), 0) FROM Cobranca cob " +
+            "WHERE cob.organizacao.id = :organizacaoId " +
+            "AND cob.statusCobranca = 'PAGO'")
+    BigDecimal findTicketMedioByOrganizacao(@Param("organizacaoId") Long organizacaoId);
 }

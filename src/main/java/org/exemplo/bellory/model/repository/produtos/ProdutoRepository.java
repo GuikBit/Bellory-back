@@ -219,4 +219,80 @@ public interface ProdutoRepository extends JpaRepository<Produto, Long> {
     List<Produto> findProdutosDestaqueDisponiveis(@Param("orgId") Long organizacaoId);
 
     List<Produto> findAllByOrganizacao_Id(Long organizacaoId);
+
+    // ==================== QUERIES OTIMIZADAS PARA DASHBOARD ====================
+
+    /**
+     * Conta produtos ativos por organização
+     */
+    @Query("SELECT COUNT(p) FROM Produto p WHERE p.organizacao.id = :organizacaoId AND p.ativo = true")
+    Long countProdutosAtivosByOrganizacao(@Param("organizacaoId") Long organizacaoId);
+
+    /**
+     * Conta produtos com estoque baixo por organização
+     */
+    @Query("SELECT COUNT(p) FROM Produto p " +
+            "WHERE p.organizacao.id = :organizacaoId " +
+            "AND p.ativo = true " +
+            "AND p.quantidadeEstoque IS NOT NULL " +
+            "AND p.estoqueMinimo IS NOT NULL " +
+            "AND p.quantidadeEstoque <= p.estoqueMinimo " +
+            "AND p.quantidadeEstoque > 0")
+    Long countProdutosEstoqueBaixoByOrganizacao(@Param("organizacaoId") Long organizacaoId);
+
+    /**
+     * Conta produtos sem estoque por organização
+     */
+    @Query("SELECT COUNT(p) FROM Produto p " +
+            "WHERE p.organizacao.id = :organizacaoId " +
+            "AND p.ativo = true " +
+            "AND (p.quantidadeEstoque IS NULL OR p.quantidadeEstoque = 0)")
+    Long countProdutosSemEstoqueByOrganizacao(@Param("organizacaoId") Long organizacaoId);
+
+    /**
+     * Valor total do estoque por organização
+     */
+    @Query("SELECT COALESCE(SUM(p.preco * p.quantidadeEstoque), 0) FROM Produto p " +
+            "WHERE p.organizacao.id = :organizacaoId " +
+            "AND p.ativo = true " +
+            "AND p.quantidadeEstoque IS NOT NULL " +
+            "AND p.preco IS NOT NULL")
+    BigDecimal calcularValorTotalEstoqueByOrganizacao(@Param("organizacaoId") Long organizacaoId);
+
+    /**
+     * Lista produtos com estoque baixo por organização
+     */
+    @Query("SELECT p FROM Produto p " +
+            "WHERE p.organizacao.id = :organizacaoId " +
+            "AND p.ativo = true " +
+            "AND p.quantidadeEstoque IS NOT NULL " +
+            "AND p.estoqueMinimo IS NOT NULL " +
+            "AND p.quantidadeEstoque <= p.estoqueMinimo " +
+            "ORDER BY p.quantidadeEstoque ASC")
+    List<Produto> findProdutosEstoqueBaixoByOrganizacao(@Param("organizacaoId") Long organizacaoId);
+
+    /**
+     * Valor do estoque parado (produtos sem movimento nos últimos X dias)
+     * Produtos que não estão em nenhuma compra recente
+     */
+    @Query("SELECT COALESCE(SUM(p.preco * p.quantidadeEstoque), 0) FROM Produto p " +
+            "WHERE p.organizacao.id = :organizacaoId " +
+            "AND p.ativo = true " +
+            "AND p.quantidadeEstoque IS NOT NULL " +
+            "AND p.preco IS NOT NULL " +
+            "AND p.dtAtualizacao < :dataLimite")
+    BigDecimal calcularValorEstoqueParadoByOrganizacao(
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("dataLimite") java.time.LocalDateTime dataLimite
+    );
+
+    /**
+     * Conta alertas de estoque (baixo + sem estoque)
+     */
+    @Query("SELECT COUNT(p) FROM Produto p " +
+            "WHERE p.organizacao.id = :organizacaoId " +
+            "AND p.ativo = true " +
+            "AND ((p.quantidadeEstoque IS NOT NULL AND p.estoqueMinimo IS NOT NULL AND p.quantidadeEstoque <= p.estoqueMinimo) " +
+            "OR p.quantidadeEstoque IS NULL OR p.quantidadeEstoque = 0)")
+    Long countAlertasEstoqueByOrganizacao(@Param("organizacaoId") Long organizacaoId);
 }

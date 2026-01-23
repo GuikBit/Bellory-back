@@ -166,4 +166,145 @@ public interface CobrancaRepository extends JpaRepository<Cobranca, Long> {
             @Param("dataInicio") LocalDateTime dataInicio,
             @Param("dataFim") LocalDateTime dataFim
     );
+
+    // ==================== QUERIES OTIMIZADAS PARA DASHBOARD ====================
+
+    /**
+     * Busca cobranças por período e organização (evita filtro em memória)
+     */
+    @Query("SELECT c FROM Cobranca c WHERE c.organizacao.id = :organizacaoId " +
+            "AND c.dtCriacao BETWEEN :inicio AND :fim")
+    List<Cobranca> findByPeriodAndOrganizacao(
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim,
+            @Param("organizacaoId") Long organizacaoId
+    );
+
+    /**
+     * Soma receita paga por período e organização
+     */
+    @Query("SELECT COALESCE(SUM(c.valor), 0) FROM Cobranca c " +
+            "WHERE c.organizacao.id = :organizacaoId " +
+            "AND c.statusCobranca = 'PAGO' " +
+            "AND c.dtCriacao BETWEEN :inicio AND :fim")
+    BigDecimal sumReceitaPagaByPeriodAndOrganizacao(
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim,
+            @Param("organizacaoId") Long organizacaoId
+    );
+
+    /**
+     * Conta cobranças por status e organização no período
+     */
+    @Query("SELECT c.statusCobranca, COUNT(c) FROM Cobranca c " +
+            "WHERE c.organizacao.id = :organizacaoId " +
+            "AND c.dtCriacao BETWEEN :inicio AND :fim " +
+            "GROUP BY c.statusCobranca")
+    List<Object[]> countByStatusAndOrganizacaoAndPeriodo(
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim
+    );
+
+    /**
+     * Soma valores por status no período
+     */
+    @Query("SELECT c.statusCobranca, COALESCE(SUM(c.valor), 0) FROM Cobranca c " +
+            "WHERE c.organizacao.id = :organizacaoId " +
+            "AND c.dtCriacao BETWEEN :inicio AND :fim " +
+            "GROUP BY c.statusCobranca")
+    List<Object[]> sumValorByStatusAndOrganizacaoAndPeriodo(
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim
+    );
+
+    /**
+     * Busca cobranças vencidas por organização
+     */
+    @Query("SELECT c FROM Cobranca c " +
+            "WHERE c.organizacao.id = :organizacaoId " +
+            "AND c.dtVencimento < CURRENT_DATE " +
+            "AND c.statusCobranca IN ('PENDENTE', 'PARCIALMENTE_PAGO')")
+    List<Cobranca> findVencidasByOrganizacao(@Param("organizacaoId") Long organizacaoId);
+
+    /**
+     * Soma valor de cobranças vencidas por organização
+     */
+    @Query("SELECT COALESCE(SUM(c.valorPendente), 0) FROM Cobranca c " +
+            "WHERE c.organizacao.id = :organizacaoId " +
+            "AND c.dtVencimento < CURRENT_DATE " +
+            "AND c.statusCobranca IN ('PENDENTE', 'PARCIALMENTE_PAGO')")
+    BigDecimal sumValorVencidoByOrganizacao(@Param("organizacaoId") Long organizacaoId);
+
+    /**
+     * Soma valor pendente por organização
+     */
+    @Query("SELECT COALESCE(SUM(c.valorPendente), 0) FROM Cobranca c " +
+            "WHERE c.organizacao.id = :organizacaoId " +
+            "AND c.statusCobranca IN ('PENDENTE', 'PARCIALMENTE_PAGO')")
+    BigDecimal sumValorPendenteByOrganizacao(@Param("organizacaoId") Long organizacaoId);
+
+    /**
+     * Conta cobranças por forma de pagamento (através dos pagamentos)
+     */
+    @Query("SELECT p.formaPagamento, COUNT(DISTINCT c.id) FROM Cobranca c " +
+            "JOIN c.pagamentos p " +
+            "WHERE c.organizacao.id = :organizacaoId " +
+            "AND c.dtCriacao BETWEEN :inicio AND :fim " +
+            "AND p.statusPagamento = 'CONFIRMADO' " +
+            "GROUP BY p.formaPagamento")
+    List<Object[]> countByFormaPagamentoAndOrganizacao(
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim
+    );
+
+    /**
+     * Receita por serviço (através dos agendamentos)
+     */
+    @Query("SELECT s.nome, COALESCE(SUM(c.valor), 0) FROM Cobranca c " +
+            "JOIN c.agendamento a " +
+            "JOIN a.servicos s " +
+            "WHERE c.organizacao.id = :organizacaoId " +
+            "AND c.statusCobranca = 'PAGO' " +
+            "AND c.dtCriacao BETWEEN :inicio AND :fim " +
+            "GROUP BY s.id, s.nome " +
+            "ORDER BY SUM(c.valor) DESC")
+    List<Object[]> sumReceitaByServicoAndOrganizacao(
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim
+    );
+
+    /**
+     * Receita por funcionário
+     */
+    @Query("SELECT f.nomeCompleto, COALESCE(SUM(c.valor), 0) FROM Cobranca c " +
+            "JOIN c.agendamento a " +
+            "JOIN a.funcionarios f " +
+            "WHERE c.organizacao.id = :organizacaoId " +
+            "AND c.statusCobranca = 'PAGO' " +
+            "AND c.dtCriacao BETWEEN :inicio AND :fim " +
+            "GROUP BY f.id, f.nomeCompleto " +
+            "ORDER BY SUM(c.valor) DESC")
+    List<Object[]> sumReceitaByFuncionarioAndOrganizacao(
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim
+    );
+
+    /**
+     * Receita de serviços vs produtos
+     */
+    @Query("SELECT c.tipoCobranca, COALESCE(SUM(c.valor), 0) FROM Cobranca c " +
+            "WHERE c.organizacao.id = :organizacaoId " +
+            "AND c.statusCobranca = 'PAGO' " +
+            "AND c.dtCriacao BETWEEN :inicio AND :fim " +
+            "GROUP BY c.tipoCobranca")
+    List<Object[]> sumReceitaByTipoAndOrganizacao(
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim
+    );
 }

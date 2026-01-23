@@ -1,7 +1,9 @@
 package org.exemplo.bellory.controller;
 
+import org.exemplo.bellory.model.dto.dashboard.DashboardComparativoDTO;
 import org.exemplo.bellory.model.dto.dashboard.DashboardDTO;
 import org.exemplo.bellory.model.dto.dashboard.DashboardFiltroDTO;
+import org.exemplo.bellory.model.dto.dashboard.FuncionarioMetricasDTO;
 import org.exemplo.bellory.model.entity.error.ResponseAPI;
 import org.exemplo.bellory.service.DashboardService;
 import org.springframework.http.HttpStatus;
@@ -129,7 +131,7 @@ public class DashboardController {
     }
 
     @GetMapping("/comparativo")
-    public ResponseEntity<ResponseAPI<Object>> getDashboardComparativo(
+    public ResponseEntity<ResponseAPI<DashboardComparativoDTO>> getDashboardComparativo(
             @RequestParam String dataInicioAtual,
             @RequestParam String dataFimAtual,
             @RequestParam String dataInicioAnterior,
@@ -140,10 +142,10 @@ public class DashboardController {
             LocalDate inicioAnterior = LocalDate.parse(dataInicioAnterior);
             LocalDate fimAnterior = LocalDate.parse(dataFimAnterior);
 
-            Object comparativo = dashboardService.getDashboardComparativo(
+            DashboardComparativoDTO comparativo = dashboardService.getDashboardComparativo(
                     inicioAtual, fimAtual, inicioAnterior, fimAnterior);
 
-            return ResponseEntity.ok(ResponseAPI.<Object>builder()
+            return ResponseEntity.ok(ResponseAPI.<DashboardComparativoDTO>builder()
                     .success(true)
                     .message("Comparativo recuperado com sucesso.")
                     .dados(comparativo)
@@ -151,14 +153,14 @@ public class DashboardController {
 
         } catch (DateTimeParseException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(ResponseAPI.<Object>builder()
+                    .body(ResponseAPI.<DashboardComparativoDTO>builder()
                             .success(false)
                             .message("Formato de data inválido. Use o formato: yyyy-MM-dd")
                             .errorCode(400)
                             .build());
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ResponseAPI.<Object>builder()
+                    .body(ResponseAPI.<DashboardComparativoDTO>builder()
                             .success(false)
                             .message("Ocorreu um erro interno: " + e.getMessage())
                             .errorCode(500)
@@ -167,7 +169,7 @@ public class DashboardController {
     }
 
     @GetMapping("/metricas-funcionario/{funcionarioId}")
-    public ResponseEntity<ResponseAPI<Object>> getMetricasFuncionario(
+    public ResponseEntity<ResponseAPI<FuncionarioMetricasDTO>> getMetricasFuncionario(
             @PathVariable Long funcionarioId,
             @RequestParam(required = false) String dataInicio,
             @RequestParam(required = false) String dataFim) {
@@ -175,9 +177,9 @@ public class DashboardController {
             LocalDate inicio = dataInicio != null ? LocalDate.parse(dataInicio) : LocalDate.now().withDayOfMonth(1);
             LocalDate fim = dataFim != null ? LocalDate.parse(dataFim) : LocalDate.now();
 
-            Object metricas = dashboardService.getMetricasFuncionario(funcionarioId, inicio, fim);
+            FuncionarioMetricasDTO metricas = dashboardService.getMetricasFuncionario(funcionarioId, inicio, fim);
 
-            return ResponseEntity.ok(ResponseAPI.<Object>builder()
+            return ResponseEntity.ok(ResponseAPI.<FuncionarioMetricasDTO>builder()
                     .success(true)
                     .message("Métricas do funcionário recuperadas com sucesso.")
                     .dados(metricas)
@@ -185,21 +187,28 @@ public class DashboardController {
 
         } catch (DateTimeParseException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(ResponseAPI.<Object>builder()
+                    .body(ResponseAPI.<FuncionarioMetricasDTO>builder()
                             .success(false)
                             .message("Formato de data inválido. Use o formato: yyyy-MM-dd")
                             .errorCode(400)
                             .build());
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(ResponseAPI.<Object>builder()
+                    .body(ResponseAPI.<FuncionarioMetricasDTO>builder()
                             .success(false)
                             .message(e.getMessage())
                             .errorCode(404)
                             .build());
+        } catch (SecurityException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ResponseAPI.<FuncionarioMetricasDTO>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(403)
+                            .build());
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ResponseAPI.<Object>builder()
+                    .body(ResponseAPI.<FuncionarioMetricasDTO>builder()
                             .success(false)
                             .message("Ocorreu um erro interno: " + e.getMessage())
                             .errorCode(500)

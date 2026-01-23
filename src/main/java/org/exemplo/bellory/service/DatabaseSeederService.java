@@ -653,6 +653,7 @@ public class DatabaseSeederService {
             ConfigServico configServico = new ConfigServico();
             ConfigColaborador configColaborador= new ConfigColaborador();
             ConfigNotificacao configNotificacao = new ConfigNotificacao();
+
             ConfigCliente configCliente = new ConfigCliente();
 
             ConfigSistema configSistema = new ConfigSistema();

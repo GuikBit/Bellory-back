@@ -219,4 +219,164 @@ public interface AgendamentoRepository extends JpaRepository<Agendamento, Long> 
     List<Agendamento> findByClienteId(Long clienteId);
 
     List<Agendamento> findByOrganizacaoIdAndStatus(Long organizacaoId, Status status);
+
+    // ==================== QUERIES OTIMIZADAS PARA DASHBOARD ====================
+
+    /**
+     * Busca agendamentos por organização e período com cliente
+     * Nota: Não pode fazer JOIN FETCH em múltiplas coleções (bags) simultaneamente
+     */
+    @Query("SELECT DISTINCT a FROM Agendamento a " +
+            "LEFT JOIN FETCH a.cliente " +
+            "WHERE a.organizacao.id = :organizacaoId " +
+            "AND a.dtAgendamento BETWEEN :inicio AND :fim")
+    List<Agendamento> findByOrganizacaoAndPeriodoWithDetails(
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim
+    );
+
+    /**
+     * Conta agendamentos por status e organização no período
+     */
+    @Query("SELECT a.status, COUNT(a) FROM Agendamento a " +
+            "WHERE a.organizacao.id = :organizacaoId " +
+            "AND a.dtAgendamento BETWEEN :inicio AND :fim " +
+            "GROUP BY a.status")
+    List<Object[]> countByStatusAndOrganizacaoAndPeriodo(
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim
+    );
+
+    /**
+     * Conta agendamentos por organização no período
+     */
+    @Query("SELECT COUNT(a) FROM Agendamento a " +
+            "WHERE a.organizacao.id = :organizacaoId " +
+            "AND a.dtAgendamento BETWEEN :inicio AND :fim")
+    Long countByOrganizacaoAndPeriodo(
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim
+    );
+
+    /**
+     * Conta atendimentos por funcionário no período
+     */
+    @Query("SELECT f.id, f.nomeCompleto, COUNT(a) FROM Agendamento a " +
+            "JOIN a.funcionarios f " +
+            "WHERE a.organizacao.id = :organizacaoId " +
+            "AND a.dtAgendamento BETWEEN :inicio AND :fim " +
+            "GROUP BY f.id, f.nomeCompleto " +
+            "ORDER BY COUNT(a) DESC")
+    List<Object[]> countByFuncionarioAndOrganizacaoAndPeriodo(
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim
+    );
+
+    /**
+     * Conta serviços mais vendidos no período
+     */
+    @Query("SELECT s.id, s.nome, COUNT(a) FROM Agendamento a " +
+            "JOIN a.servicos s " +
+            "WHERE a.organizacao.id = :organizacaoId " +
+            "AND a.dtAgendamento BETWEEN :inicio AND :fim " +
+            "AND a.status NOT IN ('CANCELADO') " +
+            "GROUP BY s.id, s.nome " +
+            "ORDER BY COUNT(a) DESC")
+    List<Object[]> countServicosMaisVendidosByOrganizacaoAndPeriodo(
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim
+    );
+
+    /**
+     * Busca agendamentos futuros com detalhes (para receita prevista)
+     */
+    @Query("SELECT a FROM Agendamento a " +
+            "LEFT JOIN FETCH a.servicos " +
+            "WHERE a.organizacao.id = :organizacaoId " +
+            "AND a.dtAgendamento > :agora " +
+            "AND a.status NOT IN ('CANCELADO', 'CONCLUIDO')")
+    List<Agendamento> findAgendamentosFuturosByOrganizacao(
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("agora") LocalDateTime agora
+    );
+
+    /**
+     * Conta clientes distintos com agendamentos no período
+     */
+    @Query("SELECT COUNT(DISTINCT a.cliente.id) FROM Agendamento a " +
+            "WHERE a.organizacao.id = :organizacaoId " +
+            "AND a.dtAgendamento BETWEEN :inicio AND :fim")
+    Long countClientesDistintosComAgendamentos(
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim
+    );
+
+    /**
+     * Conta clientes recorrentes (mais de 1 agendamento no período)
+     */
+    @Query("SELECT COUNT(DISTINCT a.cliente.id) FROM Agendamento a " +
+            "WHERE a.organizacao.id = :organizacaoId " +
+            "AND a.dtAgendamento BETWEEN :inicio AND :fim " +
+            "AND a.cliente.id IN (" +
+            "   SELECT a2.cliente.id FROM Agendamento a2 " +
+            "   WHERE a2.organizacao.id = :organizacaoId " +
+            "   AND a2.dtAgendamento BETWEEN :inicio AND :fim " +
+            "   GROUP BY a2.cliente.id " +
+            "   HAVING COUNT(a2.id) > 1" +
+            ")")
+    Long countClientesRecorrentesByOrganizacaoAndPeriodo(
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim
+    );
+
+    /**
+     * Busca clientes inativos (sem agendamentos após data limite) - EVITA N+1
+     */
+    @Query("SELECT COUNT(c.id) FROM Cliente c " +
+            "WHERE c.organizacao.id = :organizacaoId " +
+            "AND c.ativo = true " +
+            "AND c.id NOT IN (" +
+            "   SELECT DISTINCT a.cliente.id FROM Agendamento a " +
+            "   WHERE a.organizacao.id = :organizacaoId " +
+            "   AND a.dtAgendamento >= :dataLimite" +
+            ")")
+    Long countClientesInativos(
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("dataLimite") LocalDateTime dataLimite
+    );
+
+    /**
+     * Vendas (agendamentos concluídos e pagos) no período
+     */
+    @Query("SELECT COUNT(a) FROM Agendamento a " +
+            "WHERE a.organizacao.id = :organizacaoId " +
+            "AND a.dtAgendamento BETWEEN :inicio AND :fim " +
+            "AND a.status = 'CONCLUIDO'")
+    Long countVendasByOrganizacaoAndPeriodo(
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim
+    );
+
+    /**
+     * Conta vendas por categoria de serviço
+     */
+    @Query("SELECT s.categoria.label, COUNT(DISTINCT a.id) FROM Agendamento a " +
+            "JOIN a.servicos s " +
+            "WHERE a.organizacao.id = :organizacaoId " +
+            "AND a.dtAgendamento BETWEEN :inicio AND :fim " +
+            "AND a.status = 'CONCLUIDO' " +
+            "GROUP BY s.categoria.id, s.categoria.label")
+    List<Object[]> countVendasByCategoriaAndOrganizacao(
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim
+    );
 }
