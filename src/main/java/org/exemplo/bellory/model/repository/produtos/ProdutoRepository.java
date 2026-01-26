@@ -208,6 +208,11 @@ public interface ProdutoRepository extends JpaRepository<Produto, Long> {
     List<Produto> findByOrganizacao_IdAndAtivoTrueAndDestaqueTrue(Long organizacaoId);
 
     /**
+     * Busca produtos ativos por organização com paginação (para site público)
+     */
+    Page<Produto> findByOrganizacao_IdAndAtivoTrue(Long organizacaoId, Pageable pageable);
+
+    /**
      * Busca produtos com estoque disponível e em destaque.
      */
     @Query("SELECT p FROM Produto p " +
