@@ -9,6 +9,9 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import org.exemplo.bellory.model.dto.notificacao.NotificacaoPendenteDTO;
+import org.exemplo.bellory.model.dto.notificacao.NotificacaoSemInstanciaDTO;
+
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
@@ -378,5 +381,78 @@ public interface AgendamentoRepository extends JpaRepository<Agendamento, Long> 
             @Param("organizacaoId") Long organizacaoId,
             @Param("inicio") LocalDateTime inicio,
             @Param("fim") LocalDateTime fim
+    );
+
+    // ==================== QUERIES PARA SISTEMA DE NOTIFICACOES ====================
+
+    /**
+     * Query principal do sistema de notificacoes.
+     * Busca agendamentos que precisam de notificacao AGORA baseado
+     * na configuracao dinamica de cada organizacao.
+     */
+    @Query("""
+        SELECT new org.exemplo.bellory.model.dto.notificacao.NotificacaoPendenteDTO(
+            a.id,
+            a.dtAgendamento,
+            c.nomeCompleto,
+            c.telefone,
+            o.id,
+            o.nomeFantasia,
+            cn.tipo,
+            cn.horasAntes,
+            cn.mensagemTemplate,
+            i.instanceName
+        )
+        FROM Agendamento a
+        JOIN a.cliente c
+        JOIN a.organizacao o
+        JOIN ConfigNotificacao cn ON cn.organizacao = o AND cn.ativo = true
+        JOIN Instance i ON i.organizacao = o
+        WHERE a.status = 'AGENDADO'
+          AND a.dtAgendamento > :agora
+          AND i.status = 'CONNECTED'
+          AND FUNCTION('TIMESTAMPADD', HOUR, -cn.horasAntes, a.dtAgendamento)
+              BETWEEN :inicioJanela AND :fimJanela
+          AND NOT EXISTS (
+              SELECT 1 FROM NotificacaoEnviada ne
+              WHERE ne.agendamento = a
+                AND ne.tipo = cn.tipo
+                AND ne.horasAntes = cn.horasAntes
+          )
+        ORDER BY o.id, a.dtAgendamento ASC
+        """)
+    List<NotificacaoPendenteDTO> findNotificacoesPendentes(
+        @Param("agora") LocalDateTime agora,
+        @Param("inicioJanela") LocalDateTime inicioJanela,
+        @Param("fimJanela") LocalDateTime fimJanela
+    );
+
+    /**
+     * Busca notificacoes sem instancia WhatsApp conectada (para alertar).
+     */
+    @Query("""
+        SELECT new org.exemplo.bellory.model.dto.notificacao.NotificacaoSemInstanciaDTO(
+            a.id, o.id, o.nomeFantasia, o.emailPrincipal, cn.tipo, cn.horasAntes, a.dtAgendamento
+        )
+        FROM Agendamento a
+        JOIN a.cliente c
+        JOIN a.organizacao o
+        JOIN ConfigNotificacao cn ON cn.organizacao = o AND cn.ativo = true
+        LEFT JOIN Instance i ON i.organizacao = o
+        WHERE a.status = 'AGENDADO'
+          AND a.dtAgendamento > :agora
+          AND (i IS NULL OR i.status != 'CONNECTED')
+          AND FUNCTION('TIMESTAMPADD', HOUR, -cn.horasAntes, a.dtAgendamento)
+              BETWEEN :inicioJanela AND :fimJanela
+          AND NOT EXISTS (
+              SELECT 1 FROM NotificacaoEnviada ne
+              WHERE ne.agendamento = a AND ne.tipo = cn.tipo AND ne.horasAntes = cn.horasAntes
+          )
+        ORDER BY o.id
+        """)
+    List<NotificacaoSemInstanciaDTO> findNotificacoesSemInstanciaConectada(
+        @Param("agora") LocalDateTime agora,
+        @Param("inicioJanela") LocalDateTime inicioJanela,
+        @Param("fimJanela") LocalDateTime fimJanela
     );
 }

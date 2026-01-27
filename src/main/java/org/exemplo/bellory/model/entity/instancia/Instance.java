@@ -37,6 +37,10 @@ public class Instance {
     @Column(columnDefinition = "TEXT")
     private String description;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", length = 20)
+    private InstanceStatus status;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "organizacao_id", nullable = false)
     @JsonIgnore
