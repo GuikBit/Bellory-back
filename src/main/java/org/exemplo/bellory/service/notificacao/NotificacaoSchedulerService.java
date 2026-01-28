@@ -33,32 +33,24 @@ public class NotificacaoSchedulerService {
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
 
+    // Janela de tempo padrao para busca de notificacoes (em minutos)
+    private static final int JANELA_MINUTOS_ATRAS = 10;
+    private static final int JANELA_MINUTOS_FRENTE = 2;
+
     @Scheduled(fixedRate = 300000) // 5 minutos
     @Transactional
     public void processarNotificacoesPendentes() {
         LocalDateTime agora = LocalDateTime.now();
-        LocalDateTime inicioJanela = agora.minusMinutes(10);
-        LocalDateTime fimJanela = agora.plusMinutes(2);
 
         log.info("=== Iniciando processamento de notificacoes ===");
-        log.info("Janela: {} ate {}. Agora {}", inicioJanela, fimJanela, agora);
+        log.info("Horario atual: {}", agora);
 
         try {
-            List<NotificacaoPendenteDTO> pendentes = agendamentoRepository
-                .findNotificacoesPendentes(agora, inicioJanela, fimJanela);
-            log.info("Encontradas {} notificacoes pendentes", pendentes.size());
+            // Processa CONFIRMACAO (12/24/36/48 horas antes)
+            processarConfirmacoes(agora);
 
-            List<NotificacaoSemInstanciaDTO> semInstancia = agendamentoRepository
-                .findNotificacoesSemInstanciaConectada(agora, inicioJanela, fimJanela);
-
-            if (!semInstancia.isEmpty()) {
-                log.warn("{} notificacoes sem instancia conectada!", semInstancia.size());
-                alertService.alertarInstanciasDesconectadas(semInstancia);
-            }
-
-            if (!pendentes.isEmpty()) {
-                processarNotificacoes(pendentes);
-            }
+            // Processa LEMBRETE (1/2/3/4/5/6 horas antes)
+            processarLembretes(agora);
 
             log.info("=== Processamento concluido ===");
         } catch (Exception e) {
@@ -66,22 +58,109 @@ public class NotificacaoSchedulerService {
         }
     }
 
-    private void processarNotificacoes(List<NotificacaoPendenteDTO> pendentes) {
+    /**
+     * Processa notificacoes do tipo CONFIRMACAO.
+     * CONFIRMACAO: 12/24/36/48 horas antes do agendamento.
+     * Somente processa se houver configuracoes ativas do tipo CONFIRMACAO.
+     */
+    private void processarConfirmacoes(LocalDateTime agora) {
+        LocalDateTime inicioJanela = agora.minusMinutes(JANELA_MINUTOS_ATRAS);
+        LocalDateTime fimJanela = agora.plusMinutes(JANELA_MINUTOS_FRENTE);
+
+        log.info("--- Processando CONFIRMACOES ---");
+        log.info("Janela CONFIRMACAO: {} ate {}", inicioJanela, fimJanela);
+
+        try {
+            // Busca confirmacoes pendentes (apenas configs ativas do tipo CONFIRMACAO)
+            List<NotificacaoPendenteDTO> confirmacoes = agendamentoRepository
+                .findConfirmacoesPendentes(agora, inicioJanela, fimJanela);
+
+            log.info("Encontradas {} confirmacoes pendentes", confirmacoes.size());
+
+            // Verifica instancias desconectadas para CONFIRMACAO
+            List<NotificacaoSemInstanciaDTO> semInstancia = agendamentoRepository
+                .findNotificacoesSemInstanciaConectadaPorTipo(agora, inicioJanela, fimJanela, TipoNotificacao.CONFIRMACAO);
+
+            if (!semInstancia.isEmpty()) {
+                log.warn("{} confirmacoes sem instancia conectada!", semInstancia.size());
+                alertService.alertarInstanciasDesconectadas(semInstancia);
+            }
+
+            if (!confirmacoes.isEmpty()) {
+                processarNotificacoes(confirmacoes, TipoNotificacao.CONFIRMACAO);
+            }
+
+            log.info("--- CONFIRMACOES processadas ---");
+        } catch (Exception e) {
+            log.error("Erro ao processar CONFIRMACOES: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Processa notificacoes do tipo LEMBRETE.
+     * LEMBRETE: 1/2/3/4/5/6 horas antes do agendamento.
+     * Somente processa se houver configuracoes ativas do tipo LEMBRETE.
+     */
+    private void processarLembretes(LocalDateTime agora) {
+        LocalDateTime inicioJanela = agora.minusMinutes(JANELA_MINUTOS_ATRAS);
+        LocalDateTime fimJanela = agora.plusMinutes(JANELA_MINUTOS_FRENTE);
+
+        log.info("--- Processando LEMBRETES ---");
+        log.info("Janela LEMBRETE: {} ate {}", inicioJanela, fimJanela);
+
+        try {
+            // Busca lembretes pendentes (apenas configs ativas do tipo LEMBRETE)
+            List<NotificacaoPendenteDTO> lembretes = agendamentoRepository
+                .findLembretesPendentes(agora, inicioJanela, fimJanela);
+
+            log.info("Encontrados {} lembretes pendentes", lembretes.size());
+
+            // Verifica instancias desconectadas para LEMBRETE
+            List<NotificacaoSemInstanciaDTO> semInstancia = agendamentoRepository
+                .findNotificacoesSemInstanciaConectadaPorTipo(agora, inicioJanela, fimJanela, TipoNotificacao.LEMBRETE);
+
+            if (!semInstancia.isEmpty()) {
+                log.warn("{} lembretes sem instancia conectada!", semInstancia.size());
+                alertService.alertarInstanciasDesconectadas(semInstancia);
+            }
+
+            if (!lembretes.isEmpty()) {
+                processarNotificacoes(lembretes, TipoNotificacao.LEMBRETE);
+            }
+
+            log.info("--- LEMBRETES processados ---");
+        } catch (Exception e) {
+            log.error("Erro ao processar LEMBRETES: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Processa uma lista de notificacoes pendentes.
+     * Agrupa por organizacao e processa cada uma individualmente.
+     */
+    private void processarNotificacoes(List<NotificacaoPendenteDTO> pendentes, TipoNotificacao tipo) {
         Map<Long, List<NotificacaoPendenteDTO>> porOrg = pendentes.stream()
             .collect(Collectors.groupingBy(NotificacaoPendenteDTO::getOrganizacaoId));
 
         porOrg.forEach((orgId, notificacoes) -> {
-            log.info("Processando {} notificacoes para org {}", notificacoes.size(), orgId);
+            log.info("Processando {} notificacoes {} para org {}",
+                notificacoes.size(), tipo, orgId);
+
             for (NotificacaoPendenteDTO notif : notificacoes) {
                 processarNotificacaoIndividual(notif);
             }
         });
     }
 
+    /**
+     * Processa uma notificacao individual.
+     * Valida, monta mensagem, envia via N8n e registra o resultado.
+     */
     private void processarNotificacaoIndividual(NotificacaoPendenteDTO notif) {
         try {
             if (jaFoiEnviada(notif)) {
-                log.debug("Notificacao ja enviada, ignorando: ag={}", notif.getAgendamentoId());
+                log.debug("Notificacao ja enviada, ignorando: tipo={}, horasAntes={}, ag={}",
+                    notif.getTipo(), notif.getHorasAntes(), notif.getAgendamentoId());
                 return;
             }
 
@@ -89,7 +168,8 @@ public class NotificacaoSchedulerService {
             String telefone = formatarTelefone(notif.getTelefoneCliente());
 
             if (telefone == null || telefone.isBlank()) {
-                log.warn("Telefone invalido para agendamento {}", notif.getAgendamentoId());
+                log.warn("Telefone invalido para agendamento {} (tipo={}, horasAntes={})",
+                    notif.getAgendamentoId(), notif.getTipo(), notif.getHorasAntes());
                 registrarEnvio(notif, StatusEnvio.FALHA, "Telefone invalido", null);
                 return;
             }
@@ -99,23 +179,32 @@ public class NotificacaoSchedulerService {
 
             registrarEnvio(notif, StatusEnvio.ENVIADO, null, telefone);
 
-            log.info("Notificacao enviada: tipo={}, horasAntes={}, ag={}",
-                notif.getTipo(), notif.getHorasAntes(), notif.getAgendamentoId());
+            log.info("Notificacao {} enviada: horasAntes={}, ag={}, org={}",
+                notif.getTipo(), notif.getHorasAntes(), notif.getAgendamentoId(),
+                notif.getOrganizacaoNome());
 
             Thread.sleep(1000); // Rate limit
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         } catch (Exception e) {
-            log.error("Falha ao enviar ag={}: {}", notif.getAgendamentoId(), e.getMessage());
+            log.error("Falha ao enviar {} (horasAntes={}) ag={}: {}",
+                notif.getTipo(), notif.getHorasAntes(), notif.getAgendamentoId(), e.getMessage());
             registrarEnvio(notif, StatusEnvio.FALHA, e.getMessage(), notif.getTelefoneCliente());
         }
     }
 
+    /**
+     * Verifica se uma notificacao ja foi enviada anteriormente.
+     * Usa a combinacao (agendamentoId + tipo + horasAntes) como chave unica.
+     */
     private boolean jaFoiEnviada(NotificacaoPendenteDTO notif) {
         return notificacaoEnviadaRepository.existsByAgendamentoIdAndTipoAndHorasAntes(
             notif.getAgendamentoId(), notif.getTipo(), notif.getHorasAntes());
     }
 
+    /**
+     * Registra o envio de uma notificacao no banco de dados.
+     */
     private void registrarEnvio(NotificacaoPendenteDTO notif, StatusEnvio status,
                                 String erroMsg, String telefone) {
         Agendamento agendamento = new Agendamento();
@@ -133,6 +222,10 @@ public class NotificacaoSchedulerService {
         notificacaoEnviadaRepository.save(registro);
     }
 
+    /**
+     * Monta a mensagem substituindo os placeholders do template.
+     * Se nao houver template customizado, usa o template padrao do tipo.
+     */
     private String montarMensagem(NotificacaoPendenteDTO notif) {
         String template = notif.getMensagemTemplate();
         if (template == null || template.isBlank()) {
@@ -145,6 +238,9 @@ public class NotificacaoSchedulerService {
             .replace("{{hora}}", notif.getDtAgendamento().format(TIME_FMT));
     }
 
+    /**
+     * Retorna o template padrao para cada tipo de notificacao.
+     */
     private String getTemplatePadrao(TipoNotificacao tipo) {
         return switch (tipo) {
             case CONFIRMACAO -> """
@@ -168,6 +264,10 @@ public class NotificacaoSchedulerService {
         };
     }
 
+    /**
+     * Formata o telefone para o padrao internacional brasileiro.
+     * Remove caracteres especiais e adiciona prefixo 55 se necessario.
+     */
     private String formatarTelefone(String telefone) {
         if (telefone == null) return null;
         String numeros = telefone.replaceAll("[^0-9]", "");
