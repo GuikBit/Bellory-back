@@ -93,7 +93,7 @@ public class PublicSitePageService {
                 .findAllByOrganizacao_IdAndAtivoTrueAndIsDeletadoFalseOrderByNomeAsc(orgId);
 
         List<Servico> servicosDestaque = todosServicos.stream()
-                .filter(s -> s.getIsHome() != null && s.getIsHome())
+//                .filter(s -> s.get() != null && s.getIsHome())
                 .limit(siteConfig.getServicesFeaturedLimit() != null ? siteConfig.getServicesFeaturedLimit() : 6)
                 .collect(Collectors.toList());
 
@@ -202,7 +202,7 @@ public class PublicSitePageService {
                 .findAllByOrganizacao_IdAndAtivoTrueAndIsDeletadoFalseOrderByNomeAsc(orgId);
 
         List<Servico> servicosDestaque = todosServicos.stream()
-                .filter(s -> s.getIsHome() != null && s.getIsHome())
+//                .filter(s -> s.getIsHome() != null && s.getIsHome())
                 .limit(siteConfig.getServicesFeaturedLimit() != null ? siteConfig.getServicesFeaturedLimit() : 6)
                 .collect(Collectors.toList());
 

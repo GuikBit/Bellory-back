@@ -53,7 +53,7 @@ public class LandingPageEditorService {
      */
     @Transactional(readOnly = true)
     public List<LandingPageDTO> listAll() {
-        Long orgId = TenantContext.getOrganizacaoId();
+        Long orgId = TenantContext.getCurrentOrganizacaoId();
         List<LandingPage> pages = landingPageRepository.findByOrganizacaoIdAndAtivoTrueOrderByDtCriacaoDesc(orgId);
         return pages.stream()
                 .map(this::convertToDTO)
@@ -65,7 +65,7 @@ public class LandingPageEditorService {
      */
     @Transactional(readOnly = true)
     public Page<LandingPageDTO> listPaginated(Pageable pageable) {
-        Long orgId = TenantContext.getOrganizacaoId();
+        Long orgId = TenantContext.getCurrentOrganizacaoId();
         return landingPageRepository.findByOrganizacaoIdAndAtivoTrue(orgId, pageable)
                 .map(this::convertToDTO);
     }
@@ -75,7 +75,7 @@ public class LandingPageEditorService {
      */
     @Transactional(readOnly = true)
     public Optional<LandingPageDTO> getById(Long id) {
-        Long orgId = TenantContext.getOrganizacaoId();
+        Long orgId = TenantContext.getCurrentOrganizacaoId();
         return landingPageRepository.findByIdWithSections(id)
                 .filter(lp -> lp.getOrganizacao().getId().equals(orgId))
                 .map(this::convertToDTOWithSections);
@@ -86,7 +86,7 @@ public class LandingPageEditorService {
      */
     @Transactional(readOnly = true)
     public Optional<LandingPageDTO> getBySlug(String slug) {
-        Long orgId = TenantContext.getOrganizacaoId();
+        Long orgId = TenantContext.getCurrentOrganizacaoId();
         return landingPageRepository.findByOrgAndSlugWithSections(orgId, slug)
                 .map(this::convertToDTOWithSections);
     }
@@ -95,7 +95,7 @@ public class LandingPageEditorService {
      * Cria uma nova landing page.
      */
     public LandingPageDTO create(CreateLandingPageRequest request) {
-        Long orgId = TenantContext.getOrganizacaoId();
+        Long orgId = TenantContext.getCurrentOrganizacaoId();
         Organizacao org = organizacaoRepository.findById(orgId)
                 .orElseThrow(() -> new RuntimeException("Organização não encontrada"));
 
@@ -153,7 +153,7 @@ public class LandingPageEditorService {
      * Atualiza uma landing page.
      */
     public LandingPageDTO update(Long id, UpdateLandingPageRequest request) {
-        Long orgId = TenantContext.getOrganizacaoId();
+        Long orgId = TenantContext.getCurrentOrganizacaoId();
         LandingPage landingPage = landingPageRepository.findByIdWithSections(id)
                 .filter(lp -> lp.getOrganizacao().getId().equals(orgId))
                 .orElseThrow(() -> new RuntimeException("Landing page não encontrada"));
@@ -224,8 +224,8 @@ public class LandingPageEditorService {
      * Publica uma landing page.
      */
     public LandingPageDTO publish(Long id) {
-        Long orgId = TenantContext.getOrganizacaoId();
-        Long userId = TenantContext.getUserId();
+        Long orgId = TenantContext.getCurrentOrganizacaoId();
+        Long userId = TenantContext.getCurrentUserId();
 
         LandingPage landingPage = landingPageRepository.findByIdWithSections(id)
                 .filter(lp -> lp.getOrganizacao().getId().equals(orgId))
@@ -248,7 +248,7 @@ public class LandingPageEditorService {
      * Despublica uma landing page.
      */
     public LandingPageDTO unpublish(Long id) {
-        Long orgId = TenantContext.getOrganizacaoId();
+        Long orgId = TenantContext.getCurrentOrganizacaoId();
         LandingPage landingPage = landingPageRepository.findById(id)
                 .filter(lp -> lp.getOrganizacao().getId().equals(orgId))
                 .orElseThrow(() -> new RuntimeException("Landing page não encontrada"));
@@ -261,7 +261,7 @@ public class LandingPageEditorService {
      * Duplica uma landing page.
      */
     public LandingPageDTO duplicate(Long id, String novoNome) {
-        Long orgId = TenantContext.getOrganizacaoId();
+        Long orgId = TenantContext.getCurrentOrganizacaoId();
         LandingPage original = landingPageRepository.findByIdWithSections(id)
                 .filter(lp -> lp.getOrganizacao().getId().equals(orgId))
                 .orElseThrow(() -> new RuntimeException("Landing page não encontrada"));
@@ -317,7 +317,7 @@ public class LandingPageEditorService {
      * Deleta uma landing page (soft delete).
      */
     public void delete(Long id) {
-        Long orgId = TenantContext.getOrganizacaoId();
+        Long orgId = TenantContext.getCurrentOrganizacaoId();
         LandingPage landingPage = landingPageRepository.findById(id)
                 .filter(lp -> lp.getOrganizacao().getId().equals(orgId))
                 .orElseThrow(() -> new RuntimeException("Landing page não encontrada"));
@@ -333,7 +333,7 @@ public class LandingPageEditorService {
      * Adiciona uma nova seção à landing page.
      */
     public LandingPageSectionDTO addSection(Long landingPageId, AddSectionRequest request) {
-        Long orgId = TenantContext.getOrganizacaoId();
+        Long orgId = TenantContext.getCurrentOrganizacaoId();
         LandingPage landingPage = landingPageRepository.findById(landingPageId)
                 .filter(lp -> lp.getOrganizacao().getId().equals(orgId))
                 .orElseThrow(() -> new RuntimeException("Landing page não encontrada"));
@@ -371,18 +371,18 @@ public class LandingPageEditorService {
                 .build();
 
         // Se tiver template de seção, copiar conteúdo
-        if (request.getTemplateSectionId() != null) {
-            sectionRepository.findById(request.getTemplateSectionId())
-                    .ifPresent(template -> {
-                        section.setContent(template.getContent());
-                        section.setStyles(template.getStyles());
-                        section.setSettings(template.getSettings());
-                        section.setTemplate(template.getTemplate());
-                    });
-        } else if (request.getContent() == null) {
-            // Criar conteúdo padrão para o tipo
-            section.setContent(getDefaultSectionContent(request.getTipo()));
-        }
+//        if (request.getTemplateSectionId() != null) {
+//            sectionRepository.findById(request.getTemplateSectionId())
+//                    .ifPresent(template -> {
+//                        section.setContent(template.getContent());
+//                        section.setStyles(template.getStyles());
+//                        section.setSettings(template.getSettings());
+//                        section.setTemplate(template.getTemplate());
+//                    });
+//        } else if (request.getContent() == null) {
+//            // Criar conteúdo padrão para o tipo
+//            section.setContent(getDefaultSectionContent(request.getTipo()));
+//        }
 
         section = sectionRepository.save(section);
         return convertSectionToDTO(section);
@@ -392,7 +392,7 @@ public class LandingPageEditorService {
      * Atualiza uma seção.
      */
     public LandingPageSectionDTO updateSection(Long landingPageId, String sectionId, UpdateSectionRequest request) {
-        Long orgId = TenantContext.getOrganizacaoId();
+        Long orgId = TenantContext.getCurrentOrganizacaoId();
 
         // Verificar se landing page pertence à organização
         LandingPage landingPage = landingPageRepository.findById(landingPageId)
@@ -445,7 +445,7 @@ public class LandingPageEditorService {
      * Reordena seções.
      */
     public List<LandingPageSectionDTO> reorderSections(Long landingPageId, ReorderSectionsRequest request) {
-        Long orgId = TenantContext.getOrganizacaoId();
+        Long orgId = TenantContext.getCurrentOrganizacaoId();
 
         landingPageRepository.findById(landingPageId)
                 .filter(lp -> lp.getOrganizacao().getId().equals(orgId))
@@ -478,7 +478,7 @@ public class LandingPageEditorService {
      * Duplica uma seção.
      */
     public LandingPageSectionDTO duplicateSection(Long landingPageId, String sectionId) {
-        Long orgId = TenantContext.getOrganizacaoId();
+        Long orgId = TenantContext.getCurrentOrganizacaoId();
 
         landingPageRepository.findById(landingPageId)
                 .filter(lp -> lp.getOrganizacao().getId().equals(orgId))
@@ -525,7 +525,7 @@ public class LandingPageEditorService {
      * Deleta uma seção.
      */
     public void deleteSection(Long landingPageId, String sectionId) {
-        Long orgId = TenantContext.getOrganizacaoId();
+        Long orgId = TenantContext.getCurrentOrganizacaoId();
 
         landingPageRepository.findById(landingPageId)
                 .filter(lp -> lp.getOrganizacao().getId().equals(orgId))
@@ -549,7 +549,7 @@ public class LandingPageEditorService {
      */
     @Transactional(readOnly = true)
     public List<LandingPageVersionDTO> listVersions(Long landingPageId) {
-        Long orgId = TenantContext.getOrganizacaoId();
+        Long orgId = TenantContext.getCurrentOrganizacaoId();
 
         landingPageRepository.findById(landingPageId)
                 .filter(lp -> lp.getOrganizacao().getId().equals(orgId))
@@ -565,7 +565,7 @@ public class LandingPageEditorService {
      * Restaura uma versão anterior.
      */
     public LandingPageDTO restoreVersion(Long landingPageId, Integer versao) {
-        Long orgId = TenantContext.getOrganizacaoId();
+        Long orgId = TenantContext.getCurrentOrganizacaoId();
 
         LandingPage landingPage = landingPageRepository.findByIdWithSections(landingPageId)
                 .filter(lp -> lp.getOrganizacao().getId().equals(orgId))
@@ -617,8 +617,8 @@ public class LandingPageEditorService {
                     .snapshot(snapshotJson)
                     .descricao(descricao)
                     .tipo(tipo)
-                    .criadoPor(TenantContext.getUserId())
-                    .criadoPorNome(TenantContext.getUsername())
+                    .criadoPor(TenantContext.getCurrentUserId())
+                    .criadoPorNome(TenantContext.getCurrentUsername())
                     .build();
 
             versionRepository.save(version);

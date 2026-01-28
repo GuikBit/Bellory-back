@@ -80,7 +80,7 @@ public class ConfigNotificacaoController {
      */
     @PostMapping("/upsert")
     public ResponseEntity<ResponseAPI<ConfigNotificacaoDTO>> salvarOuAtualizar(
-            @RequestBody @Valid ConfigNotificacaoDTO dto) {
+            @RequestBody ConfigNotificacaoDTO dto) {
         try {
             return ResponseEntity.ok(ResponseAPI.<ConfigNotificacaoDTO>builder()
                 .success(true)

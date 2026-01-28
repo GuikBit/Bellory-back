@@ -41,7 +41,7 @@ public class NotificacaoSchedulerService {
         LocalDateTime fimJanela = agora.plusMinutes(2);
 
         log.info("=== Iniciando processamento de notificacoes ===");
-        log.info("Janela: {} ate {}", inicioJanela, fimJanela);
+        log.info("Janela: {} ate {}. Agora {}", inicioJanela, fimJanela, agora);
 
         try {
             List<NotificacaoPendenteDTO> pendentes = agendamentoRepository
