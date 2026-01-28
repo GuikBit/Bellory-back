@@ -11,6 +11,7 @@ import org.springframework.stereotype.Repository;
 
 import org.exemplo.bellory.model.dto.notificacao.NotificacaoPendenteDTO;
 import org.exemplo.bellory.model.dto.notificacao.NotificacaoSemInstanciaDTO;
+import org.exemplo.bellory.model.entity.notificacao.TipoNotificacao;
 
 import java.time.LocalDateTime;
 import java.util.Collection;
@@ -454,5 +455,163 @@ public interface AgendamentoRepository extends JpaRepository<Agendamento, Long> 
         @Param("agora") LocalDateTime agora,
         @Param("inicioJanela") LocalDateTime inicioJanela,
         @Param("fimJanela") LocalDateTime fimJanela
+    );
+
+    // ==================== QUERIES SEPARADAS POR TIPO DE NOTIFICACAO ====================
+
+    /**
+     * Busca notificacoes pendentes de CONFIRMACAO.
+     * CONFIRMACAO: 12/24/36/48 horas antes do agendamento.
+     * Filtra apenas configuracoes do tipo CONFIRMACAO que estao ativas.
+     */
+    @Query("""
+        SELECT new org.exemplo.bellory.model.dto.notificacao.NotificacaoPendenteDTO(
+            a.id,
+            a.dtAgendamento,
+            c.nomeCompleto,
+            c.telefone,
+            o.id,
+            o.nomeFantasia,
+            cn.tipo,
+            cn.horasAntes,
+            cn.mensagemTemplate,
+            i.instanceName
+        )
+        FROM Agendamento a
+        JOIN a.cliente c
+        JOIN a.organizacao o
+        JOIN ConfigNotificacao cn ON cn.organizacao = o AND cn.ativo = true AND cn.tipo = 'CONFIRMACAO'
+        JOIN Instance i ON i.organizacao = o
+        WHERE a.status = 'AGENDADO'
+          AND a.dtAgendamento > :agora
+          AND i.status = 'CONNECTED'
+          AND FUNCTION('TIMESTAMPADD', HOUR, -cn.horasAntes, a.dtAgendamento)
+              BETWEEN :inicioJanela AND :fimJanela
+          AND NOT EXISTS (
+              SELECT 1 FROM NotificacaoEnviada ne
+              WHERE ne.agendamento = a
+                AND ne.tipo = cn.tipo
+                AND ne.horasAntes = cn.horasAntes
+          )
+        ORDER BY o.id, a.dtAgendamento ASC
+        """)
+    List<NotificacaoPendenteDTO> findConfirmacoesPendentes(
+        @Param("agora") LocalDateTime agora,
+        @Param("inicioJanela") LocalDateTime inicioJanela,
+        @Param("fimJanela") LocalDateTime fimJanela
+    );
+
+    /**
+     * Busca notificacoes pendentes de LEMBRETE.
+     * LEMBRETE: 1/2/3/4/5/6 horas antes do agendamento.
+     * Filtra apenas configuracoes do tipo LEMBRETE que estao ativas.
+     */
+    @Query("""
+        SELECT new org.exemplo.bellory.model.dto.notificacao.NotificacaoPendenteDTO(
+            a.id,
+            a.dtAgendamento,
+            c.nomeCompleto,
+            c.telefone,
+            o.id,
+            o.nomeFantasia,
+            cn.tipo,
+            cn.horasAntes,
+            cn.mensagemTemplate,
+            i.instanceName
+        )
+        FROM Agendamento a
+        JOIN a.cliente c
+        JOIN a.organizacao o
+        JOIN ConfigNotificacao cn ON cn.organizacao = o AND cn.ativo = true AND cn.tipo = 'LEMBRETE'
+        JOIN Instance i ON i.organizacao = o
+        WHERE a.status = 'AGENDADO'
+          AND a.dtAgendamento > :agora
+          AND i.status = 'CONNECTED'
+          AND FUNCTION('TIMESTAMPADD', HOUR, -cn.horasAntes, a.dtAgendamento)
+              BETWEEN :inicioJanela AND :fimJanela
+          AND NOT EXISTS (
+              SELECT 1 FROM NotificacaoEnviada ne
+              WHERE ne.agendamento = a
+                AND ne.tipo = cn.tipo
+                AND ne.horasAntes = cn.horasAntes
+          )
+        ORDER BY o.id, a.dtAgendamento ASC
+        """)
+    List<NotificacaoPendenteDTO> findLembretesPendentes(
+        @Param("agora") LocalDateTime agora,
+        @Param("inicioJanela") LocalDateTime inicioJanela,
+        @Param("fimJanela") LocalDateTime fimJanela
+    );
+
+    /**
+     * Busca notificacoes pendentes por tipo especifico.
+     * Permite filtrar por CONFIRMACAO ou LEMBRETE dinamicamente.
+     */
+    @Query("""
+        SELECT new org.exemplo.bellory.model.dto.notificacao.NotificacaoPendenteDTO(
+            a.id,
+            a.dtAgendamento,
+            c.nomeCompleto,
+            c.telefone,
+            o.id,
+            o.nomeFantasia,
+            cn.tipo,
+            cn.horasAntes,
+            cn.mensagemTemplate,
+            i.instanceName
+        )
+        FROM Agendamento a
+        JOIN a.cliente c
+        JOIN a.organizacao o
+        JOIN ConfigNotificacao cn ON cn.organizacao = o AND cn.ativo = true AND cn.tipo = :tipo
+        JOIN Instance i ON i.organizacao = o
+        WHERE a.status = 'AGENDADO'
+          AND a.dtAgendamento > :agora
+          AND i.status = 'CONNECTED'
+          AND FUNCTION('TIMESTAMPADD', HOUR, -cn.horasAntes, a.dtAgendamento)
+              BETWEEN :inicioJanela AND :fimJanela
+          AND NOT EXISTS (
+              SELECT 1 FROM NotificacaoEnviada ne
+              WHERE ne.agendamento = a
+                AND ne.tipo = cn.tipo
+                AND ne.horasAntes = cn.horasAntes
+          )
+        ORDER BY o.id, a.dtAgendamento ASC
+        """)
+    List<NotificacaoPendenteDTO> findNotificacoesPendentesPorTipo(
+        @Param("agora") LocalDateTime agora,
+        @Param("inicioJanela") LocalDateTime inicioJanela,
+        @Param("fimJanela") LocalDateTime fimJanela,
+        @Param("tipo") TipoNotificacao tipo
+    );
+
+    /**
+     * Busca notificacoes sem instancia WhatsApp conectada por tipo especifico (para alertar).
+     */
+    @Query("""
+        SELECT new org.exemplo.bellory.model.dto.notificacao.NotificacaoSemInstanciaDTO(
+            a.id, o.id, o.nomeFantasia, o.emailPrincipal, cn.tipo, cn.horasAntes, a.dtAgendamento
+        )
+        FROM Agendamento a
+        JOIN a.cliente c
+        JOIN a.organizacao o
+        JOIN ConfigNotificacao cn ON cn.organizacao = o AND cn.ativo = true AND cn.tipo = :tipo
+        LEFT JOIN Instance i ON i.organizacao = o
+        WHERE a.status = 'AGENDADO'
+          AND a.dtAgendamento > :agora
+          AND (i IS NULL OR i.status != 'CONNECTED')
+          AND FUNCTION('TIMESTAMPADD', HOUR, -cn.horasAntes, a.dtAgendamento)
+              BETWEEN :inicioJanela AND :fimJanela
+          AND NOT EXISTS (
+              SELECT 1 FROM NotificacaoEnviada ne
+              WHERE ne.agendamento = a AND ne.tipo = cn.tipo AND ne.horasAntes = cn.horasAntes
+          )
+        ORDER BY o.id
+        """)
+    List<NotificacaoSemInstanciaDTO> findNotificacoesSemInstanciaConectadaPorTipo(
+        @Param("agora") LocalDateTime agora,
+        @Param("inicioJanela") LocalDateTime inicioJanela,
+        @Param("fimJanela") LocalDateTime fimJanela,
+        @Param("tipo") TipoNotificacao tipo
     );
 }
