@@ -50,11 +50,51 @@ public class ConfigNotificacaoService {
             .organizacao(org)
             .tipo(dto.getTipo())
             .horasAntes(dto.getHorasAntes())
-            .ativo(dto.getAtivo())
+            .ativo(dto.getAtivo() != null ? dto.getAtivo() : true)
             .mensagemTemplate(dto.getMensagemTemplate())
             .build();
 
         return new ConfigNotificacaoDTO(repository.save(entity));
+    }
+
+    /**
+     * Salva ou atualiza uma configuracao de notificacao baseada no tipo.
+     * Se ja existir uma configuracao para o tipo, atualiza.
+     * Se nao existir, cria uma nova.
+     */
+    @Transactional
+    public ConfigNotificacaoDTO salvarOuAtualizar(ConfigNotificacaoDTO dto) {
+        Long orgId = getOrganizacaoId();
+
+        validarHorasAntes(dto.getTipo(), dto.getHorasAntes());
+
+        // Busca configuracao existente para o tipo
+        var existente = repository.findByOrganizacaoIdAndTipo(orgId, dto.getTipo());
+
+        if (existente.isPresent()) {
+            // Atualiza a configuracao existente
+            ConfigNotificacao entity = existente.get();
+            entity.setHorasAntes(dto.getHorasAntes());
+            entity.setMensagemTemplate(dto.getMensagemTemplate());
+            if (dto.getAtivo() != null) {
+                entity.setAtivo(dto.getAtivo());
+            }
+            return new ConfigNotificacaoDTO(repository.save(entity));
+        } else {
+            // Cria nova configuracao
+            Organizacao org = organizacaoRepository.findById(orgId)
+                .orElseThrow(() -> new IllegalArgumentException("Organizacao nao encontrada"));
+
+            ConfigNotificacao entity = ConfigNotificacao.builder()
+                .organizacao(org)
+                .tipo(dto.getTipo())
+                .horasAntes(dto.getHorasAntes())
+                .ativo(dto.getAtivo() != null ? dto.getAtivo() : true)
+                .mensagemTemplate(dto.getMensagemTemplate())
+                .build();
+
+            return new ConfigNotificacaoDTO(repository.save(entity));
+        }
     }
 
     @Transactional

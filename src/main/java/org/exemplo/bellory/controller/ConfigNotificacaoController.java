@@ -74,6 +74,29 @@ public class ConfigNotificacaoController {
         }
     }
 
+    /**
+     * Salva ou atualiza uma configuracao baseada no tipo.
+     * Se ja existir configuracao para o tipo, atualiza. Senao, cria nova.
+     */
+    @PostMapping("/upsert")
+    public ResponseEntity<ResponseAPI<ConfigNotificacaoDTO>> salvarOuAtualizar(
+            @RequestBody @Valid ConfigNotificacaoDTO dto) {
+        try {
+            return ResponseEntity.ok(ResponseAPI.<ConfigNotificacaoDTO>builder()
+                .success(true)
+                .message("Configuracao salva com sucesso")
+                .dados(service.salvarOuAtualizar(dto))
+                .build());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest()
+                .body(ResponseAPI.<ConfigNotificacaoDTO>builder()
+                    .success(false)
+                    .message(e.getMessage())
+                    .errorCode(400)
+                    .build());
+        }
+    }
+
     @PutMapping("/{id}")
     public ResponseEntity<ResponseAPI<ConfigNotificacaoDTO>> atualizar(
             @PathVariable Long id, @RequestBody @Valid ConfigNotificacaoDTO dto) {
