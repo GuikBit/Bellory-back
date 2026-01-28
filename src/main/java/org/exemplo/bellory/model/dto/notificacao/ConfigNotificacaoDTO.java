@@ -21,8 +21,8 @@ public class ConfigNotificacaoDTO {
     @Max(value = 48, message = "Maximo 48 horas")
     private Integer horasAntes;
 
-    @NotNull(message = "Status ativo e obrigatorio")
-    private Boolean ativo;
+    @Builder.Default
+    private Boolean ativo = true;
 
     private String mensagemTemplate;
 

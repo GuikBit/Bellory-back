@@ -20,6 +20,9 @@ public interface ConfigNotificacaoRepository extends JpaRepository<ConfigNotific
     Optional<ConfigNotificacao> findByOrganizacaoIdAndTipoAndHorasAntes(
         Long organizacaoId, TipoNotificacao tipo, Integer horasAntes);
 
+    Optional<ConfigNotificacao> findByOrganizacaoIdAndTipo(
+        Long organizacaoId, TipoNotificacao tipo);
+
     boolean existsByOrganizacaoIdAndTipoAndHorasAntes(
         Long organizacaoId, TipoNotificacao tipo, Integer horasAntes);
 
