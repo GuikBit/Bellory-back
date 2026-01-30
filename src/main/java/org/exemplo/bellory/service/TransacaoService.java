@@ -20,6 +20,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Serviço responsável por gerenciar o ciclo completo de transações:
@@ -176,7 +177,7 @@ public class TransacaoService {
     }
 
     @Transactional
-    public List<Cobranca> criarSinal(Long agendamentoId, Long cobrancaId, BigDecimal porcentagem) {
+    public void criarSinal(Long agendamentoId, Long cobrancaId, BigDecimal porcentagem) {
         // Buscar entidades
         Agendamento agendamento = agendamentoRepository.findById(agendamentoId)
                 .orElseThrow(() -> new IllegalArgumentException("Agendamento não encontrado"));
@@ -235,8 +236,8 @@ public class TransacaoService {
         cobrancaOriginal.setCobrancaRelacionada(cobrancaSinal);
 
         // Salvar novas cobranças
-        cobrancaSinal = cobrancaRepository.save(cobrancaSinal);
-        cobrancaOriginal = cobrancaRepository.save(cobrancaOriginal);
+        cobrancaRepository.save(cobrancaSinal);
+        cobrancaRepository.save(cobrancaOriginal);
 
         // Inativar/remover cobrança original
         // cobrancaRepository.delete(cobrancaOriginal);
@@ -249,7 +250,7 @@ public class TransacaoService {
         agendamento.setPercentualSinal(porcentagem);
         agendamentoRepository.save(agendamento);
 
-        return Arrays.asList(cobrancaSinal, cobrancaOriginal);
+//        return Arrays.asList(cobrancaSinal, cobrancaOriginal);
     }
     /**
      * Cria cobrança do valor restante
@@ -367,7 +368,16 @@ public class TransacaoService {
             confirmarAgendamentoPorPagamentoSinal(cobranca.getAgendamento());
         }
 
+        atualizarStatusPagamentoAgendamento(cobranca.getAgendamento().getId());
+
         return pagamentoSalvo;
+    }
+
+    private void atualizarStatusPagamentoAgendamento(long agendamentoId){
+        Optional<Agendamento> agendamento = agendamentoRepository.findById(agendamentoId);
+
+
+
     }
 
     /**

@@ -251,15 +251,14 @@ public class Agendamento {
 
     // NOVO: Verifica se o pagamento está completo
     public boolean isPagamentoCompleto() {
-        if (!this.requerSinal) {
-            return getCobrancaIntegral()
-                    .map(Cobranca::isPaga)
-                    .orElse(false);
+        // Verifica se há pelo menos uma cobrança
+        if (cobrancas == null || cobrancas.isEmpty()) {
+            return false;
         }
 
-        return isSinalPago() && getCobrancaRestante()
-                .map(Cobranca::isPaga)
-                .orElse(false);
+        // Verifica se todas as cobranças estão pagas
+        return cobrancas.stream()
+                .allMatch(Cobranca::isPaga);
     }
 
     // NOVO: Verifica se está confirmado (sinal pago ou não requer sinal)

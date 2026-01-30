@@ -314,14 +314,14 @@ public class AgendamentoController {
     }
 
     @PostMapping("/{id}/dividir-pagamento")
-    public ResponseEntity<ResponseAPI<List<Cobranca>>> processarDividirPagamento(
+    public ResponseEntity<ResponseAPI<Void>> processarDividirPagamento(
             @PathVariable Long id,
             @RequestBody DividirPagamentoDTO dividirPagamentoDTO
     ){
         try{
             if(dividirPagamentoDTO.getCobrancaId() == null && dividirPagamentoDTO.getCobrancaId().describeConstable().isEmpty()){
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                        .body(ResponseAPI.<List<Cobranca>>builder()
+                        .body(ResponseAPI.<Void>builder()
                                 .success(false)
                                 .message("ID da cobrança não identificado.")
                                 .errorCode(400)
@@ -330,24 +330,24 @@ public class AgendamentoController {
 
             if(dividirPagamentoDTO.getPorcentagemDivisao() == null){
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                        .body(ResponseAPI.<List<Cobranca>>builder()
+                        .body(ResponseAPI.<Void>builder()
                                 .success(false)
                                 .message("Porcentagem de sinal não identificado.")
                                 .errorCode(400)
                                 .build());
             }
 
-            List<Cobranca> resultado = transacaoService.criarSinal(id, dividirPagamentoDTO.getCobrancaId(), dividirPagamentoDTO.getPorcentagemDivisao());
+            transacaoService.criarSinal(id, dividirPagamentoDTO.getCobrancaId(), dividirPagamentoDTO.getPorcentagemDivisao());
 
-            return ResponseEntity.ok(ResponseAPI.<List<Cobranca>>builder()
+
+            return ResponseEntity.ok(ResponseAPI.<Void>builder()
                     .success(true)
                     .message("Pagamento processado com sucesso.")
-                    .dados(resultado)
                     .build());
 
         }catch  (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ResponseAPI.<List<Cobranca>>builder()
+                    .body(ResponseAPI.<Void>builder()
                             .success(false)
                             .message("Erro interno a divisao do pagamento: " + e.getMessage())
                             .errorCode(500)
