@@ -277,10 +277,9 @@ public class AgendamentoController {
             );
 
             Pagamento pagamento = transacaoService.processarPagamento(
-                    agendamento.getCobrancas().stream().count(),
-                    metodoPagamento,
+                    pagamentoDTO.getCobrancaId(),
                     pagamentoDTO.getValorPagamento(),
-                    pagamentoDTO.getCartaoCreditoId()
+                    Pagamento.FormaPagamento.valueOf(pagamentoDTO.getMetodoPagamento().toUpperCase())
             );
 
             // Preparar resposta
@@ -309,6 +308,48 @@ public class AgendamentoController {
                     .body(ResponseAPI.<Map<String, Object>>builder()
                             .success(false)
                             .message("Erro interno ao processar pagamento: " + e.getMessage())
+                            .errorCode(500)
+                            .build());
+        }
+    }
+
+    @PostMapping("/{id}/dividir-pagamento")
+    public ResponseEntity<ResponseAPI<List<Cobranca>>> processarDividirPagamento(
+            @PathVariable Long id,
+            @RequestBody DividirPagamentoDTO dividirPagamentoDTO
+    ){
+        try{
+            if(dividirPagamentoDTO.getCobrancaId() == null && dividirPagamentoDTO.getCobrancaId().describeConstable().isEmpty()){
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(ResponseAPI.<List<Cobranca>>builder()
+                                .success(false)
+                                .message("ID da cobrança não identificado.")
+                                .errorCode(400)
+                                .build());
+            }
+
+            if(dividirPagamentoDTO.getPorcentagemDivisao() == null){
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(ResponseAPI.<List<Cobranca>>builder()
+                                .success(false)
+                                .message("Porcentagem de sinal não identificado.")
+                                .errorCode(400)
+                                .build());
+            }
+
+            List<Cobranca> resultado = transacaoService.criarSinal(id, dividirPagamentoDTO.getCobrancaId(), dividirPagamentoDTO.getPorcentagemDivisao());
+
+            return ResponseEntity.ok(ResponseAPI.<List<Cobranca>>builder()
+                    .success(true)
+                    .message("Pagamento processado com sucesso.")
+                    .dados(resultado)
+                    .build());
+
+        }catch  (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseAPI.<List<Cobranca>>builder()
+                            .success(false)
+                            .message("Erro interno a divisao do pagamento: " + e.getMessage())
                             .errorCode(500)
                             .build());
         }

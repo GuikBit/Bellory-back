@@ -18,6 +18,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -174,6 +175,82 @@ public class TransacaoService {
         return cobrancaRepository.save(cobranca);
     }
 
+    @Transactional
+    public List<Cobranca> criarSinal(Long agendamentoId, Long cobrancaId, BigDecimal porcentagem) {
+        // Buscar entidades
+        Agendamento agendamento = agendamentoRepository.findById(agendamentoId)
+                .orElseThrow(() -> new IllegalArgumentException("Agendamento não encontrado"));
+
+        Cobranca cobrancaOriginal = cobrancaRepository.findById(cobrancaId)
+                .orElseThrow(() -> new IllegalArgumentException("Cobrança não encontrada"));
+
+        // Validações
+//        if (cobrancaOriginal.getSubtipoCobrancaAgendamento() != null) {
+//            throw new IllegalArgumentException("Esta cobrança já foi dividida em sinal/restante");
+//        }
+
+        if (porcentagem.compareTo(BigDecimal.ZERO) <= 0 || porcentagem.compareTo(new BigDecimal("100")) >= 100) {
+            throw new IllegalArgumentException("O percentual do sinal deve estar entre 0 e 100");
+        }
+
+        // Calcular valores
+        BigDecimal valorSinal = cobrancaOriginal.getValor()
+                .multiply(porcentagem)
+                .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
+
+        BigDecimal valorRestante = cobrancaOriginal.getValor().subtract(valorSinal);
+
+        // Criar cobrança do sinal
+        Cobranca cobrancaSinal = new Cobranca();
+        cobrancaSinal.setOrganizacao(cobrancaOriginal.getOrganizacao());
+        cobrancaSinal.setCliente(cobrancaOriginal.getCliente());
+        cobrancaSinal.setAgendamento(agendamento);
+        cobrancaSinal.setValor(valorSinal);
+        cobrancaSinal.setStatusCobranca(Cobranca.StatusCobranca.PENDENTE);
+        cobrancaSinal.setTipoCobranca(Cobranca.TipoCobranca.AGENDAMENTO);
+        cobrancaSinal.setSubtipoCobrancaAgendamento(Cobranca.SubtipoCobrancaAgendamento.SINAL);
+        cobrancaSinal.setDtVencimento(cobrancaOriginal.getDtVencimento());
+        cobrancaSinal.setPercentualSinal(porcentagem);
+        cobrancaSinal.setPermiteParcelamento(false);
+        cobrancaSinal.setObservacoes("Sinal para confirmação do agendamento (" + porcentagem + "%)");
+
+        // Criar cobrança do restante
+//        Cobranca cobrancaRestante = new Cobranca();
+//        cobrancaRestante.setOrganizacao(cobrancaOriginal.getOrganizacao());
+//        cobrancaRestante.setCliente(cobrancaOriginal.getCliente());
+//        cobrancaRestante.setAgendamento(agendamento);
+//        cobrancaRestante.setValor(valorRestante);
+//        cobrancaRestante.setStatusCobranca(Cobranca.StatusCobranca.PENDENTE);
+//        cobrancaRestante.setTipoCobranca(Cobranca.TipoCobranca.AGENDAMENTO);
+//        cobrancaRestante.setSubtipoCobrancaAgendamento(Cobranca.SubtipoCobrancaAgendamento.RESTANTE);
+//        cobrancaRestante.setDtVencimento(agendamento.getDtAgendamento().toLocalDate());
+//        cobrancaRestante.setPermiteParcelamento(true);
+//        cobrancaRestante.setObservacoes("Pagamento final do agendamento");
+        cobrancaOriginal.setValor(valorRestante);
+        cobrancaOriginal.setSubtipoCobrancaAgendamento(Cobranca.SubtipoCobrancaAgendamento.RESTANTE);
+        cobrancaOriginal.setPermiteParcelamento(false);
+
+        // Estabelecer relacionamento entre as cobranças
+        cobrancaSinal.setCobrancaRelacionada(cobrancaOriginal);
+        cobrancaOriginal.setCobrancaRelacionada(cobrancaSinal);
+
+        // Salvar novas cobranças
+        cobrancaSinal = cobrancaRepository.save(cobrancaSinal);
+        cobrancaOriginal = cobrancaRepository.save(cobrancaOriginal);
+
+        // Inativar/remover cobrança original
+        // cobrancaRepository.delete(cobrancaOriginal);
+        // OU se preferir manter histórico:
+        // cobrancaOriginal.setStatusCobranca(Cobranca.StatusCobranca.CANCELADA);
+        // cobrancaRepository.save(cobrancaOriginal);
+
+        // Atualizar agendamento
+        agendamento.setRequerSinal(false);
+        agendamento.setPercentualSinal(porcentagem);
+        agendamentoRepository.save(agendamento);
+
+        return Arrays.asList(cobrancaSinal, cobrancaOriginal);
+    }
     /**
      * Cria cobrança do valor restante
      */
@@ -248,8 +325,7 @@ public class TransacaoService {
      * @return Pagamento criado
      */
     @Transactional
-    public Pagamento processarPagamento(Long cobrancaId, BigDecimal valorPagamento,
-                                        Pagamento.FormaPagamento formaPagamento) {
+    public Pagamento processarPagamento(Long cobrancaId, BigDecimal valorPagamento, Pagamento.FormaPagamento formaPagamento) {
 
         Cobranca cobranca = cobrancaRepository.findById(cobrancaId)
                 .orElseThrow(() -> new IllegalArgumentException("Cobrança não encontrada."));
@@ -297,17 +373,17 @@ public class TransacaoService {
     /**
      * MÉTODO LEGADO: Mantido para compatibilidade
      */
-    @Transactional
-    public Pagamento processarPagamento(Long cobrancaId,
-                                        Pagamento.MetodoPagamento metodoPagamento,
-                                        BigDecimal valorPagamento,
-                                        Long cartaoCreditoId) {
-
-        // Converter MetodoPagamento para FormaPagamento
-        Pagamento.FormaPagamento formaPagamento = converterMetodoParaForma(metodoPagamento);
-
-        return processarPagamento(cobrancaId, valorPagamento, formaPagamento);
-    }
+//    @Transactional
+//    public Pagamento processarPagamento(Long cobrancaId,
+//                                        Pagamento.MetodoPagamento metodoPagamento,
+//                                        BigDecimal valorPagamento,
+//                                        Long cartaoCreditoId) {
+//
+//        // Converter MetodoPagamento para FormaPagamento
+//        Pagamento.FormaPagamento formaPagamento = converterMetodoParaForma(metodoPagamento);
+//
+//        return processarPagamento(cobrancaId, valorPagamento, formaPagamento);
+//    }
 
     /**
      * Confirma agendamento quando o sinal é pago

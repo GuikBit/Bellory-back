@@ -11,11 +11,7 @@ import java.math.BigDecimal;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class PagamentoAgendamentoDTO {
-    private BigDecimal valorPagamento;
-    private String metodoPagamento;
-    private Long cartaoCreditoId;
-    private String observacoes;
+public class DividirPagamentoDTO {
     private Long cobrancaId;
-
+    private BigDecimal porcentagemDivisao;
 }
