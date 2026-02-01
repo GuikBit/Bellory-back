@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
@@ -34,8 +35,8 @@ public class RespostaPergunta {
     @Column(name = "resposta_texto", length = 5000)
     private String respostaTexto;
 
-    @Column(name = "resposta_numero")
-    private Double respostaNumero;
+    @Column(name = "resposta_numero", precision = 15, scale = 4)
+    private BigDecimal respostaNumero;
 
     @ElementCollection
     @CollectionTable(

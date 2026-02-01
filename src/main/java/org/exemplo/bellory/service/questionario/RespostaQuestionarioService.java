@@ -286,13 +286,12 @@ public class RespostaQuestionarioService {
             case NUMERO:
                 temResposta = resposta.getRespostaNumero() != null;
                 if (temResposta) {
-                    BigDecimal valorResposta = BigDecimal.valueOf(resposta.getRespostaNumero());
                     if (pergunta.getMinValor() != null &&
-                            valorResposta.compareTo(pergunta.getMinValor()) < 0) {
+                            resposta.getRespostaNumero().compareTo(pergunta.getMinValor()) < 0) {
                         throw new IllegalArgumentException("Valor deve ser no mínimo " + pergunta.getMinValor());
                     }
                     if (pergunta.getMaxValor() != null &&
-                            valorResposta.compareTo(pergunta.getMaxValor()) > 0) {
+                            resposta.getRespostaNumero().compareTo(pergunta.getMaxValor()) > 0) {
                         throw new IllegalArgumentException("Valor deve ser no máximo " + pergunta.getMaxValor());
                     }
                 }
@@ -303,7 +302,8 @@ public class RespostaQuestionarioService {
                 if (temResposta) {
                     int min = pergunta.getEscalaMin() != null ? pergunta.getEscalaMin() : 1;
                     int max = pergunta.getEscalaMax() != null ? pergunta.getEscalaMax() : 10;
-                    if (resposta.getRespostaNumero() < min || resposta.getRespostaNumero() > max) {
+                    int valor = resposta.getRespostaNumero().intValue();
+                    if (valor < min || valor > max) {
                         throw new IllegalArgumentException("Valor deve estar entre " + min + " e " + max);
                     }
                 }
@@ -311,8 +311,11 @@ public class RespostaQuestionarioService {
 
             case AVALIACAO_ESTRELAS:
                 temResposta = resposta.getRespostaNumero() != null;
-                if (temResposta && (resposta.getRespostaNumero() < 1 || resposta.getRespostaNumero() > 5)) {
-                    throw new IllegalArgumentException("Avaliação deve ser entre 1 e 5 estrelas.");
+                if (temResposta) {
+                    int estrelas = resposta.getRespostaNumero().intValue();
+                    if (estrelas < 1 || estrelas > 5) {
+                        throw new IllegalArgumentException("Avaliação deve ser entre 1 e 5 estrelas.");
+                    }
                 }
                 break;
 

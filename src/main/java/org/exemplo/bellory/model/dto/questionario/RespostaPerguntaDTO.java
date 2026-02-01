@@ -5,6 +5,7 @@ import org.exemplo.bellory.model.entity.questionario.OpcaoResposta;
 import org.exemplo.bellory.model.entity.questionario.RespostaPergunta;
 import org.exemplo.bellory.model.entity.questionario.enums.TipoPergunta;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
@@ -21,7 +22,7 @@ public class RespostaPerguntaDTO {
     private String perguntaTexto;
     private TipoPergunta tipoPergunta;
     private String respostaTexto;
-    private Double respostaNumero;
+    private BigDecimal respostaNumero;
     private List<OpcaoSelecionadaDTO> opcoesSelecionadas;
     private LocalDate respostaData;
     private LocalTime respostaHora;

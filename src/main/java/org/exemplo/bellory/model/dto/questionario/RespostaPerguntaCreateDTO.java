@@ -3,6 +3,7 @@ package org.exemplo.bellory.model.dto.questionario;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
@@ -18,7 +19,7 @@ public class RespostaPerguntaCreateDTO {
 
     private String respostaTexto;
 
-    private Double respostaNumero;
+    private BigDecimal respostaNumero;
 
     private List<Long> respostaOpcaoIds;
 
