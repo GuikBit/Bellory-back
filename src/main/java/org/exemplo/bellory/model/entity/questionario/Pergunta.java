@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.exemplo.bellory.model.entity.questionario.enums.TipoPergunta;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -69,11 +70,11 @@ public class Pergunta {
     private Integer maxCaracteres;
 
     // Campos para validação numérica
-    @Column(name = "min_valor")
-    private Double minValor;
+    @Column(name = "min_valor", precision = 15, scale = 4)
+    private BigDecimal minValor;
 
-    @Column(name = "max_valor")
-    private Double maxValor;
+    @Column(name = "max_valor", precision = 15, scale = 4)
+    private BigDecimal maxValor;
 
     public void addOpcao(OpcaoResposta opcao) {
         if (opcoes == null) {
