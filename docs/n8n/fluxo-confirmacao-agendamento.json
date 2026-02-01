@@ -1,0 +1,1382 @@
+{
+  "name": "Bellory - Confirmacao de Agendamento",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bellory-confirmacao",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-entrada",
+      "name": "Webhook - Disparo Backend",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [220, 300],
+      "webhookId": "bellory-confirmacao"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.EVOLUTION_API_URL }}/message/sendText/{{ $json.instanceName }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.EVOLUTION_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"number\": \"{{ $json.telefone }}\",\n  \"text\": \"{{ $json.mensagem }}\\n\\nResponda:\\n*SIM* - para confirmar\\n*NAO* - para cancelar\\n*REAGENDAR* - para remarcar\"\n}",
+        "options": {}
+      },
+      "id": "enviar-mensagem-confirmacao",
+      "name": "Enviar Mensagem de Confirmacao",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"message\": \"Mensagem de confirmacao enviada\",\n  \"agendamentoId\": {{ $json.body.agendamentoId }},\n  \"messageId\": \"{{ $('Enviar Mensagem de Confirmacao').item.json.key.id }}\"\n}",
+        "options": {}
+      },
+      "id": "resposta-webhook-entrada",
+      "name": "Responder Webhook Entrada",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [660, 300]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bellory-resposta-confirmacao",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-resposta-whatsapp",
+      "name": "Webhook - Resposta WhatsApp",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [220, 560],
+      "webhookId": "bellory-resposta-confirmacao"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.BELLORY_API_URL }}/api/webhook/confirmacao-pendente/{{ $json.body.data.key.remoteJid.replace('@s.whatsapp.net', '') }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Instance-Name",
+              "value": "={{ $json.body.instance }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "verificar-confirmacao-pendente",
+      "name": "Verificar Confirmacao Pendente",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [440, 560]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "tem-confirmacao-pendente",
+              "leftValue": "={{ $json.temConfirmacaoPendente }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-tem-confirmacao-pendente",
+      "name": "Tem Confirmacao Pendente?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [660, 560]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"ignored\": true,\n  \"reason\": \"Nenhuma confirmacao pendente para este numero\"\n}",
+        "options": {}
+      },
+      "id": "ignorar-mensagem",
+      "name": "Ignorar Mensagem",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [880, 680]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extrair a mensagem do corpo do webhook\nconst mensagem = $input.item.json.body?.data?.message?.conversation || \n                 $input.item.json.body?.data?.message?.extendedTextMessage?.text || \n                 '';\n\n// Normalizar a mensagem (uppercase, sem acentos, sem espacos extras)\nconst mensagemNormalizada = mensagem\n  .toUpperCase()\n  .normalize('NFD')\n  .replace(/[\\u0300-\\u036f]/g, '')\n  .trim();\n\n// Identificar a resposta\nlet tipoResposta = 'INVALIDA';\nif (mensagemNormalizada === 'SIM' || mensagemNormalizada === 'S' || mensagemNormalizada === '1') {\n  tipoResposta = 'SIM';\n} else if (mensagemNormalizada === 'NAO' || mensagemNormalizada === 'N' || mensagemNormalizada === '2' || mensagemNormalizada === 'CANCELAR') {\n  tipoResposta = 'NAO';\n} else if (mensagemNormalizada === 'REAGENDAR' || mensagemNormalizada === 'R' || mensagemNormalizada === '3' || mensagemNormalizada === 'REMARCAR') {\n  tipoResposta = 'REAGENDAR';\n}\n\nreturn {\n  json: {\n    tipoResposta,\n    mensagemOriginal: mensagem,\n    mensagemNormalizada,\n    agendamentoId: $input.item.json.agendamentoId,\n    notificacaoId: $input.item.json.notificacaoId,\n    telefone: $input.item.json.telefone,\n    instanceName: $input.item.json.instanceName,\n    clienteNome: $input.item.json.clienteNome,\n    funcionarioId: $input.item.json.funcionarioId,\n    servicoIds: $input.item.json.servicoIds,\n    organizacaoId: $input.item.json.organizacaoId\n  }\n};"
+      },
+      "id": "processar-resposta",
+      "name": "Processar Resposta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [880, 440]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "rules": [
+            {
+              "value": "SIM",
+              "output": 0
+            },
+            {
+              "value": "NAO",
+              "output": 1
+            },
+            {
+              "value": "REAGENDAR",
+              "output": 2
+            }
+          ],
+          "fallbackOutput": 3
+        },
+        "mode": "expression",
+        "output": "={{ $json.tipoResposta }}",
+        "options": {}
+      },
+      "id": "switch-resposta",
+      "name": "Switch - Tipo Resposta",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [1100, 440]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $env.BELLORY_API_URL }}/api/agendamento/{{ $json.agendamentoId }}/status/CONFIRMADO",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Organization-Id",
+              "value": "={{ $json.organizacaoId }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "confirmar-agendamento",
+      "name": "Confirmar Agendamento",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1320, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.EVOLUTION_API_URL }}/message/sendText/{{ $json.instanceName }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.EVOLUTION_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"number\": \"{{ $json.telefone }}\",\n  \"text\": \"Seu agendamento foi *CONFIRMADO* com sucesso! Aguardamos voce no horario marcado.\"\n}",
+        "options": {}
+      },
+      "id": "enviar-confirmacao-sucesso",
+      "name": "Enviar Confirmacao Sucesso",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1540, 200]
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "={{ $env.BELLORY_API_URL }}/api/agendamento/{{ $json.agendamentoId }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Organization-Id",
+              "value": "={{ $json.organizacaoId }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "cancelar-agendamento",
+      "name": "Cancelar Agendamento",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1320, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.EVOLUTION_API_URL }}/message/sendText/{{ $json.instanceName }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.EVOLUTION_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"number\": \"{{ $json.telefone }}\",\n  \"text\": \"Seu agendamento foi *CANCELADO*. Se precisar, faca um novo agendamento quando desejar.\"\n}",
+        "options": {}
+      },
+      "id": "enviar-cancelamento-sucesso",
+      "name": "Enviar Cancelamento Sucesso",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1540, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.EVOLUTION_API_URL }}/message/sendText/{{ $json.instanceName }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.EVOLUTION_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"number\": \"{{ $json.telefone }}\",\n  \"text\": \"Entendido! Para qual data voce gostaria de reagendar?\\n\\nPor favor, informe a data desejada no formato:\\n*DD/MM/AAAA* (ex: 15/02/2026)\"\n}",
+        "options": {}
+      },
+      "id": "perguntar-nova-data",
+      "name": "Perguntar Nova Data",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1320, 600]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $env.BELLORY_API_URL }}/api/webhook/confirmacao/{{ $json.notificacaoId }}/aguardando-data",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "marcar-aguardando-data",
+      "name": "Marcar Aguardando Data",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1540, 600]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.EVOLUTION_API_URL }}/message/sendText/{{ $json.instanceName }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.EVOLUTION_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"number\": \"{{ $json.telefone }}\",\n  \"text\": \"Desculpe, nao entendi sua resposta. Por favor, responda com:\\n\\n*SIM* - para confirmar\\n*NAO* - para cancelar\\n*REAGENDAR* - para remarcar\"\n}",
+        "options": {}
+      },
+      "id": "resposta-invalida",
+      "name": "Resposta Invalida",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1320, 800]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"tipoResposta\": \"{{ $json.tipoResposta }}\",\n  \"agendamentoId\": {{ $json.agendamentoId }}\n}",
+        "options": {}
+      },
+      "id": "resposta-webhook-final",
+      "name": "Responder Webhook Final",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1760, 440]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bellory-reagendar-data",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-nova-data",
+      "name": "Webhook - Nova Data",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [220, 1000],
+      "webhookId": "bellory-reagendar-data"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.BELLORY_API_URL }}/api/webhook/confirmacao-aguardando-data/{{ $json.body.data.key.remoteJid.replace('@s.whatsapp.net', '') }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Instance-Name",
+              "value": "={{ $json.body.instance }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "verificar-aguardando-data",
+      "name": "Verificar Aguardando Data",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [440, 1000]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "aguardando-data",
+              "leftValue": "={{ $json.aguardandoData }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-aguardando-data",
+      "name": "Esta Aguardando Data?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [660, 1000]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extrair a data da mensagem\nconst mensagem = $input.item.json.body?.data?.message?.conversation || \n                 $input.item.json.body?.data?.message?.extendedTextMessage?.text || \n                 '';\n\n// Tentar extrair data no formato DD/MM/AAAA ou DD-MM-AAAA\nconst regexData = /(\\d{1,2})[\\/\\-](\\d{1,2})[\\/\\-](\\d{4})/;\nconst match = mensagem.match(regexData);\n\nlet dataExtraida = null;\nlet dataValida = false;\n\nif (match) {\n  const dia = parseInt(match[1]);\n  const mes = parseInt(match[2]) - 1; // JavaScript usa mes 0-indexed\n  const ano = parseInt(match[3]);\n  \n  const dataObj = new Date(ano, mes, dia);\n  const hoje = new Date();\n  hoje.setHours(0, 0, 0, 0);\n  \n  // Validar se a data e valida e no futuro\n  if (dataObj.getDate() === dia && \n      dataObj.getMonth() === mes && \n      dataObj.getFullYear() === ano &&\n      dataObj > hoje) {\n    dataExtraida = `${ano}-${String(mes + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;\n    dataValida = true;\n  }\n}\n\nreturn {\n  json: {\n    dataExtraida,\n    dataValida,\n    mensagemOriginal: mensagem,\n    agendamentoId: $input.item.json.agendamentoId,\n    notificacaoId: $input.item.json.notificacaoId,\n    telefone: $input.item.json.telefone,\n    instanceName: $input.item.json.instanceName,\n    funcionarioId: $input.item.json.funcionarioId,\n    servicoIds: $input.item.json.servicoIds,\n    organizacaoId: $input.item.json.organizacaoId\n  }\n};"
+      },
+      "id": "extrair-data",
+      "name": "Extrair Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [880, 880]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "data-valida",
+              "leftValue": "={{ $json.dataValida }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-data-valida",
+      "name": "Data Valida?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1100, 880]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.BELLORY_API_URL }}/api/agendamento/disponibilidade",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Organization-Id",
+              "value": "={{ $json.organizacaoId }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"funcionarioId\": {{ $json.funcionarioId }},\n  \"dataDesejada\": \"{{ $json.dataExtraida }}\",\n  \"servicoIds\": {{ JSON.stringify($json.servicoIds) }},\n  \"organizacaoId\": {{ $json.organizacaoId }}\n}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "buscar-disponibilidade",
+      "name": "Buscar Disponibilidade",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1320, 760]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "tem-horarios",
+              "leftValue": "={{ $json.length > 0 }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-tem-horarios",
+      "name": "Tem Horarios?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1540, 760]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Formatar os horarios disponiveis para a mensagem\nconst horarios = $input.item.json;\nconst dataOriginal = $('Extrair Data').item.json.dataExtraida;\nconst telefone = $('Extrair Data').item.json.telefone;\nconst instanceName = $('Extrair Data').item.json.instanceName;\nconst agendamentoId = $('Extrair Data').item.json.agendamentoId;\nconst notificacaoId = $('Extrair Data').item.json.notificacaoId;\nconst funcionarioId = $('Extrair Data').item.json.funcionarioId;\nconst servicoIds = $('Extrair Data').item.json.servicoIds;\nconst organizacaoId = $('Extrair Data').item.json.organizacaoId;\n\n// Formatar data para exibicao (DD/MM/AAAA)\nconst [ano, mes, dia] = dataOriginal.split('-');\nconst dataFormatada = `${dia}/${mes}/${ano}`;\n\nlet mensagemHorarios = `Horarios disponiveis para *${dataFormatada}*:\\n\\n`;\n\nhorarios.forEach((horario, index) => {\n  mensagemHorarios += `*${index + 1}* - ${horario.horaInicio} as ${horario.horaFim}\\n`;\n});\n\nmensagemHorarios += `\\nResponda com o *numero* do horario desejado.`;\n\nreturn {\n  json: {\n    mensagem: mensagemHorarios,\n    horarios,\n    dataDesejada: dataOriginal,\n    telefone,\n    instanceName,\n    agendamentoId,\n    notificacaoId,\n    funcionarioId,\n    servicoIds,\n    organizacaoId\n  }\n};"
+      },
+      "id": "formatar-horarios",
+      "name": "Formatar Horarios",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1760, 640]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.EVOLUTION_API_URL }}/message/sendText/{{ $json.instanceName }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.EVOLUTION_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"number\": \"{{ $json.telefone }}\",\n  \"text\": \"{{ $json.mensagem }}\"\n}",
+        "options": {}
+      },
+      "id": "enviar-horarios",
+      "name": "Enviar Horarios Disponiveis",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1980, 640]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $env.BELLORY_API_URL }}/api/webhook/confirmacao/{{ $('Extrair Data').item.json.notificacaoId }}/aguardando-horario",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"dataDesejada\": \"{{ $json.dataDesejada }}\",\n  \"horariosDisponiveis\": {{ JSON.stringify($json.horarios) }}\n}",
+        "options": {}
+      },
+      "id": "salvar-horarios-disponiveis",
+      "name": "Salvar Horarios Disponiveis",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2200, 640]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.EVOLUTION_API_URL }}/message/sendText/{{ $('Extrair Data').item.json.instanceName }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.EVOLUTION_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"number\": \"{{ $('Extrair Data').item.json.telefone }}\",\n  \"text\": \"Infelizmente nao ha horarios disponiveis para esta data. Por favor, informe outra data no formato *DD/MM/AAAA*.\"\n}",
+        "options": {}
+      },
+      "id": "sem-horarios-disponiveis",
+      "name": "Sem Horarios Disponiveis",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1760, 880]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.EVOLUTION_API_URL }}/message/sendText/{{ $json.instanceName }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.EVOLUTION_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"number\": \"{{ $json.telefone }}\",\n  \"text\": \"Data invalida ou no passado. Por favor, informe uma data futura no formato *DD/MM/AAAA* (ex: 15/02/2026).\"\n}",
+        "options": {}
+      },
+      "id": "data-invalida",
+      "name": "Data Invalida",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1320, 1000]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"aguardandoData\": false,\n  \"ignored\": true\n}",
+        "options": {}
+      },
+      "id": "ignorar-nao-aguardando",
+      "name": "Ignorar - Nao Aguardando",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [880, 1120]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"dataProcessada\": \"{{ $json.dataDesejada }}\"\n}",
+        "options": {}
+      },
+      "id": "resposta-webhook-data",
+      "name": "Responder Webhook Data",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2200, 880]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bellory-selecionar-horario",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-selecao-horario",
+      "name": "Webhook - Selecao Horario",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [220, 1400],
+      "webhookId": "bellory-selecionar-horario"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.BELLORY_API_URL }}/api/webhook/confirmacao-aguardando-horario/{{ $json.body.data.key.remoteJid.replace('@s.whatsapp.net', '') }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Instance-Name",
+              "value": "={{ $json.body.instance }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "verificar-aguardando-horario",
+      "name": "Verificar Aguardando Horario",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [440, 1400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "aguardando-horario",
+              "leftValue": "={{ $json.aguardandoHorario }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-aguardando-horario",
+      "name": "Esta Aguardando Horario?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [660, 1400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extrair a selecao do horario\nconst mensagem = $input.item.json.body?.data?.message?.conversation || \n                 $input.item.json.body?.data?.message?.extendedTextMessage?.text || \n                 '';\n\nconst selecao = parseInt(mensagem.trim());\nconst horariosDisponiveis = $input.item.json.horariosDisponiveis || [];\n\nlet horarioSelecionado = null;\nlet selecaoValida = false;\n\nif (!isNaN(selecao) && selecao >= 1 && selecao <= horariosDisponiveis.length) {\n  horarioSelecionado = horariosDisponiveis[selecao - 1];\n  selecaoValida = true;\n}\n\nreturn {\n  json: {\n    selecaoValida,\n    selecao,\n    horarioSelecionado,\n    dataDesejada: $input.item.json.dataDesejada,\n    agendamentoId: $input.item.json.agendamentoId,\n    notificacaoId: $input.item.json.notificacaoId,\n    telefone: $input.item.json.telefone,\n    instanceName: $input.item.json.instanceName,\n    funcionarioId: $input.item.json.funcionarioId,\n    servicoIds: $input.item.json.servicoIds,\n    organizacaoId: $input.item.json.organizacaoId,\n    horariosDisponiveis\n  }\n};"
+      },
+      "id": "processar-selecao-horario",
+      "name": "Processar Selecao Horario",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [880, 1280]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "selecao-valida",
+              "leftValue": "={{ $json.selecaoValida }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-selecao-valida",
+      "name": "Selecao Valida?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1100, 1280]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $env.BELLORY_API_URL }}/api/agendamento/{{ $json.agendamentoId }}/reagendar",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Organization-Id",
+              "value": "={{ $json.organizacaoId }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"novaDataHora\": \"{{ $json.dataDesejada }}T{{ $json.horarioSelecionado.horaInicio }}:00\"\n}",
+        "options": {}
+      },
+      "id": "reagendar-agendamento",
+      "name": "Reagendar Agendamento",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1320, 1160]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Formatar mensagem de sucesso do reagendamento\nconst dataDesejada = $('Processar Selecao Horario').item.json.dataDesejada;\nconst horario = $('Processar Selecao Horario').item.json.horarioSelecionado;\nconst telefone = $('Processar Selecao Horario').item.json.telefone;\nconst instanceName = $('Processar Selecao Horario').item.json.instanceName;\nconst notificacaoId = $('Processar Selecao Horario').item.json.notificacaoId;\n\n// Formatar data para exibicao\nconst [ano, mes, dia] = dataDesejada.split('-');\nconst dataFormatada = `${dia}/${mes}/${ano}`;\n\nconst mensagem = `Seu agendamento foi *REAGENDADO* com sucesso!\\n\\n` +\n                 `Nova data: *${dataFormatada}*\\n` +\n                 `Horario: *${horario.horaInicio} as ${horario.horaFim}*\\n\\n` +\n                 `Aguardamos voce!`;\n\nreturn {\n  json: {\n    mensagem,\n    telefone,\n    instanceName,\n    notificacaoId,\n    dataFormatada,\n    horario\n  }\n};"
+      },
+      "id": "formatar-sucesso-reagendamento",
+      "name": "Formatar Sucesso Reagendamento",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1540, 1160]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.EVOLUTION_API_URL }}/message/sendText/{{ $json.instanceName }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.EVOLUTION_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"number\": \"{{ $json.telefone }}\",\n  \"text\": \"{{ $json.mensagem }}\"\n}",
+        "options": {}
+      },
+      "id": "enviar-sucesso-reagendamento",
+      "name": "Enviar Sucesso Reagendamento",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1760, 1160]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $env.BELLORY_API_URL }}/api/webhook/confirmacao/{{ $json.notificacaoId }}/concluida",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "finalizar-confirmacao",
+      "name": "Finalizar Confirmacao",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1980, 1160]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.EVOLUTION_API_URL }}/message/sendText/{{ $json.instanceName }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.EVOLUTION_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"number\": \"{{ $json.telefone }}\",\n  \"text\": \"Selecao invalida. Por favor, responda apenas com o *numero* do horario desejado (ex: 1, 2, 3...).\"\n}",
+        "options": {}
+      },
+      "id": "selecao-invalida",
+      "name": "Selecao Invalida",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1320, 1400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"aguardandoHorario\": false,\n  \"ignored\": true\n}",
+        "options": {}
+      },
+      "id": "ignorar-nao-aguardando-horario",
+      "name": "Ignorar - Nao Aguardando Horario",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [880, 1520]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"reagendado\": true\n}",
+        "options": {}
+      },
+      "id": "resposta-webhook-horario",
+      "name": "Responder Webhook Horario",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2200, 1280]
+    }
+  ],
+  "connections": {
+    "Webhook - Disparo Backend": {
+      "main": [
+        [
+          {
+            "node": "Enviar Mensagem de Confirmacao",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar Mensagem de Confirmacao": {
+      "main": [
+        [
+          {
+            "node": "Responder Webhook Entrada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Resposta WhatsApp": {
+      "main": [
+        [
+          {
+            "node": "Verificar Confirmacao Pendente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verificar Confirmacao Pendente": {
+      "main": [
+        [
+          {
+            "node": "Tem Confirmacao Pendente?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tem Confirmacao Pendente?": {
+      "main": [
+        [
+          {
+            "node": "Processar Resposta",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Ignorar Mensagem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Processar Resposta": {
+      "main": [
+        [
+          {
+            "node": "Switch - Tipo Resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch - Tipo Resposta": {
+      "main": [
+        [
+          {
+            "node": "Confirmar Agendamento",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Cancelar Agendamento",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Perguntar Nova Data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Resposta Invalida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Confirmar Agendamento": {
+      "main": [
+        [
+          {
+            "node": "Enviar Confirmacao Sucesso",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar Confirmacao Sucesso": {
+      "main": [
+        [
+          {
+            "node": "Responder Webhook Final",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cancelar Agendamento": {
+      "main": [
+        [
+          {
+            "node": "Enviar Cancelamento Sucesso",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar Cancelamento Sucesso": {
+      "main": [
+        [
+          {
+            "node": "Responder Webhook Final",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Perguntar Nova Data": {
+      "main": [
+        [
+          {
+            "node": "Marcar Aguardando Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Marcar Aguardando Data": {
+      "main": [
+        [
+          {
+            "node": "Responder Webhook Final",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resposta Invalida": {
+      "main": [
+        [
+          {
+            "node": "Responder Webhook Final",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Nova Data": {
+      "main": [
+        [
+          {
+            "node": "Verificar Aguardando Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verificar Aguardando Data": {
+      "main": [
+        [
+          {
+            "node": "Esta Aguardando Data?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Esta Aguardando Data?": {
+      "main": [
+        [
+          {
+            "node": "Extrair Data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Ignorar - Nao Aguardando",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extrair Data": {
+      "main": [
+        [
+          {
+            "node": "Data Valida?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Data Valida?": {
+      "main": [
+        [
+          {
+            "node": "Buscar Disponibilidade",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Data Invalida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Disponibilidade": {
+      "main": [
+        [
+          {
+            "node": "Tem Horarios?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tem Horarios?": {
+      "main": [
+        [
+          {
+            "node": "Formatar Horarios",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Sem Horarios Disponiveis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formatar Horarios": {
+      "main": [
+        [
+          {
+            "node": "Enviar Horarios Disponiveis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar Horarios Disponiveis": {
+      "main": [
+        [
+          {
+            "node": "Salvar Horarios Disponiveis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Salvar Horarios Disponiveis": {
+      "main": [
+        [
+          {
+            "node": "Resposta Webhook Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sem Horarios Disponiveis": {
+      "main": [
+        [
+          {
+            "node": "Resposta Webhook Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Data Invalida": {
+      "main": [
+        [
+          {
+            "node": "Resposta Webhook Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Selecao Horario": {
+      "main": [
+        [
+          {
+            "node": "Verificar Aguardando Horario",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verificar Aguardando Horario": {
+      "main": [
+        [
+          {
+            "node": "Esta Aguardando Horario?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Esta Aguardando Horario?": {
+      "main": [
+        [
+          {
+            "node": "Processar Selecao Horario",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Ignorar - Nao Aguardando Horario",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Processar Selecao Horario": {
+      "main": [
+        [
+          {
+            "node": "Selecao Valida?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Selecao Valida?": {
+      "main": [
+        [
+          {
+            "node": "Reagendar Agendamento",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Selecao Invalida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reagendar Agendamento": {
+      "main": [
+        [
+          {
+            "node": "Formatar Sucesso Reagendamento",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formatar Sucesso Reagendamento": {
+      "main": [
+        [
+          {
+            "node": "Enviar Sucesso Reagendamento",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar Sucesso Reagendamento": {
+      "main": [
+        [
+          {
+            "node": "Finalizar Confirmacao",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Finalizar Confirmacao": {
+      "main": [
+        [
+          {
+            "node": "Responder Webhook Horario",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Selecao Invalida": {
+      "main": [
+        [
+          {
+            "node": "Responder Webhook Horario",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "Bellory",
+      "createdAt": "2026-02-01T00:00:00.000Z",
+      "updatedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "name": "Agendamento",
+      "createdAt": "2026-02-01T00:00:00.000Z",
+      "updatedAt": "2026-02-01T00:00:00.000Z"
+    }
+  ],
+  "triggerCount": 0,
+  "updatedAt": "2026-02-01T00:00:00.000Z",
+  "versionId": "1"
+}
