@@ -7,6 +7,7 @@ import jakarta.validation.constraints.Size;
 import lombok.*;
 import org.exemplo.bellory.model.entity.questionario.enums.TipoPergunta;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Data
@@ -42,6 +43,6 @@ public class PerguntaCreateDTO {
     // Campos para validação
     private Integer minCaracteres;
     private Integer maxCaracteres;
-    private Double minValor;
-    private Double maxValor;
+    private BigDecimal minValor;
+    private BigDecimal maxValor;
 }

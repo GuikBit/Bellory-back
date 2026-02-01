@@ -9,6 +9,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.function.Function;
@@ -285,12 +286,13 @@ public class RespostaQuestionarioService {
             case NUMERO:
                 temResposta = resposta.getRespostaNumero() != null;
                 if (temResposta) {
+                    BigDecimal valorResposta = BigDecimal.valueOf(resposta.getRespostaNumero());
                     if (pergunta.getMinValor() != null &&
-                            resposta.getRespostaNumero() < pergunta.getMinValor()) {
+                            valorResposta.compareTo(pergunta.getMinValor()) < 0) {
                         throw new IllegalArgumentException("Valor deve ser no mínimo " + pergunta.getMinValor());
                     }
                     if (pergunta.getMaxValor() != null &&
-                            resposta.getRespostaNumero() > pergunta.getMaxValor()) {
+                            valorResposta.compareTo(pergunta.getMaxValor()) > 0) {
                         throw new IllegalArgumentException("Valor deve ser no máximo " + pergunta.getMaxValor());
                     }
                 }

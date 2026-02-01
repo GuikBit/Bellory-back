@@ -4,6 +4,7 @@ import lombok.*;
 import org.exemplo.bellory.model.entity.questionario.Pergunta;
 import org.exemplo.bellory.model.entity.questionario.enums.TipoPergunta;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -30,8 +31,8 @@ public class PerguntaDTO {
     // Campos para validação
     private Integer minCaracteres;
     private Integer maxCaracteres;
-    private Double minValor;
-    private Double maxValor;
+    private BigDecimal minValor;
+    private BigDecimal maxValor;
 
     public PerguntaDTO(Pergunta entity) {
         this.id = entity.getId();
