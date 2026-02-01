@@ -50,7 +50,7 @@ public class NotificacaoSchedulerService {
             processarConfirmacoes(agora);
 
             // Processa LEMBRETE (1/2/3/4/5/6 horas antes)
-            processarLembretes(agora);
+            //processarLembretes(agora);
 
             log.info("=== Processamento concluido ===");
         } catch (Exception e) {
@@ -64,27 +64,20 @@ public class NotificacaoSchedulerService {
      * Somente processa se houver configuracoes ativas do tipo CONFIRMACAO.
      */
     private void processarConfirmacoes(LocalDateTime agora) {
-        LocalDateTime inicioJanela = agora.minusMinutes(JANELA_MINUTOS_ATRAS);
-        LocalDateTime fimJanela = agora.plusMinutes(JANELA_MINUTOS_FRENTE);
-
-        log.info("--- Processando CONFIRMACOES ---");
-        log.info("Janela CONFIRMACAO: {} ate {}", inicioJanela, fimJanela);
 
         try {
             // Busca confirmacoes pendentes (apenas configs ativas do tipo CONFIRMACAO)
-            List<NotificacaoPendenteDTO> confirmacoes = agendamentoRepository
-                .findConfirmacoesPendentes(agora, inicioJanela, fimJanela);
+            List<NotificacaoPendenteDTO> confirmacoes = agendamentoRepository.findConfirmacoesPendentes(agora);
 
             log.info("Encontradas {} confirmacoes pendentes", confirmacoes.size());
 
             // Verifica instancias desconectadas para CONFIRMACAO
-            List<NotificacaoSemInstanciaDTO> semInstancia = agendamentoRepository
-                .findNotificacoesSemInstanciaConectadaPorTipo(agora, inicioJanela, fimJanela, TipoNotificacao.CONFIRMACAO);
+            //List<NotificacaoSemInstanciaDTO> semInstancia = agendamentoRepository.findNotificacoesSemInstanciaConectadaPorTipo(agora, TipoNotificacao.CONFIRMACAO);
 
-            if (!semInstancia.isEmpty()) {
-                log.warn("{} confirmacoes sem instancia conectada!", semInstancia.size());
-                alertService.alertarInstanciasDesconectadas(semInstancia);
-            }
+//            if (!semInstancia.isEmpty()) {
+//                log.warn("{} confirmacoes sem instancia conectada!", semInstancia.size());
+//                alertService.alertarInstanciasDesconectadas(semInstancia);
+//            }
 
             if (!confirmacoes.isEmpty()) {
                 processarNotificacoes(confirmacoes, TipoNotificacao.CONFIRMACAO);
@@ -117,7 +110,7 @@ public class NotificacaoSchedulerService {
 
             // Verifica instancias desconectadas para LEMBRETE
             List<NotificacaoSemInstanciaDTO> semInstancia = agendamentoRepository
-                .findNotificacoesSemInstanciaConectadaPorTipo(agora, inicioJanela, fimJanela, TipoNotificacao.LEMBRETE);
+                .findNotificacoesSemInstanciaConectadaPorTipo(agora, TipoNotificacao.LEMBRETE);
 
             if (!semInstancia.isEmpty()) {
                 log.warn("{} lembretes sem instancia conectada!", semInstancia.size());

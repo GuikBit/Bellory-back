@@ -459,47 +459,41 @@ public interface AgendamentoRepository extends JpaRepository<Agendamento, Long> 
 
     // ==================== QUERIES SEPARADAS POR TIPO DE NOTIFICACAO ====================
 
+
     /**
      * Busca notificacoes pendentes de CONFIRMACAO.
-     * CONFIRMACAO: 12/24/36/48 horas antes do agendamento.
-     * Filtra apenas configuracoes do tipo CONFIRMACAO que estao ativas.
+     * Retorna agendamentos onde o momento de envio (dt_agendamento - horas_antes) já passou.
      */
     @Query("""
-        SELECT new org.exemplo.bellory.model.dto.notificacao.NotificacaoPendenteDTO(
-            a.id,
-            a.dtAgendamento,
-            c.nomeCompleto,
-            c.telefone,
-            o.id,
-            o.nomeFantasia,
-            cn.tipo,
-            cn.horasAntes,
-            cn.mensagemTemplate,
-            i.instanceName
-        )
-        FROM Agendamento a
-        JOIN a.cliente c
-        JOIN a.organizacao o
-        JOIN ConfigNotificacao cn ON cn.organizacao = o AND cn.ativo = true AND cn.tipo = 'CONFIRMACAO'
-        JOIN Instance i ON i.organizacao = o
-        WHERE a.status = 'AGENDADO'
-          AND a.dtAgendamento > :agora
-          AND i.status = 'CONNECTED'
-          AND FUNCTION('TIMESTAMPADD', HOUR, -cn.horasAntes, a.dtAgendamento)
-              BETWEEN :inicioJanela AND :fimJanela
-          AND NOT EXISTS (
-              SELECT 1 FROM NotificacaoEnviada ne
-              WHERE ne.agendamento = a
-                AND ne.tipo = cn.tipo
-                AND ne.horasAntes = cn.horasAntes
-          )
-        ORDER BY o.id, a.dtAgendamento ASC
-        """)
-    List<NotificacaoPendenteDTO> findConfirmacoesPendentes(
-        @Param("agora") LocalDateTime agora,
-        @Param("inicioJanela") LocalDateTime inicioJanela,
-        @Param("fimJanela") LocalDateTime fimJanela
-    );
+    SELECT new org.exemplo.bellory.model.dto.notificacao.NotificacaoPendenteDTO(
+        a.id,
+        a.dtAgendamento,
+        c.nomeCompleto,
+        c.telefone,
+        o.id,
+        o.nomeFantasia,
+        cn.tipo,
+        cn.horasAntes,
+        cn.mensagemTemplate,
+        i.instanceName
+    )
+    FROM Agendamento a
+    JOIN a.cliente c
+    JOIN a.organizacao o
+    JOIN ConfigNotificacao cn ON cn.organizacao = o AND cn.ativo = true AND cn.tipo = 'CONFIRMACAO'
+    JOIN Instance i ON i.organizacao = o
+    WHERE a.status IN ('AGENDADO', 'REAGENDADO', 'PENDENTE')
+      AND a.dtAgendamento > :agora
+      AND i.status = 'CONNECTED'
+      AND FUNCTION('TIMESTAMPADD', HOUR, -cn.horasAntes, a.dtAgendamento) <= :agora
+      AND NOT EXISTS (
+          SELECT 1 FROM NotificacaoEnviada ne
+          WHERE ne.agendamento = a
+            AND ne.tipo = cn.tipo
+      )
+    ORDER BY o.id, a.dtAgendamento ASC
+    """)
+    List<NotificacaoPendenteDTO> findConfirmacoesPendentes(@Param("agora") LocalDateTime agora);
 
     /**
      * Busca notificacoes pendentes de LEMBRETE.
@@ -610,8 +604,6 @@ public interface AgendamentoRepository extends JpaRepository<Agendamento, Long> 
         """)
     List<NotificacaoSemInstanciaDTO> findNotificacoesSemInstanciaConectadaPorTipo(
         @Param("agora") LocalDateTime agora,
-        @Param("inicioJanela") LocalDateTime inicioJanela,
-        @Param("fimJanela") LocalDateTime fimJanela,
         @Param("tipo") TipoNotificacao tipo
     );
 }
