@@ -10,14 +10,23 @@ import org.exemplo.bellory.model.entity.notificacao.StatusEnvio;
 import org.exemplo.bellory.model.entity.notificacao.TipoNotificacao;
 import org.exemplo.bellory.model.repository.agendamento.AgendamentoRepository;
 import org.exemplo.bellory.model.repository.notificacao.NotificacaoEnviadaRepository;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestTemplate;
 
+import java.math.BigDecimal;
+import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Random;
 import java.util.stream.Collectors;
 
 @Service
@@ -36,6 +45,8 @@ public class NotificacaoSchedulerService {
     // Janela de tempo padrao para busca de notificacoes (em minutos)
     private static final int JANELA_MINUTOS_ATRAS = 10;
     private static final int JANELA_MINUTOS_FRENTE = 2;
+    private final RestTemplate restTemplate;
+    private final Random random = new Random();
 
     @Scheduled(fixedRate = 300000) // 5 minutos
     @Transactional
@@ -67,7 +78,7 @@ public class NotificacaoSchedulerService {
 
         try {
             // Busca confirmacoes pendentes (apenas configs ativas do tipo CONFIRMACAO)
-            List<NotificacaoPendenteDTO> confirmacoes = agendamentoRepository.findConfirmacoesPendentes(agora);
+            List<NotificacaoPendenteDTO> confirmacoes = buscarConfirmacoesPendentes(agora);
 
             log.info("Encontradas {} confirmacoes pendentes", confirmacoes.size());
 
@@ -89,6 +100,27 @@ public class NotificacaoSchedulerService {
         }
     }
 
+    public List<NotificacaoPendenteDTO> buscarConfirmacoesPendentes(LocalDateTime agora) {
+        return agendamentoRepository.findConfirmacoesPendentes(agora).stream()
+                .map(row -> new NotificacaoPendenteDTO(
+                        ((Number) row[0]).longValue(),                    // agendamentoId
+                        ((Number) row[1]).longValue(),                    // organizacaoId
+                        (String) row[2],                                  // nomeOrganizacao
+                        (String) row[3],                                  // nomeCliente
+                        (String) row[4],                                  // telefoneCliente
+                        (String) row[5],                                  // nomeServico
+                        (String) row[6],                                  // nomeFuncionario
+                        ((Timestamp) row[7]).toLocalDateTime(),            // dataAgendamento
+                        (BigDecimal) row[8],                              // valor
+                        (String) row[9],                                  // endereco
+                        TipoNotificacao.valueOf((String) row[10]),        // tipo
+                        ((Number) row[11]).intValue(),                    // horasAntes
+                        (String) row[12],                                 // instanceName
+                        (String) row[13]                                  // mensagemTemplate
+                ))
+                .toList();
+    }
+
     /**
      * Processa notificacoes do tipo LEMBRETE.
      * LEMBRETE: 1/2/3/4/5/6 horas antes do agendamento.
@@ -103,10 +135,10 @@ public class NotificacaoSchedulerService {
 
         try {
             // Busca lembretes pendentes (apenas configs ativas do tipo LEMBRETE)
-            List<NotificacaoPendenteDTO> lembretes = agendamentoRepository
-                .findLembretesPendentes(agora, inicioJanela, fimJanela);
+//            List<NotificacaoPendenteDTO> lembretes = agendamentoRepository
+//                .findLembretesPendentes(agora, inicioJanela, fimJanela);
 
-            log.info("Encontrados {} lembretes pendentes", lembretes.size());
+//            log.info("Encontrados {} lembretes pendentes", lembretes.size());
 
             // Verifica instancias desconectadas para LEMBRETE
             List<NotificacaoSemInstanciaDTO> semInstancia = agendamentoRepository
@@ -117,9 +149,9 @@ public class NotificacaoSchedulerService {
                 alertService.alertarInstanciasDesconectadas(semInstancia);
             }
 
-            if (!lembretes.isEmpty()) {
-                processarNotificacoes(lembretes, TipoNotificacao.LEMBRETE);
-            }
+//            if (!lembretes.isEmpty()) {
+                //processarNotificacoes(lembretes, TipoNotificacao.LEMBRETE);
+//            }
 
             log.info("--- LEMBRETES processados ---");
         } catch (Exception e) {
@@ -158,7 +190,7 @@ public class NotificacaoSchedulerService {
             }
 
             String mensagem = montarMensagem(notif);
-            String telefone = formatarTelefone(notif.getTelefoneCliente());
+            String telefone = formatarTelefone("5532998220082"); //formatarTelefone(notif.getTelefoneCliente());
 
             if (telefone == null || telefone.isBlank()) {
                 log.warn("Telefone invalido para agendamento {} (tipo={}, horasAntes={})",
@@ -167,14 +199,30 @@ public class NotificacaoSchedulerService {
                 return;
             }
 
-            n8nClient.enviarNotificacao(notif.getInstanceName(), telefone, mensagem,
-                notif.getAgendamentoId(), notif.getTipo().name());
+//            n8nClient.enviarNotificacao(notif.getInstanceName(), telefone, mensagem,
+//                    notif.getAgendamentoId(), notif.getTipo().name());
+
+
+            enviarMensagemWhatsApp(notif.getInstanceName(), telefone, mensagem);
 
             registrarEnvio(notif, StatusEnvio.ENVIADO, null, telefone);
 
             log.info("Notificacao {} enviada: horasAntes={}, ag={}, org={}",
+                    notif.getTipo(), notif.getHorasAntes(), notif.getAgendamentoId(),
+                    notif.getNomeOrganizacao());
+
+            // Delay de 3 minutos fixos + random de até 60 segundos
+            long delayFixo = 3 * 60 * 1000L;
+            long delayRandom = random.nextInt(60) * 1000L;
+            long delayTotal = delayFixo + delayRandom;
+
+            log.debug("Aguardando {}ms antes da proxima mensagem", delayTotal);
+            Thread.sleep(delayTotal);
+
+
+            log.info("Notificacao {} enviada: horasAntes={}, ag={}, org={}",
                 notif.getTipo(), notif.getHorasAntes(), notif.getAgendamentoId(),
-                notif.getOrganizacaoNome());
+                notif.getNomeOrganizacao());
 
             Thread.sleep(1000); // Rate limit
         } catch (InterruptedException e) {
@@ -184,6 +232,29 @@ public class NotificacaoSchedulerService {
                 notif.getTipo(), notif.getHorasAntes(), notif.getAgendamentoId(), e.getMessage());
             registrarEnvio(notif, StatusEnvio.FALHA, e.getMessage(), notif.getTelefoneCliente());
         }
+    }
+
+    private void enviarMensagemWhatsApp(String instanceName, String telefone, String mensagem) {
+        String url = "https://wa.bellory.com.br/message/sendText/" + instanceName;
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("apikey", "0626f19f09bd356cc21037164c7c3ca51752fef8");
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        Map<String, String> body = Map.of(
+                "number", telefone,
+                "text", mensagem
+        );
+
+        HttpEntity<Map<String, String>> request = new HttpEntity<>(body, headers);
+
+        ResponseEntity<String> response = restTemplate.postForEntity(url, request, String.class);
+
+        if (!response.getStatusCode().is2xxSuccessful()) {
+            throw new RuntimeException("Falha ao enviar mensagem. Status: " + response.getStatusCode());
+        }
+
+        log.debug("Mensagem enviada com sucesso para {} via instancia {}", telefone, instanceName);
     }
 
     /**
@@ -200,8 +271,8 @@ public class NotificacaoSchedulerService {
      */
     private void registrarEnvio(NotificacaoPendenteDTO notif, StatusEnvio status,
                                 String erroMsg, String telefone) {
-        Agendamento agendamento = new Agendamento();
-        agendamento.setId(notif.getAgendamentoId());
+        Agendamento agendamento = agendamentoRepository.findById(notif.getAgendamentoId()).orElse(null);
+
 
         NotificacaoEnviada registro = NotificacaoEnviada.builder()
             .agendamento(agendamento)
@@ -211,8 +282,11 @@ public class NotificacaoSchedulerService {
             .status(status)
             .erroMensagem(erroMsg)
             .telefoneDestino(telefone)
+            .instanceName(notif.getInstanceName())
             .build();
         notificacaoEnviadaRepository.save(registro);
+
+
     }
 
     /**
@@ -225,10 +299,16 @@ public class NotificacaoSchedulerService {
             template = getTemplatePadrao(notif.getTipo());
         }
         return template
-            .replace("{{nomeCliente}}", notif.getNomeCliente() != null ? notif.getNomeCliente() : "Cliente")
-            .replace("{{organizacao}}", notif.getOrganizacaoNome() != null ? notif.getOrganizacaoNome() : "")
-            .replace("{{data}}", notif.getDtAgendamento().format(DATE_FMT))
-            .replace("{{hora}}", notif.getDtAgendamento().format(TIME_FMT));
+            .replace("{{nome_cliente}}", notif.getNomeCliente() != null ? notif.getNomeCliente() : "Cliente")
+            .replace("{{data_agendamento}}", notif.getDataAgendamento().format(DATE_FMT))
+            .replace("{{hora_agendamento}}", notif.getDataAgendamento().format(TIME_FMT))
+            .replace("{{servico}}", notif.getNomeServico()!= null ? notif.getNomeServico() : "Servico")
+            .replace("{{profissional}}", notif.getNomeFuncionario()!= null ? notif.getNomeFuncionario() : "Funcionario")
+            .replace("{{local}}", notif.getEndereco() != null ? notif.getEndereco() : "Endereco")
+            .replace("{{valor}}", notif.getValor() != null
+                        ? String.format("R$ %,.2f", notif.getValor())
+                        : "R$ 0,00")
+            .replace("{{nome_empresa}}", notif.getNomeOrganizacao() != null ? notif.getNomeOrganizacao() : "Organizacao");
     }
 
     /**
@@ -237,21 +317,21 @@ public class NotificacaoSchedulerService {
     private String getTemplatePadrao(TipoNotificacao tipo) {
         return switch (tipo) {
             case CONFIRMACAO -> """
-                Ola, {{nomeCliente}}!
+                Ola, {{nome_cliente}}!
 
-                Voce tem um agendamento na *{{organizacao}}*:
-                Data: {{data}}
-                Horario: {{hora}}
+                Voce tem um agendamento na *{{nome_empresa}}*:
+                Data: {{data_agendamento}}
+                Horario: {{hora_agendamento}}
 
                 Por favor, confirme respondendo:
                 *SIM* para confirmar
                 *NAO* para cancelar""";
             case LEMBRETE -> """
-                Ola, {{nomeCliente}}!
+                Ola, {{nome_cliente}}!
 
-                Lembrete: seu horario na *{{organizacao}}* esta chegando!
-                Data: {{data}}
-                Horario: {{hora}}
+                Lembrete: seu horario na *{{nome_empresa}}* esta chegando!
+                Data: {{data_agendamento}}
+                Horario: {{hora_agendamento}}
 
                 Te esperamos!""";
         };

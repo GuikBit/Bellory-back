@@ -3,6 +3,7 @@ package org.exemplo.bellory.service;
 import org.exemplo.bellory.model.dto.instancia.InstanceCreateDTO;
 import org.exemplo.bellory.model.entity.agendamento.Agendamento;
 import org.exemplo.bellory.model.entity.agendamento.Status;
+import org.exemplo.bellory.model.entity.cobranca.Cobranca;
 import org.exemplo.bellory.model.entity.config.*;
 import org.exemplo.bellory.model.entity.endereco.Endereco;
 import org.exemplo.bellory.model.entity.enums.TipoCategoria;
@@ -24,6 +25,7 @@ import org.exemplo.bellory.model.entity.tenant.Tenant;
 import org.exemplo.bellory.model.entity.users.Admin;
 import org.exemplo.bellory.model.entity.users.Cliente;
 import org.exemplo.bellory.model.entity.users.Role;
+import org.exemplo.bellory.model.repository.Transacao.CobrancaRepository;
 import org.exemplo.bellory.model.repository.agendamento.AgendamentoRepository;
 import org.exemplo.bellory.model.repository.categoria.CategoriaRepository;
 import org.exemplo.bellory.model.repository.config.ConfigSistemaRepository;
@@ -64,6 +66,7 @@ public class DatabaseSeederService {
     private final ServicoRepository servicoRepository;
     private final AgendamentoRepository agendamentoRepository;
     private final PlanoRepository planoRepository;
+    private final CobrancaRepository cobrancaRepository;
 
     private final PlanoLimiteBelloryRepository planoLimiteBelloryRepository;
     private final PlanoBelloryRepository planoBelloryRepository;
@@ -106,7 +109,8 @@ public class DatabaseSeederService {
                                  PasswordEncoder passwordEncoder, CategoriaRepository categoriaRepository,
                                  PageComponentRepository componentRepository, PageRepository pageRepository, TenantRepository tenantRepository,
                                  AdminRepository adminRepository, PlanoBelloryRepository planoBelloryRepository, CargoRepository cargoRepository,
-                                 PlanoLimiteBelloryRepository planoLimiteBelloryRepository, ConfigSistemaRepository configSistemaRepository, ApiKeyService apiKeyService, InstanceService instanceService) {
+                                 PlanoLimiteBelloryRepository planoLimiteBelloryRepository, ConfigSistemaRepository configSistemaRepository, ApiKeyService apiKeyService, InstanceService instanceService,
+                                 CobrancaRepository cobrancaRepository) {
         this.organizacaoRepository = organizacaoRepository;
         this.roleRepository = roleRepository;
         this.funcionarioRepository = funcionarioRepository;
@@ -127,6 +131,7 @@ public class DatabaseSeederService {
         this.configSistemaRepository = configSistemaRepository;
         this.apiKeyService = apiKeyService;
         this.instanceService = instanceService;
+        this.cobrancaRepository = cobrancaRepository;
     }
 
     @Transactional
@@ -1326,7 +1331,26 @@ public class DatabaseSeederService {
                     funcionario.addBloqueio(bloqueio);
                     agendamento.setBloqueioAgenda(bloqueio);
 
-                    agendamentoRepository.save(agendamento);
+                    Agendamento saveAgen = agendamentoRepository.save(agendamento);
+
+                    Cobranca cob = new Cobranca();
+
+                    cob.setAgendamento(saveAgen);
+                    cob.setCliente(cliente);
+                    cob.setOrganizacao(org);
+
+                    BigDecimal valorTotal = servicosEscolhidos.stream()
+                            .map(Servico::getPreco)
+                            .reduce(BigDecimal.ZERO, BigDecimal::add);
+                    cob.setValor(valorTotal);
+                    cob.setValorPago(BigDecimal.valueOf(0));
+                    cob.setValorPendente(valorTotal);
+                    cob.setStatusCobranca(Cobranca.StatusCobranca.PENDENTE);
+                    cob.setTipoCobranca(Cobranca.TipoCobranca.AGENDAMENTO);
+                    cob.setDtVencimento(saveAgen.getDtAgendamento().toLocalDate());
+
+                    cobrancaRepository.save(cob);
+
                     contador++;
                 }
             }

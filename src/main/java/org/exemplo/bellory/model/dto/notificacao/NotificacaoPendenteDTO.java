@@ -3,6 +3,7 @@ package org.exemplo.bellory.model.dto.notificacao;
 import lombok.*;
 import org.exemplo.bellory.model.entity.notificacao.TipoNotificacao;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
@@ -11,14 +12,17 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class NotificacaoPendenteDTO {
     private Long agendamentoId;
-    private LocalDateTime dtAgendamento;
+    private Long organizacaoId;
+    private String nomeOrganizacao;
     private String nomeCliente;
     private String telefoneCliente;
-    private Long organizacaoId;
-    private String organizacaoNome;
+    private String nomeServico;
+    private String nomeFuncionario;
+    private LocalDateTime dataAgendamento;
+    private BigDecimal valor;
+    private String endereco;
     private TipoNotificacao tipo;
     private Integer horasAntes;
     private String mensagemTemplate;
-    private String instanceName;
-
+    private String InstanceName;
 }

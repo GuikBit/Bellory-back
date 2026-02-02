@@ -4,6 +4,7 @@ public enum Status {
     PENDENTE("Pendente"),
     AGENDADO("Agendado"),
     CONFIRMADO("Confirmado"),
+    AGUARDANDO_CONFIRMACAO( "A confirmar"),
     EM_ESPERA("Em Espera"),
     CONCLUIDO("Concluído"),
     CANCELADO("Cancelado"),
