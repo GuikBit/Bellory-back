@@ -665,4 +665,137 @@ public interface AgendamentoRepository extends JpaRepository<Agendamento, Long> 
         @Param("tipo") TipoNotificacao tipo
     );
 
+    // ==================== QUERIES PARA RELATÓRIOS ====================
+
+    /**
+     * Conta agendamentos por dia da semana no período
+     */
+    @Query(value = "SELECT EXTRACT(DOW FROM a.dt_agendamento), COUNT(a.id) FROM app.agendamento a " +
+            "WHERE a.organizacao_id = :organizacaoId " +
+            "AND a.dt_agendamento BETWEEN :inicio AND :fim " +
+            "GROUP BY EXTRACT(DOW FROM a.dt_agendamento) " +
+            "ORDER BY EXTRACT(DOW FROM a.dt_agendamento)", nativeQuery = true)
+    List<Object[]> countByDiaSemanaAndOrganizacaoAndPeriodo(
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim
+    );
+
+    /**
+     * Conta agendamentos por hora do dia no período
+     */
+    @Query(value = "SELECT EXTRACT(HOUR FROM a.dt_agendamento), COUNT(a.id) FROM app.agendamento a " +
+            "WHERE a.organizacao_id = :organizacaoId " +
+            "AND a.dt_agendamento BETWEEN :inicio AND :fim " +
+            "GROUP BY EXTRACT(HOUR FROM a.dt_agendamento) " +
+            "ORDER BY EXTRACT(HOUR FROM a.dt_agendamento)", nativeQuery = true)
+    List<Object[]> countByHoraAndOrganizacaoAndPeriodo(
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim
+    );
+
+    /**
+     * Conta agendamentos por data e status (para gráfico de evolução)
+     */
+    @Query(value = "SELECT CAST(a.dt_agendamento AS DATE), a.status, COUNT(a.id) FROM app.agendamento a " +
+            "WHERE a.organizacao_id = :organizacaoId " +
+            "AND a.dt_agendamento BETWEEN :inicio AND :fim " +
+            "GROUP BY CAST(a.dt_agendamento AS DATE), a.status " +
+            "ORDER BY CAST(a.dt_agendamento AS DATE)", nativeQuery = true)
+    List<Object[]> countByDataAndStatusAndOrganizacao(
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim
+    );
+
+    /**
+     * Conta agendamentos NAO_COMPARECEU por organização e período
+     */
+    @Query("SELECT COUNT(a) FROM Agendamento a " +
+            "WHERE a.organizacao.id = :organizacaoId " +
+            "AND a.status = 'NAO_COMPARECEU' " +
+            "AND a.dtAgendamento BETWEEN :inicio AND :fim")
+    Long countNoShowByOrganizacaoAndPeriodo(
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim
+    );
+
+    /**
+     * Conta no-show por agendamentos que possuem notificação (lista de IDs)
+     */
+    @Query("SELECT COUNT(DISTINCT a.id) FROM Agendamento a " +
+            "WHERE a.organizacao.id = :organizacaoId " +
+            "AND a.status = 'NAO_COMPARECEU' " +
+            "AND a.dtAgendamento BETWEEN :inicio AND :fim " +
+            "AND a.id IN :agendamentoIds")
+    Long countNoShowByAgendamentoIds(
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim,
+            @Param("agendamentoIds") List<Long> agendamentoIds
+    );
+
+    /**
+     * Conta agendamentos por funcionário com detalhes de status no período
+     */
+    @Query("SELECT f.id, f.nomeCompleto, a.status, COUNT(a) FROM Agendamento a " +
+            "JOIN a.funcionarios f " +
+            "WHERE a.organizacao.id = :organizacaoId " +
+            "AND a.dtAgendamento BETWEEN :inicio AND :fim " +
+            "GROUP BY f.id, f.nomeCompleto, a.status " +
+            "ORDER BY f.nomeCompleto")
+    List<Object[]> countByFuncionarioAndStatusAndOrganizacaoAndPeriodo(
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim
+    );
+
+    /**
+     * Conta serviços realizados com detalhes (para relatório de serviços)
+     */
+    @Query("SELECT s.id, s.nome, s.categoria.label, COUNT(a), COALESCE(SUM(s.preco), 0), s.tempoEstimadoMinutos " +
+            "FROM Agendamento a " +
+            "JOIN a.servicos s " +
+            "WHERE a.organizacao.id = :organizacaoId " +
+            "AND a.dtAgendamento BETWEEN :inicio AND :fim " +
+            "AND a.status NOT IN ('CANCELADO') " +
+            "GROUP BY s.id, s.nome, s.categoria.label, s.tempoEstimadoMinutos " +
+            "ORDER BY COUNT(a) DESC")
+    List<Object[]> countServicosDetalhadosByOrganizacaoAndPeriodo(
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim
+    );
+
+    /**
+     * Clientes com frequência detalhada para relatório
+     */
+    @Query("SELECT a.cliente.id, a.cliente.nomeCompleto, a.cliente.telefone, " +
+            "COUNT(a), MAX(a.dtAgendamento) " +
+            "FROM Agendamento a " +
+            "WHERE a.organizacao.id = :organizacaoId " +
+            "AND a.dtAgendamento BETWEEN :inicio AND :fim " +
+            "GROUP BY a.cliente.id, a.cliente.nomeCompleto, a.cliente.telefone " +
+            "ORDER BY COUNT(a) DESC")
+    List<Object[]> findClientesComFrequenciaByOrganizacaoAndPeriodo(
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim
+    );
+
+    /**
+     * Conta agendamentos REAGENDADO por organização e período
+     */
+    @Query("SELECT COUNT(a) FROM Agendamento a " +
+            "WHERE a.organizacao.id = :organizacaoId " +
+            "AND a.status = 'REAGENDADO' " +
+            "AND a.dtAgendamento BETWEEN :inicio AND :fim")
+    Long countReagendadosByOrganizacaoAndPeriodo(
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim
+    );
+
 }

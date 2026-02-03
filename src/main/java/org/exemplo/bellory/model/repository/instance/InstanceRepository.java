@@ -43,6 +43,14 @@ public interface InstanceRepository extends JpaRepository<Instance, Long> {
     Optional<Instance> findByInstanceNameWithRelations(@Param("instanceName") String instanceName);
 
     Optional<Instance> findByInstanceName(String instanceName);
+
+    // ==================== QUERIES PARA RELATÓRIOS ====================
+
+    /**
+     * Conta instâncias por status e organização
+     */
+    @Query("SELECT i.status, COUNT(i) FROM Instance i " +
+            "WHERE i.organizacao.id = :organizacaoId " +
+            "GROUP BY i.status")
+    List<Object[]> countByStatusAndOrganizacao(@Param("organizacaoId") Long organizacaoId);
 }
-
-
