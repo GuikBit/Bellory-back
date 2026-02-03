@@ -535,7 +535,7 @@ public interface AgendamentoRepository extends JpaRepository<Agendamento, Long> 
     JOIN app.servico s ON s.id = as2.servico_id
     JOIN app.cobranca co ON co.agendamento_id = a.id
     JOIN app.endereco e ON e.id = o.endereco_principal_id
-    WHERE a.status IN ('AGENDADO', 'REAGENDADO', 'PENDENTE')
+    WHERE a.status IN ('CONFIRMADO', 'AGUARDANDO_CONFIRMACAO')
       AND a.dt_agendamento > :agora
       AND i.status = 'CONNECTED'
       AND CAST(a.dt_agendamento + (-cn.horas_antes) * INTERVAL '1 hour' AS TIMESTAMP) <= :agora
