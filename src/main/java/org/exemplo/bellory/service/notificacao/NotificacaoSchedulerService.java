@@ -136,7 +136,7 @@ public class NotificacaoSchedulerService {
                 }
 
                 // 2. Valida telefone
-                String telefone = formatarTelefone(notif.getTelefoneCliente());
+                String telefone = formatarTelefone("5532998220082"); //formatarTelefone(notif.getTelefoneCliente());
                 if (telefone == null || telefone.isBlank()) {
                     log.warn("Telefone invalido para agendamento {}", notif.getAgendamentoId());
                     transactionalService.registrarEnvioFalha(notif, "Telefone invalido", null);
