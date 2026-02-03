@@ -62,6 +62,7 @@ public class NotificacaoSchedulerService {
     public void processarNotificacoesPendentes() {
         LocalDateTime agora = LocalDateTime.now();
 
+        
         log.info("=== Iniciando processamento de notificacoes ===");
         log.info("Horario atual: {}", agora);
 
