@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.exemplo.bellory.model.dto.notificacao.NotificacaoPendenteDTO;
 import org.exemplo.bellory.model.dto.notificacao.NotificacaoSemInstanciaDTO;
 import org.exemplo.bellory.model.entity.agendamento.Agendamento;
+import org.exemplo.bellory.model.entity.agendamento.Status;
 import org.exemplo.bellory.model.entity.notificacao.NotificacaoEnviada;
 import org.exemplo.bellory.model.entity.notificacao.StatusEnvio;
 import org.exemplo.bellory.model.entity.notificacao.TipoNotificacao;
@@ -42,9 +43,7 @@ public class NotificacaoSchedulerService {
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
 
-    // Janela de tempo padrao para busca de notificacoes (em minutos)
-    private static final int JANELA_MINUTOS_ATRAS = 10;
-    private static final int JANELA_MINUTOS_FRENTE = 2;
+
     private final RestTemplate restTemplate;
     private final Random random = new Random();
 
@@ -61,7 +60,7 @@ public class NotificacaoSchedulerService {
             processarConfirmacoes(agora);
 
             // Processa LEMBRETE (1/2/3/4/5/6 horas antes)
-            //processarLembretes(agora);
+            processarLembretes(agora);
 
             log.info("=== Processamento concluido ===");
         } catch (Exception e) {
@@ -77,13 +76,13 @@ public class NotificacaoSchedulerService {
     private void processarConfirmacoes(LocalDateTime agora) {
 
         try {
-            // Busca confirmacoes pendentes (apenas configs ativas do tipo CONFIRMACAO)
+
             List<NotificacaoPendenteDTO> confirmacoes = buscarConfirmacoesPendentes(agora);
 
             log.info("Encontradas {} confirmacoes pendentes", confirmacoes.size());
 
-            // Verifica instancias desconectadas para CONFIRMACAO
-            //List<NotificacaoSemInstanciaDTO> semInstancia = agendamentoRepository.findNotificacoesSemInstanciaConectadaPorTipo(agora, TipoNotificacao.CONFIRMACAO);
+//            Verifica instancias desconectadas para CONFIRMACAO
+//            List<NotificacaoSemInstanciaDTO> semInstancia = agendamentoRepository.findNotificacoesSemInstanciaConectadaPorTipo(agora, TipoNotificacao.CONFIRMACAO);
 
 //            if (!semInstancia.isEmpty()) {
 //                log.warn("{} confirmacoes sem instancia conectada!", semInstancia.size());
@@ -110,7 +109,7 @@ public class NotificacaoSchedulerService {
                         (String) row[4],                                  // telefoneCliente
                         (String) row[5],                                  // nomeServico
                         (String) row[6],                                  // nomeFuncionario
-                        ((Timestamp) row[7]).toLocalDateTime(),            // dataAgendamento
+                        ((Timestamp) row[7]).toLocalDateTime(),           // dataAgendamento
                         (BigDecimal) row[8],                              // valor
                         (String) row[9],                                  // endereco
                         TipoNotificacao.valueOf((String) row[10]),        // tipo
@@ -127,36 +126,49 @@ public class NotificacaoSchedulerService {
      * Somente processa se houver configuracoes ativas do tipo LEMBRETE.
      */
     private void processarLembretes(LocalDateTime agora) {
-        LocalDateTime inicioJanela = agora.minusMinutes(JANELA_MINUTOS_ATRAS);
-        LocalDateTime fimJanela = agora.plusMinutes(JANELA_MINUTOS_FRENTE);
-
-        log.info("--- Processando LEMBRETES ---");
-        log.info("Janela LEMBRETE: {} ate {}", inicioJanela, fimJanela);
-
         try {
-            // Busca lembretes pendentes (apenas configs ativas do tipo LEMBRETE)
-//            List<NotificacaoPendenteDTO> lembretes = agendamentoRepository
-//                .findLembretesPendentes(agora, inicioJanela, fimJanela);
 
-//            log.info("Encontrados {} lembretes pendentes", lembretes.size());
+            List<NotificacaoPendenteDTO> lembretes = buscarLembretesPendentes(agora);
 
-            // Verifica instancias desconectadas para LEMBRETE
-            List<NotificacaoSemInstanciaDTO> semInstancia = agendamentoRepository
-                .findNotificacoesSemInstanciaConectadaPorTipo(agora, TipoNotificacao.LEMBRETE);
+            log.info("Encontradas {} lembretes pendentes", lembretes.size());
 
-            if (!semInstancia.isEmpty()) {
-                log.warn("{} lembretes sem instancia conectada!", semInstancia.size());
-                alertService.alertarInstanciasDesconectadas(semInstancia);
-            }
+//            Verifica instancias desconectadas para CONFIRMACAO
+//            List<NotificacaoSemInstanciaDTO> semInstancia = agendamentoRepository.findNotificacoesSemInstanciaConectadaPorTipo(agora, TipoNotificacao.CONFIRMACAO);
 
-//            if (!lembretes.isEmpty()) {
-                //processarNotificacoes(lembretes, TipoNotificacao.LEMBRETE);
+//            if (!semInstancia.isEmpty()) {
+//                log.warn("{} lembretes sem instancia conectada!", semInstancia.size());
+//                alertService.alertarInstanciasDesconectadas(semInstancia);
 //            }
+
+            if (!lembretes.isEmpty()) {
+                processarNotificacoes(lembretes, TipoNotificacao.LEMBRETE);
+            }
 
             log.info("--- LEMBRETES processados ---");
         } catch (Exception e) {
             log.error("Erro ao processar LEMBRETES: {}", e.getMessage(), e);
         }
+    }
+
+    public List<NotificacaoPendenteDTO> buscarLembretesPendentes(LocalDateTime agora) {
+        return agendamentoRepository.findLembretesPendentes(agora).stream()
+                .map(row -> new NotificacaoPendenteDTO(
+                        ((Number) row[0]).longValue(),                    // agendamentoId
+                        ((Number) row[1]).longValue(),                    // organizacaoId
+                        (String) row[2],                                  // nomeOrganizacao
+                        (String) row[3],                                  // nomeCliente
+                        (String) row[4],                                  // telefoneCliente
+                        (String) row[5],                                  // nomeServico
+                        (String) row[6],                                  // nomeFuncionario
+                        ((Timestamp) row[7]).toLocalDateTime(),           // dataAgendamento
+                        (BigDecimal) row[8],                              // valor
+                        (String) row[9],                                  // endereco
+                        TipoNotificacao.valueOf((String) row[10]),        // tipo
+                        ((Number) row[11]).intValue(),                    // horasAntes
+                        (String) row[12],                                 // instanceName
+                        (String) row[13]                                  // mensagemTemplate
+                ))
+                .toList();
     }
 
     /**
@@ -286,6 +298,10 @@ public class NotificacaoSchedulerService {
             .build();
         notificacaoEnviadaRepository.save(registro);
 
+        agendamento.setStatus(Status.AGUARDANDO_CONFIRMACAO);
+        agendamento.setDtAtualizacao(LocalDateTime.now());
+
+        agendamentoRepository.save(agendamento);
 
     }
 

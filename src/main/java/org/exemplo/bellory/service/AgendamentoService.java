@@ -467,6 +467,7 @@ public class AgendamentoService {
             }
         }
     }
+
     private void alterarStatusAgendamento(Agendamento agendamento, Status novoStatus) {
         switch (novoStatus) {
             case AGENDADO:
