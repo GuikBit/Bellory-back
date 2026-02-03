@@ -23,4 +23,8 @@ public class Settings {
     private Boolean alwaysOnline;
     private Boolean readMessages;
     private Boolean readStatus;
+
+    // ✅ NOVO: Campo usado pelo frontend para rejeição de horário
+    @Column(name = "out_of_hours")
+    private Boolean outOfHours;
 }
