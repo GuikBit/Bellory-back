@@ -307,4 +307,107 @@ public interface CobrancaRepository extends JpaRepository<Cobranca, Long> {
             @Param("inicio") LocalDateTime inicio,
             @Param("fim") LocalDateTime fim
     );
+
+    // ==================== QUERIES PARA RELATÓRIOS ====================
+
+    /**
+     * Soma valores por forma de pagamento no período
+     */
+    @Query("SELECT p.formaPagamento, COALESCE(SUM(p.valor), 0) FROM Cobranca c " +
+            "JOIN c.pagamentos p " +
+            "WHERE c.organizacao.id = :organizacaoId " +
+            "AND c.dtCriacao BETWEEN :inicio AND :fim " +
+            "AND p.statusPagamento = 'CONFIRMADO' " +
+            "GROUP BY p.formaPagamento")
+    List<Object[]> sumValorByFormaPagamentoAndOrganizacao(
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim
+    );
+
+    /**
+     * Soma receita por data (para gráfico de evolução)
+     */
+    @Query(value = "SELECT CAST(c.dt_criacao AS DATE), " +
+            "COALESCE(SUM(CASE WHEN c.status_cobranca = 'PAGO' THEN c.valor ELSE 0 END), 0), " +
+            "COUNT(c.id) " +
+            "FROM app.cobranca c " +
+            "WHERE c.organizacao_id = :organizacaoId " +
+            "AND c.dt_criacao BETWEEN :inicio AND :fim " +
+            "GROUP BY CAST(c.dt_criacao AS DATE) " +
+            "ORDER BY CAST(c.dt_criacao AS DATE)", nativeQuery = true)
+    List<Object[]> sumReceitaByDataAndOrganizacao(
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim
+    );
+
+    /**
+     * Cobranças vencidas detalhadas com dados do cliente
+     */
+    @Query("SELECT c.id, c.numeroCobranca, c.cliente.nomeCompleto, c.valor, c.valorPendente, " +
+            "c.dtVencimento, c.tipoCobranca " +
+            "FROM Cobranca c " +
+            "WHERE c.organizacao.id = :organizacaoId " +
+            "AND c.dtVencimento < CURRENT_DATE " +
+            "AND c.statusCobranca IN ('PENDENTE', 'PARCIALMENTE_PAGO') " +
+            "ORDER BY c.dtVencimento ASC")
+    List<Object[]> findCobrancasVencidasDetalhadasByOrganizacao(
+            @Param("organizacaoId") Long organizacaoId
+    );
+
+    /**
+     * Resumo de sinais por organização e período
+     */
+    @Query("SELECT c.statusCobranca, COUNT(c), COALESCE(SUM(c.valor), 0) FROM Cobranca c " +
+            "WHERE c.organizacao.id = :organizacaoId " +
+            "AND c.subtipoCobrancaAgendamento = 'SINAL' " +
+            "AND c.dtCriacao BETWEEN :inicio AND :fim " +
+            "GROUP BY c.statusCobranca")
+    List<Object[]> countSinaisByStatusAndOrganizacaoAndPeriodo(
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim
+    );
+
+    /**
+     * Média do percentual de sinal por organização
+     */
+    @Query("SELECT COALESCE(AVG(c.percentualSinal), 0) FROM Cobranca c " +
+            "WHERE c.organizacao.id = :organizacaoId " +
+            "AND c.subtipoCobrancaAgendamento = 'SINAL' " +
+            "AND c.dtCriacao BETWEEN :inicio AND :fim")
+    Double avgPercentualSinalByOrganizacaoAndPeriodo(
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim
+    );
+
+    /**
+     * Total de valor gasto por cliente (para LTV)
+     */
+    @Query("SELECT c.cliente.id, c.cliente.nomeCompleto, c.cliente.telefone, " +
+            "COALESCE(SUM(c.valor), 0), COUNT(DISTINCT c.agendamento.id) " +
+            "FROM Cobranca c " +
+            "WHERE c.organizacao.id = :organizacaoId " +
+            "AND c.statusCobranca = 'PAGO' " +
+            "GROUP BY c.cliente.id, c.cliente.nomeCompleto, c.cliente.telefone " +
+            "ORDER BY SUM(c.valor) DESC")
+    List<Object[]> findClientesLtvByOrganizacao(
+            @Param("organizacaoId") Long organizacaoId
+    );
+
+    /**
+     * Soma total de descontos aplicados em cobranças do período
+     */
+    @Query("SELECT COALESCE(SUM(c.valor - c.valorPago), 0) FROM Cobranca c " +
+            "WHERE c.organizacao.id = :organizacaoId " +
+            "AND c.statusCobranca = 'PAGO' " +
+            "AND c.dtCriacao BETWEEN :inicio AND :fim " +
+            "AND c.valorPago < c.valor")
+    BigDecimal sumDescontosAplicadosByOrganizacaoAndPeriodo(
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim
+    );
 }

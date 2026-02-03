@@ -161,4 +161,28 @@ public interface ClienteRepository extends JpaRepository<Cliente, Long> {
             "WHERE cob.organizacao.id = :organizacaoId " +
             "AND cob.statusCobranca = 'PAGO'")
     BigDecimal findTicketMedioByOrganizacao(@Param("organizacaoId") Long organizacaoId);
+
+    // ==================== QUERIES PARA RELATÓRIOS ====================
+
+    /**
+     * Conta clientes com cadastro incompleto por organização
+     */
+    @Query("SELECT COUNT(c) FROM Cliente c " +
+            "WHERE c.organizacao.id = :organizacaoId " +
+            "AND c.isCadastroIncompleto = true")
+    Long countCadastrosIncompletos(@Param("organizacaoId") Long organizacaoId);
+
+    /**
+     * Conta novos cadastros por data (para gráfico de evolução)
+     */
+    @Query(value = "SELECT CAST(c.dt_criacao AS DATE), COUNT(c.id) FROM app.cliente c " +
+            "WHERE c.organizacao_id = :organizacaoId " +
+            "AND c.dt_criacao BETWEEN :inicio AND :fim " +
+            "GROUP BY CAST(c.dt_criacao AS DATE) " +
+            "ORDER BY CAST(c.dt_criacao AS DATE)", nativeQuery = true)
+    List<Object[]> countNovosCadastrosByDataAndOrganizacao(
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim
+    );
 }

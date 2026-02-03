@@ -98,4 +98,91 @@ public interface NotificacaoEnviadaRepository extends JpaRepository<NotificacaoE
         AND ne.dtEnvio < :limite
         """)
     int expirarNotificacoesAntigas(@Param("limite") LocalDateTime limite);
+
+    // ==================== QUERIES PARA RELATÓRIOS ====================
+
+    /**
+     * Conta notificações por tipo e status no período (para organização via agendamento)
+     */
+    @Query("SELECT ne.status, COUNT(ne) FROM NotificacaoEnviada ne " +
+            "WHERE ne.tipo = :tipo " +
+            "AND ne.agendamento.organizacao.id = :organizacaoId " +
+            "AND ne.dtEnvio BETWEEN :inicio AND :fim " +
+            "GROUP BY ne.status")
+    List<Object[]> countByTipoAndStatusAndOrganizacaoAndPeriodo(
+            @Param("tipo") TipoNotificacao tipo,
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim
+    );
+
+    /**
+     * Total de notificações por tipo no período
+     */
+    @Query("SELECT COUNT(ne) FROM NotificacaoEnviada ne " +
+            "WHERE ne.tipo = :tipo " +
+            "AND ne.agendamento.organizacao.id = :organizacaoId " +
+            "AND ne.dtEnvio BETWEEN :inicio AND :fim")
+    Long countByTipoAndOrganizacaoAndPeriodo(
+            @Param("tipo") TipoNotificacao tipo,
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim
+    );
+
+    /**
+     * Busca falhas no período por organização
+     */
+    @Query("SELECT ne FROM NotificacaoEnviada ne " +
+            "WHERE ne.status = 'FALHA' " +
+            "AND ne.agendamento.organizacao.id = :organizacaoId " +
+            "AND ne.dtEnvio BETWEEN :inicio AND :fim " +
+            "ORDER BY ne.dtEnvio DESC")
+    List<NotificacaoEnviada> findFalhasByOrganizacaoAndPeriodo(
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim
+    );
+
+    /**
+     * Conta erros agrupados por mensagem de erro
+     */
+    @Query("SELECT ne.erroMensagem, COUNT(ne) FROM NotificacaoEnviada ne " +
+            "WHERE ne.status = 'FALHA' " +
+            "AND ne.agendamento.organizacao.id = :organizacaoId " +
+            "AND ne.dtEnvio BETWEEN :inicio AND :fim " +
+            "AND ne.erroMensagem IS NOT NULL " +
+            "GROUP BY ne.erroMensagem " +
+            "ORDER BY COUNT(ne) DESC")
+    List<Object[]> countErrosByMensagemAndOrganizacao(
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim
+    );
+
+    /**
+     * Conta notificações agrupadas por data (para gráfico de evolução)
+     */
+    @Query("SELECT CAST(ne.dtEnvio AS LocalDate), ne.tipo, COUNT(ne) FROM NotificacaoEnviada ne " +
+            "WHERE ne.agendamento.organizacao.id = :organizacaoId " +
+            "AND ne.dtEnvio BETWEEN :inicio AND :fim " +
+            "GROUP BY CAST(ne.dtEnvio AS LocalDate), ne.tipo " +
+            "ORDER BY CAST(ne.dtEnvio AS LocalDate)")
+    List<Object[]> countByDataAndTipoAndOrganizacao(
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim
+    );
+
+    /**
+     * IDs de agendamentos que receberam notificação no período
+     */
+    @Query("SELECT DISTINCT ne.agendamento.id FROM NotificacaoEnviada ne " +
+            "WHERE ne.agendamento.organizacao.id = :organizacaoId " +
+            "AND ne.dtEnvio BETWEEN :inicio AND :fim")
+    List<Long> findAgendamentoIdsComNotificacao(
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim
+    );
 }
