@@ -34,8 +34,7 @@ public class RelatorioNotificacaoService {
         LocalDateTime fimDateTime = dataFim.atTime(23, 59, 59);
 
         // Confirmacoes
-        RelatorioNotificacaoDTO.ConfirmacoesResumoDTO confirmacoes = montarConfirmacoes(
-                organizacaoId, inicioDateTime, fimDateTime);
+        RelatorioNotificacaoDTO.ConfirmacoesResumoDTO confirmacoes = montarConfirmacoes(organizacaoId, inicioDateTime, fimDateTime);
 
         // Lembretes
         RelatorioNotificacaoDTO.LembretesResumoDTO lembretes = montarLembretes(
@@ -68,13 +67,11 @@ public class RelatorioNotificacaoService {
     private RelatorioNotificacaoDTO.ConfirmacoesResumoDTO montarConfirmacoes(
             Long organizacaoId, LocalDateTime inicio, LocalDateTime fim) {
 
-        Long totalEnviadas = notificacaoRepository.countByTipoAndOrganizacaoAndPeriodo(
-                TipoNotificacao.CONFIRMACAO, organizacaoId, inicio, fim);
+        Long totalEnviadas = notificacaoRepository.countByTipoAndOrganizacaoAndPeriodo(TipoNotificacao.CONFIRMACAO, organizacaoId, inicio, fim);
         if (totalEnviadas == null) totalEnviadas = 0L;
 
         Map<String, Long> porStatus = new LinkedHashMap<>();
-        List<Object[]> statusData = notificacaoRepository.countByTipoAndStatusAndOrganizacaoAndPeriodo(
-                TipoNotificacao.CONFIRMACAO, organizacaoId, inicio, fim);
+        List<Object[]> statusData = notificacaoRepository.countByTipoAndStatusAndOrganizacaoAndPeriodo(TipoNotificacao.CONFIRMACAO, organizacaoId, inicio, fim);
 
         Long confirmadas = 0L;
         Long canceladasCliente = 0L;

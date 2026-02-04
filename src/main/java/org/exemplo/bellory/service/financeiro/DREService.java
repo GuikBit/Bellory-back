@@ -71,28 +71,30 @@ public class DREService {
                 : BigDecimal.ZERO;
 
         // Linhas de receita
+        BigDecimal finalReceitaBruta = receitaBruta;
         List<DREDTO.DRELinhaDTO> linhasReceita = receitasPorCategoria.entrySet().stream()
                 .map(e -> DREDTO.DRELinhaDTO.builder()
                         .categoriaId(e.getKey())
                         .categoriaNome(nomesCategoria.get(e.getKey()))
                         .tipo("RECEITA")
                         .valor(e.getValue())
-                        .percentual(receitaBruta.compareTo(BigDecimal.ZERO) > 0
-                                ? e.getValue().multiply(BigDecimal.valueOf(100)).divide(receitaBruta, 2, RoundingMode.HALF_UP)
+                        .percentual(finalReceitaBruta.compareTo(BigDecimal.ZERO) > 0
+                                ? e.getValue().multiply(BigDecimal.valueOf(100)).divide(finalReceitaBruta, 2, RoundingMode.HALF_UP)
                                 : BigDecimal.ZERO)
                         .build())
                 .sorted((a, b) -> b.getValor().compareTo(a.getValor()))
                 .collect(Collectors.toList());
 
         // Linhas de despesa
+        BigDecimal finalTotalDespesas = totalDespesas;
         List<DREDTO.DRELinhaDTO> linhasDespesa = despesasPorCategoria.entrySet().stream()
                 .map(e -> DREDTO.DRELinhaDTO.builder()
                         .categoriaId(e.getKey())
                         .categoriaNome(nomesCategoria.get(e.getKey()))
                         .tipo("DESPESA")
                         .valor(e.getValue())
-                        .percentual(totalDespesas.compareTo(BigDecimal.ZERO) > 0
-                                ? e.getValue().multiply(BigDecimal.valueOf(100)).divide(totalDespesas, 2, RoundingMode.HALF_UP)
+                        .percentual(finalTotalDespesas.compareTo(BigDecimal.ZERO) > 0
+                                ? e.getValue().multiply(BigDecimal.valueOf(100)).divide(finalTotalDespesas, 2, RoundingMode.HALF_UP)
                                 : BigDecimal.ZERO)
                         .build())
                 .sorted((a, b) -> b.getValor().compareTo(a.getValor()))
