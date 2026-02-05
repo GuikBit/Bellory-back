@@ -133,7 +133,9 @@ public class Agendamento {
     // === MÉTODOS DE MUDANÇA DE STATUS ===
 
     public void marcarComoAgendado() {
-        if (this.status == Status.PENDENTE || this.status == Status.EM_ESPERA) {
+        if (this.status == Status.PENDENTE ||
+            this.status == Status.EM_ESPERA ||
+            this.status == Status.REAGENDADO) {
             this.status = Status.AGENDADO;
         } else {
             throw new IllegalStateException("Não é possível mudar o status de " + this.status + " para AGENDADO.");
@@ -151,7 +153,9 @@ public class Agendamento {
     }
 
     public void marcarComoConcluido() {
-        if (this.status == Status.AGENDADO || this.status == Status.EM_ESPERA) {
+        if (this.status == Status.AGENDADO ||
+            this.status == Status.EM_ESPERA ||
+            this.status == Status.EM_ANDAMENTO) {
             this.status = Status.CONCLUIDO;
         } else {
             throw new IllegalStateException("Não é possível mudar o status de " + this.status + " para CONCLUÍDO.");
@@ -167,7 +171,9 @@ public class Agendamento {
     }
 
     public void colocarEmEspera() {
-        if (this.status == Status.PENDENTE || this.status == Status.AGENDADO) {
+        if (this.status == Status.PENDENTE ||
+            this.status == Status.AGENDADO ||
+            this.status == Status.CONFIRMADO) {
             this.status = Status.EM_ESPERA;
         } else {
             throw new IllegalStateException("Não é possível colocar em espera um agendamento com status " + this.status + ".");

@@ -45,6 +45,21 @@ public class AgendamentoService {
 
     private static final int TOLERANCIA_MINUTOS = 10;
 
+    // Mapa de transições de status permitidas
+    private static final Map<Status, List<Status>> STATUS_TRANSITIONS = Map.ofEntries(
+            Map.entry(Status.PENDENTE, List.of(Status.AGENDADO, Status.CANCELADO)),
+            Map.entry(Status.AGENDADO, List.of(Status.AGUARDANDO_CONFIRMACAO, Status.REAGENDADO, Status.CANCELADO)),
+            Map.entry(Status.AGUARDANDO_CONFIRMACAO, List.of(Status.CONFIRMADO, Status.REAGENDADO, Status.CANCELADO, Status.NAO_COMPARECEU)),
+            Map.entry(Status.CONFIRMADO, List.of(Status.EM_ESPERA, Status.REAGENDADO, Status.CANCELADO, Status.NAO_COMPARECEU)),
+            Map.entry(Status.EM_ESPERA, List.of(Status.EM_ANDAMENTO, Status.CANCELADO)),
+            Map.entry(Status.EM_ANDAMENTO, List.of(Status.CONCLUIDO, Status.CANCELADO)),
+            Map.entry(Status.REAGENDADO, List.of(Status.AGENDADO)),
+            // Estados finais - sem transições
+            Map.entry(Status.CONCLUIDO, List.of()),
+            Map.entry(Status.CANCELADO, List.of()),
+            Map.entry(Status.NAO_COMPARECEU, List.of())
+    );
+
     public AgendamentoService(AgendamentoRepository agendamentoRepository,
                               DisponibilidadeRepository disponibilidadeRepository,
                               JornadaTrabalhoRepository jornadaTrabalhoRepository,
@@ -369,6 +384,10 @@ public class AgendamentoService {
 
         try {
             Status novoStatus = Status.valueOf(status.toUpperCase());
+
+            // Validar se a transição de status é permitida
+            validarTransicaoStatus(agendamento.getStatus(), novoStatus);
+
             alterarStatusAgendamento(agendamento, novoStatus);
             agendamento.setDtAtualizacao(LocalDateTime.now());
 
@@ -376,6 +395,29 @@ public class AgendamentoService {
             return new AgendamentoDTO(agendamentoAtualizado);
         } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("Status inválido: " + status);
+        }
+    }
+
+    private void validarTransicaoStatus(Status statusAtual, Status novoStatus) {
+        // Se já está no status desejado, não precisa validar
+        if (statusAtual == novoStatus) {
+            return;
+        }
+
+        List<Status> transicoesPermitidas = STATUS_TRANSITIONS.getOrDefault(statusAtual, List.of());
+
+        if (!transicoesPermitidas.contains(novoStatus)) {
+            throw new IllegalArgumentException(
+                String.format("Transição de status inválida: não é possível mudar de %s para %s. " +
+                    "Transições permitidas: %s",
+                    statusAtual.getDescricao(),
+                    novoStatus.getDescricao(),
+                    transicoesPermitidas.isEmpty() ? "nenhuma (estado final)" :
+                        transicoesPermitidas.stream()
+                            .map(Status::getDescricao)
+                            .collect(Collectors.joining(", "))
+                )
+            );
         }
     }
 
@@ -470,13 +512,27 @@ public class AgendamentoService {
 
     private void alterarStatusAgendamento(Agendamento agendamento, Status novoStatus) {
         switch (novoStatus) {
+            case PENDENTE:
+                agendamento.setStatus(Status.PENDENTE);
+                break;
+
             case AGENDADO:
                 agendamento.marcarComoAgendado();
                 break;
 
+            case AGUARDANDO_CONFIRMACAO:
+                agendamento.setStatus(Status.AGUARDANDO_CONFIRMACAO);
+                // Enviar notificação solicitando confirmação
+                break;
+
             case CONFIRMADO:
                 agendamento.setStatus(Status.CONFIRMADO);
-                // Enviar notificação de confirmação se necessário
+                agendamento.setDtConfirmacao(LocalDateTime.now());
+                // Enviar notificação de confirmação
+                break;
+
+            case EM_ESPERA:
+                agendamento.colocarEmEspera();
                 break;
 
             case EM_ANDAMENTO:
@@ -491,22 +547,42 @@ public class AgendamentoService {
 
             case CANCELADO:
                 agendamento.cancelarAgendamento();
-                // Cancelar cobrança somente se não estiver paga
-//                if (agendamento.getCobranca() != null &&
-//                        !agendamento.getCobranca().isPaga()) {
-//                    agendamento.getCobranca().cancelar();
-//                    cobrancaRepository.save(agendamento.getCobranca());
-//                }
+
+                // Remover bloqueios da agenda
+                if (agendamento.getBloqueioAgenda() != null) {
+                    disponibilidadeRepository.delete(agendamento.getBloqueioAgenda());
+                }
+
+                // Cancelar cobranças pendentes
+                if (agendamento.getCobrancas() != null) {
+                    agendamento.getCobrancas().stream()
+                        .filter(c -> !c.isPaga())
+                        .forEach(c -> {
+                            c.cancelar();
+                            cobrancaRepository.save(c);
+                        });
+                }
                 break;
 
-            case EM_ESPERA:
-                agendamento.colocarEmEspera();
+            case REAGENDADO:
+                agendamento.setStatus(Status.REAGENDADO);
+                // Preparar para novo agendamento - usuário deverá definir nova data
                 break;
 
             case NAO_COMPARECEU:
                 agendamento.setStatus(Status.NAO_COMPARECEU);
                 // Aplicar taxa de não comparecimento se configurada
                 aplicarTaxaNaoComparecimento(agendamento);
+                break;
+
+            case VENCIDA:
+                agendamento.setStatus(Status.VENCIDA);
+                // Cobrança vencida - pode enviar notificação
+                break;
+
+            case PAGO:
+                agendamento.setStatus(Status.PAGO);
+                // Todas as cobranças foram pagas
                 break;
 
             default:
