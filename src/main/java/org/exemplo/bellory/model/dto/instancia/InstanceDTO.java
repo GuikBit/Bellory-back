@@ -47,6 +47,7 @@ public class InstanceDTO {
     private Integer messageCount;
     private Integer contactCount;
     private Integer chatCount;
+    private boolean ativo;
 
     private Tools tools;
     private WebhookSettings webhookSettings;
@@ -60,6 +61,7 @@ public class InstanceDTO {
         this.integration = instance.getIntegration();
         this.personality = instance.getPersonality();
         this.description = instance.getDescription();
+        this.ativo = instance.isAtivo();
 
         if (instance.getOrganizacao() != null) {
             this.organizacaoNome = instance.getOrganizacao().getNomeFantasia();

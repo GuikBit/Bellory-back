@@ -38,6 +38,7 @@ public class InstanceByNameDTO {
         private String profileName;
         private Long organizacaoId;
         private String organizacaoNome;
+        private Boolean instanceAtivo;
         private ToolsData tools;
         private WebhookSettingsData webhookSettings;
         private SettingsData settings;
@@ -112,6 +113,7 @@ public class InstanceByNameDTO {
         this.instancia.setIntegration(instance.getIntegration());
         this.instancia.setPersonality(instance.getPersonality());
         this.instancia.setDescription(instance.getDescription());
+        this.instancia.setInstanceAtivo(instance.isAtivo());
 
         // Dados da organização
         if (instance.getOrganizacao() != null) {

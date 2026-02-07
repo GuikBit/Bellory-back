@@ -71,6 +71,15 @@ public class Instance {
     @JsonIgnore
     private List<KnowledgeBase> knowledgeBase = new ArrayList<>();
 
+    @Column(name = "ativo")
+    private boolean ativo;
+
+    @Column(name = "deletado")
+    private boolean deletado = false;
+
+
+
+
     @PrePersist
     @PreUpdate
     private void ensureConfigurations() {

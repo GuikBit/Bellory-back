@@ -24,7 +24,7 @@ public class InstanceCreateDTO {
 
     private String instanceNumber;
 
-    private String webhookUrl = "https://auto.bellory.com.br/webhook/webhook/whatsapp";
+    private String webhookUrl = "https://auto.bellory.com.br/webhook/whatsapp2";
 
     private Boolean webhookEnabled = true;
 

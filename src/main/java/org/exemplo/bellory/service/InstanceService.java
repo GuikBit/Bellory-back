@@ -105,7 +105,7 @@ public class InstanceService {
             Map<String, Object> webhook = new LinkedHashMap<>();
             webhook.put("url", dto.getWebhookUrl() != null
                     ? dto.getWebhookUrl()
-                    : "https://auto.bellory.com.br/webhook/webhook/whatsapp");
+                    : "https://auto.bellory.com.br/webhook/whatsapp2");
             webhook.put("byEvents", false);
             webhook.put("base64", false);
 
@@ -139,6 +139,7 @@ public class InstanceService {
             instance.setOrganizacao(organizacao);
             instance.setDescription(dto.getDescription());
             instance.setPersonality(dto.getPersonality());
+
 
             // ✅ Status inicial = DISCONNECTED (aguardando QR code scan)
             instance.setStatus(InstanceStatus.DISCONNECTED);
@@ -314,6 +315,9 @@ public class InstanceService {
             if (dto.getPersonality() != null) {
                 instance.setPersonality(dto.getPersonality());
             }
+            if(dto.getAtivo() != null){
+                instance.setAtivo(dto.getAtivo());
+            }
 
             // ---- Settings (banco) ----
             boolean settingsChanged = false;
@@ -346,6 +350,7 @@ public class InstanceService {
                 if (t.getSendMediaMessage() != null)     tools.setSendMediaMessage(t.getSendMediaMessage());
                 if (t.getPostConfirmations() != null)    tools.setPostConfirmations(t.getPostConfirmations());
                 if (t.getPostCancellations() != null)    tools.setPostCancellations(t.getPostCancellations());
+
             }
 
             // ---- Webhook (banco) ----
@@ -500,6 +505,12 @@ public class InstanceService {
 
         Instance instance = findInstanceById(id);
         validarOrganizacao(instance.getOrganizacao().getId());
+
+        instance.setAtivo(false);
+        instance.setDeletado(true);
+        instance.setStatus(InstanceStatus.DISCONNECTED);
+
+        instanceRepository.save(instance);
 
         try {
             String url = evolutionApiUrl + "/instance/delete/" + instance.getInstanceName();

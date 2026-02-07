@@ -38,6 +38,9 @@ public class InstanceUpdateDTO {
     // ✅ NOVO: Tools
     private ToolsDTO tools;
 
+    private Boolean ativo;
+    private Boolean deletado;
+
     @Getter
     @Setter
     @NoArgsConstructor
