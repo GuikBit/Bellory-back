@@ -21,6 +21,8 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityNotFoundException;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
@@ -44,6 +46,7 @@ public class NotificacaoSchedulerService {
     private final NotificacaoAlertService alertService;
     private final RestTemplate restTemplate;
     private final NotificacaoTransactionalService transactionalService;
+    private final ObjectMapper objectMapper;
 
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
@@ -149,13 +152,13 @@ public class NotificacaoSchedulerService {
 
                 // 4. Envia mensagem (sem transação, operação externa)
                 try {
-                    enviarMensagemWhatsApp(notif.getInstanceName(), telefone, mensagem);
+                    WhatsAppSendResult resultado = enviarMensagemWhatsApp(notif.getInstanceName(), telefone, mensagem);
 
                     // 5. Registra sucesso em transação separada (commit imediato)
-                    transactionalService.registrarEnvioSucesso(notif, telefone);
+                    transactionalService.registrarEnvioSucesso(notif, telefone, resultado.remoteJid(), resultado.messageId());
 
-                    log.info("Notificacao {} enviada: ag={}, org={}",
-                            notif.getTipo(), notif.getAgendamentoId(), notif.getNomeOrganizacao());
+                    log.info("Notificacao {} enviada: ag={}, org={}, remoteJid={}",
+                            notif.getTipo(), notif.getAgendamentoId(), notif.getNomeOrganizacao(), resultado.remoteJid());
 
                 } catch (Exception e) {
                     log.error("Falha ao enviar notificacao ag={}: {}",
@@ -187,7 +190,12 @@ public class NotificacaoSchedulerService {
         }
     }
 
-    private void enviarMensagemWhatsApp(String instanceName, String telefone, String mensagem) {
+    /**
+     * Record para encapsular o resultado do envio WhatsApp
+     */
+    private record WhatsAppSendResult(String remoteJid, String messageId) {}
+
+    private WhatsAppSendResult enviarMensagemWhatsApp(String instanceName, String telefone, String mensagem) {
         String url = "https://wa.bellory.com.br/message/sendText/" + instanceName;
 
         HttpHeaders headers = new HttpHeaders();
@@ -207,7 +215,24 @@ public class NotificacaoSchedulerService {
             throw new RuntimeException("Falha ao enviar mensagem. Status: " + response.getStatusCode());
         }
 
-        log.debug("Mensagem enviada para {} via instancia {}", telefone, instanceName);
+        // Extrair remoteJid e messageId da resposta do Evolution API
+        String remoteJid = null;
+        String messageId = null;
+        try {
+            JsonNode responseJson = objectMapper.readTree(response.getBody());
+            JsonNode keyNode = responseJson.path("key");
+            if (!keyNode.isMissingNode()) {
+                remoteJid = keyNode.path("remoteJid").asText(null);
+                messageId = keyNode.path("id").asText(null);
+            }
+        } catch (Exception e) {
+            log.warn("Não foi possível extrair remoteJid/messageId da resposta: {}", e.getMessage());
+        }
+
+        log.debug("Mensagem enviada para {} via instancia {} | remoteJid={}, messageId={}",
+                telefone, instanceName, remoteJid, messageId);
+
+        return new WhatsAppSendResult(remoteJid, messageId);
     }
 
     private boolean jaFoiEnviada(NotificacaoPendenteDTO notif) {

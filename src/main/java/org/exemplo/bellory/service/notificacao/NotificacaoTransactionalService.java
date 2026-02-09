@@ -34,7 +34,7 @@ public class NotificacaoTransactionalService {
      * Transação independente com commit imediato
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void registrarEnvioSucesso(NotificacaoPendenteDTO notif, String telefone) {
+    public void registrarEnvioSucesso(NotificacaoPendenteDTO notif, String telefone, String remoteJid, String whatsappMessageId) {
         try {
             Agendamento agendamento = agendamentoRepository.findById(notif.getAgendamentoId())
                     .orElseThrow(() -> new EntityNotFoundException(
@@ -46,9 +46,11 @@ public class NotificacaoTransactionalService {
                     .tipo(notif.getTipo())
                     .horasAntes(notif.getHorasAntes())
                     .dtEnvio(LocalDateTime.now())
-                    .status(StatusEnvio.ENVIADO)
+                    .status(StatusEnvio.AGUARDANDO_RESPOSTA)
                     .telefoneDestino(telefone)
                     .instanceName(notif.getInstanceName())
+                    .remoteJid(remoteJid)
+                    .whatsappMessageId(whatsappMessageId)
                     .build();
 
             notificacaoEnviadaRepository.save(registro);

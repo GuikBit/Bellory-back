@@ -1,0 +1,1068 @@
+{
+  "name": "Bot WhatsApp Bellory - Principal (Enhanced)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "/whatsapp",
+        "options": {}
+      },
+      "id": "4db5c47d-fed3-4edd-9ba9-c71f18520dc7",
+      "name": "Webhook (Evolution API)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [-2400, 32],
+      "webhookId": "webhook-whatsapp-evolution"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.body.data.key.fromMe }}"
+            },
+            {
+              "value1": "={{ $json.body.data.key.remoteJid.includes('g.us') }}"
+            }
+          ]
+        }
+      },
+      "id": "c18b673b-9306-495c-bdde-43e8d4ba5b6e",
+      "name": "Filtro (Anti-Loop & Privado)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [-2200, 32]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "mensagem_texto",
+              "value": "={{ $json.body.data.message.conversation || $json.body.data.message.extendedTextMessage?.text || '' }}"
+            },
+            {
+              "name": "remetente_numero",
+              "value": "={{ $json.body.data.key.remoteJid }}"
+            },
+            {
+              "name": "remetente_nome",
+              "value": "={{ $json.body.data.pushName }}"
+            },
+            {
+              "name": "instance_name",
+              "value": "={{ $json.body.instance }}"
+            },
+            {
+              "name": "telefone_limpo",
+              "value": "={{ $json.body.data.key.remoteJid.replace('@s.whatsapp.net', '').replace('@c.us', '') }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "6ebbab9d-eb21-4ca1-b004-5dc4eddaaf21",
+      "name": "Normalizar Dados",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [-2000, 32]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT instance_data, expires_at FROM auto.instance_cache WHERE instance_name = $1 AND expires_at > NOW();",
+        "options": {
+          "queryReplacement": "={{ $json.instance_name }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [-1800, 32],
+      "id": "923eed9d-b346-4eaf-881f-d61d918cc508",
+      "name": "Verificar Cache Instância",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "lq3dPcTNeSRNyXW9",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.instance_data !== undefined && $json.instance_data !== null }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "89181cb2-643d-4d79-86bf-2948b37d6171",
+      "name": "Cache Existe?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [-1600, 32]
+    },
+    {
+      "parameters": {
+        "url": "=https://api-dev.bellory.com.br/api/instances/by-name/{{ $('Normalizar Dados').item.json.instance_name }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJiZWxsb3J5LWFwaSIsInN1YiI6ImZ1bmNpb25hcmlvMSIsInVzZXJJZCI6MSwib3JnYW5pemFjYW9JZCI6MSwicm9sZSI6IlJPTEVfQURNSU4iLCJub21lQ29tcGxldG8iOiJBbmEgU2lsdmEiLCJleHAiOjE3NjgyNTM4Nzd9.SD1yrM7YHoooxJRK2BlLKljjOgi4vxgiygvtvIoaoGU"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "3723470a-6eb9-4c13-b09c-a7b449f463b0",
+      "name": "Buscar Instância (API)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [-1400, 160]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO auto.instance_cache (instance_name, instance_data, expires_at) VALUES ($1, $2::jsonb, NOW() + INTERVAL '30 minutes') ON CONFLICT (instance_name) DO UPDATE SET instance_data = $2::jsonb, cached_at = NOW(), expires_at = NOW() + INTERVAL '30 minutes' RETURNING instance_data;",
+        "options": {
+          "queryReplacement": "={{ $('Normalizar Dados').item.json.instance_name }},={{ JSON.stringify($json.dados) }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [-1200, 160],
+      "id": "c3b5b170-6942-4524-9e5b-f63551322462",
+      "name": "Salvar Cache",
+      "credentials": {
+        "postgres": {
+          "id": "lq3dPcTNeSRNyXW9",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "let instanceData;\n\nif ($input.item.json.instance_data) {\n  instanceData = $input.item.json.instance_data;\n} else if ($input.item.json.dados) {\n  instanceData = $input.item.json.dados;\n} else {\n  throw new Error('Dados da instância não encontrados');\n}\n\nif (!instanceData || !instanceData.instancia) {\n  throw new Error('Estrutura de dados da instância inválida');\n}\n\nconst instancia = instanceData.instancia;\nconst tools = instancia.tools;\n\n// === VERIFICAR SE INSTÂNCIA ESTÁ ATIVA ===\nconst instanceAtivo = instancia.instanceAtivo !== false;\n\nlet knowledgeBaseText = '';\nif (instancia.knowledgeBase && instancia.knowledgeBase.length > 0) {\n  knowledgeBaseText = '\\n\\n=== BASE DE CONHECIMENTO ===\\n';\n  instancia.knowledgeBase.forEach(kb => {\n    if (kb.type === 'TEXT' && kb.content) {\n      knowledgeBaseText += `\\n### ${kb.title}\\n${kb.content}\\n`;\n    }\n  });\n  knowledgeBaseText += '\\n========================\\n';\n}\n\n// === GERAR LISTA DE TOOLS HABILITADAS/DESABILITADAS ===\nconst toolsList = [];\nif (tools.getServices) toolsList.push('- buscar_servicos: Consultar serviços e preços');\nif (tools.getProfessional) toolsList.push('- buscar_profissionais: Consultar profissionais disponíveis');\nif (tools.getAvaliableSchedules) toolsList.push('- buscar_horarios: Consultar horários disponíveis');\nif (tools.postScheduling) toolsList.push('- criar_agendamento: Criar novos agendamentos');\n\nconst toolsInfo = toolsList.length > 0\n  ? '\\n\\n=== FERRAMENTAS DISPONÍVEIS ===\\nVocê pode usar APENAS estas ferramentas:\\n' + toolsList.join('\\n') + '\\n\\nNÃO use ferramentas que não estão listadas acima.\\n==============================\\n'\n  : '\\n\\n=== AVISO ===\\nNenhuma ferramenta está habilitada. Responda apenas com base no seu conhecimento e na base de conhecimento fornecida.\\n=============\\n';\n\nreturn [{\n  json: {\n    instance_id: instancia.id,\n    instance_name: instancia.instanceName,\n    instance_ativo: instanceAtivo,\n    personality: instancia.personality || 'Você é um assistente virtual profissional e cordial.',\n    knowledge_base_text: knowledgeBaseText,\n    tools_info: toolsInfo,\n    organizacao_id: instancia.organizacaoId,\n    organizacao_nome: instancia.organizacaoNome,\n    tools_enabled: {\n      get_services: tools.getServices === true,\n      get_professional: tools.getProfessional === true,\n      get_products: tools.getProducts === true,\n      get_avaliable_schedules: tools.getAvaliableSchedules === true,\n      post_scheduling: tools.postScheduling === true,\n      send_text_message: tools.sendTextMessage === true,\n      send_media_message: tools.sendMediaMessage === true,\n      post_confirmations: tools.postConfirmations === true,\n      post_cancellations: tools.postCancellations === true\n    },\n    remetente_numero: $('Normalizar Dados').item.json.remetente_numero,\n    remetente_nome: $('Normalizar Dados').item.json.remetente_nome,\n    mensagem_texto: $('Normalizar Dados').item.json.mensagem_texto,\n    telefone_limpo: $('Normalizar Dados').item.json.telefone_limpo\n  }\n}];"
+      },
+      "id": "858be619-db31-4176-a051-09f7cb372474",
+      "name": "Processar Dados Instância",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [-1000, 32]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.instance_ativo }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "a1b2c3d4-0001-4000-8000-000000000001",
+      "name": "Instância Ativa?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [-800, 32]
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [-800, 240],
+      "id": "a1b2c3d4-0001-4000-8000-000000000002",
+      "name": "Fim (Instância Inativa)"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT ne.id as notificacao_id, ne.agendamento_id, ne.status as notif_status, ne.tipo, ne.data_desejada_reagendamento, ne.horarios_disponiveis, ne.instance_name, a.dt_agendamento, a.status as agendamento_status, c.nome_completo as cliente_nome, c.telefone as cliente_telefone, o.nome_fantasia as organizacao_nome, o.id as organizacao_id FROM app.notificacao_enviada ne JOIN app.agendamento a ON a.id = ne.agendamento_id JOIN app.cliente c ON c.id = a.cliente_id JOIN app.organizacao o ON o.id = a.organizacao_id WHERE ne.telefone_destino = $1 AND ne.instance_name = $2 AND ne.status IN ('AGUARDANDO_RESPOSTA', 'AGUARDANDO_DATA', 'AGUARDANDO_HORARIO') ORDER BY ne.dt_envio DESC LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ $('Processar Dados Instância').item.json.telefone_limpo }},={{ $('Processar Dados Instância').item.json.instance_name }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [-600, 32],
+      "id": "a1b2c3d4-0001-4000-8000-000000000003",
+      "name": "Verificar Notificação Pendente",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "lq3dPcTNeSRNyXW9",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.notificacao_id !== undefined && $json.notificacao_id !== null }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "a1b2c3d4-0001-4000-8000-000000000004",
+      "name": "Tem Notificação Pendente?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [-400, 32]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ════════════════════════════════════════════════════════\n// CLASSIFICAR RESPOSTA DE CONFIRMAÇÃO\n// Analisa a mensagem do cliente e determina a ação\n// baseado no status atual da notificação\n// ════════════════════════════════════════════════════════\n\nconst notificacao = $input.item.json;\nconst msg = $('Processar Dados Instância').item.json.mensagem_texto;\nconst instanceData = $('Processar Dados Instância').item.json;\n\nconst msgLower = msg.toLowerCase()\n  .normalize('NFD')\n  .replace(/[\\u0300-\\u036f]/g, '')\n  .trim();\n\nconst status = notificacao.notif_status;\nlet action = 'ERRO';\nlet responseText = '';\nlet needsTimesQuery = false;\nlet parsedDate = null;\nlet selectedTime = null;\nlet updateNotifStatus = null;\nlet updateAgendStatus = null;\nlet respostaCliente = null;\n\n// ═══ ESTADO: AGUARDANDO_RESPOSTA (SIM/NAO/REAGENDAR) ═══\nif (status === 'AGUARDANDO_RESPOSTA') {\n  const simKeywords = ['sim', 'confirmo', 'confirmado', 'pode confirmar', 'vou sim',\n    'ok', 'ta bom', 'vou', 'combinado', 'fechado', 'perfeito', 'isso',\n    'certo', 'claro', 'com certeza', 'positivo', 's', 'ss', 'siin', 'siim',\n    'pode ser', 'confirma', 'confirmando', 'vou estar', 'estarei ai'];\n\n  const naoKeywords = ['nao', 'cancela', 'cancelar', 'nao posso', 'nao vou',\n    'desmarcar', 'nao vai dar', 'n', 'nn', 'nnn', 'desisto',\n    'nao quero', 'cancele', 'remove', 'tira'];\n\n  const reagendarKeywords = ['reagendar', 'remarcar', 'mudar', 'trocar',\n    'outro dia', 'outra data', 'outro horario', 'adiar', 'alterar',\n    'transferir', 'mudar data', 'mudar horario', 'trocar dia'];\n\n  if (simKeywords.some(k => msgLower.includes(k))) {\n    action = 'CONFIRMAR';\n    updateNotifStatus = 'CONFIRMADO';\n    updateAgendStatus = 'CONFIRMADO';\n    respostaCliente = 'SIM';\n    responseText = `✅ Seu agendamento foi *CONFIRMADO* com sucesso!\\n\\nAguardamos você no horário marcado. 😊`;\n  } else if (naoKeywords.some(k => msgLower.includes(k))) {\n    action = 'CANCELAR';\n    updateNotifStatus = 'CANCELADO_CLIENTE';\n    updateAgendStatus = 'CANCELADO';\n    respostaCliente = 'NAO';\n    responseText = `❌ Seu agendamento foi *CANCELADO*.\\n\\nSe precisar, faça um novo agendamento quando desejar. 😊`;\n  } else if (reagendarKeywords.some(k => msgLower.includes(k))) {\n    action = 'PEDIR_DATA';\n    updateNotifStatus = 'AGUARDANDO_DATA';\n    respostaCliente = 'REAGENDAR';\n    responseText = `📅 Entendido! Para qual data você gostaria de reagendar?\\n\\nPor favor, informe a data desejada no formato:\\n*DD/MM/AAAA* (ex: 15/02/2026)`;\n  } else {\n    action = 'RESPOSTA_INVALIDA';\n    responseText = `Desculpe, não entendi sua resposta. 🤔\\n\\nPor favor, responda com:\\n\\n✅ *SIM* - para confirmar\\n❌ *NÃO* - para cancelar\\n📅 *REAGENDAR* - para remarcar`;\n  }\n}\n\n// ═══ ESTADO: AGUARDANDO_DATA (cliente deve informar data) ═══\nelse if (status === 'AGUARDANDO_DATA') {\n  const regexData = /(\\d{1,2})[\\/\\-](\\d{1,2})[\\/\\-](\\d{4})/;\n  const match = msg.match(regexData);\n\n  if (match) {\n    const dia = parseInt(match[1]);\n    const mes = parseInt(match[2]) - 1;\n    const ano = parseInt(match[3]);\n    const dataObj = new Date(ano, mes, dia);\n    const hoje = new Date();\n    hoje.setHours(0, 0, 0, 0);\n\n    if (dataObj.getDate() === dia &&\n        dataObj.getMonth() === mes &&\n        dataObj.getFullYear() === ano &&\n        dataObj > hoje) {\n      action = 'BUSCAR_HORARIOS';\n      needsTimesQuery = true;\n      parsedDate = `${ano}-${String(mes + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;\n      // Dia da semana para consulta de jornada (0=domingo, 6=sábado)\n      const diasSemana = ['DOMINGO', 'SEGUNDA', 'TERCA', 'QUARTA', 'QUINTA', 'SEXTA', 'SABADO'];\n      const diaSemanaIdx = dataObj.getDay();\n      parsedDate = {\n        iso: `${ano}-${String(mes + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`,\n        formatted: `${String(dia).padStart(2, '0')}/${String(mes + 1).padStart(2, '0')}/${ano}`,\n        diaSemana: diasSemana[diaSemanaIdx],\n        diaSemanaIdx: diaSemanaIdx\n      };\n    } else {\n      action = 'DATA_INVALIDA';\n      responseText = `⚠️ Data inválida ou no passado.\\n\\nPor favor, informe uma data *futura* no formato *DD/MM/AAAA*.`;\n    }\n  } else {\n    action = 'DATA_INVALIDA';\n    responseText = `⚠️ Formato de data não reconhecido.\\n\\nPor favor, informe no formato *DD/MM/AAAA* (ex: 15/02/2026).`;\n  }\n}\n\n// ═══ ESTADO: AGUARDANDO_HORARIO (cliente deve escolher horário) ═══\nelse if (status === 'AGUARDANDO_HORARIO') {\n  const selecao = parseInt(msgLower.replace(/[^0-9]/g, ''));\n  let horarios = [];\n  try {\n    horarios = JSON.parse(notificacao.horarios_disponiveis || '[]');\n  } catch(e) {\n    horarios = [];\n  }\n\n  if (!isNaN(selecao) && selecao >= 1 && selecao <= horarios.length) {\n    action = 'REAGENDAR';\n    selectedTime = horarios[selecao - 1];\n    updateNotifStatus = 'REAGENDADO';\n    updateAgendStatus = 'REAGENDADO';\n    respostaCliente = `HORARIO_${selecao}`;\n\n    const dataReagend = notificacao.data_desejada_reagendamento;\n    let dataFormatted = dataReagend;\n    if (dataReagend && dataReagend.includes('-')) {\n      const [a, m, d] = dataReagend.split('-');\n      dataFormatted = `${d}/${m}/${a}`;\n    }\n\n    responseText = `✅ Seu agendamento foi *REAGENDADO* com sucesso!\\n\\n📅 Nova data: *${dataFormatted}*\\n🕐 Horário: *${selectedTime.horaInicio}*\\n\\nAguardamos você! 😊`;\n  } else {\n    action = 'SELECAO_INVALIDA';\n    responseText = `⚠️ Seleção inválida.\\n\\nPor favor, responda com o *número* do horário desejado (1, 2, 3...).`;\n  }\n}\n\nreturn [{\n  json: {\n    action,\n    needsTimesQuery,\n    responseText,\n    parsedDate,\n    selectedTime,\n    updateNotifStatus,\n    updateAgendStatus,\n    respostaCliente,\n    notificacao_id: notificacao.notificacao_id,\n    agendamento_id: notificacao.agendamento_id,\n    notif_status: notificacao.notif_status,\n    cliente_nome: notificacao.cliente_nome,\n    organizacao_id: notificacao.organizacao_id,\n    organizacao_nome: notificacao.organizacao_nome,\n    instance_name: instanceData.instance_name,\n    remetente_numero: instanceData.remetente_numero,\n    telefone_limpo: instanceData.telefone_limpo,\n    data_desejada_reagendamento: notificacao.data_desejada_reagendamento,\n    horarios_disponiveis: notificacao.horarios_disponiveis\n  }\n}];"
+      },
+      "id": "a1b2c3d4-0001-4000-8000-000000000005",
+      "name": "Classificar Resposta Confirmação",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [-200, -200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.needsTimesQuery }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "a1b2c3d4-0001-4000-8000-000000000006",
+      "name": "Precisa Buscar Horários?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [0, -200]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH agend_info AS (\n  SELECT\n    a.id as agendamento_id,\n    af.funcionario_id,\n    s.id as servico_id,\n    s.tempo_estimado_minutos,\n    f.nome_completo as nome_funcionario,\n    s.nome as nome_servico\n  FROM app.agendamento a\n  JOIN app.agendamento_funcionario af ON af.agendamento_id = a.id\n  JOIN app.agendamento_servico asv ON asv.agendamento_id = a.id\n  JOIN app.servico s ON s.id = asv.servico_id\n  JOIN app.funcionario f ON f.id = af.funcionario_id\n  WHERE a.id = $1\n  LIMIT 1\n),\njornada AS (\n  SELECT jd.hora_inicio, jd.hora_fim\n  FROM app.jornada_dia jd\n  JOIN agend_info ai ON ai.funcionario_id = jd.funcionario_id\n  WHERE UPPER(jd.dia_semana) = $2\n  AND jd.ativo = true\n  LIMIT 1\n),\nocupados AS (\n  SELECT\n    EXTRACT(HOUR FROM a.dt_agendamento) as hora,\n    EXTRACT(MINUTE FROM a.dt_agendamento) as minuto,\n    SUM(s.tempo_estimado_minutos) as duracao\n  FROM app.agendamento a\n  JOIN app.agendamento_funcionario af ON af.agendamento_id = a.id\n  JOIN agend_info ai ON ai.funcionario_id = af.funcionario_id\n  JOIN app.agendamento_servico asv ON asv.agendamento_id = a.id\n  JOIN app.servico s ON s.id = asv.servico_id\n  WHERE DATE(a.dt_agendamento) = $3::date\n  AND a.status NOT IN ('CANCELADO', 'CONCLUIDO', 'NAO_COMPARECEU')\n  GROUP BY EXTRACT(HOUR FROM a.dt_agendamento), EXTRACT(MINUTE FROM a.dt_agendamento)\n)\nSELECT\n  ai.funcionario_id,\n  ai.nome_funcionario,\n  ai.nome_servico,\n  ai.tempo_estimado_minutos,\n  j.hora_inicio as jornada_inicio,\n  j.hora_fim as jornada_fim,\n  COALESCE(json_agg(\n    json_build_object('hora', o.hora, 'minuto', o.minuto, 'duracao', o.duracao)\n  ) FILTER (WHERE o.hora IS NOT NULL), '[]'::json) as horarios_ocupados\nFROM agend_info ai\nLEFT JOIN jornada j ON true\nLEFT JOIN ocupados o ON true\nGROUP BY ai.funcionario_id, ai.nome_funcionario, ai.nome_servico,\n         ai.tempo_estimado_minutos, j.hora_inicio, j.hora_fim;",
+        "options": {
+          "queryReplacement": "={{ $json.agendamento_id }},={{ $json.parsedDate.diaSemana }},={{ $json.parsedDate.iso }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [200, -400],
+      "id": "a1b2c3d4-0001-4000-8000-000000000007",
+      "name": "Buscar Horários Reagendamento",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "lq3dPcTNeSRNyXW9",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ════════════════════════════════════════════════════════\n// CALCULAR HORÁRIOS DISPONÍVEIS\n// Com base na jornada do funcionário e horários ocupados\n// ════════════════════════════════════════════════════════\n\nconst dados = $input.item.json;\nconst classif = $('Classificar Resposta Confirmação').item.json;\n\n// Verificar se tem jornada para o dia\nif (!dados.jornada_inicio || !dados.jornada_fim) {\n  return [{\n    json: {\n      ...classif,\n      horariosDisponiveis: [],\n      temHorarios: false,\n      responseText: `⚠️ O profissional *${dados.nome_funcionario || 'selecionado'}* não trabalha neste dia.\\n\\nPor favor, informe outra data no formato *DD/MM/AAAA*.`\n    }\n  }];\n}\n\n// Parse jornada\nconst [iniH, iniM] = dados.jornada_inicio.split(':').map(Number);\nconst [fimH, fimM] = dados.jornada_fim.split(':').map(Number);\nconst duracaoServico = dados.tempo_estimado_minutos || 30;\n\n// Parse horários ocupados\nlet ocupados = [];\ntry {\n  ocupados = typeof dados.horarios_ocupados === 'string'\n    ? JSON.parse(dados.horarios_ocupados)\n    : dados.horarios_ocupados || [];\n} catch(e) {\n  ocupados = [];\n}\n\n// Gerar slots disponíveis\nconst slots = [];\nlet currentMinutes = iniH * 60 + iniM;\nconst endMinutes = fimH * 60 + fimM;\n\nwhile (currentMinutes + duracaoServico <= endMinutes) {\n  const slotHora = Math.floor(currentMinutes / 60);\n  const slotMinuto = currentMinutes % 60;\n\n  // Verificar se conflita com algum horário ocupado\n  const conflito = ocupados.some(oc => {\n    const ocInicio = (oc.hora || 0) * 60 + (oc.minuto || 0);\n    const ocFim = ocInicio + (oc.duracao || 30);\n    const slotInicio = currentMinutes;\n    const slotFim = currentMinutes + duracaoServico;\n    return slotInicio < ocFim && slotFim > ocInicio;\n  });\n\n  if (!conflito) {\n    const horaStr = `${String(slotHora).padStart(2, '0')}:${String(slotMinuto).padStart(2, '0')}`;\n    const fimSlot = currentMinutes + duracaoServico;\n    const fimHoraStr = `${String(Math.floor(fimSlot / 60)).padStart(2, '0')}:${String(fimSlot % 60).padStart(2, '0')}`;\n    slots.push({ horaInicio: horaStr, horaFim: fimHoraStr });\n  }\n\n  currentMinutes += 30; // Incremento de 30 minutos\n}\n\n// Formatar mensagem com horários\nlet responseText;\nif (slots.length > 0) {\n  const dataFormatted = classif.parsedDate.formatted;\n  responseText = `📅 Horários disponíveis para *${dataFormatted}*`;\n  if (dados.nome_funcionario) responseText += ` com *${dados.nome_funcionario}*`;\n  responseText += `:\\n\\n`;\n  slots.forEach((slot, idx) => {\n    responseText += `*${idx + 1}* - ${slot.horaInicio} às ${slot.horaFim}\\n`;\n  });\n  responseText += `\\nResponda com o *número* do horário desejado.`;\n} else {\n  responseText = `⚠️ Não há horários disponíveis para *${classif.parsedDate.formatted}*.\\n\\nPor favor, informe outra data no formato *DD/MM/AAAA*.`;\n}\n\nreturn [{\n  json: {\n    ...classif,\n    horariosDisponiveis: slots,\n    temHorarios: slots.length > 0,\n    responseText,\n    nome_funcionario: dados.nome_funcionario,\n    nome_servico: dados.nome_servico,\n    updateNotifStatus: slots.length > 0 ? 'AGUARDANDO_HORARIO' : null\n  }\n}];"
+      },
+      "id": "a1b2c3d4-0001-4000-8000-000000000008",
+      "name": "Calcular Horários Disponíveis",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [400, -400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE app.notificacao_enviada SET status = $1, dt_resposta = NOW(), resposta_cliente = $2, data_desejada_reagendamento = $3::date, horarios_disponiveis = $4 WHERE id = $5;",
+        "options": {
+          "queryReplacement": "={{ $json.updateNotifStatus || $json.notif_status }},={{ $json.respostaCliente || '' }},={{ $json.parsedDate?.iso || $json.data_desejada_reagendamento || null }},={{ $json.horariosDisponiveis ? JSON.stringify($json.horariosDisponiveis) : $json.horarios_disponiveis || null }},={{ $json.notificacao_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [600, -400],
+      "id": "a1b2c3d4-0001-4000-8000-000000000009",
+      "name": "Atualizar Notificação (Horários)",
+      "credentials": {
+        "postgres": {
+          "id": "lq3dPcTNeSRNyXW9",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://wa.bellory.com.br/message/sendText/{{ $('Processar Dados Instância').item.json.instance_name }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "0626f19f09bd356cc21037164c7c3ca51752fef8"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "number",
+              "value": "={{ $('Processar Dados Instância').item.json.remetente_numero }}"
+            },
+            {
+              "name": "text",
+              "value": "={{ $('Calcular Horários Disponíveis').item.json.responseText }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-0001-4000-8000-000000000010",
+      "name": "Enviar Resposta Horários",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [800, -400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE app.notificacao_enviada SET status = $1, dt_resposta = NOW(), resposta_cliente = $2 WHERE id = $3;",
+        "options": {
+          "queryReplacement": "={{ $json.updateNotifStatus }},={{ $json.respostaCliente }},={{ $json.notificacao_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [200, -100],
+      "id": "a1b2c3d4-0001-4000-8000-000000000011",
+      "name": "Atualizar Notificação",
+      "credentials": {
+        "postgres": {
+          "id": "lq3dPcTNeSRNyXW9",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE app.agendamento SET status = $1, dt_atualizacao = NOW(), dt_confirmacao = CASE WHEN $1 = 'CONFIRMADO' THEN NOW() ELSE dt_confirmacao END WHERE id = $2;",
+        "options": {
+          "queryReplacement": "={{ $json.updateAgendStatus }},={{ $json.agendamento_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [400, -100],
+      "id": "a1b2c3d4-0001-4000-8000-000000000012",
+      "name": "Atualizar Agendamento",
+      "credentials": {
+        "postgres": {
+          "id": "lq3dPcTNeSRNyXW9",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.updateAgendStatus !== null && $json.updateAgendStatus !== undefined }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "a1b2c3d4-0001-4000-8000-000000000020",
+      "name": "Precisa Atualizar Agendamento?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [400, -200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://wa.bellory.com.br/message/sendText/{{ $('Processar Dados Instância').item.json.instance_name }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "0626f19f09bd356cc21037164c7c3ca51752fef8"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "number",
+              "value": "={{ $('Processar Dados Instância').item.json.remetente_numero }}"
+            },
+            {
+              "name": "text",
+              "value": "={{ $('Classificar Resposta Confirmação').item.json.responseText }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-0001-4000-8000-000000000013",
+      "name": "Enviar Resposta Confirmação",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [600, -200]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE app.agendamento SET status = 'REAGENDADO', dt_agendamento = $1::timestamp, dt_atualizacao = NOW() WHERE id = $2;",
+        "options": {
+          "queryReplacement": "={{ $('Classificar Resposta Confirmação').item.json.data_desejada_reagendamento + 'T' + $('Classificar Resposta Confirmação').item.json.selectedTime.horaInicio + ':00' }},={{ $('Classificar Resposta Confirmação').item.json.agendamento_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [200, 0],
+      "id": "a1b2c3d4-0001-4000-8000-000000000021",
+      "name": "Reagendar no Banco",
+      "credentials": {
+        "postgres": {
+          "id": "lq3dPcTNeSRNyXW9",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO auto.message_buffer (remote_jid, instance_name, message_text) VALUES ($1, $2, $3) RETURNING remote_jid;",
+        "options": {
+          "queryReplacement": "={{ $('Processar Dados Instância').item.json.remetente_numero }},={{ $('Processar Dados Instância').item.json.instance_name }},={{ $('Processar Dados Instância').item.json.mensagem_texto }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [-200, 200],
+      "id": "b7b11426-61c4-414e-97e4-8387274b57b9",
+      "name": "Inserir Buffer",
+      "credentials": {
+        "postgres": {
+          "id": "lq3dPcTNeSRNyXW9",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 15,
+        "unit": "seconds"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [0, 200],
+      "id": "32ade5c3-0f96-4d64-a83f-57345a6a0fe6",
+      "name": "Aguardar (Debounce)",
+      "webhookId": "82aee80e-77dd-4293-b503-e520faa76777"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE auto.message_buffer SET processed = true WHERE remote_jid = $1 AND processed = false RETURNING message_text;",
+        "options": {
+          "queryReplacement": "={{ $('Processar Dados Instância').item.json.remetente_numero }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [200, 200],
+      "id": "262fb241-0edf-4692-a04f-b439f9ae5289",
+      "name": "Buscar Mensagens Buffer",
+      "credentials": {
+        "postgres": {
+          "id": "lq3dPcTNeSRNyXW9",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $items.length > 0 }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "8f9511cd-6655-4629-b8b9-f57a000e39f8",
+      "name": "Tem Novas Mensagens?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [400, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ════════════════════════════════════════════════════════\n// AGRUPAR MENSAGENS + PREPARAR SYSTEM MESSAGE\n// Combina debounce, apresentação e tools em um único node\n// ════════════════════════════════════════════════════════\n\nconst messages = $input.all().map(item => item.json.message_text).join('\\n');\nconst instanceData = $('Processar Dados Instância').item.json;\n\n// Detecta primeira mensagem (saudação)\nconst mensagemCliente = messages.toLowerCase();\nconst saudacoesIniciais = ['oi', 'olá', 'ola', 'bom dia', 'boa tarde', 'boa noite', 'hey', 'opa', 'alo', 'alô'];\nconst isPrimeira = saudacoesIniciais.some(s => mensagemCliente.includes(s)) && messages.length < 50;\n\n// Saudação por horário (UTC-3)\nconst agora = new Date();\nconst hora = (agora.getUTCHours() - 3 + 24) % 24;\nconst saudacao = hora < 12 ? 'Bom dia' : hora < 18 ? 'Boa tarde' : 'Boa noite';\nconst nome = instanceData.remetente_nome || '';\n\n// ════════ APRESENTAÇÃO (Primeira interação) ════════\nconst apresentacao = `\n🎯 PRIMEIRA INTERAÇÃO - Apresente-se assim:\n\n\"${saudacao}${nome ? `, ${nome}` : ''}! 😊\nQue bom ter você na *${instanceData.organizacao_nome}*!\nSou *${instanceData.instance_name}*, seu assistente virtual.\n\nPosso te ajudar a:\n- *Agendar* rapidinho\n- Ver *serviços e preços*\n- Conhecer os *profissionais*\n- *Marcar ou Remarcar* agendamentos\n- Horários de funcionamento\n- Dúvidas em geral\n\n${nome ? `${nome}, ` : ''}o que precisa? Quer marcar um horário? 😉\"\n\nREGRAS:\n- Tom caloroso e amigável\n- SEMPRE incentive agendamento\n- Use nome do cliente\n- Seja PROATIVO\n- Celebre decisões\n`;\n\n// ════════ CONTINUAÇÃO ════════\nconst continuacao = `\n📋 CONVERSA EM ANDAMENTO\n- NÃO se reapresente\n- Continue caloroso\n- Foco em AGENDAR\n- Sugira próximo passo sempre\n`;\n\n// ════════ SYSTEM MESSAGE COMPLETO ════════\nconst systemMessage = `\n${instanceData.personality}\n\n${instanceData.knowledge_base_text}\n\n${instanceData.tools_info}\n\nEmpresa: ${instanceData.organizacao_nome}\nAgente: ${instanceData.instance_name}\nCliente: ${nome || 'Cliente'}\nPeríodo: ${saudacao}\n\n${isPrimeira ? apresentacao : continuacao}\n\nESSENCIAL:\n1. Tom: caloroso, amigável, proativo\n2. Objetivo: AGENDAR sempre\n3. Formato: *negrito*, emojis (😊✨🎉📅)\n4. Nome do cliente quando tiver\n5. Celebre decisões\n6. Sugira próximos passos\n7. NUNCA invente informações - use as ferramentas disponíveis\n8. Se não tiver ferramenta habilitada, informe que não pode ajudar com aquele assunto específico\n`;\n\nreturn [{\n  json: {\n    agrupado_texto: messages,\n    remetente_numero: instanceData.remetente_numero,\n    remetente_nome: instanceData.remetente_nome,\n    system_message: systemMessage,\n    tools_enabled: instanceData.tools_enabled,\n    instance_name: instanceData.instance_name,\n    organizacao_id: instanceData.organizacao_id,\n    organizacao_nome: instanceData.organizacao_nome\n  }\n}];"
+      },
+      "id": "106875a4-4955-4384-bf43-c8f15fd95dbd",
+      "name": "Agrupar Mensagens",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [600, 200]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.agrupado_texto }}",
+        "options": {
+          "systemMessage": "={{ $json.system_message }}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.6,
+      "position": [800, 200],
+      "id": "c2eb3312-86ca-4296-803d-2385d098bd8d",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [600, 500],
+      "id": "a67ade1b-e73b-43e2-8baa-f55fbd23659d",
+      "name": "Google Gemini",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "gCPu27KOcPZp2Zpg",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Agrupar Mensagens').item.json.remetente_numero }}",
+        "tableName": "auto.chat_memory"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "typeVersion": 1,
+      "position": [800, 500],
+      "id": "311b8ee6-299b-4b40-84a2-909ec5220c4f",
+      "name": "Postgres Memory",
+      "credentials": {
+        "postgres": {
+          "id": "lq3dPcTNeSRNyXW9",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "name": "buscar_servicos",
+        "description": "Use quando o cliente perguntar sobre: serviços oferecidos, preços, valores, quanto tempo demora, tipos de corte/barba/tratamentos disponíveis.",
+        "workflowId": "12cYrbI3leRaGxqc"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1,
+      "position": [1000, 500],
+      "id": "3409fe95-cba6-4c21-b96b-6df327014ff5",
+      "name": "Tool: Buscar Serviços"
+    },
+    {
+      "parameters": {
+        "name": "buscar_profissionais",
+        "description": "Use quando o cliente perguntar sobre: quem são os profissionais/barbeiros, qual profissional está disponível, especialidade, avaliações.",
+        "workflowId": "618NnmW6JjujMpTo"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1,
+      "position": [1200, 500],
+      "id": "cffb2843-cf01-4f82-a347-30fb019d3397",
+      "name": "Tool: Buscar Profissionais"
+    },
+    {
+      "parameters": {
+        "name": "buscar_horarios",
+        "description": "Use quando o cliente: quiser saber horários disponíveis, perguntar sobre disponibilidade, quiser agendar mas precisa saber horários. Para usar, o cliente precisa selecionar um serviço, o colaborador e a data.",
+        "workflowId": "rfEksLDZxbk1lV8F"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1,
+      "position": [1400, 500],
+      "id": "ba67a641-9a3b-475f-ad4a-d05084c8be39",
+      "name": "Tool: Buscar Horários"
+    },
+    {
+      "parameters": {
+        "name": "criar_agendamento",
+        "description": "Use quando o cliente: confirma que quer agendar, fornece todas informações necessárias (serviço, data, horário), diz 'pode agendar', 'quero marcar', 'confirmo'.",
+        "workflowId": "aDaN5GMpsojBOwrN"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1,
+      "position": [1600, 500],
+      "id": "9afc9898-3aff-454f-a41d-fa427da5d614",
+      "name": "Tool: Criar Agendamento"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://wa.bellory.com.br/message/sendText/{{ $('Agrupar Mensagens').item.json.instance_name }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "0626f19f09bd356cc21037164c7c3ca51752fef8"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "number",
+              "value": "={{ $('Agrupar Mensagens').item.json.remetente_numero }}"
+            },
+            {
+              "name": "text",
+              "value": "={{ $json.output }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "32b2153d-697b-40a1-9dbd-561aa79616eb",
+      "name": "Enviar Resposta",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1000, 200]
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [600, 400],
+      "id": "13cabef1-73ee-4ca4-8d6a-8b54bd1839b2",
+      "name": "Fim"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook (Evolution API)": {
+      "main": [
+        [
+          {
+            "node": "Filtro (Anti-Loop & Privado)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtro (Anti-Loop & Privado)": {
+      "main": [
+        [
+          {
+            "node": "Normalizar Dados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalizar Dados": {
+      "main": [
+        [
+          {
+            "node": "Verificar Cache Instância",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verificar Cache Instância": {
+      "main": [
+        [
+          {
+            "node": "Cache Existe?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cache Existe?": {
+      "main": [
+        [
+          {
+            "node": "Processar Dados Instância",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Buscar Instância (API)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Instância (API)": {
+      "main": [
+        [
+          {
+            "node": "Salvar Cache",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Salvar Cache": {
+      "main": [
+        [
+          {
+            "node": "Processar Dados Instância",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Processar Dados Instância": {
+      "main": [
+        [
+          {
+            "node": "Instância Ativa?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Instância Ativa?": {
+      "main": [
+        [
+          {
+            "node": "Verificar Notificação Pendente",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Fim (Instância Inativa)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verificar Notificação Pendente": {
+      "main": [
+        [
+          {
+            "node": "Tem Notificação Pendente?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tem Notificação Pendente?": {
+      "main": [
+        [
+          {
+            "node": "Classificar Resposta Confirmação",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Inserir Buffer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classificar Resposta Confirmação": {
+      "main": [
+        [
+          {
+            "node": "Precisa Buscar Horários?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Precisa Buscar Horários?": {
+      "main": [
+        [
+          {
+            "node": "Buscar Horários Reagendamento",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Atualizar Notificação",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Horários Reagendamento": {
+      "main": [
+        [
+          {
+            "node": "Calcular Horários Disponíveis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calcular Horários Disponíveis": {
+      "main": [
+        [
+          {
+            "node": "Atualizar Notificação (Horários)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atualizar Notificação (Horários)": {
+      "main": [
+        [
+          {
+            "node": "Enviar Resposta Horários",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atualizar Notificação": {
+      "main": [
+        [
+          {
+            "node": "Precisa Atualizar Agendamento?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Precisa Atualizar Agendamento?": {
+      "main": [
+        [
+          {
+            "node": "Atualizar Agendamento",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Enviar Resposta Confirmação",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atualizar Agendamento": {
+      "main": [
+        [
+          {
+            "node": "Enviar Resposta Confirmação",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Inserir Buffer": {
+      "main": [
+        [
+          {
+            "node": "Aguardar (Debounce)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aguardar (Debounce)": {
+      "main": [
+        [
+          {
+            "node": "Buscar Mensagens Buffer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Mensagens Buffer": {
+      "main": [
+        [
+          {
+            "node": "Tem Novas Mensagens?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tem Novas Mensagens?": {
+      "main": [
+        [
+          {
+            "node": "Agrupar Mensagens",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Fim",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agrupar Mensagens": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Enviar Resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool: Buscar Serviços": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool: Buscar Profissionais": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool: Buscar Horários": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool: Criar Agendamento": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "enhanced-v2-2026-02-09",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "7cd2192570f690f192d4d8c0d58a905ea183da6f294052109cd14343322150c9"
+  },
+  "tags": [
+    {
+      "name": "Bellory"
+    },
+    {
+      "name": "Principal"
+    },
+    {
+      "name": "WhatsApp"
+    }
+  ]
+}

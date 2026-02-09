@@ -70,6 +70,9 @@ public class NotificacaoEnviada {
     @Column(name = "instance_name", length = 100)
     private String instanceName;
 
+    @Column(name = "remote_jid", length = 100)
+    private String remoteJid;
+
     @PrePersist
     protected void onCreate() {
         dtCriacao = LocalDateTime.now();

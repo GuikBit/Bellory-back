@@ -1,0 +1,361 @@
+{
+  "name": "Bellory - Envio de Confirmações e Lembretes",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bellory-notificacao",
+        "options": {}
+      },
+      "id": "b1a2c3d4-0001-4000-8000-000000000001",
+      "name": "Webhook (Backend Scheduler)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [-800, 200],
+      "webhookId": "bellory-notificacao"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ════════════════════════════════════════════════════════\n// VALIDAR E NORMALIZAR PAYLOAD DO BACKEND\n// O backend envia via N8nWebhookClient:\n// { instanceName, telefone, mensagem, agendamentoId, tipoNotificacao, timestamp }\n// ════════════════════════════════════════════════════════\n\nconst body = $input.item.json.body || $input.item.json;\n\nconst instanceName = body.instanceName;\nconst telefone = body.telefone;\nconst mensagem = body.mensagem;\nconst agendamentoId = body.agendamentoId;\nconst tipoNotificacao = body.tipoNotificacao; // CONFIRMACAO ou LEMBRETE\nconst timestamp = body.timestamp;\n\n// Validar campos obrigatórios\nif (!instanceName || !telefone || !mensagem || !agendamentoId) {\n  throw new Error(`Payload inválido. Campos obrigatórios: instanceName=${instanceName}, telefone=${telefone}, agendamentoId=${agendamentoId}`);\n}\n\n// Formatar telefone para WhatsApp (remover @s.whatsapp.net se existir)\nconst telefoneFormatado = telefone.replace('@s.whatsapp.net', '').replace('@c.us', '');\nconst remoteJid = telefoneFormatado.includes('@') ? telefoneFormatado : `${telefoneFormatado}@s.whatsapp.net`;\n\n// Determinar se é CONFIRMACAO (precisa de resposta) ou LEMBRETE (só informativo)\nconst isConfirmacao = tipoNotificacao === 'CONFIRMACAO';\n\n// Montar mensagem final\nlet mensagemFinal = mensagem;\nif (isConfirmacao) {\n  mensagemFinal += '\\n\\nResponda:\\n✅ *SIM* - para confirmar\\n❌ *NÃO* - para cancelar\\n📅 *REAGENDAR* - para remarcar';\n}\n\nreturn [{\n  json: {\n    instanceName,\n    telefone: telefoneFormatado,\n    remoteJid,\n    mensagem: mensagemFinal,\n    mensagemOriginal: mensagem,\n    agendamentoId,\n    tipoNotificacao: tipoNotificacao || 'CONFIRMACAO',\n    isConfirmacao,\n    timestamp: timestamp || Date.now()\n  }\n}];"
+      },
+      "id": "b1a2c3d4-0001-4000-8000-000000000002",
+      "name": "Validar Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [-600, 200]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT i.id, i.instance_name, i.status, i.ativo, it.send_text_message, it.post_confirmations FROM app.instance i LEFT JOIN app.instance_tools it ON it.id = i.tool_id WHERE i.instance_name = $1 AND i.deletado = false LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ $json.instanceName }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [-400, 200],
+      "id": "b1a2c3d4-0001-4000-8000-000000000003",
+      "name": "Verificar Instância",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "lq3dPcTNeSRNyXW9",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.ativo === true && ($json.status === 'CONNECTED' || $json.status === 'OPEN') }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "b1a2c3d4-0001-4000-8000-000000000004",
+      "name": "Instância Conectada?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [-200, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://wa.bellory.com.br/message/sendText/{{ $('Validar Payload').item.json.instanceName }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "0626f19f09bd356cc21037164c7c3ca51752fef8"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "number",
+              "value": "={{ $('Validar Payload').item.json.remoteJid }}"
+            },
+            {
+              "name": "text",
+              "value": "={{ $('Validar Payload').item.json.mensagem }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b1a2c3d4-0001-4000-8000-000000000005",
+      "name": "Enviar via Evolution API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [0, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ════════════════════════════════════════════════════════\n// PROCESSAR RESULTADO DO ENVIO\n// Extrai o messageId do Evolution API para rastreamento\n// ════════════════════════════════════════════════════════\n\nconst response = $input.item.json;\nconst payload = $('Validar Payload').item.json;\n\n// Extrair messageId da resposta do Evolution API\nconst messageId = response?.key?.id || response?.messageId || null;\nconst enviouComSucesso = messageId !== null || response?.status === 'PENDING' || response?.key;\n\n// Determinar o status para salvar\nlet statusNotificacao;\nif (enviouComSucesso) {\n  statusNotificacao = payload.isConfirmacao ? 'AGUARDANDO_RESPOSTA' : 'ENVIADO';\n} else {\n  statusNotificacao = 'FALHA';\n}\n\nreturn [{\n  json: {\n    success: enviouComSucesso,\n    messageId,\n    statusNotificacao,\n    agendamentoId: payload.agendamentoId,\n    tipoNotificacao: payload.tipoNotificacao,\n    telefone: payload.telefone,\n    instanceName: payload.instanceName,\n    isConfirmacao: payload.isConfirmacao,\n    erroMensagem: enviouComSucesso ? null : JSON.stringify(response).substring(0, 500)\n  }\n}];"
+      },
+      "id": "b1a2c3d4-0001-4000-8000-000000000006",
+      "name": "Processar Resultado Envio",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [200, 200]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE app.notificacao_enviada SET status = $1, whatsapp_message_id = $2, telefone_destino = $3, dt_envio = NOW(), erro_mensagem = $4 WHERE agendamento_id = $5 AND tipo = $6 AND status = 'PENDENTE' RETURNING id;",
+        "options": {
+          "queryReplacement": "={{ $json.statusNotificacao }},={{ $json.messageId || '' }},={{ $json.telefone }},={{ $json.erroMensagem || '' }},={{ $json.agendamentoId }},={{ $json.tipoNotificacao }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [400, 200],
+      "id": "b1a2c3d4-0001-4000-8000-000000000007",
+      "name": "Atualizar Status Notificação",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "lq3dPcTNeSRNyXW9",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $('Processar Resultado Envio').item.json.isConfirmacao === true && $('Processar Resultado Envio').item.json.success === true }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "b1a2c3d4-0001-4000-8000-000000000008",
+      "name": "É Confirmação com Sucesso?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [600, 200]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE app.agendamento SET status = 'AGUARDANDO_CONFIRMACAO', dt_atualizacao = NOW() WHERE id = $1 AND status IN ('AGENDADO', 'REAGENDADO', 'PENDENTE');",
+        "options": {
+          "queryReplacement": "={{ $('Processar Resultado Envio').item.json.agendamentoId }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [800, 100],
+      "id": "b1a2c3d4-0001-4000-8000-000000000009",
+      "name": "Marcar Agendamento Aguardando",
+      "credentials": {
+        "postgres": {
+          "id": "lq3dPcTNeSRNyXW9",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [800, 300],
+      "id": "b1a2c3d4-0001-4000-8000-000000000010",
+      "name": "Fim (Lembrete Enviado)"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ════════════════════════════════════════════════════════\n// REGISTRAR FALHA - Instância não conectada\n// ════════════════════════════════════════════════════════\n\nconst payload = $('Validar Payload').item.json;\nconst instanceInfo = $input.item.json;\n\nreturn [{\n  json: {\n    success: false,\n    statusNotificacao: 'FALHA',\n    agendamentoId: payload.agendamentoId,\n    tipoNotificacao: payload.tipoNotificacao,\n    telefone: payload.telefone,\n    instanceName: payload.instanceName,\n    erroMensagem: `Instância '${payload.instanceName}' não está conectada. Status: ${instanceInfo.status || 'DESCONHECIDO'}, Ativa: ${instanceInfo.ativo}`\n  }\n}];"
+      },
+      "id": "b1a2c3d4-0001-4000-8000-000000000011",
+      "name": "Preparar Falha",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [0, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE app.notificacao_enviada SET status = 'FALHA', erro_mensagem = $1, telefone_destino = $2, dt_envio = NOW() WHERE agendamento_id = $3 AND tipo = $4 AND status = 'PENDENTE' RETURNING id;",
+        "options": {
+          "queryReplacement": "={{ $json.erroMensagem }},={{ $json.telefone }},={{ $json.agendamentoId }},={{ $json.tipoNotificacao }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [200, 400],
+      "id": "b1a2c3d4-0001-4000-8000-000000000012",
+      "name": "Registrar Falha no Banco",
+      "credentials": {
+        "postgres": {
+          "id": "lq3dPcTNeSRNyXW9",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [400, 400],
+      "id": "b1a2c3d4-0001-4000-8000-000000000013",
+      "name": "Fim (Falha)"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook (Backend Scheduler)": {
+      "main": [
+        [
+          {
+            "node": "Validar Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar Payload": {
+      "main": [
+        [
+          {
+            "node": "Verificar Instância",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verificar Instância": {
+      "main": [
+        [
+          {
+            "node": "Instância Conectada?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Instância Conectada?": {
+      "main": [
+        [
+          {
+            "node": "Enviar via Evolution API",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Preparar Falha",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar via Evolution API": {
+      "main": [
+        [
+          {
+            "node": "Processar Resultado Envio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Processar Resultado Envio": {
+      "main": [
+        [
+          {
+            "node": "Atualizar Status Notificação",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atualizar Status Notificação": {
+      "main": [
+        [
+          {
+            "node": "É Confirmação com Sucesso?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "É Confirmação com Sucesso?": {
+      "main": [
+        [
+          {
+            "node": "Marcar Agendamento Aguardando",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Fim (Lembrete Enviado)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Falha": {
+      "main": [
+        [
+          {
+            "node": "Registrar Falha no Banco",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registrar Falha no Banco": {
+      "main": [
+        [
+          {
+            "node": "Fim (Falha)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "confirmacao-v1-2026-02-09",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "7cd2192570f690f192d4d8c0d58a905ea183da6f294052109cd14343322150c9"
+  },
+  "tags": [
+    {
+      "name": "Bellory"
+    },
+    {
+      "name": "Confirmação"
+    },
+    {
+      "name": "Notificação"
+    }
+  ]
+}
