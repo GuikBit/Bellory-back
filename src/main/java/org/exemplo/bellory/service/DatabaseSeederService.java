@@ -769,9 +769,9 @@ public class DatabaseSeederService {
                 System.out.println("   ✓ API Key criada: " + teste);
             }
             InstanceCreateDTO instance = new InstanceCreateDTO();
-            instance.setInstanceName("automacao-lembrete-"+org.getId());
+            instance.setInstanceName(org.getSlug());
             instance.setInstanceNumber(org.getTelefone1().replaceAll("\\D", ""));
-            instance.setWebhookUrl("https://auto.bellory.com.br/webhook/automacao-lembrete-"+org.getId());
+            instance.setWebhookUrl("https://auto.bellory.com.br/webhook/whatsapp");
 
             instanceService.createInstance(instance, true, org.getId());
 
