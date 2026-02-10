@@ -10,11 +10,13 @@ import org.exemplo.bellory.model.entity.funcionario.*;
 import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 import org.exemplo.bellory.model.entity.servico.Servico;
 import org.exemplo.bellory.model.entity.users.Cliente;
+import org.exemplo.bellory.model.entity.organizacao.BloqueioOrganizacao;
 import org.exemplo.bellory.model.repository.Transacao.CobrancaRepository;
 import org.exemplo.bellory.model.repository.agendamento.AgendamentoRepository;
 import org.exemplo.bellory.model.repository.funcionario.DisponibilidadeRepository;
 import org.exemplo.bellory.model.repository.funcionario.FuncionarioRepository;
 import org.exemplo.bellory.model.repository.funcionario.JornadaTrabalhoRepository;
+import org.exemplo.bellory.model.repository.organizacao.BloqueioOrganizacaoRepository;
 import org.exemplo.bellory.model.repository.organizacao.OrganizacaoRepository;
 import org.exemplo.bellory.model.repository.servico.ServicoRepository;
 import org.exemplo.bellory.model.repository.users.ClienteRepository;
@@ -39,6 +41,7 @@ public class AgendamentoService {
     private final ClienteRepository clienteRepository;
     private final OrganizacaoRepository organizacaoRepository;
     private final CobrancaRepository cobrancaRepository;
+    private final BloqueioOrganizacaoRepository bloqueioOrganizacaoRepository;
 
     private final TransacaoService transacaoService;
 
@@ -67,7 +70,9 @@ public class AgendamentoService {
                               ServicoRepository servicoRepository,
                               ClienteRepository clienteRepository,
                               OrganizacaoRepository organizacaoRepository,
-                              CobrancaRepository cobrancaRepository, TransacaoService transacaoService) {
+                              CobrancaRepository cobrancaRepository,
+                              BloqueioOrganizacaoRepository bloqueioOrganizacaoRepository,
+                              TransacaoService transacaoService) {
         this.agendamentoRepository = agendamentoRepository;
         this.disponibilidadeRepository = disponibilidadeRepository;
         this.jornadaTrabalhoRepository = jornadaTrabalhoRepository;
@@ -76,6 +81,7 @@ public class AgendamentoService {
         this.clienteRepository = clienteRepository;
         this.organizacaoRepository = organizacaoRepository;
         this.cobrancaRepository = cobrancaRepository;
+        this.bloqueioOrganizacaoRepository = bloqueioOrganizacaoRepository;
         this.transacaoService = transacaoService;
     }
 
@@ -422,6 +428,10 @@ public class AgendamentoService {
     }
 
     private void validarDisponibilidadeAgendamento(Agendamento agendamento) {
+        // Validar bloqueio da organização (feriados/bloqueios)
+        validarBloqueioOrganizacao(agendamento.getOrganizacao().getId(),
+                agendamento.getDtAgendamento().toLocalDate());
+
         // Calcular duração total dos serviços
         int duracaoTotalMinutos = agendamento.getServicos().stream()
                 .mapToInt(Servico::getTempoEstimadoMinutos)
@@ -692,6 +702,10 @@ public class AgendamentoService {
             throw new IllegalArgumentException("Não é possível agendar para o passado.");
         }
 
+        // 1.1 Validar se o dia está bloqueado na organização (feriados/bloqueios)
+        validarBloqueioOrganizacao(novoAgendamento.getOrganizacao().getId(),
+                novoAgendamento.getDtAgendamento().toLocalDate());
+
         // 2. Calcular a Duração Total dos Serviços
         int duracaoTotalMinutos = novoAgendamento.getServicos().stream()
                 .mapToInt(Servico::getTempoEstimadoMinutos)
@@ -731,6 +745,25 @@ public class AgendamentoService {
 
         agendamento.marcarComoConcluido();
         return agendamentoRepository.save(agendamento);
+    }
+
+    /**
+     * Valida se a data está bloqueada por feriado ou bloqueio da organização
+     */
+    private void validarBloqueioOrganizacao(Long organizacaoId, LocalDate data) {
+        List<BloqueioOrganizacao> bloqueios = bloqueioOrganizacaoRepository
+                .findBloqueiosAtivosNaData(organizacaoId, data);
+
+        if (!bloqueios.isEmpty()) {
+            BloqueioOrganizacao primeiro = bloqueios.get(0);
+            String motivo = primeiro.getTitulo();
+            if (primeiro.getDescricao() != null && !primeiro.getDescricao().isEmpty()) {
+                motivo += " - " + primeiro.getDescricao();
+            }
+            throw new IllegalArgumentException(
+                    "Não é possível agendar para o dia " + data +
+                    ". Motivo: " + motivo);
+        }
     }
 
     private void validarDisponibilidade(Funcionario funcionario, LocalDateTime inicioAgendamento, LocalDateTime fimAgendamento, int duracaoTotalMinutos) {
@@ -810,6 +843,13 @@ public class AgendamentoService {
 
         // 2. Validar organização
         validarOrganizacao(request.getOrganizacaoId());
+
+        // 2.1 Verificar se o dia está bloqueado na organização (feriados/bloqueios)
+        List<BloqueioOrganizacao> bloqueiosOrg = bloqueioOrganizacaoRepository
+                .findBloqueiosAtivosNaData(request.getOrganizacaoId(), request.getDataDesejada());
+        if (!bloqueiosOrg.isEmpty()) {
+            return new ArrayList<>(); // Dia bloqueado, sem horários disponíveis
+        }
 
         // 3. Calcular a Duração Total dos Serviços + Tolerância
         int duracaoServicos = request.getServicoIds().stream()
