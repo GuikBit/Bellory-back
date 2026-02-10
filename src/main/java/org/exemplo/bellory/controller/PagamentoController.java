@@ -1,5 +1,7 @@
 package org.exemplo.bellory.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.exemplo.bellory.model.dto.compra.CobrancaDTO;
 import org.exemplo.bellory.model.dto.compra.PagamentoCreateDTO;
@@ -20,6 +22,7 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/pagamentos")
 @RequiredArgsConstructor
+@Tag(name = "Pagamentos", description = "Processamento de pagamentos e gerenciamento de cobranças")
 public class PagamentoController {
 
     private final TransacaoService transacaoService;
@@ -28,6 +31,7 @@ public class PagamentoController {
     /**
      * Processa pagamento de uma cobrança
      */
+    @Operation(summary = "Processar pagamento de cobrança")
     @PostMapping
     public ResponseEntity<ResponseAPI<PagamentoDTO>> processarPagamento(
             @RequestBody PagamentoCreateDTO dto) {
@@ -103,6 +107,7 @@ public class PagamentoController {
     /**
      * Busca detalhes de uma cobrança
      */
+    @Operation(summary = "Buscar detalhes de uma cobrança")
     @GetMapping("/cobranca/{cobrancaId}")
     public ResponseEntity<ResponseAPI<CobrancaDTO>> getCobranca(@PathVariable Long cobrancaId) {
         try {
@@ -137,6 +142,7 @@ public class PagamentoController {
     /**
      * Lista cobranças de um agendamento
      */
+    @Operation(summary = "Listar cobranças de um agendamento")
     @GetMapping("/agendamento/{agendamentoId}/cobrancas")
     public ResponseEntity<ResponseAPI<List<CobrancaDTO>>> getCobrancasPorAgendamento(
             @PathVariable Long agendamentoId) {
@@ -166,6 +172,7 @@ public class PagamentoController {
     /**
      * Cancela uma cobrança
      */
+    @Operation(summary = "Cancelar uma cobrança")
     @DeleteMapping("/{cobrancaId}")
     public ResponseEntity<ResponseAPI<Void>> cancelarCobranca(
             @PathVariable Long cobrancaId,

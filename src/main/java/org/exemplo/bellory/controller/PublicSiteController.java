@@ -1,6 +1,8 @@
 package org.exemplo.bellory.controller;
 
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.exemplo.bellory.model.dto.site.*;
 import org.exemplo.bellory.model.dto.tenent.OrganizacaoPublicDTO;
 import org.exemplo.bellory.model.dto.tenent.PublicSiteResponseDTO;
@@ -61,6 +63,7 @@ import java.util.Optional;
  */
 @RestController
 @RequestMapping("/api/public/site")
+@Tag(name = "Site Público", description = "Endpoints públicos para renderização do site das organizações")
 public class PublicSiteController {
 
     private final PublicSiteService publicSiteService;
@@ -80,6 +83,7 @@ public class PublicSiteController {
      *
      * GET /api/public/site/{slug}/home
      */
+    @Operation(summary = "Obter home page completa")
     @GetMapping("/{slug}/home")
     public ResponseEntity<ResponseAPI<HomePageDTO>> getHomePage(@PathVariable String slug) {
         try {
@@ -108,6 +112,7 @@ public class PublicSiteController {
      *
      * GET /api/public/site/{slug}/header
      */
+    @Operation(summary = "Obter configuração do header")
     @GetMapping("/{slug}/header")
     public ResponseEntity<ResponseAPI<HeaderConfigDTO>> getHeader(@PathVariable String slug) {
         try {
@@ -136,6 +141,7 @@ public class PublicSiteController {
      *
      * GET /api/public/site/{slug}/hero
      */
+    @Operation(summary = "Obter dados do hero/banner")
     @GetMapping("/{slug}/hero")
     public ResponseEntity<ResponseAPI<HeroSectionDTO>> getHero(@PathVariable String slug) {
         try {
@@ -164,6 +170,7 @@ public class PublicSiteController {
      *
      * GET /api/public/site/{slug}/about
      */
+    @Operation(summary = "Obter seção sobre (resumida)")
     @GetMapping("/{slug}/about")
     public ResponseEntity<ResponseAPI<AboutSectionDTO>> getAbout(@PathVariable String slug) {
         try {
@@ -190,6 +197,7 @@ public class PublicSiteController {
      *
      * GET /api/public/site/{slug}/about/full
      */
+    @Operation(summary = "Obter seção sobre (completa)")
     @GetMapping("/{slug}/about/full")
     public ResponseEntity<ResponseAPI<AboutSectionDTO>> getAboutFull(@PathVariable String slug) {
         try {
@@ -218,6 +226,7 @@ public class PublicSiteController {
      *
      * GET /api/public/site/{slug}/footer
      */
+    @Operation(summary = "Obter configuração do footer")
     @GetMapping("/{slug}/footer")
     public ResponseEntity<ResponseAPI<FooterConfigDTO>> getFooter(@PathVariable String slug) {
         try {
@@ -246,6 +255,7 @@ public class PublicSiteController {
      *
      * GET /api/public/site/{slug}/services/featured
      */
+    @Operation(summary = "Obter serviços em destaque")
     @GetMapping("/{slug}/services/featured")
     public ResponseEntity<ResponseAPI<ServicesSectionDTO>> getFeaturedServices(@PathVariable String slug) {
         try {
@@ -272,6 +282,7 @@ public class PublicSiteController {
      *
      * GET /api/public/site/{slug}/services?page=0&size=10
      */
+    @Operation(summary = "Listar todos os serviços (paginado)")
     @GetMapping("/{slug}/services")
     public ResponseEntity<ResponseAPI<ServicesSectionDTO>> getAllServices(
             @PathVariable String slug,
@@ -301,6 +312,7 @@ public class PublicSiteController {
      *
      * GET /api/public/site/{slug}/services/{id}
      */
+    @Operation(summary = "Obter detalhes de um serviço")
     @GetMapping("/{slug}/services/{id}")
     public ResponseEntity<ResponseAPI<ServicoDetalhadoDTO>> getServiceById(
             @PathVariable String slug,
@@ -331,6 +343,7 @@ public class PublicSiteController {
      *
      * GET /api/public/site/{slug}/products/featured
      */
+    @Operation(summary = "Obter produtos em destaque")
     @GetMapping("/{slug}/products/featured")
     public ResponseEntity<ResponseAPI<ProductsSectionDTO>> getFeaturedProducts(@PathVariable String slug) {
         try {
@@ -357,6 +370,7 @@ public class PublicSiteController {
      *
      * GET /api/public/site/{slug}/products?page=0&size=12
      */
+    @Operation(summary = "Listar todos os produtos (paginado)")
     @GetMapping("/{slug}/products")
     public ResponseEntity<ResponseAPI<ProductsSectionDTO>> getAllProducts(
             @PathVariable String slug,
@@ -386,6 +400,7 @@ public class PublicSiteController {
      *
      * GET /api/public/site/{slug}/products/{id}
      */
+    @Operation(summary = "Obter detalhes de um produto")
     @GetMapping("/{slug}/products/{id}")
     public ResponseEntity<ResponseAPI<ProdutoDetalhadoDTO>> getProductById(
             @PathVariable String slug,
@@ -416,6 +431,7 @@ public class PublicSiteController {
      *
      * GET /api/public/site/{slug}/team
      */
+    @Operation(summary = "Obter equipe/funcionários")
     @GetMapping("/{slug}/team")
     public ResponseEntity<ResponseAPI<TeamSectionDTO>> getTeam(@PathVariable String slug) {
         try {
@@ -444,6 +460,7 @@ public class PublicSiteController {
      *
      * GET /api/public/site/{slug}/booking
      */
+    @Operation(summary = "Obter informações de agendamento")
     @GetMapping("/{slug}/booking")
     public ResponseEntity<ResponseAPI<BookingSectionDTO>> getBookingInfo(@PathVariable String slug) {
         try {
@@ -473,6 +490,7 @@ public class PublicSiteController {
      *
      * GET /api/public/site/{slug}
      */
+    @Operation(summary = "Obter todos os dados públicos (legado)")
     @GetMapping("/{slug}")
     public ResponseEntity<ResponseAPI<PublicSiteResponseDTO>> getPublicSiteBySlug(
             @PathVariable String slug) {
@@ -500,6 +518,7 @@ public class PublicSiteController {
      *
      * GET /api/public/site/{slug}/exists
      */
+    @Operation(summary = "Verificar se slug existe")
     @GetMapping("/{slug}/exists")
     public ResponseEntity<ResponseAPI<Map<String, Object>>> checkSlugExists(
             @PathVariable String slug) {
@@ -531,6 +550,7 @@ public class PublicSiteController {
      *
      * GET /api/public/site/{slug}/basic
      */
+    @Operation(summary = "Obter informações básicas da organização")
     @GetMapping("/{slug}/basic")
     public ResponseEntity<ResponseAPI<OrganizacaoPublicDTO>> getBasicInfo(
             @PathVariable String slug) {

@@ -1,5 +1,7 @@
 package org.exemplo.bellory.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.exemplo.bellory.model.dto.notificacao.ConfigNotificacaoDTO;
@@ -14,11 +16,13 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/config/notificacao")
 @RequiredArgsConstructor
+@Tag(name = "Configuração de Notificações", description = "Gerenciamento das configurações de notificações")
 public class ConfigNotificacaoController {
 
     private final ConfigNotificacaoService service;
 
     @GetMapping
+    @Operation(summary = "Listar configurações de notificação")
     public ResponseEntity<ResponseAPI<List<ConfigNotificacaoDTO>>> listar() {
         try {
             return ResponseEntity.ok(ResponseAPI.<List<ConfigNotificacaoDTO>>builder()
@@ -37,6 +41,7 @@ public class ConfigNotificacaoController {
     }
 
     @GetMapping("/todas")
+    @Operation(summary = "Listar todas as configurações")
     public ResponseEntity<ResponseAPI<List<ConfigNotificacaoDTO>>> listarTodas() {
         try {
             return ResponseEntity.ok(ResponseAPI.<List<ConfigNotificacaoDTO>>builder()
@@ -55,6 +60,7 @@ public class ConfigNotificacaoController {
     }
 
     @PostMapping
+    @Operation(summary = "Criar configuração de notificação")
     public ResponseEntity<ResponseAPI<ConfigNotificacaoDTO>> criar(
             @RequestBody @Valid ConfigNotificacaoDTO dto) {
         try {
@@ -79,6 +85,7 @@ public class ConfigNotificacaoController {
      * Se ja existir configuracao para o tipo, atualiza. Senao, cria nova.
      */
     @PostMapping("/upsert")
+    @Operation(summary = "Salvar ou atualizar configuração (upsert)")
     public ResponseEntity<ResponseAPI<ConfigNotificacaoDTO>> salvarOuAtualizar(
             @RequestBody ConfigNotificacaoDTO dto) {
         try {
@@ -98,6 +105,7 @@ public class ConfigNotificacaoController {
     }
 
     @PutMapping("/{id}")
+    @Operation(summary = "Atualizar configuração por ID")
     public ResponseEntity<ResponseAPI<ConfigNotificacaoDTO>> atualizar(
             @PathVariable Long id, @RequestBody @Valid ConfigNotificacaoDTO dto) {
         try {
@@ -117,6 +125,7 @@ public class ConfigNotificacaoController {
     }
 
     @DeleteMapping("/{id}")
+    @Operation(summary = "Deletar configuração")
     public ResponseEntity<ResponseAPI<Void>> deletar(@PathVariable Long id) {
         try {
             service.deletarConfiguracao(id);
@@ -135,6 +144,7 @@ public class ConfigNotificacaoController {
     }
 
     @PatchMapping("/{id}/status")
+    @Operation(summary = "Alterar status ativo/inativo")
     public ResponseEntity<ResponseAPI<ConfigNotificacaoDTO>> alterarStatus(
             @PathVariable Long id, @RequestParam boolean ativo) {
         try {

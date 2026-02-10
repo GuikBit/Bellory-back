@@ -1,5 +1,7 @@
 package org.exemplo.bellory.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.exemplo.bellory.model.dto.compra.PagamentoDTO;
@@ -14,10 +16,12 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/configuracao")
 @RequiredArgsConstructor
+@Tag(name = "Configurações do Sistema", description = "Gerenciamento das configurações do sistema da organização")
 public class ConfigSistemaController {
 
     private final ConfigSistemaService configSistemaService;
 
+    @Operation(summary = "Obter configurações do sistema")
     @GetMapping
     public ResponseEntity<ResponseAPI<ConfigSistemaDTO>> getConfiguracao() {
         try {
@@ -40,6 +44,7 @@ public class ConfigSistemaController {
     }
 
     // Salvar/Atualizar todas as configurações do sistema
+    @Operation(summary = "Salvar/atualizar todas as configurações")
     @PutMapping
     public ResponseEntity<ResponseAPI<ConfigSistemaDTO>> putConfigSistema(@Valid @RequestBody ConfigSistemaDTO configSistemaDTO) {
         try {
@@ -61,6 +66,7 @@ public class ConfigSistemaController {
     }
 
     // Atualizar apenas configurações de agendamento
+    @Operation(summary = "Atualizar configurações de agendamento")
     @PutMapping("/agendamento")
     public ResponseEntity<ResponseAPI<ConfigAgendamentoDTO>> putConfigAgendamento(@Valid @RequestBody ConfigAgendamento configAgendamento) {
         try {
@@ -81,6 +87,7 @@ public class ConfigSistemaController {
         }
     }
 
+    @Operation(summary = "Atualizar configurações de serviço")
     @PutMapping("/servico")
     public ResponseEntity<ResponseAPI<ConfigServicoDTO>> putConfigServico(@Valid @RequestBody ConfigServico configServico) {
         try {
@@ -101,6 +108,7 @@ public class ConfigSistemaController {
         }
     }
 
+    @Operation(summary = "Atualizar configurações de cliente")
     @PutMapping("/cliente")
     public ResponseEntity<ResponseAPI<ConfigClienteDTO>> putConfigCliente(@Valid @RequestBody ConfigCliente configcliente) {
         try {
@@ -121,6 +129,7 @@ public class ConfigSistemaController {
         }
     }
 
+    @Operation(summary = "Atualizar configurações de colaborador")
     @PutMapping("/colaborador")
     public ResponseEntity<ResponseAPI<ConfigColaboradorDTO>> putConfigServico(@Valid @RequestBody ConfigColaborador configColaborador) {
         try {
@@ -141,6 +150,7 @@ public class ConfigSistemaController {
         }
     }
 
+    @Operation(summary = "Atualizar configurações de notificação")
     @PutMapping("/notificacao")
     public ResponseEntity<ResponseAPI<ConfigNotificacaoDTO>> putConfigServico(@Valid @RequestBody ConfigNotificacao configNotificacao) {
         try {

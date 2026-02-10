@@ -1,5 +1,7 @@
 package org.exemplo.bellory.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.exemplo.bellory.model.dto.relatorio.*;
 import org.exemplo.bellory.model.entity.error.ResponseAPI;
 import org.exemplo.bellory.service.relatorio.*;
@@ -9,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/relatorios")
+@Tag(name = "Relatórios", description = "Geração de relatórios gerenciais e analíticos")
 public class RelatorioController {
 
     private final RelatorioFaturamentoService faturamentoService;
@@ -42,6 +45,7 @@ public class RelatorioController {
     // ==================== DASHBOARD EXECUTIVO (DETALHADO) ====================
 
     @PostMapping("/dashboard")
+    @Operation(summary = "Gerar dashboard executivo")
     public ResponseEntity<ResponseAPI<RelatorioDashboardDTO>> getDashboardExecutivo(
             @RequestBody RelatorioFiltroDTO filtro) {
         try {
@@ -80,6 +84,7 @@ public class RelatorioController {
     // ==================== FATURAMENTO ====================
 
     @PostMapping("/faturamento")
+    @Operation(summary = "Gerar relatório de faturamento")
     public ResponseEntity<ResponseAPI<RelatorioFaturamentoDTO>> getRelatorioFaturamento(
             @RequestBody RelatorioFiltroDTO filtro) {
         try {
@@ -118,6 +123,7 @@ public class RelatorioController {
     // ==================== AGENDAMENTOS ====================
 
     @PostMapping("/agendamentos")
+    @Operation(summary = "Gerar relatório de agendamentos")
     public ResponseEntity<ResponseAPI<RelatorioAgendamentoDTO>> getRelatorioAgendamentos(
             @RequestBody RelatorioFiltroDTO filtro) {
         try {
@@ -156,6 +162,7 @@ public class RelatorioController {
     // ==================== NOTIFICAÇÕES (CONFIRMAÇÕES E LEMBRETES) ====================
 
     @PostMapping("/notificacoes")
+    @Operation(summary = "Gerar relatório de notificações")
     public ResponseEntity<ResponseAPI<RelatorioNotificacaoDTO>> getRelatorioNotificacoes(
             @RequestBody RelatorioFiltroDTO filtro) {
         try {
@@ -194,6 +201,7 @@ public class RelatorioController {
     // ==================== COBRANÇAS E INADIMPLÊNCIA ====================
 
     @PostMapping("/cobrancas")
+    @Operation(summary = "Gerar relatório de cobranças")
     public ResponseEntity<ResponseAPI<RelatorioCobrancaDTO>> getRelatorioCobrancas(
             @RequestBody RelatorioFiltroDTO filtro) {
         try {
@@ -232,6 +240,7 @@ public class RelatorioController {
     // ==================== FUNCIONÁRIOS (PRODUTIVIDADE, OCUPAÇÃO, COMISSÕES) ====================
 
     @PostMapping("/funcionarios")
+    @Operation(summary = "Gerar relatório de funcionários")
     public ResponseEntity<ResponseAPI<RelatorioFuncionarioDTO>> getRelatorioFuncionarios(
             @RequestBody RelatorioFiltroDTO filtro) {
         try {
@@ -270,6 +279,7 @@ public class RelatorioController {
     // ==================== CLIENTES (CADASTROS, FREQUÊNCIA, LTV) ====================
 
     @PostMapping("/clientes")
+    @Operation(summary = "Gerar relatório de clientes")
     public ResponseEntity<ResponseAPI<RelatorioClienteDTO>> getRelatorioClientes(
             @RequestBody RelatorioFiltroDTO filtro) {
         try {
@@ -308,6 +318,7 @@ public class RelatorioController {
     // ==================== SERVIÇOS (RANKING, CATEGORIAS) ====================
 
     @PostMapping("/servicos")
+    @Operation(summary = "Gerar relatório de serviços")
     public ResponseEntity<ResponseAPI<RelatorioServicoDTO>> getRelatorioServicos(
             @RequestBody RelatorioFiltroDTO filtro) {
         try {

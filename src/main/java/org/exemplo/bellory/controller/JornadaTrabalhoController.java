@@ -1,5 +1,7 @@
 package org.exemplo.bellory.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.exemplo.bellory.model.dto.JornadaDiaCreateUpdateDTO;
 import org.exemplo.bellory.model.dto.JornadaDiaDTO;
 import org.exemplo.bellory.model.entity.error.ResponseAPI;
@@ -12,6 +14,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/funcionario/{funcionarioId}/jornada")
+@Tag(name = "Jornada de Trabalho", description = "Gerenciamento de jornadas de trabalho dos funcionários")
 public class JornadaTrabalhoController {
 
     private final JornadaTrabalhoService jornadaTrabalhoService;
@@ -25,6 +28,7 @@ public class JornadaTrabalhoController {
      * Endpoint: GET /api/funcionario/{funcionarioId}/jornada
      */
     @GetMapping
+    @Operation(summary = "Listar jornadas de trabalho do funcionário")
     public ResponseEntity<ResponseAPI<List<JornadaDiaDTO>>> getJornadas(@PathVariable Long funcionarioId) {
         try {
             List<JornadaDiaDTO> jornadas = jornadaTrabalhoService.getJornadasByFuncionario(funcionarioId);
@@ -87,6 +91,7 @@ public class JornadaTrabalhoController {
      * }
      */
     @PostMapping
+    @Operation(summary = "Criar ou atualizar jornada de trabalho")
     public ResponseEntity<ResponseAPI<JornadaDiaDTO>> criarOuAtualizarJornada(
             @PathVariable Long funcionarioId,
             @RequestBody JornadaDiaDTO jornadaDTO) {
@@ -125,6 +130,7 @@ public class JornadaTrabalhoController {
      * Endpoint: PATCH /api/funcionario/{funcionarioId}/jornada/{diaSemana}/status?ativo=true
      */
     @PatchMapping("/{diaSemana}/status")
+    @Operation(summary = "Atualizar status ativo/inativo de um dia")
     public ResponseEntity<ResponseAPI<JornadaDiaDTO>> atualizarStatusDia(
             @PathVariable Long funcionarioId,
             @PathVariable String diaSemana,
@@ -164,6 +170,7 @@ public class JornadaTrabalhoController {
      * Endpoint: DELETE /api/funcionario/{funcionarioId}/jornada/{diaSemana}/horario/{horarioId}
      */
     @DeleteMapping("/{diaSemana}/horario/{horarioId}")
+    @Operation(summary = "Deletar horário específico de um dia")
     public ResponseEntity<ResponseAPI<Void>> deletarHorario(
             @PathVariable Long funcionarioId,
             @PathVariable String diaSemana,
@@ -202,6 +209,7 @@ public class JornadaTrabalhoController {
      * Endpoint: DELETE /api/funcionario/{funcionarioId}/jornada/{diaSemana}
      */
     @DeleteMapping("/{diaSemana}")
+    @Operation(summary = "Deletar jornada completa de um dia")
     public ResponseEntity<ResponseAPI<Void>> deletarJornadaDia(
             @PathVariable Long funcionarioId,
             @PathVariable String diaSemana) {

@@ -42,6 +42,7 @@ public class OrganizacaoController {
      */
 
     @PostMapping
+    @Operation(summary = "Criar nova organização")
     public ResponseEntity<ResponseAPI<OrganizacaoResponseDTO>> create(@RequestBody @Valid CreateOrganizacaoDTO createDTO) {
 
         try {

@@ -1,5 +1,7 @@
 package org.exemplo.bellory.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.exemplo.bellory.model.dto.*;
@@ -21,6 +23,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/cliente")
+@Tag(name = "Clientes", description = "Gerenciamento de clientes, histórico, agendamentos e estatísticas")
 public class ClienteController {
 
     private final ClienteService clienteService;
@@ -34,6 +37,7 @@ public class ClienteController {
     /**
      * Listar todos os clientes com filtros
      */
+    @Operation(summary = "Listar clientes com filtros")
     @GetMapping
     public ResponseEntity<ResponseAPI<List<ClienteDTO>>> getClientes(
             @RequestParam(defaultValue = "nomeCompleto") String sortBy,
@@ -76,6 +80,7 @@ public class ClienteController {
     /**
      * Buscar cliente por ID
      */
+    @Operation(summary = "Buscar cliente por ID")
     @GetMapping("/{id}")
     public ResponseEntity<ResponseAPI<ClienteDetalhadoDTO>> getClienteById(@PathVariable Long id) {
         try {
@@ -107,6 +112,7 @@ public class ClienteController {
     /**
      * Criar novo cliente
      */
+    @Operation(summary = "Criar novo cliente")
     @PostMapping
     public ResponseEntity<ResponseAPI<ClienteDTO>> createCliente(@RequestBody @Valid ClienteCreateDTO clienteCreateDTO) {
         ClienteDTO novoCliente = clienteService.createCliente(clienteCreateDTO);
@@ -119,6 +125,7 @@ public class ClienteController {
                         .build());
     }
 
+    @Operation(summary = "Validar disponibilidade de username")
     @GetMapping("/validar-username")
     public ResponseEntity<ResponseAPI<UsernameValidationResponseDTO>> validarUsername(@RequestParam String username) {
         try {
@@ -163,6 +170,7 @@ public class ClienteController {
         }
     }
 
+    @Operation(summary = "Verificar se CPF já existe")
     @PostMapping("/verificar-cpf") // Endpoint com nome mais claro
     public ResponseEntity<ResponseAPI<Boolean>> verificarSeCpfExiste(@RequestBody @Valid RequestCpfDTO request) {
 
@@ -189,6 +197,7 @@ public class ClienteController {
     /**
      * Atualizar cliente
      */
+    @Operation(summary = "Atualizar cliente")
     @PutMapping("/{id}")
     public ResponseEntity<ResponseAPI<ClienteDTO>> updateCliente(
             @PathVariable Long id,
@@ -222,6 +231,7 @@ public class ClienteController {
     /**
      * Desativar cliente (soft delete)
      */
+    @Operation(summary = "Desativar cliente (soft delete)")
     @DeleteMapping("/{id}")
     public ResponseEntity<ResponseAPI<Void>> deleteCliente(@PathVariable Long id) {
         try {
@@ -254,6 +264,7 @@ public class ClienteController {
     /**
      * Listar agendamentos do cliente
      */
+    @Operation(summary = "Listar agendamentos do cliente")
     @GetMapping("/{id}/agendamentos")
     public ResponseEntity<ResponseAPI<List<AgendamentoDTO>>> getAgendamentosCliente(
             @PathVariable Long id,
@@ -297,6 +308,7 @@ public class ClienteController {
     /**
      * Próximos agendamentos do cliente
      */
+    @Operation(summary = "Listar próximos agendamentos do cliente")
     @GetMapping("/{id}/agendamentos/proximos")
     public ResponseEntity<ResponseAPI<List<AgendamentoDTO>>> getProximosAgendamentos(@PathVariable Long id) {
         try {
@@ -323,6 +335,7 @@ public class ClienteController {
     /**
      * Listar compras do cliente
      */
+    @Operation(summary = "Listar compras do cliente")
     @GetMapping("/{id}/compras")
     public ResponseEntity<ResponseAPI<List<CompraDTO>>> getComprasCliente(
             @PathVariable Long id,
@@ -368,6 +381,7 @@ public class ClienteController {
     /**
      * Listar cobranças do cliente
      */
+    @Operation(summary = "Listar cobranças do cliente")
     @GetMapping("/{id}/cobrancas")
     public ResponseEntity<ResponseAPI<List<CobrancaDTO>>> getCobrancasCliente(
             @PathVariable Long id,
@@ -395,6 +409,7 @@ public class ClienteController {
     /**
      * Histórico de pagamentos do cliente
      */
+    @Operation(summary = "Listar pagamentos do cliente")
     @GetMapping("/{id}/pagamentos")
     public ResponseEntity<ResponseAPI<List<PagamentoDTO>>> getPagamentosCliente(
             @PathVariable Long id,
@@ -424,6 +439,7 @@ public class ClienteController {
     /**
      * Histórico completo do cliente (agendamentos + compras)
      */
+    @Operation(summary = "Obter histórico completo do cliente")
     @GetMapping("/{id}/historico")
     public ResponseEntity<ResponseAPI<List<HistoricoClienteDTO>>> getHistoricoCliente(
             @PathVariable Long id,
@@ -469,6 +485,7 @@ public class ClienteController {
     /**
      * Resumo financeiro do cliente
      */
+    @Operation(summary = "Obter resumo financeiro do cliente")
     @GetMapping("/{id}/resumo-financeiro")
     public ResponseEntity<ResponseAPI<ResumoFinanceiroClienteDTO>> getResumoFinanceiroCliente(@PathVariable Long id) {
         try {
@@ -500,6 +517,7 @@ public class ClienteController {
     /**
      * Serviços mais utilizados pelo cliente
      */
+    @Operation(summary = "Listar serviços favoritos do cliente")
     @GetMapping("/{id}/servicos-favoritos")
     public ResponseEntity<ResponseAPI<List<ServicoEstatisticaDTO>>> getServicosFavoritos(@PathVariable Long id) {
         try {
@@ -526,6 +544,7 @@ public class ClienteController {
     /**
      * Buscar clientes por termo de pesquisa
      */
+    @Operation(summary = "Buscar clientes por termo")
     @GetMapping("/buscar")
     public ResponseEntity<ResponseAPI<List<ClienteDTO>>> buscarClientes(
             @RequestParam String termo) {
@@ -563,6 +582,7 @@ public class ClienteController {
     /**
      * Aniversariantes do mês
      */
+    @Operation(summary = "Listar aniversariantes do mês")
     @GetMapping("/aniversariantes")
     public ResponseEntity<ResponseAPI<List<ClienteAniversarianteDTO>>> getAniversariantes(
             @RequestParam(required = false) Integer mes,
@@ -590,6 +610,7 @@ public class ClienteController {
     /**
      * Top clientes por valor gasto
      */
+    @Operation(summary = "Listar top clientes por valor gasto")
     @GetMapping("/top-clientes")
     public ResponseEntity<ResponseAPI<List<TopClienteDTO>>> getTopClientes(
             @RequestParam(defaultValue = "10") int limite) {
@@ -616,6 +637,7 @@ public class ClienteController {
     /**
      * Alterar status de ativação do cliente
      */
+    @Operation(summary = "Alterar status ativo/inativo do cliente")
     @PatchMapping("/{id}/status")
     public ResponseEntity<ResponseAPI<ClienteDTO>> alterarStatusCliente(
             @PathVariable Long id,
@@ -660,6 +682,7 @@ public class ClienteController {
     /**
      * Estatísticas gerais dos clientes
      */
+    @Operation(summary = "Obter estatísticas gerais de clientes")
     @GetMapping("/estatisticas")
     public ResponseEntity<ResponseAPI<EstatisticasClientesDTO>> getEstatisticasClientes() {
         try {

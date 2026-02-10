@@ -1,5 +1,7 @@
 package org.exemplo.bellory.controller.financeiro;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.exemplo.bellory.model.dto.financeiro.*;
 import org.exemplo.bellory.model.entity.error.ResponseAPI;
@@ -15,6 +17,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/financeiro")
 @RequiredArgsConstructor
+@Tag(name = "Financeiro - Contas a Pagar/Receber", description = "Gerenciamento de contas a pagar e contas a receber")
 public class ContaPagarReceberController {
 
     private final ContaPagarService contaPagarService;
@@ -25,6 +28,7 @@ public class ContaPagarReceberController {
     // ========================================
 
     @PostMapping("/contas-pagar")
+    @Operation(summary = "Criar conta a pagar")
     public ResponseEntity<ResponseAPI<ContaPagarResponseDTO>> criarContaPagar(
             @RequestBody ContaPagarCreateDTO dto) {
         try {
@@ -53,6 +57,7 @@ public class ContaPagarReceberController {
     }
 
     @PutMapping("/contas-pagar/{id}")
+    @Operation(summary = "Atualizar conta a pagar")
     public ResponseEntity<ResponseAPI<ContaPagarResponseDTO>> atualizarContaPagar(
             @PathVariable Long id, @RequestBody ContaPagarUpdateDTO dto) {
         try {
@@ -87,6 +92,7 @@ public class ContaPagarReceberController {
     }
 
     @PostMapping("/contas-pagar/{id}/pagar")
+    @Operation(summary = "Registrar pagamento de conta a pagar")
     public ResponseEntity<ResponseAPI<ContaPagarResponseDTO>> pagarContaPagar(
             @PathVariable Long id, @RequestBody PagamentoContaDTO dto) {
         try {
@@ -121,6 +127,7 @@ public class ContaPagarReceberController {
     }
 
     @GetMapping("/contas-pagar")
+    @Operation(summary = "Listar contas a pagar")
     public ResponseEntity<ResponseAPI<List<ContaPagarResponseDTO>>> listarContasPagar(
             @RequestParam(required = false) LocalDate dataInicio,
             @RequestParam(required = false) LocalDate dataFim,
@@ -148,6 +155,7 @@ public class ContaPagarReceberController {
     }
 
     @GetMapping("/contas-pagar/{id}")
+    @Operation(summary = "Buscar conta a pagar por ID")
     public ResponseEntity<ResponseAPI<ContaPagarResponseDTO>> buscarContaPagar(@PathVariable Long id) {
         try {
             ContaPagarResponseDTO conta = contaPagarService.buscarPorId(id);
@@ -174,6 +182,7 @@ public class ContaPagarReceberController {
     }
 
     @GetMapping("/contas-pagar/vencidas")
+    @Operation(summary = "Listar contas a pagar vencidas")
     public ResponseEntity<ResponseAPI<List<ContaPagarResponseDTO>>> listarContasPagarVencidas() {
         try {
             List<ContaPagarResponseDTO> contas = contaPagarService.listarVencidas();
@@ -193,6 +202,7 @@ public class ContaPagarReceberController {
     }
 
     @GetMapping("/contas-pagar/a-vencer")
+    @Operation(summary = "Listar contas a pagar a vencer")
     public ResponseEntity<ResponseAPI<List<ContaPagarResponseDTO>>> listarContasPagarAVencer(
             @RequestParam(defaultValue = "7") int dias) {
         try {
@@ -213,6 +223,7 @@ public class ContaPagarReceberController {
     }
 
     @DeleteMapping("/contas-pagar/{id}")
+    @Operation(summary = "Cancelar conta a pagar")
     public ResponseEntity<ResponseAPI<Void>> cancelarContaPagar(@PathVariable Long id) {
         try {
             contaPagarService.cancelar(id);
@@ -249,6 +260,7 @@ public class ContaPagarReceberController {
     // ========================================
 
     @PostMapping("/contas-receber")
+    @Operation(summary = "Criar conta a receber")
     public ResponseEntity<ResponseAPI<ContaReceberResponseDTO>> criarContaReceber(
             @RequestBody ContaReceberCreateDTO dto) {
         try {
@@ -277,6 +289,7 @@ public class ContaPagarReceberController {
     }
 
     @PutMapping("/contas-receber/{id}")
+    @Operation(summary = "Atualizar conta a receber")
     public ResponseEntity<ResponseAPI<ContaReceberResponseDTO>> atualizarContaReceber(
             @PathVariable Long id, @RequestBody ContaReceberUpdateDTO dto) {
         try {
@@ -311,6 +324,7 @@ public class ContaPagarReceberController {
     }
 
     @PostMapping("/contas-receber/{id}/receber")
+    @Operation(summary = "Registrar recebimento")
     public ResponseEntity<ResponseAPI<ContaReceberResponseDTO>> receberContaReceber(
             @PathVariable Long id, @RequestBody PagamentoContaDTO dto) {
         try {
@@ -345,6 +359,7 @@ public class ContaPagarReceberController {
     }
 
     @GetMapping("/contas-receber")
+    @Operation(summary = "Listar contas a receber")
     public ResponseEntity<ResponseAPI<List<ContaReceberResponseDTO>>> listarContasReceber(
             @RequestParam(required = false) LocalDate dataInicio,
             @RequestParam(required = false) LocalDate dataFim,
@@ -374,6 +389,7 @@ public class ContaPagarReceberController {
     }
 
     @GetMapping("/contas-receber/{id}")
+    @Operation(summary = "Buscar conta a receber por ID")
     public ResponseEntity<ResponseAPI<ContaReceberResponseDTO>> buscarContaReceber(@PathVariable Long id) {
         try {
             ContaReceberResponseDTO conta = contaReceberService.buscarPorId(id);
@@ -400,6 +416,7 @@ public class ContaPagarReceberController {
     }
 
     @GetMapping("/contas-receber/vencidas")
+    @Operation(summary = "Listar contas a receber vencidas")
     public ResponseEntity<ResponseAPI<List<ContaReceberResponseDTO>>> listarContasReceberVencidas() {
         try {
             List<ContaReceberResponseDTO> contas = contaReceberService.listarVencidas();
@@ -419,6 +436,7 @@ public class ContaPagarReceberController {
     }
 
     @GetMapping("/contas-receber/a-vencer")
+    @Operation(summary = "Listar contas a receber a vencer")
     public ResponseEntity<ResponseAPI<List<ContaReceberResponseDTO>>> listarContasReceberAVencer(
             @RequestParam(defaultValue = "7") int dias) {
         try {
@@ -439,6 +457,7 @@ public class ContaPagarReceberController {
     }
 
     @GetMapping("/contas-receber/cliente/{clienteId}/pendentes")
+    @Operation(summary = "Listar pendentes por cliente")
     public ResponseEntity<ResponseAPI<List<ContaReceberResponseDTO>>> listarPendentesPorCliente(
             @PathVariable Long clienteId) {
         try {
@@ -459,6 +478,7 @@ public class ContaPagarReceberController {
     }
 
     @DeleteMapping("/contas-receber/{id}")
+    @Operation(summary = "Cancelar conta a receber")
     public ResponseEntity<ResponseAPI<Void>> cancelarContaReceber(@PathVariable Long id) {
         try {
             contaReceberService.cancelar(id);

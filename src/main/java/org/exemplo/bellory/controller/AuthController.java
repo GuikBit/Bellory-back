@@ -1,5 +1,7 @@
 package org.exemplo.bellory.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 
@@ -29,6 +31,7 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/auth")
 @CrossOrigin(origins = {"https://bellory.vercel.app", "https://*.vercel.app", "http://localhost:*"})
+@Tag(name = "Autenticação", description = "Endpoints de autenticação, login, validação e renovação de tokens")
 public class AuthController {
 
     private final TokenService tokenService;
@@ -46,6 +49,7 @@ public class AuthController {
         this.userInfoService = userInfoService;
     }
 
+    @Operation(summary = "Realizar login")
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequestDTO request,
                                    @RequestParam(value = "withStats", defaultValue = "false") boolean withStats,
@@ -153,6 +157,7 @@ public class AuthController {
         }
     }
 
+    @Operation(summary = "Validar token JWT")
     @PostMapping("/validate")
     public ResponseEntity<?> validateToken(@RequestHeader("Authorization") String authHeader,
                                            HttpServletRequest httpRequest) {
@@ -218,6 +223,7 @@ public class AuthController {
         }
     }
 
+    @Operation(summary = "Renovar token JWT")
     @PostMapping("/refresh")
     public ResponseEntity<?> refreshToken(@Valid @RequestBody RefreshTokenRequestDTO request,
                                           HttpServletRequest httpRequest) {
@@ -245,6 +251,7 @@ public class AuthController {
     }
 
 
+    @Operation(summary = "Realizar logout")
     @PostMapping("/logout")
     public ResponseEntity<?> logout(HttpServletRequest httpRequest) {
         // Aqui você poderia implementar uma blacklist de tokens se necessário
@@ -256,6 +263,7 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
+    @Operation(summary = "Obter dados do usuário autenticado")
     @GetMapping("/me")
     public ResponseEntity<?> getCurrentUser(@RequestHeader("Authorization") String authHeader,
                                             @RequestParam(value = "withStats", defaultValue = "false") boolean withStats,

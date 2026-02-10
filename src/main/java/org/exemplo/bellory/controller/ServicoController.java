@@ -1,5 +1,7 @@
 package org.exemplo.bellory.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.exemplo.bellory.model.dto.ServicoAgendamento;
 import org.exemplo.bellory.model.dto.ServicoCreateDTO;
 import org.exemplo.bellory.model.dto.ServicoDTO;
@@ -18,6 +20,7 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/servico")
+@Tag(name = "Serviços", description = "Gerenciamento de serviços e categorias de serviço")
 public class ServicoController {
 
     private final ServicoService servicoService;
@@ -29,6 +32,7 @@ public class ServicoController {
     }
 
 
+    @Operation(summary = "Listar todos os serviços")
     @GetMapping
     public ResponseEntity<ResponseAPI<List<ServicoDTO>>> getServicoList() {
         List<Servico> servicos = servicoService.getListAllServicos();
@@ -41,6 +45,7 @@ public class ServicoController {
                 .build());
     }
 
+    @Operation(summary = "Buscar serviço por ID")
     @GetMapping("/{id}")
     public ResponseEntity<ResponseAPI<ServicoDTO>> getServicoById(@PathVariable Long id) {
         try {
@@ -59,6 +64,7 @@ public class ServicoController {
         }
     }
 
+    @Operation(summary = "Listar serviços para agendamento")
     @GetMapping("/agendamento")
     public ResponseEntity<ResponseAPI<List<ServicoAgendamento>>> getServicoAgendamentoList() {
         List<ServicoAgendamento> servicos = servicoService.getListAgendamentoServicos();
@@ -69,6 +75,7 @@ public class ServicoController {
                 .build());
     }
 
+    @Operation(summary = "Criar novo serviço")
     @PostMapping
     public ResponseEntity<ResponseAPI<ServicoDTO>> postServico(@RequestBody ServicoCreateDTO servicoDTO) {
         try {
@@ -90,6 +97,7 @@ public class ServicoController {
         }
     }
 
+    @Operation(summary = "Atualizar serviço")
     @PutMapping("/{id}")
     public ResponseEntity<ResponseAPI<ServicoDTO>> updateServico(@PathVariable Long id, @RequestBody ServicoCreateDTO servicoDTO) {
         try {
@@ -109,6 +117,7 @@ public class ServicoController {
         }
     }
 
+    @Operation(summary = "Desativar serviço")
     @DeleteMapping("/{id}")
     public ResponseEntity<ResponseAPI<Void>> deleteServico(@PathVariable Long id) {
         try {
@@ -127,6 +136,7 @@ public class ServicoController {
         }
     }
 
+    @Operation(summary = "Listar categorias de serviço")
     @GetMapping("/categorias")
     public ResponseEntity<ResponseAPI<List<Categoria>>> getServiceCategorias() {
         List<Categoria> categorias = categoriaService.findByTipo(TipoCategoria.SERVICO);
@@ -137,6 +147,7 @@ public class ServicoController {
                 .build());
     }
 
+    @Operation(summary = "Criar categoria de serviço")
     @PostMapping("/categoria")
     public ResponseEntity<ResponseAPI<Categoria>> createServiceCategoria(@RequestBody Categoria categoria) {
         try {
@@ -159,6 +170,7 @@ public class ServicoController {
         }
     }
 
+    @Operation(summary = "Atualizar categoria de serviço")
     @PutMapping("/categoria/{id}")
     public ResponseEntity<ResponseAPI<Categoria>> updateServiceCategoria(@PathVariable Long id, @RequestBody Categoria categoria) {
         try {
@@ -179,6 +191,7 @@ public class ServicoController {
         }
     }
 
+    @Operation(summary = "Desativar categoria de serviço")
     @DeleteMapping("/categoria/{id}")
     public ResponseEntity<ResponseAPI<Void>> deleteServiceCategoria(@PathVariable Long id) {
         try {

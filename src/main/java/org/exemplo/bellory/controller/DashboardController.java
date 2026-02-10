@@ -8,6 +8,8 @@ import org.exemplo.bellory.model.entity.error.ResponseAPI;
 import org.exemplo.bellory.service.DashboardService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -15,6 +17,7 @@ import java.time.format.DateTimeParseException;
 
 @RestController
 @RequestMapping("/api/dashboard")
+@Tag(name = "Dashboard", description = "Indicadores e métricas do dashboard")
 public class DashboardController {
 
     private final DashboardService dashboardService;
@@ -23,6 +26,7 @@ public class DashboardController {
         this.dashboardService = dashboardService;
     }
 
+    @Operation(summary = "Obter dashboard geral com filtros")
     @PostMapping("/geral")
     public ResponseEntity<ResponseAPI<DashboardDTO>> getDashboardGeral(@RequestBody DashboardFiltroDTO filtro) {
         try {
@@ -51,6 +55,7 @@ public class DashboardController {
         }
     }
 
+    @Operation(summary = "Obter resumo de hoje")
     @GetMapping("/resumo-hoje")
     public ResponseEntity<ResponseAPI<DashboardDTO>> getDashboardHoje() {
         try {
@@ -77,6 +82,7 @@ public class DashboardController {
         }
     }
 
+    @Operation(summary = "Obter resumo do mês atual")
     @GetMapping("/resumo-mes")
     public ResponseEntity<ResponseAPI<DashboardDTO>> getDashboardMesAtual() {
         try {
@@ -104,6 +110,7 @@ public class DashboardController {
         }
     }
 
+    @Operation(summary = "Obter resumo do ano")
     @GetMapping("/resumo-ano/{ano}")
     public ResponseEntity<ResponseAPI<DashboardDTO>> getDashboardAno(@PathVariable int ano) {
         try {
@@ -130,6 +137,7 @@ public class DashboardController {
         }
     }
 
+    @Operation(summary = "Obter dashboard comparativo entre períodos")
     @GetMapping("/comparativo")
     public ResponseEntity<ResponseAPI<DashboardComparativoDTO>> getDashboardComparativo(
             @RequestParam String dataInicioAtual,
@@ -168,6 +176,7 @@ public class DashboardController {
         }
     }
 
+    @Operation(summary = "Obter métricas de um funcionário")
     @GetMapping("/metricas-funcionario/{funcionarioId}")
     public ResponseEntity<ResponseAPI<FuncionarioMetricasDTO>> getMetricasFuncionario(
             @PathVariable Long funcionarioId,

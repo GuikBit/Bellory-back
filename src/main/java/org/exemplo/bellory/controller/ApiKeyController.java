@@ -1,5 +1,7 @@
 package org.exemplo.bellory.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.exemplo.bellory.context.TenantContext;
 import org.exemplo.bellory.model.entity.config.ApiKey;
@@ -17,10 +19,12 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/api-keys")
 @RequiredArgsConstructor
+@Tag(name = "API Keys", description = "Gerenciamento de chaves de API")
 public class ApiKeyController {
 
     private final ApiKeyService apiKeyService;
 
+    @Operation(summary = "Criar nova API Key")
     @PostMapping
     public ResponseEntity<?> createApiKey(@RequestBody Map<String, Object> request) {
 
@@ -69,6 +73,7 @@ public class ApiKeyController {
         ));
     }
 
+    @Operation(summary = "Listar API Keys da organização")
     @GetMapping
     public ResponseEntity<?> listApiKeys() {
         Long userId = TenantContext.getCurrentUserId();
@@ -106,6 +111,7 @@ public class ApiKeyController {
         ));
     }
 
+    @Operation(summary = "Revogar uma API Key")
     @DeleteMapping("/{id}")
     public ResponseEntity<?> revokeApiKey(@PathVariable Long id) {
         Long userId = TenantContext.getCurrentUserId();

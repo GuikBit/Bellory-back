@@ -1,5 +1,7 @@
 package org.exemplo.bellory.controller.financeiro;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.exemplo.bellory.model.dto.financeiro.CategoriaFinanceiraCreateDTO;
 import org.exemplo.bellory.model.dto.financeiro.CategoriaFinanceiraResponseDTO;
@@ -14,11 +16,13 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/financeiro/categorias")
 @RequiredArgsConstructor
+@Tag(name = "Financeiro - Categorias", description = "Gerenciamento de categorias financeiras")
 public class CategoriaFinanceiraController {
 
     private final CategoriaFinanceiraService categoriaService;
 
     @PostMapping
+    @Operation(summary = "Criar categoria financeira")
     public ResponseEntity<ResponseAPI<CategoriaFinanceiraResponseDTO>> criar(
             @RequestBody CategoriaFinanceiraCreateDTO dto) {
         try {
@@ -47,6 +51,7 @@ public class CategoriaFinanceiraController {
     }
 
     @PutMapping("/{id}")
+    @Operation(summary = "Atualizar categoria financeira")
     public ResponseEntity<ResponseAPI<CategoriaFinanceiraResponseDTO>> atualizar(
             @PathVariable Long id, @RequestBody CategoriaFinanceiraCreateDTO dto) {
         try {
@@ -74,6 +79,7 @@ public class CategoriaFinanceiraController {
     }
 
     @GetMapping
+    @Operation(summary = "Listar categorias financeiras")
     public ResponseEntity<ResponseAPI<List<CategoriaFinanceiraResponseDTO>>> listar(
             @RequestParam(required = false) String tipo) {
         try {
@@ -99,6 +105,7 @@ public class CategoriaFinanceiraController {
     }
 
     @GetMapping("/arvore")
+    @Operation(summary = "Listar árvore de categorias")
     public ResponseEntity<ResponseAPI<List<CategoriaFinanceiraResponseDTO>>> listarArvore(
             @RequestParam(required = false) String tipo) {
         try {
@@ -124,6 +131,7 @@ public class CategoriaFinanceiraController {
     }
 
     @GetMapping("/{id}")
+    @Operation(summary = "Buscar categoria por ID")
     public ResponseEntity<ResponseAPI<CategoriaFinanceiraResponseDTO>> buscarPorId(@PathVariable Long id) {
         try {
             CategoriaFinanceiraResponseDTO categoria = categoriaService.buscarPorId(id);
@@ -150,6 +158,7 @@ public class CategoriaFinanceiraController {
     }
 
     @PatchMapping("/{id}/desativar")
+    @Operation(summary = "Desativar categoria")
     public ResponseEntity<ResponseAPI<Void>> desativar(@PathVariable Long id) {
         try {
             categoriaService.desativar(id);
@@ -175,6 +184,7 @@ public class CategoriaFinanceiraController {
     }
 
     @PatchMapping("/{id}/ativar")
+    @Operation(summary = "Ativar categoria")
     public ResponseEntity<ResponseAPI<Void>> ativar(@PathVariable Long id) {
         try {
             categoriaService.ativar(id);

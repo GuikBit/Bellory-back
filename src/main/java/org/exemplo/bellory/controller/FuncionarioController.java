@@ -1,5 +1,7 @@
 package org.exemplo.bellory.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.exemplo.bellory.model.dto.*;
 import org.exemplo.bellory.model.entity.error.ResponseAPI;
 import org.exemplo.bellory.model.entity.funcionario.Cargo;
@@ -23,6 +25,7 @@ import java.util.NoSuchElementException;
 
 @RestController
 @RequestMapping("/api/funcionario")
+@Tag(name = "Funcionários", description = "Gerenciamento de funcionários, cargos e fotos de perfil")
 public class FuncionarioController {
 
     FileStorageService fileStorageService;
@@ -36,6 +39,7 @@ public class FuncionarioController {
     }
 
     @GetMapping
+    @Operation(summary = "Listar todos os funcionários")
     public ResponseEntity<ResponseAPI<List<FuncionarioDTO>>> getFuncionarioList() {
         List<FuncionarioDTO> funcionariosDTO = funcionarioService.getListAllFuncionarios();
 
@@ -61,6 +65,7 @@ public class FuncionarioController {
 
     // NOVO ENDPOINT: Buscar funcionário por ID com todos os dados
     @GetMapping("/{id}")
+    @Operation(summary = "Buscar funcionário por ID")
     public ResponseEntity<ResponseAPI<FuncionarioDTO>> getFuncionarioById(@PathVariable Long id) {
         try {
             FuncionarioDTO funcionarioDTO = funcionarioService.getFuncionarioById(id);
@@ -91,6 +96,7 @@ public class FuncionarioController {
     }
 
     @GetMapping("/agendamento")
+    @Operation(summary = "Listar funcionários para agendamento")
     public ResponseEntity<ResponseAPI<List<FuncionarioAgendamento>>> getFuncionarioListAgendamento() {
         List<FuncionarioAgendamento> funcionarios = funcionarioService.getListAllFuncionariosAgendamento();
 
@@ -114,6 +120,7 @@ public class FuncionarioController {
     }
 
     @PostMapping
+    @Operation(summary = "Criar novo funcionário")
     public ResponseEntity<ResponseAPI<Funcionario>> postFuncionario(@RequestBody FuncionarioCreateDTO funcionarioDTO) {
         try {
             Funcionario novoFuncionario = funcionarioService.postNewFuncionario(funcionarioDTO);
@@ -144,6 +151,7 @@ public class FuncionarioController {
     }
 
     @PutMapping("/{id}")
+    @Operation(summary = "Atualizar funcionário")
     public ResponseEntity<ResponseAPI<Funcionario>> updateFuncionario(@PathVariable Long id, @RequestBody FuncionarioUpdateDTO funcionarioDTO) {
         try {
             Funcionario funcionarioAtualizado = funcionarioService.updateFuncionario(id, funcionarioDTO);
@@ -174,6 +182,7 @@ public class FuncionarioController {
     }
 
     @DeleteMapping("/{id}")
+    @Operation(summary = "Desativar funcionário")
     public ResponseEntity<ResponseAPI<Void>> deleteFuncionario(@PathVariable Long id) {
         try {
             funcionarioService.deleteFuncionario(id);
@@ -203,6 +212,7 @@ public class FuncionarioController {
     }
 
     @GetMapping("/validar-username")
+    @Operation(summary = "Validar disponibilidade de username")
     public ResponseEntity<ResponseAPI<Boolean>> validarUsername(@RequestParam String username) {
         try {
             boolean existe = funcionarioService.existeUsername(username);
@@ -240,6 +250,7 @@ public class FuncionarioController {
     }
 
     @PostMapping("/cargo")
+    @Operation(summary = "Criar novo cargo")
     public ResponseEntity<ResponseAPI<CargoDTO>> createCargo(@RequestBody CargoDTO cargoDTO) {
         try {
             CargoDTO criado = cargoService.createCargo(cargoDTO);
@@ -270,6 +281,7 @@ public class FuncionarioController {
     }
 
     @GetMapping("/cargo")
+    @Operation(summary = "Listar todos os cargos")
     public ResponseEntity<ResponseAPI<List<CargoDTO>>> getCargos() {
         try {
             List<CargoDTO> lista = cargoService.getAllCargos();
@@ -303,6 +315,7 @@ public class FuncionarioController {
     }
 
     @GetMapping("/cargo/{id}")
+    @Operation(summary = "Buscar cargo por ID")
     public ResponseEntity<ResponseAPI<CargoDTO>> getCargoById(@PathVariable Long id) {
         try {
             CargoDTO dto = cargoService.getCargoById(id);
@@ -333,6 +346,7 @@ public class FuncionarioController {
     }
 
     @PutMapping("/cargo/{id}")
+    @Operation(summary = "Atualizar cargo")
     public ResponseEntity<ResponseAPI<CargoDTO>> updateCargo(@PathVariable Long id, @RequestBody CargoDTO cargoDTO) {
         try {
             CargoDTO atualizado = cargoService.updateCargo(id, cargoDTO);
@@ -371,6 +385,7 @@ public class FuncionarioController {
     }
 
     @DeleteMapping("/cargo/{id}")
+    @Operation(summary = "Desativar cargo")
     public ResponseEntity<ResponseAPI<Void>> deleteCargo(@PathVariable Long id) {
         try {
             cargoService.deleteCargo(id);
@@ -400,6 +415,7 @@ public class FuncionarioController {
     }
 
     @PostMapping("/{id}/foto-perfil")
+    @Operation(summary = "Upload de foto de perfil")
     public ResponseEntity<ResponseAPI<Map<String, String>>> uploadFotoPerfil(
             @PathVariable Long id,
             @RequestParam("file") MultipartFile file) {
@@ -463,6 +479,7 @@ public class FuncionarioController {
 // OPÇÃO 2: Retornar JSON com URL (alternativa)
 
     @GetMapping("/{id}/foto-perfil")
+    @Operation(summary = "Obter foto de perfil")
     public ResponseEntity<ResponseAPI<Map<String, String>>> downloadFotoPerfil(@PathVariable Long id) {
         try {
             Map<String, Object> resultado = funcionarioService.downloadFotoPerfil(id);
@@ -503,6 +520,7 @@ public class FuncionarioController {
 
 
     @DeleteMapping("/{id}/foto-perfil")
+    @Operation(summary = "Remover foto de perfil")
     public ResponseEntity<ResponseAPI<Void>> deleteFotoPerfil(@PathVariable Long id) {
         try {
             funcionarioService.deleteFotoPerfil(id);

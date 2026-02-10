@@ -1,5 +1,7 @@
 package org.exemplo.bellory.controller.financeiro;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.exemplo.bellory.model.dto.financeiro.CentroCustoCreateDTO;
 import org.exemplo.bellory.model.dto.financeiro.CentroCustoResponseDTO;
@@ -18,6 +20,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/financeiro")
 @RequiredArgsConstructor
+@Tag(name = "Financeiro - Contas e Centros de Custo", description = "Gerenciamento de contas bancárias e centros de custo")
 public class ContaBancariaController {
 
     private final ContaBancariaService contaBancariaService;
@@ -28,6 +31,7 @@ public class ContaBancariaController {
     // ========================================
 
     @PostMapping("/contas-bancarias")
+    @Operation(summary = "Criar conta bancária")
     public ResponseEntity<ResponseAPI<ContaBancariaResponseDTO>> criarContaBancaria(
             @RequestBody ContaBancariaCreateDTO dto) {
         try {
@@ -56,6 +60,7 @@ public class ContaBancariaController {
     }
 
     @PutMapping("/contas-bancarias/{id}")
+    @Operation(summary = "Atualizar conta bancária")
     public ResponseEntity<ResponseAPI<ContaBancariaResponseDTO>> atualizarContaBancaria(
             @PathVariable Long id, @RequestBody ContaBancariaCreateDTO dto) {
         try {
@@ -83,6 +88,7 @@ public class ContaBancariaController {
     }
 
     @GetMapping("/contas-bancarias")
+    @Operation(summary = "Listar contas bancárias")
     public ResponseEntity<ResponseAPI<List<ContaBancariaResponseDTO>>> listarContasBancarias() {
         try {
             List<ContaBancariaResponseDTO> contas = contaBancariaService.listarTodas();
@@ -102,6 +108,7 @@ public class ContaBancariaController {
     }
 
     @GetMapping("/contas-bancarias/{id}")
+    @Operation(summary = "Buscar conta bancária por ID")
     public ResponseEntity<ResponseAPI<ContaBancariaResponseDTO>> buscarContaBancaria(@PathVariable Long id) {
         try {
             ContaBancariaResponseDTO conta = contaBancariaService.buscarPorId(id);
@@ -128,6 +135,7 @@ public class ContaBancariaController {
     }
 
     @GetMapping("/contas-bancarias/saldo-total")
+    @Operation(summary = "Obter saldo total")
     public ResponseEntity<ResponseAPI<BigDecimal>> getSaldoTotal() {
         try {
             BigDecimal saldo = contaBancariaService.getSaldoTotal();
@@ -147,6 +155,7 @@ public class ContaBancariaController {
     }
 
     @PatchMapping("/contas-bancarias/{id}/desativar")
+    @Operation(summary = "Desativar conta bancária")
     public ResponseEntity<ResponseAPI<Void>> desativarContaBancaria(@PathVariable Long id) {
         try {
             contaBancariaService.desativar(id);
@@ -176,6 +185,7 @@ public class ContaBancariaController {
     // ========================================
 
     @PostMapping("/centros-custo")
+    @Operation(summary = "Criar centro de custo")
     public ResponseEntity<ResponseAPI<CentroCustoResponseDTO>> criarCentroCusto(
             @RequestBody CentroCustoCreateDTO dto) {
         try {
@@ -204,6 +214,7 @@ public class ContaBancariaController {
     }
 
     @PutMapping("/centros-custo/{id}")
+    @Operation(summary = "Atualizar centro de custo")
     public ResponseEntity<ResponseAPI<CentroCustoResponseDTO>> atualizarCentroCusto(
             @PathVariable Long id, @RequestBody CentroCustoCreateDTO dto) {
         try {
@@ -231,6 +242,7 @@ public class ContaBancariaController {
     }
 
     @GetMapping("/centros-custo")
+    @Operation(summary = "Listar centros de custo")
     public ResponseEntity<ResponseAPI<List<CentroCustoResponseDTO>>> listarCentrosCusto() {
         try {
             List<CentroCustoResponseDTO> centros = centroCustoService.listarTodos();
@@ -250,6 +262,7 @@ public class ContaBancariaController {
     }
 
     @GetMapping("/centros-custo/{id}")
+    @Operation(summary = "Buscar centro de custo por ID")
     public ResponseEntity<ResponseAPI<CentroCustoResponseDTO>> buscarCentroCusto(@PathVariable Long id) {
         try {
             CentroCustoResponseDTO centro = centroCustoService.buscarPorId(id);
@@ -276,6 +289,7 @@ public class ContaBancariaController {
     }
 
     @PatchMapping("/centros-custo/{id}/desativar")
+    @Operation(summary = "Desativar centro de custo")
     public ResponseEntity<ResponseAPI<Void>> desativarCentroCusto(@PathVariable Long id) {
         try {
             centroCustoService.desativar(id);
@@ -301,6 +315,7 @@ public class ContaBancariaController {
     }
 
     @PatchMapping("/centros-custo/{id}/ativar")
+    @Operation(summary = "Ativar centro de custo")
     public ResponseEntity<ResponseAPI<Void>> ativarCentroCusto(@PathVariable Long id) {
         try {
             centroCustoService.ativar(id);

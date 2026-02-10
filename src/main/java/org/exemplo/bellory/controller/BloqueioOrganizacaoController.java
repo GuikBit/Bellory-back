@@ -1,5 +1,7 @@
 package org.exemplo.bellory.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.exemplo.bellory.model.dto.BloqueioOrganizacaoCreateDTO;
 import org.exemplo.bellory.model.dto.BloqueioOrganizacaoDTO;
 import org.exemplo.bellory.model.dto.BloqueioOrganizacaoUpdateDTO;
@@ -16,6 +18,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/bloqueio-organizacao")
+@Tag(name = "Bloqueios e Feriados", description = "Gerenciamento de bloqueios de datas e feriados da organização")
 public class BloqueioOrganizacaoController {
 
     private final BloqueioOrganizacaoService bloqueioService;
@@ -28,6 +31,7 @@ public class BloqueioOrganizacaoController {
      * Lista todos os bloqueios/feriados da organização
      */
     @GetMapping
+    @Operation(summary = "Listar todos os bloqueios/feriados")
     public ResponseEntity<ResponseAPI<List<BloqueioOrganizacaoDTO>>> listarTodos() {
         try {
             List<BloqueioOrganizacaoDTO> bloqueios = bloqueioService.listarTodos();
@@ -52,6 +56,7 @@ public class BloqueioOrganizacaoController {
      * Lista apenas bloqueios/feriados ativos da organização
      */
     @GetMapping("/ativos")
+    @Operation(summary = "Listar bloqueios ativos")
     public ResponseEntity<ResponseAPI<List<BloqueioOrganizacaoDTO>>> listarAtivos() {
         try {
             List<BloqueioOrganizacaoDTO> bloqueios = bloqueioService.listarAtivos();
@@ -76,6 +81,7 @@ public class BloqueioOrganizacaoController {
      * Busca um bloqueio específico por ID
      */
     @GetMapping("/{id}")
+    @Operation(summary = "Buscar bloqueio por ID")
     public ResponseEntity<ResponseAPI<BloqueioOrganizacaoDTO>> buscarPorId(@PathVariable Long id) {
         try {
             BloqueioOrganizacaoDTO bloqueio = bloqueioService.buscarPorId(id);
@@ -115,6 +121,7 @@ public class BloqueioOrganizacaoController {
      * Parâmetros: dataInicio e dataFim no formato yyyy-MM-dd
      */
     @GetMapping("/periodo")
+    @Operation(summary = "Listar bloqueios por período")
     public ResponseEntity<ResponseAPI<List<BloqueioOrganizacaoDTO>>> listarPorPeriodo(
             @RequestParam String dataInicio,
             @RequestParam String dataFim) {
@@ -160,6 +167,7 @@ public class BloqueioOrganizacaoController {
      * Verifica se uma data específica está bloqueada
      */
     @GetMapping("/verificar/{data}")
+    @Operation(summary = "Verificar se data está bloqueada")
     public ResponseEntity<ResponseAPI<Map<String, Object>>> verificarData(@PathVariable String data) {
         try {
             LocalDate dataVerificar = LocalDate.parse(data);
@@ -199,6 +207,7 @@ public class BloqueioOrganizacaoController {
      * Cria um novo bloqueio/feriado manual
      */
     @PostMapping
+    @Operation(summary = "Criar novo bloqueio/feriado")
     public ResponseEntity<ResponseAPI<BloqueioOrganizacaoDTO>> criar(
             @RequestBody BloqueioOrganizacaoCreateDTO dto) {
         try {
@@ -232,6 +241,7 @@ public class BloqueioOrganizacaoController {
      * Atualiza um bloqueio/feriado existente
      */
     @PutMapping("/{id}")
+    @Operation(summary = "Atualizar bloqueio/feriado")
     public ResponseEntity<ResponseAPI<BloqueioOrganizacaoDTO>> atualizar(
             @PathVariable Long id,
             @RequestBody BloqueioOrganizacaoUpdateDTO dto) {
@@ -272,6 +282,7 @@ public class BloqueioOrganizacaoController {
      * Alterna o status ativo/inativo de um bloqueio
      */
     @PatchMapping("/{id}/toggle")
+    @Operation(summary = "Alternar status ativo/inativo")
     public ResponseEntity<ResponseAPI<BloqueioOrganizacaoDTO>> toggleAtivo(@PathVariable Long id) {
         try {
             BloqueioOrganizacaoDTO bloqueio = bloqueioService.toggleAtivo(id);
@@ -310,6 +321,7 @@ public class BloqueioOrganizacaoController {
      * Remove um bloqueio/feriado
      */
     @DeleteMapping("/{id}")
+    @Operation(summary = "Remover bloqueio/feriado")
     public ResponseEntity<ResponseAPI<Void>> remover(@PathVariable Long id) {
         try {
             bloqueioService.remover(id);
@@ -348,6 +360,7 @@ public class BloqueioOrganizacaoController {
      * Se o ano não for informado, usa o ano atual
      */
     @PostMapping("/importar-feriados")
+    @Operation(summary = "Importar feriados nacionais via BrasilAPI")
     public ResponseEntity<ResponseAPI<Map<String, Object>>> importarFeriados(
             @RequestParam(required = false) Integer ano) {
         try {

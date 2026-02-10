@@ -1,5 +1,7 @@
 package org.exemplo.bellory.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.exemplo.bellory.config.tenant.TenantContext;
 import org.exemplo.bellory.model.dto.tenant.PageComponentDTO;
 import org.exemplo.bellory.model.dto.tenant.PageDTO;
@@ -21,6 +23,7 @@ import java.util.stream.Collectors;
  */
 @RestController
 @RequestMapping("/api/pages")
+@Tag(name = "Páginas Multi-tenant", description = "Gerenciamento de páginas multi-tenant")
 public class TenantPageController {
 
     private final PageService pageService;
@@ -37,6 +40,7 @@ public class TenantPageController {
      * @return ResponseEntity com a página encontrada ou erro
      */
     @GetMapping("/{slug}")
+    @Operation(summary = "Buscar página por slug")
     public ResponseEntity<ResponseAPI<PageDTO>> getPageBySlug(@PathVariable String slug) {
         try {
             Optional<Page> pageOpt = pageService.findPageWithComponents(slug);
@@ -94,6 +98,7 @@ public class TenantPageController {
      * @return ResponseEntity com a lista de páginas
      */
     @GetMapping
+    @Operation(summary = "Listar todas as páginas do tenant")
     public ResponseEntity<ResponseAPI<List<PageDTO>>> getAllPages() {
         try {
             List<Page> pages = pageService.findAllPagesForCurrentTenant();
@@ -133,6 +138,7 @@ public class TenantPageController {
      * @return ResponseEntity com informações do tenant
      */
     @GetMapping("/tenant-info")
+    @Operation(summary = "Obter informações do tenant atual")
     public ResponseEntity<ResponseAPI<Object>> getTenantInfo() {
         try {
             String currentTenantId = TenantContext.getCurrentTenant();

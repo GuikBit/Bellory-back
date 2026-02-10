@@ -1,5 +1,7 @@
 package org.exemplo.bellory.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.exemplo.bellory.model.dto.landingpage.*;
 import org.exemplo.bellory.model.dto.landingpage.request.*;
@@ -33,6 +35,7 @@ import java.util.stream.Collectors;
  */
 @RestController
 @RequestMapping("/api/landing-pages")
+@Tag(name = "Editor de Landing Pages", description = "Gerenciamento de landing pages, seções e versões")
 public class LandingPageEditorController {
 
     private final LandingPageEditorService editorService;
@@ -48,6 +51,7 @@ public class LandingPageEditorController {
      *
      * GET /api/landing-pages
      */
+    @Operation(summary = "Listar todas as landing pages")
     @GetMapping
     public ResponseEntity<ResponseAPI<List<LandingPageDTO>>> listAll() {
         try {
@@ -63,6 +67,7 @@ public class LandingPageEditorController {
      *
      * GET /api/landing-pages/paginated?page=0&size=10
      */
+    @Operation(summary = "Listar landing pages com paginação")
     @GetMapping("/paginated")
     public ResponseEntity<ResponseAPI<Page<LandingPageDTO>>> listPaginated(
             @RequestParam(defaultValue = "0") int page,
@@ -81,6 +86,7 @@ public class LandingPageEditorController {
      *
      * GET /api/landing-pages/{id}
      */
+    @Operation(summary = "Buscar landing page por ID")
     @GetMapping("/{id}")
     public ResponseEntity<ResponseAPI<LandingPageDTO>> getById(@PathVariable Long id) {
         try {
@@ -97,6 +103,7 @@ public class LandingPageEditorController {
      *
      * GET /api/landing-pages/by-slug/{slug}
      */
+    @Operation(summary = "Buscar landing page por slug")
     @GetMapping("/by-slug/{slug}")
     public ResponseEntity<ResponseAPI<LandingPageDTO>> getBySlug(@PathVariable String slug) {
         try {
@@ -113,6 +120,7 @@ public class LandingPageEditorController {
      *
      * POST /api/landing-pages
      */
+    @Operation(summary = "Criar nova landing page")
     @PostMapping
     public ResponseEntity<ResponseAPI<LandingPageDTO>> create(
             @Valid @RequestBody CreateLandingPageRequest request) {
@@ -134,6 +142,7 @@ public class LandingPageEditorController {
      *
      * PUT /api/landing-pages/{id}
      */
+    @Operation(summary = "Atualizar landing page")
     @PutMapping("/{id}")
     public ResponseEntity<ResponseAPI<LandingPageDTO>> update(
             @PathVariable Long id,
@@ -153,6 +162,7 @@ public class LandingPageEditorController {
      *
      * POST /api/landing-pages/{id}/publish
      */
+    @Operation(summary = "Publicar landing page")
     @PostMapping("/{id}/publish")
     public ResponseEntity<ResponseAPI<LandingPageDTO>> publish(@PathVariable Long id) {
         try {
@@ -170,6 +180,7 @@ public class LandingPageEditorController {
      *
      * POST /api/landing-pages/{id}/unpublish
      */
+    @Operation(summary = "Despublicar landing page")
     @PostMapping("/{id}/unpublish")
     public ResponseEntity<ResponseAPI<LandingPageDTO>> unpublish(@PathVariable Long id) {
         try {
@@ -187,6 +198,7 @@ public class LandingPageEditorController {
      *
      * POST /api/landing-pages/{id}/duplicate
      */
+    @Operation(summary = "Duplicar landing page")
     @PostMapping("/{id}/duplicate")
     public ResponseEntity<ResponseAPI<LandingPageDTO>> duplicate(
             @PathVariable Long id,
@@ -211,6 +223,7 @@ public class LandingPageEditorController {
      *
      * DELETE /api/landing-pages/{id}
      */
+    @Operation(summary = "Deletar landing page")
     @DeleteMapping("/{id}")
     public ResponseEntity<ResponseAPI<Void>> delete(@PathVariable Long id) {
         try {
@@ -230,6 +243,7 @@ public class LandingPageEditorController {
      *
      * POST /api/landing-pages/{landingPageId}/sections
      */
+    @Operation(summary = "Adicionar seção")
     @PostMapping("/{landingPageId}/sections")
     public ResponseEntity<ResponseAPI<LandingPageSectionDTO>> addSection(
             @PathVariable Long landingPageId,
@@ -254,6 +268,7 @@ public class LandingPageEditorController {
      *
      * PUT /api/landing-pages/{landingPageId}/sections/{sectionId}
      */
+    @Operation(summary = "Atualizar seção")
     @PutMapping("/{landingPageId}/sections/{sectionId}")
     public ResponseEntity<ResponseAPI<LandingPageSectionDTO>> updateSection(
             @PathVariable Long landingPageId,
@@ -274,6 +289,7 @@ public class LandingPageEditorController {
      *
      * PUT /api/landing-pages/{landingPageId}/sections/reorder
      */
+    @Operation(summary = "Reordenar seções")
     @PutMapping("/{landingPageId}/sections/reorder")
     public ResponseEntity<ResponseAPI<List<LandingPageSectionDTO>>> reorderSections(
             @PathVariable Long landingPageId,
@@ -293,6 +309,7 @@ public class LandingPageEditorController {
      *
      * POST /api/landing-pages/{landingPageId}/sections/{sectionId}/duplicate
      */
+    @Operation(summary = "Duplicar seção")
     @PostMapping("/{landingPageId}/sections/{sectionId}/duplicate")
     public ResponseEntity<ResponseAPI<LandingPageSectionDTO>> duplicateSection(
             @PathVariable Long landingPageId,
@@ -317,6 +334,7 @@ public class LandingPageEditorController {
      *
      * DELETE /api/landing-pages/{landingPageId}/sections/{sectionId}
      */
+    @Operation(summary = "Deletar seção")
     @DeleteMapping("/{landingPageId}/sections/{sectionId}")
     public ResponseEntity<ResponseAPI<Void>> deleteSection(
             @PathVariable Long landingPageId,
@@ -338,6 +356,7 @@ public class LandingPageEditorController {
      *
      * GET /api/landing-pages/{landingPageId}/versions
      */
+    @Operation(summary = "Listar versões")
     @GetMapping("/{landingPageId}/versions")
     public ResponseEntity<ResponseAPI<List<LandingPageVersionDTO>>> listVersions(
             @PathVariable Long landingPageId) {
@@ -356,6 +375,7 @@ public class LandingPageEditorController {
      *
      * POST /api/landing-pages/{landingPageId}/versions/{versao}/restore
      */
+    @Operation(summary = "Restaurar versão anterior")
     @PostMapping("/{landingPageId}/versions/{versao}/restore")
     public ResponseEntity<ResponseAPI<LandingPageDTO>> restoreVersion(
             @PathVariable Long landingPageId,
@@ -377,6 +397,7 @@ public class LandingPageEditorController {
      *
      * GET /api/landing-pages/metadata/section-types
      */
+    @Operation(summary = "Obter tipos de seção disponíveis")
     @GetMapping("/metadata/section-types")
     public ResponseEntity<ResponseAPI<List<Map<String, String>>>> getSectionTypes() {
         List<Map<String, String>> types = Arrays.stream(SectionType.values())
@@ -395,6 +416,7 @@ public class LandingPageEditorController {
      *
      * GET /api/landing-pages/metadata/element-types
      */
+    @Operation(summary = "Obter tipos de elemento disponíveis")
     @GetMapping("/metadata/element-types")
     public ResponseEntity<ResponseAPI<List<Map<String, String>>>> getElementTypes() {
         List<Map<String, String>> types = Arrays.stream(ElementType.values())

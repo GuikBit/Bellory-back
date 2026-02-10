@@ -1,5 +1,7 @@
 package org.exemplo.bellory.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
 import org.exemplo.bellory.model.entity.email.EmailTemplate;
 import org.exemplo.bellory.model.entity.error.ResponseAPI;
@@ -15,11 +17,13 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/email")
 @Slf4j
+@Tag(name = "E-mail", description = "Envio de e-mails e testes")
 public class EmailController {
 
     @Autowired
     private EmailService emailService;
 
+    @Operation(summary = "Enviar e-mail de teste")
     @PostMapping("/teste")
     public ResponseEntity<ResponseAPI<String>> enviarEmailTeste(
             @RequestParam String destinatario) {

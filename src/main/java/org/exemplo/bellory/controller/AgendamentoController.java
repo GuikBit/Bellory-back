@@ -1,6 +1,8 @@
 package org.exemplo.bellory.controller;
 
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.exemplo.bellory.model.dto.*;
 import org.exemplo.bellory.model.entity.cobranca.Cobranca;
 import org.exemplo.bellory.model.entity.error.ResponseAPI;
@@ -22,6 +24,7 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/agendamento")
+@Tag(name = "Agendamentos", description = "Gerenciamento de agendamentos, disponibilidade, pagamentos e status")
 public class AgendamentoController {
 
     private final AgendamentoService agendamentoService;
@@ -32,6 +35,7 @@ public class AgendamentoController {
         this.transacaoService = transacaoService;
     }
 
+    @Operation(summary = "Verificar disponibilidade de horários")
     @PostMapping("/disponibilidade")
     public ResponseEntity<List<HorarioDisponivelResponse>> getDisponibilidade(@RequestBody DisponibilidadeRequest request) {
         if (request.getFuncionarioId() == null || request.getDataDesejada() == null || request.getServicoIds() == null || request.getServicoIds().isEmpty()) {
@@ -42,6 +46,7 @@ public class AgendamentoController {
     }
 
 
+    @Operation(summary = "Criar novo agendamento")
     @PostMapping
     public ResponseEntity<ResponseAPI<AgendamentoDTO>> createAgendamento(@RequestBody AgendamentoCreateDTO agendamentoDTO) {
         try {
@@ -106,6 +111,7 @@ public class AgendamentoController {
     }
 
     // Endpoint para listar todos os agendamentos
+    @Operation(summary = "Listar todos os agendamentos")
     @GetMapping
     public ResponseEntity<ResponseAPI<List<AgendamentoDTO>>> getAllAgendamentos() {
         try {
@@ -137,6 +143,7 @@ public class AgendamentoController {
     }
 
     // Endpoint para buscar um agendamento por ID
+    @Operation(summary = "Buscar agendamento por ID")
     @GetMapping("/{id}")
     public ResponseEntity<ResponseAPI<AgendamentoDTO>> getAgendamentoById(@PathVariable Long id) {
         try {
@@ -166,6 +173,7 @@ public class AgendamentoController {
     }
 
     // Endpoint para atualizar um agendamento
+    @Operation(summary = "Atualizar agendamento")
     @PutMapping("/{id}")
     public ResponseEntity<ResponseAPI<AgendamentoDTO>> updateAgendamento(@PathVariable Long id, @RequestBody AgendamentoUpdateDTO agendamentoUpdateDTO) {
         try {
@@ -194,6 +202,7 @@ public class AgendamentoController {
         }
     }
 
+    @Operation(summary = "Listar agendamentos com cobranças pendentes")
     @GetMapping("/cobrancas-pendentes")
     public ResponseEntity<ResponseAPI<List<AgendamentoDTO>>> getAgendamentosComCobrancasPendentes() {
         try {
@@ -215,6 +224,7 @@ public class AgendamentoController {
         }
     }
 
+    @Operation(summary = "Listar agendamentos com cobranças vencidas")
     @GetMapping("/vencidos")
     public ResponseEntity<ResponseAPI<List<AgendamentoDTO>>> getAgendamentosVencidos() {
         try {
@@ -236,6 +246,7 @@ public class AgendamentoController {
         }
     }
 
+    @Operation(summary = "Processar pagamento de agendamento")
     @PostMapping("/{id}/pagamento")
     public ResponseEntity<ResponseAPI<Map<String, Object>>> processarPagamentoAgendamento(
             @PathVariable Long id,
@@ -313,6 +324,7 @@ public class AgendamentoController {
         }
     }
 
+    @Operation(summary = "Dividir pagamento de agendamento")
     @PostMapping("/{id}/dividir-pagamento")
     public ResponseEntity<ResponseAPI<Void>> processarDividirPagamento(
             @PathVariable Long id,
@@ -355,6 +367,7 @@ public class AgendamentoController {
         }
     }
 
+    @Operation(summary = "Cancelar agendamento")
     @DeleteMapping("/{id}")
     public ResponseEntity<ResponseAPI<Void>> cancelAgendamento(@PathVariable Long id) {
         try {
@@ -408,6 +421,7 @@ public class AgendamentoController {
         }
     }
 
+    @Operation(summary = "Estornar pagamento de agendamento")
     @PostMapping("/{id}/estorno")
     public ResponseEntity<ResponseAPI<String>> estornarPagamentoAgendamento(
             @PathVariable Long id,
@@ -461,6 +475,7 @@ public class AgendamentoController {
         }
     }
 
+    @Operation(summary = "Listar status disponíveis")
     @GetMapping("/status-disponiveis")
     public ResponseEntity<ResponseAPI<List<StatusAgendamentoDTO>>> getStatusDisponiveis() {
         try {
@@ -482,6 +497,7 @@ public class AgendamentoController {
         }
     }
     // Endpoint para alterar status do agendamento
+    @Operation(summary = "Atualizar status do agendamento")
     @PatchMapping("/{id}/status/{status}")
     public ResponseEntity<ResponseAPI<AgendamentoDTO>> updateStatusAgendamento(@PathVariable Long id, @PathVariable String status) {
         try {
@@ -510,6 +526,7 @@ public class AgendamentoController {
         }
     }
 
+    @Operation(summary = "Listar agendamentos por cliente")
     @GetMapping("/cliente/{clienteId}")
     public ResponseEntity<ResponseAPI<List<AgendamentoDTO>>> getAgendamentosByCliente(@PathVariable Long clienteId) {
         try {
@@ -540,6 +557,7 @@ public class AgendamentoController {
         }
     }
 
+    @Operation(summary = "Listar agendamentos por funcionário")
     @GetMapping("/funcionario/{funcionarioId}")
     public ResponseEntity<ResponseAPI<List<AgendamentoDTO>>> getAgendamentosByFuncionario(@PathVariable Long funcionarioId) {
         try {
@@ -571,6 +589,7 @@ public class AgendamentoController {
     }
 
     // Endpoint para buscar agendamentos por data
+    @Operation(summary = "Listar agendamentos por data")
     @GetMapping("/data/{data}")
     public ResponseEntity<ResponseAPI<List<AgendamentoDTO>>> getAgendamentosByData(@PathVariable String data) {
         try {
@@ -603,6 +622,7 @@ public class AgendamentoController {
     }
 
     // Endpoint para buscar agendamentos por status
+    @Operation(summary = "Listar agendamentos por status")
     @GetMapping("/status/{status}")
     public ResponseEntity<ResponseAPI<List<AgendamentoDTO>>> getAgendamentosByStatus(@PathVariable String status) {
         try {
@@ -633,6 +653,7 @@ public class AgendamentoController {
         }
     }
 
+    @Operation(summary = "Reagendar agendamento")
     @PatchMapping("/{id}/reagendar")
     public ResponseEntity<ResponseAPI<AgendamentoDTO>> reagendarAgendamento(@PathVariable Long id, @RequestBody Map<String, String> request) {
         try {
@@ -679,6 +700,7 @@ public class AgendamentoController {
         }
     }
 
+    @Operation(summary = "Obter estatísticas de agendamentos")
     @GetMapping("/estatisticas")
     public ResponseEntity<ResponseAPI<AgendamentoEstatisticasDTO>> getEstatisticasAgendamentos() {
         try {
@@ -700,6 +722,7 @@ public class AgendamentoController {
         }
     }
 
+    @Operation(summary = "Listar agendamentos de hoje")
     @GetMapping("/hoje")
     public ResponseEntity<ResponseAPI<List<AgendamentoDTO>>> getAgendamentosHoje() {
         try {
@@ -721,6 +744,7 @@ public class AgendamentoController {
         }
     }
 
+    @Operation(summary = "Listar próximos agendamentos")
     @GetMapping("/proximos")
     public ResponseEntity<ResponseAPI<List<AgendamentoDTO>>> getAgendamentosProximos() {
         try {
@@ -742,6 +766,7 @@ public class AgendamentoController {
         }
     }
 
+    @Operation(summary = "Filtrar agendamentos")
     @PostMapping("/filtrar")
     public ResponseEntity<ResponseAPI<List<AgendamentoDTO>>> filtrarAgendamentos(@RequestBody AgendamentoFiltroDTO filtro) {
         try {
@@ -763,6 +788,7 @@ public class AgendamentoController {
         }
     }
 
+    @Operation(summary = "Obter agenda do dia por funcionário")
     @GetMapping("/funcionario/{funcionarioId}/agenda/{data}")
     public ResponseEntity<ResponseAPI<List<AgendamentoDTO>>> getAgendaDoDia(@PathVariable Long funcionarioId, @PathVariable String data) {
         try {
@@ -818,6 +844,7 @@ public class AgendamentoController {
      * 1. Passar servicoIds: retorna funcionários que prestam TODOS os serviços
      * 2. Passar funcionarioIds: retorna serviços que TODOS os funcionários prestam em comum
      */
+    @Operation(summary = "Consultar relacionamentos funcionários/serviços")
     @PostMapping("/consultar-relacionamentos")
     public ResponseEntity<ResponseAPI<FuncionarioServicoResponse>> consultarRelacionamentos(
             @RequestBody ConsultaRelacionamentoRequest request) {
@@ -859,6 +886,7 @@ public class AgendamentoController {
     /**
      * Endpoint específico para buscar funcionários por serviços
      */
+    @Operation(summary = "Buscar funcionários por serviços")
     @GetMapping("/funcionarios-por-servicos")
     public ResponseEntity<ResponseAPI> getFuncionariosPorServicos(
             @RequestParam List<Long> servicoIds) {
@@ -891,6 +919,7 @@ public class AgendamentoController {
     /**
      * Endpoint específico para buscar serviços por funcionários
      */
+    @Operation(summary = "Buscar serviços por funcionários")
     @GetMapping("/servicos-por-funcionarios")
     public ResponseEntity<ResponseAPI> getServicosPorFuncionarios(
             @RequestParam List<Long> funcionarioIds) {

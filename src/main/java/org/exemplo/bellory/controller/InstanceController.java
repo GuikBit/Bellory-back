@@ -1,5 +1,7 @@
 package org.exemplo.bellory.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.exemplo.bellory.model.dto.instancia.InstanceByNameDTO;
@@ -19,6 +21,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/instances")
 @Slf4j
+@Tag(name = "Instâncias WhatsApp", description = "Gerenciamento de instâncias WhatsApp via Evolution API")
 public class InstanceController {
 
     private final InstanceService instanceService;
@@ -31,6 +34,7 @@ public class InstanceController {
      * Criar nova instância do WhatsApp
      * POST /api/instances
      */
+    @Operation(summary = "Criar nova instância WhatsApp")
     @PostMapping
     public ResponseEntity<ResponseAPI<InstanceDTO>> createInstance(
             @Valid @RequestBody InstanceCreateDTO dto) {
@@ -79,6 +83,7 @@ public class InstanceController {
      * Listar todas as instâncias da organização
      * GET /api/instances
      */
+    @Operation(summary = "Listar todas as instâncias")
     @GetMapping
     public ResponseEntity<ResponseAPI<List<InstanceDTO>>> getAllInstances() {
         try {
@@ -125,6 +130,7 @@ public class InstanceController {
      * Buscar instância por ID
      * GET /api/instances/{id}
      */
+    @Operation(summary = "Buscar instância por ID")
     @GetMapping("/{id}")
     public ResponseEntity<ResponseAPI<InstanceDTO>> getInstanceById(@PathVariable Long id) {
         try {
@@ -171,6 +177,7 @@ public class InstanceController {
      * Atualizar instância
      * PUT /api/instances/{id}
      */
+    @Operation(summary = "Atualizar instância")
     @PutMapping("/{id}")
     public ResponseEntity<ResponseAPI<InstanceDTO>> updateInstance(
             @PathVariable Long id,
@@ -219,6 +226,7 @@ public class InstanceController {
      * Deletar instância
      * DELETE /api/instances/{id}
      */
+    @Operation(summary = "Deletar instância")
     @DeleteMapping("/{id}")
     public ResponseEntity<ResponseAPI<Void>> deleteInstance(@PathVariable Long id) {
         try {
@@ -264,6 +272,7 @@ public class InstanceController {
      * Obter QR Code para conectar WhatsApp
      * GET /api/instances/{id}/qrcode
      */
+    @Operation(summary = "Obter QR Code para conectar")
     @GetMapping("/{id}/qrcode")
     public ResponseEntity<ResponseAPI<Map<String, String>>> getQRCode(@PathVariable Long id) {
         try {
@@ -310,6 +319,7 @@ public class InstanceController {
      * Obter status de conexão da instância
      * GET /api/instances/{id}/status
      */
+    @Operation(summary = "Obter status de conexão")
     @GetMapping("/{id}/status")
     public ResponseEntity<ResponseAPI<Map<String, Object>>> getConnectionStatus(
             @PathVariable Long id) {
@@ -357,6 +367,7 @@ public class InstanceController {
      * Desconectar instância (logout)
      * POST /api/instances/{id}/logout
      */
+    @Operation(summary = "Desconectar instância (logout)")
     @PostMapping("/{id}/logout")
     public ResponseEntity<ResponseAPI<Void>> logout(@PathVariable Long id) {
         try {
@@ -402,6 +413,7 @@ public class InstanceController {
      * Reiniciar instância
      * POST /api/instances/{id}/restart
      */
+    @Operation(summary = "Reiniciar instância")
     @PostMapping("/{id}/restart")
     public ResponseEntity<ResponseAPI<Void>> restart(@PathVariable Long id) {
         try {
@@ -447,6 +459,7 @@ public class InstanceController {
      * Enviar mensagem de texto
      * POST /api/instances/{id}/send-text
      */
+    @Operation(summary = "Enviar mensagem de texto")
     @PostMapping("/{id}/send-text")
     public ResponseEntity<ResponseAPI<Map<String, Object>>> sendTextMessage(
             @PathVariable Long id,
@@ -500,6 +513,7 @@ public class InstanceController {
         }
     }
 
+    @Operation(summary = "Buscar instância pelo nome")
     @GetMapping("/by-name/{instanceName}")
     public ResponseEntity<ResponseAPI<InstanceByNameDTO>> getInstanceByName(@PathVariable String instanceName) {
         try {

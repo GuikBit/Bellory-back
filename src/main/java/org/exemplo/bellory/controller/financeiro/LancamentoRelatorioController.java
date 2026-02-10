@@ -1,5 +1,7 @@
 package org.exemplo.bellory.controller.financeiro;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.exemplo.bellory.model.dto.financeiro.*;
 import org.exemplo.bellory.model.entity.error.ResponseAPI;
@@ -14,6 +16,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/financeiro")
 @RequiredArgsConstructor
+@Tag(name = "Financeiro - Lançamentos e Relatórios", description = "Lançamentos financeiros, fluxo de caixa, DRE e balanço")
 public class LancamentoRelatorioController {
 
     private final LancamentoFinanceiroService lancamentoService;
@@ -27,6 +30,7 @@ public class LancamentoRelatorioController {
     // ========================================
 
     @PostMapping("/lancamentos")
+    @Operation(summary = "Criar lançamento financeiro")
     public ResponseEntity<ResponseAPI<LancamentoFinanceiroResponseDTO>> criarLancamento(
             @RequestBody LancamentoFinanceiroCreateDTO dto) {
         try {
@@ -55,6 +59,7 @@ public class LancamentoRelatorioController {
     }
 
     @PutMapping("/lancamentos/{id}")
+    @Operation(summary = "Atualizar lançamento financeiro")
     public ResponseEntity<ResponseAPI<LancamentoFinanceiroResponseDTO>> atualizarLancamento(
             @PathVariable Long id, @RequestBody LancamentoFinanceiroUpdateDTO dto) {
         try {
@@ -89,6 +94,7 @@ public class LancamentoRelatorioController {
     }
 
     @GetMapping("/lancamentos")
+    @Operation(summary = "Listar lançamentos financeiros")
     public ResponseEntity<ResponseAPI<List<LancamentoFinanceiroResponseDTO>>> listarLancamentos(
             @RequestParam(required = false) LocalDate dataInicio,
             @RequestParam(required = false) LocalDate dataFim,
@@ -122,6 +128,7 @@ public class LancamentoRelatorioController {
     }
 
     @GetMapping("/lancamentos/{id}")
+    @Operation(summary = "Buscar lançamento por ID")
     public ResponseEntity<ResponseAPI<LancamentoFinanceiroResponseDTO>> buscarLancamento(@PathVariable Long id) {
         try {
             LancamentoFinanceiroResponseDTO lancamento = lancamentoService.buscarPorId(id);
@@ -148,6 +155,7 @@ public class LancamentoRelatorioController {
     }
 
     @PostMapping("/lancamentos/{id}/efetivar")
+    @Operation(summary = "Efetivar lançamento financeiro")
     public ResponseEntity<ResponseAPI<LancamentoFinanceiroResponseDTO>> efetivarLancamento(@PathVariable Long id) {
         try {
             LancamentoFinanceiroResponseDTO resultado = lancamentoService.efetivar(id);
@@ -181,6 +189,7 @@ public class LancamentoRelatorioController {
     }
 
     @DeleteMapping("/lancamentos/{id}")
+    @Operation(summary = "Cancelar lançamento financeiro")
     public ResponseEntity<ResponseAPI<Void>> cancelarLancamento(@PathVariable Long id) {
         try {
             lancamentoService.cancelar(id);
@@ -217,6 +226,7 @@ public class LancamentoRelatorioController {
     // ========================================
 
     @GetMapping("/dashboard")
+    @Operation(summary = "Obter dashboard financeiro")
     public ResponseEntity<ResponseAPI<DashboardFinanceiroDTO>> getDashboard() {
         try {
             DashboardFinanceiroDTO dashboard = dashboardService.gerarDashboard();
@@ -236,6 +246,7 @@ public class LancamentoRelatorioController {
     }
 
     @GetMapping("/relatorios/fluxo-caixa")
+    @Operation(summary = "Gerar relatório de fluxo de caixa")
     public ResponseEntity<ResponseAPI<FluxoCaixaDTO>> getFluxoCaixa(
             @RequestParam LocalDate dataInicio,
             @RequestParam LocalDate dataFim) {
@@ -257,6 +268,7 @@ public class LancamentoRelatorioController {
     }
 
     @GetMapping("/relatorios/dre")
+    @Operation(summary = "Gerar DRE (Demonstração do Resultado)")
     public ResponseEntity<ResponseAPI<DREDTO>> getDRE(
             @RequestParam LocalDate dataInicio,
             @RequestParam LocalDate dataFim) {
@@ -278,6 +290,7 @@ public class LancamentoRelatorioController {
     }
 
     @GetMapping("/relatorios/balanco")
+    @Operation(summary = "Gerar balanço financeiro")
     public ResponseEntity<ResponseAPI<BalancoFinanceiroDTO>> getBalanco(
             @RequestParam(required = false) LocalDate dataReferencia) {
         try {
