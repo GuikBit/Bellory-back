@@ -98,6 +98,9 @@ public class SecurityConfig {
 
                                "/api/public/site/**",
 
+                                // Tracking endpoint (publico, dados anonimos com rate limiting)
+                                "/api/tracking",
+
                                 "/api/instances/by-name/**",
 
                                 "/api/organizacao",
