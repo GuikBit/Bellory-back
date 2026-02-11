@@ -1,4 +1,4 @@
-package org.exemplo.bellory.controller;
+package org.exemplo.bellory.controller.app;
 
 
 import io.swagger.v3.oas.annotations.Operation;

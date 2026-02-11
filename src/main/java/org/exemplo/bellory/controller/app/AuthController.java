@@ -1,4 +1,4 @@
-package org.exemplo.bellory.controller;
+package org.exemplo.bellory.controller.app;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -6,7 +6,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 
 import org.exemplo.bellory.model.dto.auth.*;
-import org.exemplo.bellory.model.dto.clienteDTO.ClienteCreateDTO;
 import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 import org.exemplo.bellory.model.entity.users.User;
 import org.exemplo.bellory.service.TokenService;
@@ -25,7 +24,6 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.stream.Collectors;
 
 @RestController

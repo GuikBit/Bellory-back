@@ -1,23 +1,18 @@
-package org.exemplo.bellory.controller;
+package org.exemplo.bellory.controller.app;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.exemplo.bellory.model.dto.*;
 import org.exemplo.bellory.model.entity.error.ResponseAPI;
-import org.exemplo.bellory.model.entity.funcionario.Cargo;
 import org.exemplo.bellory.model.entity.funcionario.Funcionario;
 import org.exemplo.bellory.service.CargoService;
 import org.exemplo.bellory.service.FileStorageService;
 import org.exemplo.bellory.service.FuncionarioService;
-import org.springframework.core.io.Resource;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.net.URI;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;

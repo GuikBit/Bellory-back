@@ -1,10 +1,9 @@
-package org.exemplo.bellory.controller;
+package org.exemplo.bellory.controller.app;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.exemplo.bellory.model.dto.compra.PagamentoDTO;
 import org.exemplo.bellory.model.dto.config.*;
 import org.exemplo.bellory.model.entity.config.*;
 import org.exemplo.bellory.model.entity.error.ResponseAPI;

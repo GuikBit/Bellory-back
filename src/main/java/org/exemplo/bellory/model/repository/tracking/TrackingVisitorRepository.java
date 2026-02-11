@@ -18,11 +18,11 @@ public interface TrackingVisitorRepository extends JpaRepository<TrackingVisitor
     void incrementSession(@Param("id") UUID id, @Param("lastSeenAt") LocalDateTime lastSeenAt);
 
     @Modifying
-    @Query("UPDATE TrackingVisitor v SET v.totalPageViews = v.totalPageViews + :count, v.updatedAt = NOW() WHERE v.id = :id")
+    @Query(value = "UPDATE site.tracking_visitors SET total_page_views = total_page_views + :count, updated_at = NOW() WHERE id = :id", nativeQuery = true)
     void incrementPageViews(@Param("id") UUID id, @Param("count") int count);
 
     @Modifying
-    @Query("UPDATE TrackingVisitor v SET v.isConverted = true, v.convertedAt = :convertedAt, v.conversionPlanId = :planId, v.updatedAt = NOW() WHERE v.id = :id")
+    @Query(value = "UPDATE site.tracking_visitors SET is_converted = true, converted_at = :convertedAt, conversion_plan_id = :planId, updated_at = NOW() WHERE id = :id", nativeQuery = true)
     void markConverted(@Param("id") UUID id, @Param("convertedAt") LocalDateTime convertedAt, @Param("planId") String planId);
 
     @Query("SELECT COUNT(DISTINCT v.id) FROM TrackingVisitor v WHERE v.firstSeenAt BETWEEN :start AND :end")

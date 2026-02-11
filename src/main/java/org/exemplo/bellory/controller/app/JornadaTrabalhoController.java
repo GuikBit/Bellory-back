@@ -1,8 +1,7 @@
-package org.exemplo.bellory.controller;
+package org.exemplo.bellory.controller.app;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.exemplo.bellory.model.dto.JornadaDiaCreateUpdateDTO;
 import org.exemplo.bellory.model.dto.JornadaDiaDTO;
 import org.exemplo.bellory.model.entity.error.ResponseAPI;
 import org.exemplo.bellory.service.JornadaTrabalhoService;

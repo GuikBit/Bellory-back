@@ -1,4 +1,4 @@
-package org.exemplo.bellory.controller;
+package org.exemplo.bellory.controller.app;
 
 import org.exemplo.bellory.model.dto.dashboard.DashboardComparativoDTO;
 import org.exemplo.bellory.model.dto.dashboard.DashboardDTO;

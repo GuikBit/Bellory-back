@@ -1,18 +1,15 @@
-package org.exemplo.bellory.controller;
+package org.exemplo.bellory.controller.app;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import org.exemplo.bellory.model.dto.FuncionarioDTO;
 import org.exemplo.bellory.model.dto.produto.ProdutoCreateDTO;
 import org.exemplo.bellory.model.dto.produto.ProdutoResponseDTO;
 import org.exemplo.bellory.model.dto.produto.ProdutoUpdateDTO;
 import org.exemplo.bellory.model.entity.error.ResponseAPI;
-import org.exemplo.bellory.model.entity.produto.Produto;
 import org.exemplo.bellory.service.FuncionarioService;
 import org.exemplo.bellory.service.ProdutoService;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;

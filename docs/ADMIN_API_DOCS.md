@@ -6,6 +6,10 @@ O painel administrativo da Bellory permite visualizar metricas e gerenciar todas
 
 **Base URL:** `/api/admin`
 
+localhost:8081 em desenvolvimento.
+api-dev.bellory.com.br api de desenvolvimento.
+api.bellory.com.br api de produção.
+
 **Autenticacao:** Bearer Token JWT (mesmo fluxo de login existente em `/api/auth/login`)
 
 **Headers obrigatorios:**
