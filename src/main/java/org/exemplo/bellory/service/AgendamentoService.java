@@ -388,20 +388,21 @@ public class AgendamentoService {
 
         validarOrganizacao(agendamento.getCliente().getOrganizacao().getId());
 
+        Status novoStatus;
         try {
-            Status novoStatus = Status.valueOf(status.toUpperCase());
-
-            // Validar se a transição de status é permitida
-            validarTransicaoStatus(agendamento.getStatus(), novoStatus);
-
-            alterarStatusAgendamento(agendamento, novoStatus);
-            agendamento.setDtAtualizacao(LocalDateTime.now());
-
-            Agendamento agendamentoAtualizado = agendamentoRepository.save(agendamento);
-            return new AgendamentoDTO(agendamentoAtualizado);
+            novoStatus = Status.valueOf(status.toUpperCase());
         } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("Status inválido: " + status);
         }
+
+        // Validar se a transição de status é permitida
+        validarTransicaoStatus(agendamento.getStatus(), novoStatus);
+
+        alterarStatusAgendamento(agendamento, novoStatus);
+        agendamento.setDtAtualizacao(LocalDateTime.now());
+
+        Agendamento agendamentoAtualizado = agendamentoRepository.save(agendamento);
+        return new AgendamentoDTO(agendamentoAtualizado);
     }
 
     private void validarTransicaoStatus(Status statusAtual, Status novoStatus) {
@@ -561,6 +562,7 @@ public class AgendamentoService {
                 // Remover bloqueios da agenda
                 if (agendamento.getBloqueioAgenda() != null) {
                     disponibilidadeRepository.delete(agendamento.getBloqueioAgenda());
+                    agendamento.setBloqueioAgenda(null);
                 }
 
                 // Cancelar cobranças pendentes

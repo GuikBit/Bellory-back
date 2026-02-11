@@ -254,6 +254,9 @@ public class ConfigSistemaService {
         if (dto.getMaxDiasAgendamento() != null) {
             configAgend.setMaxDiasAgendamento(dto.getMaxDiasAgendamento());
         }
+        if(dto.getMostrarAgendamentoCancelado() != null){
+            configAgend.setMostrarAgendamentoCancelado(dto.getMostrarAgendamentoCancelado());
+        }
         // Segundo bloco - Cancelamento Cliente
         if (dto.getCancelamentoCliente() != null) {
             configAgend.setCancelamentoCliente(dto.getCancelamentoCliente());

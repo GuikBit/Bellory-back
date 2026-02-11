@@ -23,6 +23,9 @@ public class ConfigAgendamento {
     @Column(name = "cancelamento_cliente")
     private Boolean cancelamentoCliente = false;
 
+    @Column(name="mostrar_agendamento_cancelado")
+    private Boolean mostrarAgendamentoCancelado = false;
+
     @Column(name = "tempo_cancelamento_cliente")
     private Integer tempoCancelamentoCliente;
 
