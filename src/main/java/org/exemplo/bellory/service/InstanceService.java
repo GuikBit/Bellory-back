@@ -583,22 +583,54 @@ public class InstanceService {
 
             ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, request, String.class);
             JsonNode jsonResponse = objectMapper.readTree(response.getBody());
+            log.debug("Evolution API connectionState response: {}", response.getBody());
 
-            String state = jsonResponse.has("state") ? jsonResponse.get("state").asText() : "close";
-            InstanceStatus newStatus = mapConnectionStatus(state);
-
-            // Atualizar no banco se mudou
-            if (instance.getStatus() != newStatus) {
-                log.info("Status mudou para {}: {} → {}", instance.getInstanceName(), instance.getStatus(), newStatus);
-                instance.setStatus(newStatus);
-                instanceRepository.save(instance);
+            // state pode vir no top-level ou aninhado em "instance"
+            String state = null;
+            if (jsonResponse.has("state")) {
+                state = jsonResponse.get("state").asText();
+            } else if (jsonResponse.has("instance") && jsonResponse.get("instance").has("state")) {
+                state = jsonResponse.get("instance").get("state").asText();
             }
 
-            return objectMapper.convertValue(jsonResponse, Map.class);
+            // Só atualiza o status se obteve um state válido da API
+            if (state != null) {
+                InstanceStatus newStatus = mapConnectionStatus(state);
+
+                // Não permitir transição DISCONNECTED → CONNECTING via polling.
+                // Após logout, a Evolution API pode tentar reconectar automaticamente
+                // e retornar "connecting" brevemente. Essa transição só deve ocorrer
+                // por ação explícita do usuário (restart, QR scan).
+                boolean isAutoReconnect = instance.getStatus() == InstanceStatus.DISCONNECTED
+                        && newStatus == InstanceStatus.CONNECTING;
+
+                if (!isAutoReconnect && instance.getStatus() != newStatus) {
+                    log.info("Status mudou: {} → {} ({})", instance.getStatus(), newStatus, instance.getInstanceName());
+                    instance.setStatus(newStatus);
+                    instanceRepository.save(instance);
+                } else if (isAutoReconnect) {
+                    log.debug("Ignorando auto-reconnect da Evolution API para {} (status atual: DISCONNECTED)",
+                            instance.getInstanceName());
+                }
+            }
+
+            // Retornar os dados da Evolution API + status interno
+            Map<String, Object> result = objectMapper.convertValue(jsonResponse, Map.class);
+            result.put("statusInternal", instance.getStatus() != null ? instance.getStatus().name() : "DISCONNECTED");
+            return result;
 
         } catch (Exception e) {
-            log.error("Erro ao obter status de conexão: {}", e.getMessage(), e);
-            throw new RuntimeException("Erro ao obter status de conexão: " + e.getMessage());
+            // FALLBACK: retornar último status conhecido do banco em vez de lançar exceção
+            log.warn("Falha ao consultar Evolution API para {}, retornando último status conhecido: {}",
+                    instance.getInstanceName(), e.getMessage());
+
+            InstanceStatus cachedStatus = instance.getStatus() != null ? instance.getStatus() : InstanceStatus.DISCONNECTED;
+            Map<String, Object> fallback = new LinkedHashMap<>();
+            fallback.put("state", cachedStatus == InstanceStatus.CONNECTED ? "open" :
+                                  cachedStatus == InstanceStatus.CONNECTING ? "connecting" : "close");
+            fallback.put("statusInternal", cachedStatus.name());
+            fallback.put("cached", true);
+            return fallback;
         }
     }
 

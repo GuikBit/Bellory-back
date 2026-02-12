@@ -1,4 +1,4 @@
-package org.exemplo.bellory.controller.tracking;
+package org.exemplo.bellory.controller.site;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;

@@ -351,15 +351,6 @@ public class InstanceController {
                             .message(e.getMessage())
                             .errorCode(403)
                             .build());
-
-        } catch (Exception e) {
-            log.error("Erro interno ao obter status: {}", e.getMessage(), e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ResponseAPI.<Map<String, Object>>builder()
-                            .success(false)
-                            .message("Erro ao obter status: " + e.getMessage())
-                            .errorCode(500)
-                            .build());
         }
     }
 

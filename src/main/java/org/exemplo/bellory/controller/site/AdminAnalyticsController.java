@@ -1,4 +1,4 @@
-package org.exemplo.bellory.controller.tracking;
+package org.exemplo.bellory.controller.site;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
