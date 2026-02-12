@@ -122,23 +122,29 @@ public class ServicoService {
         if (dto.getImagens() != null && !dto.getImagens().isEmpty()) {
             List<String> urlsImagensSalvas = new ArrayList<>();
 
-            for (String imagemBase64 : dto.getImagens()) {
-                if (imagemBase64 != null && !imagemBase64.isEmpty()) {
-                    // Salvar imagem base64 e obter path relativo
+            for (String imagem : dto.getImagens()) {
+                if (imagem == null || imagem.isEmpty()) {
+                    continue;
+                }
+
+                // Se for URL existente, mantém
+                if (imagem.startsWith("http://") || imagem.startsWith("https://")) {
+                    urlsImagensSalvas.add(imagem);
+                }
+                // Se for base64, salva a nova imagem
+                else if (imagem.startsWith("data:image/") || !imagem.contains("://")) {
                     String relativePath = fileStorageService.storeServiceImageFromBase64(
-                            imagemBase64,
+                            imagem,
                             servicoSalvo.getId(),
                             organizacaoId
                     );
-
-                    // Construir URL completa
                     String fullUrl = fileStorageService.getFileUrl(relativePath);
                     urlsImagensSalvas.add(fullUrl);
                 }
             }
 
             servicoSalvo.setUrlsImagens(urlsImagensSalvas);
-            servicoRepository.save(servicoSalvo);
+            servicoSalvo = servicoRepository.save(servicoSalvo);
         }
 
         return servicoSalvo;
@@ -252,77 +258,45 @@ public class ServicoService {
 
         servicoExistente.setProdutos(dto.getProdutos());
 
-        // PROCESSAR IMAGENS COM LOGS DETALHADOS
-        System.out.println("🔍 ===== INÍCIO DO PROCESSAMENTO DE IMAGENS =====");
-        System.out.println("📦 Total de imagens recebidas no DTO: " + (dto.getImagens() != null ? dto.getImagens().size() : 0));
-
+        // Processar imagens
         if (dto.getImagens() != null) {
-            for (int i = 0; i < dto.getImagens().size(); i++) {
-                String img = dto.getImagens().get(i);
-                System.out.println("📸 Imagem [" + i + "] - Tamanho: " + (img != null ? img.length() : 0) + " chars");
-                if (img != null && img.length() > 50) {
-                    System.out.println("   Início: " + img.substring(0, 50) + "...");
-                }
-            }
-        }
+            if (dto.getImagens().isEmpty()) {
+                // Lista vazia = usuario removeu todas as imagens
+                servicoExistente.setUrlsImagens(new ArrayList<>());
+            } else {
+                List<String> urlsFinais = new ArrayList<>();
 
-        if (dto.getImagens() != null && !dto.getImagens().isEmpty()) {
-            List<String> urlsFinais = new ArrayList<>();
+                for (int i = 0; i < dto.getImagens().size(); i++) {
+                    String imagem = dto.getImagens().get(i);
 
-            for (int i = 0; i < dto.getImagens().size(); i++) {
-                String imagem = dto.getImagens().get(i);
-
-                System.out.println("\n🔄 Processando imagem [" + i + "]...");
-
-                if (imagem == null || imagem.isEmpty()) {
-                    System.out.println("⚠️ Imagem vazia ou nula, pulando...");
-                    continue;
-                }
-
-                // Se for URL (começa com http), mantém a URL existente
-                if (imagem.startsWith("http://") || imagem.startsWith("https://")) {
-                    System.out.println("🔗 É uma URL existente: " + imagem);
-                    urlsFinais.add(imagem);
-                }
-                // Se for base64, salva a nova imagem
-                else if (imagem.startsWith("data:image/")) {
-                    System.out.println("🖼️ É uma imagem base64, salvando...");
-                    try {
-                        String relativePath = fileStorageService.storeServiceImageFromBase64(
-                                imagem,
-                                servicoExistente.getId(),
-                                organizacaoId
-                        );
-
-                        String fullUrl = fileStorageService.getFileUrl(relativePath);
-                        urlsFinais.add(fullUrl);
-
-                        System.out.println("✅ Nova imagem salva com sucesso!");
-                        System.out.println("   Relative path: " + relativePath);
-                        System.out.println("   Full URL: " + fullUrl);
-                    } catch (Exception e) {
-                        System.err.println("❌ ERRO ao salvar imagem: " + e.getMessage());
-                        e.printStackTrace();
+                    if (imagem == null || imagem.isEmpty()) {
+                        continue;
                     }
-                } else {
-                    System.out.println("❓ Formato desconhecido de imagem. Primeiros 100 chars:");
-                    System.out.println("   " + imagem.substring(0, Math.min(100, imagem.length())));
+
+                    // Se for URL (começa com http), mantém a URL existente
+                    if (imagem.startsWith("http://") || imagem.startsWith("https://")) {
+                        urlsFinais.add(imagem);
+                    }
+                    // Se for base64, salva a nova imagem
+                    else if (imagem.startsWith("data:image/") || !imagem.contains("://")) {
+                        try {
+                            String relativePath = fileStorageService.storeServiceImageFromBase64(
+                                    imagem,
+                                    servicoExistente.getId(),
+                                    organizacaoId
+                            );
+
+                            String fullUrl = fileStorageService.getFileUrl(relativePath);
+                            urlsFinais.add(fullUrl);
+                        } catch (Exception e) {
+                            System.err.println("Erro ao salvar imagem [" + i + "]: " + e.getMessage());
+                        }
+                    }
                 }
-            }
 
-            System.out.println("\n📋 RESUMO:");
-            System.out.println("   URLs antigas recebidas: " + dto.getImagens().stream().filter(img -> img != null && img.startsWith("http")).count());
-            System.out.println("   Base64 novas recebidas: " + dto.getImagens().stream().filter(img -> img != null && img.startsWith("data:image/")).count());
-            System.out.println("   Total de URLs finais: " + urlsFinais.size());
-            System.out.println("   URLs finais:");
-            for (int i = 0; i < urlsFinais.size(); i++) {
-                System.out.println("      [" + i + "] " + urlsFinais.get(i));
+                servicoExistente.setUrlsImagens(urlsFinais);
             }
-
-            servicoExistente.setUrlsImagens(urlsFinais);
         }
-
-        System.out.println("🔍 ===== FIM DO PROCESSAMENTO DE IMAGENS =====\n");
 
         servicoExistente.setAtivo(dto.isAtivo());
         servicoExistente.setHome(dto.isHome());
@@ -330,13 +304,7 @@ public class ServicoService {
         servicoExistente.setUsuarioAtualizacao(getUserIdFromContext().toString());
         servicoExistente.setDtAtualizacao(LocalDateTime.now());
 
-        Servico servicoAtualizado = servicoRepository.save(servicoExistente);
-
-        System.out.println("💾 Serviço salvo no banco!");
-        System.out.println("   URLs de imagens no objeto salvo: " +
-                (servicoAtualizado.getUrlsImagens() != null ? servicoAtualizado.getUrlsImagens().size() : 0));
-
-        return servicoAtualizado;
+        return servicoRepository.save(servicoExistente);
     }
 
     @Transactional
