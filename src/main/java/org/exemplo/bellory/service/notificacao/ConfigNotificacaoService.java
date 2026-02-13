@@ -58,8 +58,8 @@ public class ConfigNotificacaoService {
     }
 
     /**
-     * Salva ou atualiza uma configuracao de notificacao baseada no tipo.
-     * Se ja existir uma configuracao para o tipo, atualiza.
+     * Salva ou atualiza uma configuracao de notificacao baseada no tipo e horasAntes.
+     * Se ja existir configuracao para (orgId, tipo, horasAntes), atualiza.
      * Se nao existir, cria uma nova.
      */
     @Transactional
@@ -68,13 +68,12 @@ public class ConfigNotificacaoService {
 
         validarHorasAntes(dto.getTipo(), dto.getHorasAntes());
 
-        // Busca configuracao existente para o tipo
-        var existente = repository.findByOrganizacaoIdAndTipo(orgId, dto.getTipo());
+        // Busca configuracao existente pela chave unica completa (orgId, tipo, horasAntes)
+        var existente = repository.findByOrganizacaoIdAndTipoAndHorasAntes(orgId, dto.getTipo(), dto.getHorasAntes());
 
         if (existente.isPresent()) {
             // Atualiza a configuracao existente
             ConfigNotificacao entity = existente.get();
-            entity.setHorasAntes(dto.getHorasAntes());
             entity.setMensagemTemplate(dto.getMensagemTemplate());
             if (dto.getAtivo() != null) {
                 entity.setAtivo(dto.getAtivo());

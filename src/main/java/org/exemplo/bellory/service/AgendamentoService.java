@@ -6,6 +6,7 @@ import org.exemplo.bellory.model.dto.*;
 import org.exemplo.bellory.model.entity.agendamento.Agendamento;
 import org.exemplo.bellory.model.entity.agendamento.Status;
 import org.exemplo.bellory.model.entity.cobranca.Cobranca;
+import org.exemplo.bellory.model.entity.config.ConfigSistema;
 import org.exemplo.bellory.model.entity.funcionario.*;
 import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 import org.exemplo.bellory.model.entity.servico.Servico;
@@ -46,7 +47,7 @@ public class AgendamentoService {
     private final TransacaoService transacaoService;
 
 
-    private static final int TOLERANCIA_MINUTOS = 10;
+    //private static final int TOLERANCIA_MINUTOS = 10;
 
     // Mapa de transições de status permitidas
     private static final Map<Status, List<Status>> STATUS_TRANSITIONS = Map.ofEntries(
@@ -843,6 +844,7 @@ public class AgendamentoService {
         Funcionario funcionario = funcionarioRepository.findById(request.getFuncionarioId())
                 .orElseThrow(() -> new RuntimeException("Funcionário não encontrado."));
 
+        ConfigSistema config = TenantContext.getCurrentConfigSistema();
         // 2. Validar organização
         validarOrganizacao(request.getOrganizacaoId());
 
@@ -861,7 +863,7 @@ public class AgendamentoService {
                 .mapToInt(Servico::getTempoEstimadoMinutos)
                 .sum();
 
-        int duracaoTotalNecessaria = duracaoServicos + TOLERANCIA_MINUTOS;
+        int duracaoTotalNecessaria = duracaoServicos + config.getConfigAgendamento().getToleranciaAgendamento();
 
         // 4. Obter a JornadaDia para o dia da semana desejado
         DayOfWeek diaDaSemana = request.getDataDesejada().getDayOfWeek();
@@ -983,7 +985,7 @@ public class AgendamentoService {
                             ));
                         }
 
-                        ponteiroAtual = slotFim.plusMinutes(TOLERANCIA_MINUTOS);
+                        ponteiroAtual = slotFim.plusMinutes(config.getConfigAgendamento().getToleranciaAgendamento());
                         duracaoGapMinutos = java.time.Duration.between(ponteiroAtual, inicioBloqueioAtual).toMinutes();
                     }
                 }
@@ -1009,7 +1011,7 @@ public class AgendamentoService {
                             ponteiroAtual.toLocalTime() + " - " + slotFim.toLocalTime()
                     ));
 
-                    ponteiroAtual = slotFim.plusMinutes(TOLERANCIA_MINUTOS);
+                    ponteiroAtual = slotFim.plusMinutes(config.getConfigAgendamento().getToleranciaAgendamento());
                     duracaoFinalGapMinutos = java.time.Duration.between(ponteiroAtual, fimTrabalho).toMinutes();
                 }
             }
@@ -1512,7 +1514,7 @@ public class AgendamentoService {
 //                .mapToInt(Servico::getTempoEstimadoMinutos)
 //                .sum();
 //
-//        int duracaoTotalNecessaria = duracaoServicos + TOLERANCIA_MINUTOS; // Adiciona a tolerância
+//        int duracaoTotalNecessaria = duracaoServicos + config.getConfigAgendamento().getToleranciaAgendamento(); // Adiciona a tolerância
 //
 //        // 3. Obter a Jornada de Trabalho para o dia desejado
 //        DayOfWeek diaDaSemana = request.getDataDesejada().getDayOfWeek();
@@ -1593,7 +1595,7 @@ public class AgendamentoService {
 //
 //
 //                    // Avança o ponteiro para o próximo slot possível (fim do serviço + tolerância)
-//                    ponteiroAtual = slotFim.plusMinutes(TOLERANCIA_MINUTOS);
+//                    ponteiroAtual = slotFim.plusMinutes(config.getConfigAgendamento().getToleranciaAgendamento());
 //                    duracaoGapMinutos = java.time.Duration.between(ponteiroAtual, inicioBloqueioAtual).toMinutes();
 //                }
 //            }
@@ -1616,7 +1618,7 @@ public class AgendamentoService {
 //                        slotFim.toLocalTime(),
 //                        ponteiroAtual.toLocalTime() + " - " + slotFim.toLocalTime()
 //                ));
-//                ponteiroAtual = slotFim.plusMinutes(TOLERANCIA_MINUTOS);
+//                ponteiroAtual = slotFim.plusMinutes(config.getConfigAgendamento().getToleranciaAgendamento());
 //                duracaoFinalGapMinutos = java.time.Duration.between(ponteiroAtual, fimDaJornada).toMinutes();
 //            }
 //        }

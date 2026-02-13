@@ -257,6 +257,10 @@ public class ConfigSistemaService {
         if(dto.getMostrarAgendamentoCancelado() != null){
             configAgend.setMostrarAgendamentoCancelado(dto.getMostrarAgendamentoCancelado());
         }
+
+        if(dto.getModoVizualizacao() != null){
+            configAgend.setModoVizualizacao(dto.getModoVizualizacao());
+        }
         // Segundo bloco - Cancelamento Cliente
         if (dto.getCancelamentoCliente() != null) {
             configAgend.setCancelamentoCliente(dto.getCancelamentoCliente());

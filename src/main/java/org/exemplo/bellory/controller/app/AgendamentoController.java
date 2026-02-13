@@ -283,14 +283,14 @@ public class AgendamentoController {
             }
 
             // Processar pagamento através do TransactionService
-            Pagamento.MetodoPagamento metodoPagamento = Pagamento.MetodoPagamento.valueOf(
+            Pagamento.FormaPagamento formaPagamento = Pagamento.FormaPagamento.valueOf(
                     pagamentoDTO.getMetodoPagamento().toUpperCase()
             );
 
             Pagamento pagamento = transacaoService.processarPagamento(
                     pagamentoDTO.getCobrancaId(),
                     pagamentoDTO.getValorPagamento(),
-                    Pagamento.FormaPagamento.valueOf(pagamentoDTO.getMetodoPagamento().toUpperCase())
+                    formaPagamento
             );
 
             // Preparar resposta
@@ -299,7 +299,7 @@ public class AgendamentoController {
             resultado.put("transacaoId", pagamento.getTransacaoId());
             resultado.put("status", pagamento.getStatusPagamento().name());
             resultado.put("valor", pagamento.getValor());
-            resultado.put("metodoPagamento", pagamento.getMetodoPagamento().getDescricao());
+            resultado.put("formaPagamento", pagamento.getFormaPagamento() != null ? pagamento.getFormaPagamento().getDescricao() : null);
 
             return ResponseEntity.ok(ResponseAPI.<Map<String, Object>>builder()
                     .success(true)
@@ -331,7 +331,7 @@ public class AgendamentoController {
             @RequestBody DividirPagamentoDTO dividirPagamentoDTO
     ){
         try{
-            if(dividirPagamentoDTO.getCobrancaId() == null && dividirPagamentoDTO.getCobrancaId().describeConstable().isEmpty()){
+            if(dividirPagamentoDTO.getCobrancaId() == null){
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                         .body(ResponseAPI.<Void>builder()
                                 .success(false)

@@ -101,6 +101,13 @@ public class ConfigNotificacaoController {
                     .message(e.getMessage())
                     .errorCode(400)
                     .build());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ResponseAPI.<ConfigNotificacaoDTO>builder()
+                    .success(false)
+                    .message("Erro ao salvar configuracao: " + e.getMessage())
+                    .errorCode(500)
+                    .build());
         }
     }
 

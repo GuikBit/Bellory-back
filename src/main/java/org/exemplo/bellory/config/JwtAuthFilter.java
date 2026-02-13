@@ -6,6 +6,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.exemplo.bellory.context.TenantContext;
 import org.exemplo.bellory.model.dto.ApiKeyUserInfo;
+import org.exemplo.bellory.model.entity.config.ConfigSistema;
+import org.exemplo.bellory.model.repository.config.ConfigSistemaRepository;
 import org.exemplo.bellory.service.ApiKeyService;
 import org.exemplo.bellory.service.CustomUserDetailsService;
 import org.exemplo.bellory.service.TokenService;
@@ -25,11 +27,14 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     private final TokenService tokenService;
     private final CustomUserDetailsService userDetailsService;
     private final ApiKeyService apiKeyService;
+    private final ConfigSistemaRepository configSistemaRepository;
 
-    public JwtAuthFilter(TokenService tokenService, CustomUserDetailsService userDetailsService, ApiKeyService apiKeyService) {
+    public JwtAuthFilter(TokenService tokenService, CustomUserDetailsService userDetailsService,
+                         ApiKeyService apiKeyService, ConfigSistemaRepository configSistemaRepository) {
         this.tokenService = tokenService;
         this.userDetailsService = userDetailsService;
         this.apiKeyService = apiKeyService;
+        this.configSistemaRepository = configSistemaRepository;
     }
 
     @Override
@@ -74,6 +79,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                             userInfo.getUsername(),
                             userInfo.getRole()
                     );
+                    carregarConfigSistema(userInfo.getOrganizacaoId());
 
                     // Carregar UserDetails usando o CustomUserDetailsService
                     UserDetails userDetails = userDetailsService.loadUserByUsername(userInfo.getUsername());
@@ -102,6 +108,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                     String role = tokenService.getRoleFromToken(token);
 
                     TenantContext.setContext(organizacaoId, userId, subject, role);
+                    carregarConfigSistema(organizacaoId);
 
                     UserDetails user = userDetailsService.loadUserByUsername(subject);
                     if (user != null) {
@@ -117,6 +124,13 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         } finally {
             TenantContext.clear();
+        }
+    }
+
+    private void carregarConfigSistema(Long organizacaoId) {
+        if (organizacaoId != null) {
+            configSistemaRepository.findByOrganizacaoId(organizacaoId)
+                    .ifPresent(TenantContext::setCurrentConfigSistema);
         }
     }
 
