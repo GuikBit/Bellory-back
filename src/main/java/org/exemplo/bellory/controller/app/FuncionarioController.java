@@ -206,6 +206,48 @@ public class FuncionarioController {
         }
     }
 
+    @PutMapping("/{id}/servicos")
+    @Operation(summary = "Atualizar serviços do funcionário")
+    public ResponseEntity<ResponseAPI<Funcionario>> atualizarServicos(
+            @PathVariable Long id,
+            @RequestBody Map<String, List<Long>> body) {
+        try {
+            List<Long> servicosIds = body.getOrDefault("servicos", List.of());
+            Funcionario funcionario = funcionarioService.atualizarServicos(id, servicosIds);
+            return ResponseEntity
+                    .status(HttpStatus.OK)
+                    .body(ResponseAPI.<Funcionario>builder()
+                            .success(true)
+                            .message("Serviços do funcionário atualizados com sucesso.")
+                            .dados(funcionario)
+                            .build());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity
+                    .status(HttpStatus.BAD_REQUEST)
+                    .body(ResponseAPI.<Funcionario>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(400)
+                            .build());
+        } catch (SecurityException e) {
+            return ResponseEntity
+                    .status(HttpStatus.FORBIDDEN)
+                    .body(ResponseAPI.<Funcionario>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(403)
+                            .build());
+        } catch (Exception e) {
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseAPI.<Funcionario>builder()
+                            .success(false)
+                            .message("Erro interno ao atualizar serviços do funcionário.")
+                            .errorCode(500)
+                            .build());
+        }
+    }
+
     @GetMapping("/validar-username")
     @Operation(summary = "Validar disponibilidade de username")
     public ResponseEntity<ResponseAPI<Boolean>> validarUsername(@RequestParam String username) {

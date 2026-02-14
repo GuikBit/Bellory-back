@@ -407,6 +407,25 @@ public class FuncionarioService {
         return funcionario;
     }
 
+    @Transactional
+    public Funcionario atualizarServicos(Long funcionarioId, List<Long> servicosIds) {
+        Funcionario funcionario = funcionarioRepository.findById(funcionarioId)
+                .orElseThrow(() -> new IllegalArgumentException("Funcionário com ID " + funcionarioId + " não encontrado."));
+
+        validarOrganizacao(funcionario.getOrganizacao().getId());
+
+        List<Servico> servicos = servicoRepository.findAllById(servicosIds);
+
+        if (servicos.size() != servicosIds.size()) {
+            throw new IllegalArgumentException("Um ou mais serviços informados não foram encontrados.");
+        }
+
+        funcionario.setServicos(servicos);
+        funcionario.setDataUpdate(LocalDateTime.now());
+
+        return funcionarioRepository.save(funcionario);
+    }
+
     private void validarCamposObrigatorios(FuncionarioCreateDTO dto) {
         if (dto.getUsername() == null || dto.getUsername().trim().isEmpty()) {
             throw new IllegalArgumentException("O login é obrigatório");
