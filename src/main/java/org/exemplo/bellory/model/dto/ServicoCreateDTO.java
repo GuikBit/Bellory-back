@@ -19,7 +19,7 @@ public class ServicoCreateDTO {
     private Integer tempoEstimadoMinutos;
     private BigDecimal preco;
     private BigDecimal desconto;
-    private List<String> imagens;
+    private List<String> urlsImagens;
     private List<String> produtos;
     private boolean home;
     private boolean avaliacao;

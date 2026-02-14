@@ -119,10 +119,10 @@ public class ServicoService {
 
         Servico servicoSalvo = servicoRepository.save(novoServico);
 
-        if (dto.getImagens() != null && !dto.getImagens().isEmpty()) {
+        if (dto.getUrlsImagens() != null && !dto.getUrlsImagens().isEmpty()) {
             List<String> urlsImagensSalvas = new ArrayList<>();
 
-            for (String imagem : dto.getImagens()) {
+            for (String imagem : dto.getUrlsImagens()) {
                 if (imagem == null || imagem.isEmpty()) {
                     continue;
                 }
@@ -259,15 +259,15 @@ public class ServicoService {
         servicoExistente.setProdutos(dto.getProdutos());
 
         // Processar imagens
-        if (dto.getImagens() != null) {
-            if (dto.getImagens().isEmpty()) {
+        if (dto.getUrlsImagens() != null) {
+            if (dto.getUrlsImagens().isEmpty()) {
                 // Lista vazia = usuario removeu todas as imagens
                 servicoExistente.setUrlsImagens(new ArrayList<>());
             } else {
                 List<String> urlsFinais = new ArrayList<>();
 
-                for (int i = 0; i < dto.getImagens().size(); i++) {
-                    String imagem = dto.getImagens().get(i);
+                for (int i = 0; i < dto.getUrlsImagens().size(); i++) {
+                    String imagem = dto.getUrlsImagens().get(i);
 
                     if (imagem == null || imagem.isEmpty()) {
                         continue;

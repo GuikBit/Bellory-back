@@ -113,6 +113,9 @@ public class SecurityConfig {
                                 "/api/pages/**",        // Páginas multi-tenant (públicas)
                                 "/api/tenant/**",       // Gestão de tenants (pode precisar auth dependendo do caso)
 
+                                // Versao da API (publico)
+                                "/api/version",
+
                                 // Rotas de documentação e health check
                                 "/v3/api-docs/**",
                                 "/v3/api-docs.yaml",
