@@ -437,7 +437,9 @@ public class FuncionarioService {
     }
 
     private void validarUnicidade(FuncionarioCreateDTO dto) {
-        funcionarioRepository.findByUsername(dto.getUsername()).ifPresent(f -> {
+        Long organizacaoId = getOrganizacaoIdFromContext();
+
+        funcionarioRepository.findByUsernameAndOrganizacao_Id(dto.getUsername(), organizacaoId).ifPresent(f -> {
             throw new IllegalArgumentException("O login '" + dto.getUsername() + "' já está em uso");
         });
 
@@ -448,7 +450,7 @@ public class FuncionarioService {
                 throw new IllegalArgumentException("CPF inválido. Deve conter 11 dígitos");
             }
 
-            funcionarioRepository.findByCpf(cpfLimpo).ifPresent(f -> {
+            funcionarioRepository.findByCpfAndOrganizacao_Id(cpfLimpo, organizacaoId).ifPresent(f -> {
                 throw new IllegalArgumentException("O CPF '" + dto.getCpf() + "' já está cadastrado");
             });
         }

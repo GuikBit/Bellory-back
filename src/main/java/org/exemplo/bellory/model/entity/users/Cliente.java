@@ -17,13 +17,17 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "cliente", schema = "app")
+@Table(name = "cliente", schema = "app", uniqueConstraints = {
+        @UniqueConstraint(name = "uk_cliente_org_username", columnNames = {"organizacao_id", "username"}),
+        @UniqueConstraint(name = "uk_cliente_org_email", columnNames = {"organizacao_id", "email"}),
+        @UniqueConstraint(name = "uk_cliente_org_telefone", columnNames = {"organizacao_id", "telefone"})
+})
 @Getter
 @Setter
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Cliente extends User {
 
-    @Column(length = 15, unique = true)
+    @Column(length = 15)
     private String telefone;
 
     private LocalDate dataNascimento;

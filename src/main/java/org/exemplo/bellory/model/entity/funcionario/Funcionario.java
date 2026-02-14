@@ -18,7 +18,10 @@ import java.util.List;
 import java.util.Set;
 
 @Entity
-@Table(name = "funcionario", schema = "app")
+@Table(name = "funcionario", schema = "app", uniqueConstraints = {
+        @UniqueConstraint(name = "uk_funcionario_org_username", columnNames = {"organizacao_id", "username"}),
+        @UniqueConstraint(name = "uk_funcionario_org_email", columnNames = {"organizacao_id", "email"})
+})
 @Getter
 @Setter
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})

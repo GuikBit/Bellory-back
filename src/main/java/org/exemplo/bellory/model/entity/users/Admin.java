@@ -9,7 +9,10 @@ import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "admin", schema = "app")
+@Table(name = "admin", schema = "app", uniqueConstraints = {
+        @UniqueConstraint(name = "uk_admin_org_username", columnNames = {"organizacao_id", "username"}),
+        @UniqueConstraint(name = "uk_admin_org_email", columnNames = {"organizacao_id", "email"})
+})
 @Getter
 @Setter
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})

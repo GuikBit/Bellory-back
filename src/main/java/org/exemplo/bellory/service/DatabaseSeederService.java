@@ -751,7 +751,7 @@ public class DatabaseSeederService {
             organizacaoRepository.save(org);
 
 
-            Optional<Admin> adminEx = adminRepository.findByUsername(data[11]);
+            Optional<Admin> adminEx = adminRepository.findByUsernameAndOrganizacao_Id(data[11], org.getId());
 
             if (adminEx.isEmpty()) {
                 Admin admin = new Admin();
@@ -903,7 +903,7 @@ public class DatabaseSeederService {
 
         for (String[] data : catData) {
             TipoCategoria tipo = TipoCategoria.valueOf(data[2]);
-            Categoria categoria = categoriaRepository.findByTipo(tipo).stream()
+            Categoria categoria = categoriaRepository.findByOrganizacao_IdAndTipo(org.getId(), tipo).stream()
                     .filter(c -> c.getLabel().equalsIgnoreCase(data[0]))
                     .findFirst()
                     .orElseGet(() -> {
@@ -943,8 +943,7 @@ public class DatabaseSeederService {
             String username = "funcionario" + i;
             int finalI = i;
 
-            Funcionario funcionario = funcionarioRepository.findByUsername(username)
-                    .map(user -> (Funcionario) user)
+            Funcionario funcionario = funcionarioRepository.findByUsernameAndOrganizacao_Id(username, org.getId())
                     .orElseGet(() -> {
                         String[] dados = especialidadesPorFuncionario[finalI - 1];
                         String nomeCompleto = dados[0];
@@ -1026,7 +1025,7 @@ public class DatabaseSeederService {
         for (int i = 1; i <= 50; i++) {
             String username = "cliente" + i;
 
-            Cliente cliente = clienteRepository.findByUsername(username).orElseGet(() -> {
+            Cliente cliente = clienteRepository.findByUsernameAndOrganizacao_Id(username, org.getId()).orElseGet(() -> {
                 boolean isFeminino = ThreadLocalRandom.current().nextDouble() < 0.7; // 70% feminino
                 String[] nomes = isFeminino ? nomesFemininos : nomesMasculinos;
                 String nome = nomes[ThreadLocalRandom.current().nextInt(nomes.length)];

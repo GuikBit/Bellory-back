@@ -80,7 +80,7 @@ public class ServicoService {
         }
 
         // Validação de unicidade do nome do serviço
-        if (servicoRepository.existsByNome(dto.getNome())) {
+        if (servicoRepository.existsByNomeAndOrganizacao_Id(dto.getNome(), dto.getOrganizacaoId())) {
             throw new IllegalArgumentException("Já existe um serviço com o nome '" + dto.getNome() + "'.");
         }
 

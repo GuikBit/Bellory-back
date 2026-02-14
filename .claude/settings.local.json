@@ -4,7 +4,8 @@
       "Bash(dir:*)",
       "Bash(grep:*)",
       "Bash(mvnw.cmd compile:*)",
-      "Bash(cmd /c \"mvnw.cmd compile -q\")"
+      "Bash(cmd /c \"mvnw.cmd compile -q\")",
+      "Bash(xargs:*)"
     ]
   }
 }

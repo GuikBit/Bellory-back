@@ -1,9 +1,6 @@
 package org.exemplo.bellory.model.repository.users;
 
-import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 import org.exemplo.bellory.model.entity.users.Cliente;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -20,49 +17,10 @@ import java.util.Optional;
 @Repository
 public interface ClienteRepository extends JpaRepository<Cliente, Long> {
 
+    // Usado apenas para autenticação (login/JWT) - não usar para validações de negócio
     Optional<Cliente> findByUsername(String username);
 
-    Optional<Cliente> findByEmail(String email);
-
-    Long countByAtivo(boolean ativo);
-
-    @Query("SELECT COUNT(c) FROM Cliente c WHERE c.dtCriacao BETWEEN :inicio AND :fim")
-    Long countByDataCriacaoBetween(@Param("inicio") LocalDateTime inicio, @Param("fim") LocalDateTime fim);
-
-    @Query("SELECT COUNT(DISTINCT a.cliente.id) FROM Agendamento a GROUP BY a.cliente.id HAVING COUNT(a.id) > 1")
-    Long countClientesRecorrentes();
-
-//    @Query("SELECT c FROM Cliente c WHERE c.id IN (" +
-//            "SELECT a.cliente.id FROM Agendamento a " +
-//            "GROUP BY a.cliente.id " +
-//            "ORDER BY COUNT(a.id) DESC, SUM(COALESCE(a.cobrancas.valor, 0)) DESC)")
-//    List<Cliente> findTopClientes();
-
-    @Query(value = "SELECT COUNT(*) FROM app.cliente c WHERE EXTRACT(DAY FROM c.data_nascimento) = EXTRACT(DAY FROM CURRENT_DATE) AND EXTRACT(MONTH FROM c.data_nascimento) = EXTRACT(MONTH FROM CURRENT_DATE)", nativeQuery = true)
-    Long countAniversariantesHoje();
-
-    // CORREÇÃO: Alterar para usar LocalDate e ajustar a query
-    @Query("SELECT COUNT(c) FROM Cliente c WHERE c.dataNascimento BETWEEN :inicioSemana AND :fimSemana")
-    Long countAniversariantesEstaSemana(@Param("inicioSemana") LocalDate inicioSemana, @Param("fimSemana") LocalDate fimSemana);
-
-    // Método para buscar clientes por termo (alternativa ao Specification)
-    @Query("SELECT c FROM Cliente c WHERE " +
-            "LOWER(c.nomeCompleto) LIKE LOWER(CONCAT('%', :termo, '%')) OR " +
-            "LOWER(c.email) LIKE LOWER(CONCAT('%', :termo, '%')) OR " +
-            "c.telefone LIKE CONCAT('%', :termo, '%')")
-    List<Cliente> findByTermoBusca(@Param("termo") String termo);
-
-    // Buscar clientes aniversariantes por mês (PostgreSQL)
-    @Query(value = "SELECT * FROM app.cliente c WHERE EXTRACT(MONTH FROM c.data_nascimento) = :mes AND c.ativo = true", nativeQuery = true)
-    List<Cliente> findAniversariantesByMes(@Param("mes") int mes);
-
-    // Buscar clientes aniversariantes por mês e ano (PostgreSQL)
-    @Query(value = "SELECT * FROM app.cliente c WHERE EXTRACT(MONTH FROM c.data_nascimento) = :mes AND EXTRACT(YEAR FROM c.data_nascimento) = :ano AND c.ativo = true", nativeQuery = true)
-    List<Cliente> findAniversariantesByMesAndAno(@Param("mes") int mes, @Param("ano") int ano);
-
     List<Cliente> findAll(Specification<Cliente> spec, Sort sort);
-
-    Optional<Object> findByCpf(String cpf);
 
     // Buscar por organização
     List<Cliente> findAllByOrganizacao_Id(Long organizacaoId);
@@ -106,9 +64,7 @@ public interface ClienteRepository extends JpaRepository<Cliente, Long> {
             @Param("mes") int mes
     );
 
-    List<Cliente> findByTelefone(String telefone);
-
-    Optional<Object> findByTelefoneAndOrganizacao_Id(String telefone, Long organizacaoId);
+    Optional<Cliente> findByTelefoneAndOrganizacao_Id(String telefone, Long organizacaoId);
 
     // ==================== QUERIES OTIMIZADAS PARA DASHBOARD ====================
 

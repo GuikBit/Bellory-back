@@ -6,30 +6,15 @@ import org.exemplo.bellory.model.entity.funcionario.Funcionario;
 import org.exemplo.bellory.model.entity.users.Admin;
 import org.exemplo.bellory.model.entity.users.Cliente;
 import org.exemplo.bellory.model.entity.users.User;
-import org.exemplo.bellory.model.repository.funcionario.FuncionarioRepository;
-import org.exemplo.bellory.model.repository.users.AdminRepository;
-import org.exemplo.bellory.model.repository.users.ClienteRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
 public class UserInfoService {
-
-    @Autowired
-    private ClienteRepository clienteRepository;
-
-    @Autowired
-    private FuncionarioRepository funcionarioRepository;
-
-    @Autowired
-    private AdminRepository adminRepository;
 
     @Transactional(readOnly = true)
     public UserInfoDTO buildUserInfo(User user) {
@@ -51,46 +36,36 @@ public class UserInfoService {
             userInfoBuilder.idOrganizacao(user.getOrganizacao().getId());
         }
 
-        // Verificar se é Cliente
-        Optional<Cliente> clienteOpt = clienteRepository.findByUsername(user.getUsername());
-        if (clienteOpt.isPresent()) {
-            Cliente cliente = clienteOpt.get();
+        // Verificar o tipo concreto do usuário usando instanceof
+        if (user instanceof Cliente cliente) {
             userInfoBuilder
                     .userType("CLIENTE")
                     .dataCriacao(cliente.getDtCriacao())
                     .clienteInfo(buildClienteInfo(cliente));
-
             return userInfoBuilder.build();
         }
 
-        // Verificar se é Funcionário
-        Optional<Funcionario> funcionarioOpt = funcionarioRepository.findByUsername(user.getUsername());
-        if (funcionarioOpt.isPresent()) {
-            Funcionario funcionario = funcionarioOpt.get();
+        if (user instanceof Funcionario funcionario) {
             userInfoBuilder
                     .userType("FUNCIONARIO")
                     .dataCriacao(funcionario.getDataCriacao())
                     .isPrimeiroAcesso(funcionario.isPrimeiroAcesso())
                     .funcionarioInfo(buildFuncionarioInfo(funcionario));
-
             return userInfoBuilder.build();
         }
 
-        Optional<Admin> adminOpt = adminRepository.findByUsername(user.getUsername());
-        if (adminOpt.isPresent()) {
-            Admin admin = adminOpt.get();
+        if (user instanceof Admin admin) {
             userInfoBuilder
                     .userType("ADMIN")
                     .dataCriacao(admin.getDtCriacao())
                     .adminInfo(buildAdminInfo(admin));
-
             return userInfoBuilder.build();
         }
 
-        // Se não encontrar em nenhum dos dois, retornar apenas dados básicos
+        // Fallback para dados básicos
         return userInfoBuilder
                 .userType("USER")
-                .dataCriacao(LocalDateTime.now()) // Fallback
+                .dataCriacao(LocalDateTime.now())
                 .build();
     }
 
@@ -177,24 +152,15 @@ public class UserInfoService {
         UserInfoDTO userInfo = buildUserInfo(user);
 
         // Se for cliente, calcular estatísticas detalhadas
-        if ("CLIENTE".equals(userInfo.getUserType()) && userInfo.getClienteInfo() != null) {
-            // Aqui você pode implementar queries para buscar estatísticas reais
-            // Por exemplo, usando repositories para contar agendamentos, compras, etc.
-
-            Optional<Cliente> clienteOpt = clienteRepository.findByUsername(user.getUsername());
-            if (clienteOpt.isPresent()) {
-                Cliente cliente = clienteOpt.get();
-
-                // TODO: Implementar queries para estatísticas
-                ClienteInfoDTO clienteInfoWithStats = userInfo.getClienteInfo();
-                clienteInfoWithStats.setTotalAgendamentos(calculateTotalAgendamentos(cliente.getId()));
-                clienteInfoWithStats.setTotalCompras(calculateTotalCompras(cliente.getId()));
-                clienteInfoWithStats.setValorTotalGasto(calculateValorTotalGasto(cliente.getId()));
-                clienteInfoWithStats.setUltimoAgendamento(findUltimoAgendamento(cliente.getId()));
-                clienteInfoWithStats.setUltimaCompra(findUltimaCompra(cliente.getId()));
-                clienteInfoWithStats.setAgendamentosPendentes(countAgendamentosPendentes(cliente.getId()));
-                clienteInfoWithStats.setCobrancasPendentes(countCobrancasPendentes(cliente.getId()));
-            }
+        if (user instanceof Cliente cliente && userInfo.getClienteInfo() != null) {
+            ClienteInfoDTO clienteInfoWithStats = userInfo.getClienteInfo();
+            clienteInfoWithStats.setTotalAgendamentos(calculateTotalAgendamentos(cliente.getId()));
+            clienteInfoWithStats.setTotalCompras(calculateTotalCompras(cliente.getId()));
+            clienteInfoWithStats.setValorTotalGasto(calculateValorTotalGasto(cliente.getId()));
+            clienteInfoWithStats.setUltimoAgendamento(findUltimoAgendamento(cliente.getId()));
+            clienteInfoWithStats.setUltimaCompra(findUltimaCompra(cliente.getId()));
+            clienteInfoWithStats.setAgendamentosPendentes(countAgendamentosPendentes(cliente.getId()));
+            clienteInfoWithStats.setCobrancasPendentes(countCobrancasPendentes(cliente.getId()));
         }
 
         return userInfo;

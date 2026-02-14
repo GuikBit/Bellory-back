@@ -16,12 +16,6 @@ import java.util.Optional;
 @Repository
 public interface ServicoRepository extends JpaRepository<Servico, Long> {
 
-    List<ServicoAgendamento> findAllProjectedBy();
-
-    boolean existsByNome(String nome);
-
-    List<Servico> findAllByOrderByNomeAsc();
-
     Optional<Servico> findByNomeAndOrganizacao(String nome, Organizacao org);
 
     List<Servico> findAllByOrganizacao_IdAndIsDeletadoFalseOrderByNomeAsc(Long organizacaoId);
@@ -53,4 +47,6 @@ public interface ServicoRepository extends JpaRepository<Servico, Long> {
      * Busca serviços ativos com paginação (para site público)
      */
     Page<Servico> findByOrganizacao_IdAndAtivoTrueAndIsDeletadoFalse(Long organizacaoId, Pageable pageable);
+
+    boolean existsByNomeAndOrganizacao_Id(String nome, Long organizacaoId);
 }
