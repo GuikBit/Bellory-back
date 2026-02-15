@@ -11,7 +11,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "jornada_dia", schema = "app")
+@Table(name = "jornada_dia", schema = "app", indexes = {
+        @Index(name = "idx_jornada_dia_funcionario_id", columnList = "funcionario_id"),
+        @Index(name = "idx_jornada_dia_func_dia", columnList = "funcionario_id, dia_semana")
+})
 @Getter
 @Setter
 @AllArgsConstructor

@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/test")
+@RequestMapping("/api/v1/test")
 @Tag(name = "Teste", description = "Endpoints de teste do sistema")
 public class TestController {
 

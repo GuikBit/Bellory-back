@@ -7,12 +7,15 @@ import org.exemplo.bellory.model.entity.endereco.Endereco;
 import org.exemplo.bellory.model.entity.funcionario.Funcionario;
 import org.exemplo.bellory.model.entity.funcionario.HorarioTrabalho;
 import org.exemplo.bellory.model.entity.funcionario.JornadaDia;
+import org.exemplo.bellory.model.entity.organizacao.HorarioFuncionamento;
 import org.exemplo.bellory.model.entity.organizacao.Organizacao;
+import org.exemplo.bellory.model.entity.organizacao.PeriodoFuncionamento;
 import org.exemplo.bellory.model.entity.produto.Produto;
 import org.exemplo.bellory.model.entity.servico.Categoria;
 import org.exemplo.bellory.model.entity.servico.Servico;
 import org.exemplo.bellory.model.repository.categoria.CategoriaRepository;
 import org.exemplo.bellory.model.repository.funcionario.FuncionarioRepository;
+import org.exemplo.bellory.model.repository.organizacao.HorarioFuncionamentoRepository;
 import org.exemplo.bellory.model.repository.organizacao.OrganizacaoRepository;
 
 import org.exemplo.bellory.model.repository.produtos.ProdutoRepository;
@@ -40,18 +43,21 @@ public class PublicSiteService {
     private final ServicoRepository servicoRepository;
     private final CategoriaRepository categoriaRepository;
     private final ProdutoRepository produtoRepository;
+    private final HorarioFuncionamentoRepository horarioFuncionamentoRepository;
 
     public PublicSiteService(
             OrganizacaoRepository organizacaoRepository,
             FuncionarioRepository funcionarioRepository,
             ServicoRepository servicoRepository,
             CategoriaRepository categoriaRepository,
-            ProdutoRepository produtoRepository) {
+            ProdutoRepository produtoRepository,
+            HorarioFuncionamentoRepository horarioFuncionamentoRepository) {
         this.organizacaoRepository = organizacaoRepository;
         this.funcionarioRepository = funcionarioRepository;
         this.servicoRepository = servicoRepository;
         this.categoriaRepository = categoriaRepository;
         this.produtoRepository = produtoRepository;
+        this.horarioFuncionamentoRepository = horarioFuncionamentoRepository;
     }
 
     /**
@@ -92,7 +98,7 @@ public class PublicSiteService {
                 .servicos(convertServicos(servicos))
                 .categorias(convertCategorias(categorias, servicos))
                 .produtosDestaque(convertProdutos(produtosDestaque))
-                .horariosFuncionamento(buildHorariosFuncionamento(funcionarios))
+                .horariosFuncionamento(buildHorariosFuncionamento(orgId, funcionarios))
                 .redesSociais(buildRedesSociais(org))
                 .seo(buildSeoMetadata(org))
                 .features(buildFeatures(org))
@@ -124,7 +130,9 @@ public class PublicSiteService {
                 .nome(org.getNomeFantasia())
                 .nomeFantasia(org.getNomeFantasia())
                 .slug(org.getSlug())
-                .email(org.getEmailPrincipal());
+                .email(org.getEmailPrincipal())
+                .logo(org.getLogoUrl())
+                .banner(org.getBannerUrl());
 
         // Converter endereço se existir
         if (org.getEnderecoPrincipal() != null) {
@@ -307,7 +315,54 @@ public class PublicSiteService {
                 .build();
     }
 
-    private List<HorarioFuncionamentoDTO> buildHorariosFuncionamento(List<Funcionario> funcionarios) {
+    private List<HorarioFuncionamentoDTO> buildHorariosFuncionamento(Long orgId, List<Funcionario> funcionarios) {
+        // Tentar usar dados explícitos configurados pela organização
+        List<HorarioFuncionamento> explicitos = horarioFuncionamentoRepository.findByOrganizacaoIdWithPeriodos(orgId);
+
+        if (!explicitos.isEmpty()) {
+            return buildFromExplicitos(explicitos);
+        }
+
+        // Fallback: derivar dos horários dos funcionários
+        return buildFromFuncionarios(funcionarios);
+    }
+
+    private List<HorarioFuncionamentoDTO> buildFromExplicitos(List<HorarioFuncionamento> horarios) {
+        String[] diasSemana = {"SEGUNDA", "TERCA", "QUARTA", "QUINTA", "SEXTA", "SABADO", "DOMINGO"};
+        Map<String, HorarioFuncionamento> porDia = horarios.stream()
+                .collect(Collectors.toMap(h -> h.getDiaSemana().name(), h -> h));
+
+        List<HorarioFuncionamentoDTO> resultado = new ArrayList<>();
+        for (String dia : diasSemana) {
+            HorarioFuncionamento h = porDia.get(dia);
+            if (h != null && h.getAtivo() && h.getPeriodos() != null && !h.getPeriodos().isEmpty()) {
+                // Pega o menor início e maior fim dos períodos
+                String horaAbertura = h.getPeriodos().stream()
+                        .map(p -> p.getHoraInicio().toString())
+                        .min(String::compareTo).orElse(null);
+                String horaFechamento = h.getPeriodos().stream()
+                        .map(p -> p.getHoraFim().toString())
+                        .max(String::compareTo).orElse(null);
+
+                resultado.add(HorarioFuncionamentoDTO.builder()
+                        .diaSemana(dia)
+                        .diaSemanaLabel(getDiaSemanaLabel(dia))
+                        .aberto(true)
+                        .horaAbertura(horaAbertura)
+                        .horaFechamento(horaFechamento)
+                        .build());
+            } else {
+                resultado.add(HorarioFuncionamentoDTO.builder()
+                        .diaSemana(dia)
+                        .diaSemanaLabel(getDiaSemanaLabel(dia))
+                        .aberto(false)
+                        .build());
+            }
+        }
+        return resultado;
+    }
+
+    private List<HorarioFuncionamentoDTO> buildFromFuncionarios(List<Funcionario> funcionarios) {
         // Agregar horários de todos os funcionários para determinar horário de funcionamento
         Map<String, HorarioFuncionamentoDTO> horariosPorDia = new LinkedHashMap<>();
 

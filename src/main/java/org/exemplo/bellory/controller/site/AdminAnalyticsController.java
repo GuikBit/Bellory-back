@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
 
 @RestController
-@RequestMapping("/api/admin/analytics")
+@RequestMapping("/api/v1/admin/analytics")
 @RequiredArgsConstructor
 @Tag(name = "Admin - Analytics", description = "Endpoints de analytics do site bellory.com.br para o painel administrativo")
 public class AdminAnalyticsController {

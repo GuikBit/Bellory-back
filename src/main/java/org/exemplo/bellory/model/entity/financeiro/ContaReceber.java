@@ -16,7 +16,12 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 
 @Entity
-@Table(name = "conta_receber", schema = "app")
+@Table(name = "conta_receber", schema = "app", indexes = {
+    @Index(name = "idx_cr_conta_bancaria", columnList = "conta_bancaria_id"),
+    @Index(name = "idx_cr_cobranca", columnList = "cobranca_id"),
+    @Index(name = "idx_cr_org_vencimento", columnList = "organizacao_id, dt_vencimento"),
+    @Index(name = "idx_cr_org_status", columnList = "organizacao_id, status")
+})
 @Getter
 @Setter
 @AllArgsConstructor

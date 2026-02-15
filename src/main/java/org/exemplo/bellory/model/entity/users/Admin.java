@@ -12,6 +12,8 @@ import java.time.LocalDateTime;
 @Table(name = "admin", schema = "app", uniqueConstraints = {
         @UniqueConstraint(name = "uk_admin_org_username", columnNames = {"organizacao_id", "username"}),
         @UniqueConstraint(name = "uk_admin_org_email", columnNames = {"organizacao_id", "email"})
+}, indexes = {
+        @Index(name = "idx_admin_organizacao_id", columnList = "organizacao_id")
 })
 @Getter
 @Setter

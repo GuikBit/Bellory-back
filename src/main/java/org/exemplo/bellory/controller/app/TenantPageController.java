@@ -22,7 +22,7 @@ import java.util.stream.Collectors;
  * Expõe endpoints para buscar páginas baseadas no subdomínio.
  */
 @RestController
-@RequestMapping("/api/pages")
+@RequestMapping("/api/v1/pages")
 @Tag(name = "Páginas Multi-tenant", description = "Gerenciamento de páginas multi-tenant")
 public class TenantPageController {
 

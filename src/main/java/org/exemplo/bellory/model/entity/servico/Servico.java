@@ -20,7 +20,13 @@ import java.util.UUID;
  * manicure, etc.
  */
 @Entity
-@Table(name = "servico", schema = "app")
+@Table(name = "servico", schema = "app", indexes = {
+        @Index(name = "idx_servico_organizacao_id", columnList = "organizacao_id"),
+        @Index(name = "idx_servico_categoria_id", columnList = "categoria_id"),
+        @Index(name = "idx_servico_org_ativo", columnList = "organizacao_id, isDeletado, ativo"),
+        @Index(name = "idx_servico_ativo", columnList = "ativo"),
+        @Index(name = "idx_servico_deletado", columnList = "isDeletado")
+})
 @Getter
 @Setter
 @NoArgsConstructor

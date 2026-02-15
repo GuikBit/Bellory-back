@@ -27,7 +27,7 @@ import java.time.LocalDateTime;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api/auth")
+@RequestMapping("/api/v1/auth")
 @CrossOrigin(origins = {"https://bellory.vercel.app", "https://*.vercel.app", "http://localhost:*"})
 @Tag(name = "Autenticação", description = "Endpoints de autenticação, login, validação e renovação de tokens")
 public class AuthController {

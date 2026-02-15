@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/funcionario/{funcionarioId}/jornada")
+@RequestMapping("/api/v1/funcionario/{funcionarioId}/jornada")
 @Tag(name = "Jornada de Trabalho", description = "Gerenciamento de jornadas de trabalho dos funcionários")
 public class JornadaTrabalhoController {
 

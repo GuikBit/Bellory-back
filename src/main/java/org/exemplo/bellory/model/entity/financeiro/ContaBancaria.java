@@ -12,7 +12,9 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "conta_bancaria", schema = "app")
+@Table(name = "conta_bancaria", schema = "app", indexes = {
+    @Index(name = "idx_cb_org_ativo", columnList = "organizacao_id, ativo")
+})
 @Getter
 @Setter
 @AllArgsConstructor

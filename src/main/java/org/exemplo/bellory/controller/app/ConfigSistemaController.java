@@ -13,7 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/configuracao")
+@RequestMapping("/api/v1/configuracao")
 @RequiredArgsConstructor
 @Tag(name = "Configurações do Sistema", description = "Gerenciamento das configurações do sistema da organização")
 public class ConfigSistemaController {

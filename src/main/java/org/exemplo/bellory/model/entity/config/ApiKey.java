@@ -8,7 +8,11 @@ import org.exemplo.bellory.model.entity.users.User;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "api_keys", schema = "app")
+@Table(name = "api_keys", schema = "app",
+    indexes = {
+        @Index(name = "idx_apikey_org_ativo", columnList = "organizacao_id, ativo"),
+        @Index(name = "idx_apikey_user_type_ativo", columnList = "user_id, user_type, ativo")
+    })
 @Getter
 @Setter
 @NoArgsConstructor

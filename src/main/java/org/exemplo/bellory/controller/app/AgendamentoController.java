@@ -23,7 +23,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api/agendamento")
+@RequestMapping("/api/v1/agendamento")
 @Tag(name = "Agendamentos", description = "Gerenciamento de agendamentos, disponibilidade, pagamentos e status")
 public class AgendamentoController {
 

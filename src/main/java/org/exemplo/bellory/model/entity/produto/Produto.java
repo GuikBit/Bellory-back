@@ -11,7 +11,14 @@ import java.time.LocalDateTime;
 import java.util.*;
 
 @Entity
-@Table(name = "produto", schema = "app")
+@Table(name = "produto", schema = "app", indexes = {
+        @Index(name = "idx_produto_organizacao_id", columnList = "organizacao_id"),
+        @Index(name = "idx_produto_categoria_id", columnList = "categoria_id"),
+        @Index(name = "idx_produto_status", columnList = "status_produto"),
+        @Index(name = "idx_produto_org_ativo", columnList = "organizacao_id, ativo"),
+        @Index(name = "idx_produto_dt_criacao", columnList = "dt_criacao"),
+        @Index(name = "idx_produto_preco", columnList = "preco")
+})
 @Getter
 @Setter
 @NoArgsConstructor

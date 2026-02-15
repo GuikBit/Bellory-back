@@ -18,7 +18,7 @@ import java.math.BigDecimal;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/financeiro")
+@RequestMapping("/api/v1/financeiro")
 @RequiredArgsConstructor
 @Tag(name = "Financeiro - Contas e Centros de Custo", description = "Gerenciamento de contas bancárias e centros de custo")
 public class ContaBancariaController {

@@ -11,7 +11,7 @@ import java.util.Map;
 import java.util.Optional;
 
 @RestController
-@RequestMapping("/api/version")
+@RequestMapping("/api/v1/version")
 @Tag(name = "Versao", description = "Informacoes de versao da API")
 public class VersionController {
 

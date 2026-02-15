@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/financeiro/categorias")
+@RequestMapping("/api/v1/financeiro/categorias")
 @RequiredArgsConstructor
 @Tag(name = "Financeiro - Categorias", description = "Gerenciamento de categorias financeiras")
 public class CategoriaFinanceiraController {

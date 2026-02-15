@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/email")
+@RequestMapping("/api/v1/email")
 @Slf4j
 @Tag(name = "E-mail", description = "Envio de e-mails e testes")
 public class EmailController {

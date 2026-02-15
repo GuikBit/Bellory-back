@@ -62,7 +62,7 @@ import java.util.Optional;
  * - GET /{slug}/basic - Informações básicas
  */
 @RestController
-@RequestMapping("/api/public/site")
+@RequestMapping("/api/v1/public/site")
 @Tag(name = "Site Público", description = "Endpoints públicos para renderização do site das organizações")
 public class PublicSiteController {
 

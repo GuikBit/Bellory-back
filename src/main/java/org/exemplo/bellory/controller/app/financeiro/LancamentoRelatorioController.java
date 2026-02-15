@@ -14,7 +14,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/financeiro")
+@RequestMapping("/api/v1/financeiro")
 @RequiredArgsConstructor
 @Tag(name = "Financeiro - Lançamentos e Relatórios", description = "Lançamentos financeiros, fluxo de caixa, DRE e balanço")
 public class LancamentoRelatorioController {

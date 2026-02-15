@@ -13,7 +13,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "categoria_financeira", schema = "app")
+@Table(name = "categoria_financeira", schema = "app", indexes = {
+    @Index(name = "idx_catfin_org_ativo", columnList = "organizacao_id, ativo")
+})
 @Getter
 @Setter
 @AllArgsConstructor

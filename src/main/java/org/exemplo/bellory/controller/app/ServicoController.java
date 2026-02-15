@@ -19,7 +19,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api/servico")
+@RequestMapping("/api/v1/servico")
 @Tag(name = "Serviços", description = "Gerenciamento de serviços e categorias de serviço")
 public class ServicoController {
 

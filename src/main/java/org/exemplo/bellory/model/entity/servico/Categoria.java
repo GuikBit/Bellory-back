@@ -7,7 +7,10 @@ import org.exemplo.bellory.model.entity.enums.TipoCategoria;
 import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 
 @Entity
-@Table(name = "categoria", schema = "app")
+@Table(name = "categoria", schema = "app", indexes = {
+        @Index(name = "idx_categoria_organizacao_id", columnList = "organizacao_id"),
+        @Index(name = "idx_categoria_org_tipo_ativo", columnList = "organizacao_id, tipo, ativo")
+})
 @Getter
 @Setter
 @NoArgsConstructor

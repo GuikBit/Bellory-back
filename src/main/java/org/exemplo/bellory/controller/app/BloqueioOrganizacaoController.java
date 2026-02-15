@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/bloqueio-organizacao")
+@RequestMapping("/api/v1/bloqueio-organizacao")
 @Tag(name = "Bloqueios e Feriados", description = "Gerenciamento de bloqueios de datas e feriados da organização")
 public class BloqueioOrganizacaoController {
 

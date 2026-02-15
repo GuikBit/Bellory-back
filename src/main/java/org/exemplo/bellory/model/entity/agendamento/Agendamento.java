@@ -23,7 +23,16 @@ import org.exemplo.bellory.model.entity.servico.Servico;
 
 @AllArgsConstructor
 @Entity
-@Table(name = "agendamento", schema = "app")
+@Table(name = "agendamento", schema = "app", indexes = {
+        @Index(name = "idx_agendamento_organizacao_id", columnList = "organizacao_id"),
+        @Index(name = "idx_agendamento_cliente_id", columnList = "cliente_id"),
+        @Index(name = "idx_agendamento_status", columnList = "status"),
+        @Index(name = "idx_agendamento_dt_agendamento", columnList = "dtAgendamento"),
+        @Index(name = "idx_agendamento_org_dt", columnList = "organizacao_id, dtAgendamento"),
+        @Index(name = "idx_agendamento_org_status", columnList = "organizacao_id, status"),
+        @Index(name = "idx_agendamento_org_dt_status", columnList = "organizacao_id, dtAgendamento, status"),
+        @Index(name = "idx_agendamento_dt_criacao", columnList = "dtCriacao")
+})
 @Getter
 @Setter
 public class Agendamento {

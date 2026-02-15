@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/tracking")
+@RequestMapping("/api/v1/tracking")
 @RequiredArgsConstructor
 @Slf4j
 @Tag(name = "Tracking", description = "Endpoint de ingestao de eventos de tracking do site bellory.com.br")

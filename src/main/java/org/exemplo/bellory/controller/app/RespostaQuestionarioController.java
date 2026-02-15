@@ -19,7 +19,7 @@ import java.time.LocalDateTime;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/questionarios/{questionarioId}/respostas")
+@RequestMapping("/api/v1/questionarios/{questionarioId}/respostas")
 @Tag(name = "Respostas de Questionários", description = "Gerenciamento de respostas")
 public class RespostaQuestionarioController {
 

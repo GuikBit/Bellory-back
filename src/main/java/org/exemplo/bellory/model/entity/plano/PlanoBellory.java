@@ -18,7 +18,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "plano_bellory", schema = "admin")
+@Table(name = "plano_bellory", schema = "admin",
+    indexes = {
+        @Index(name = "idx_plano_bellory_ativo_ordem", columnList = "ativo, ordem_exibicao")
+    })
 @Getter
 @Setter
 @AllArgsConstructor

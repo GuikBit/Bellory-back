@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/admin/organizacoes")
+@RequestMapping("/api/v1/admin/organizacoes")
 @RequiredArgsConstructor
 @Tag(name = "Admin - Organizacoes", description = "Gestao e visualizacao de todas as organizacoes/clientes da plataforma")
 public class AdminOrganizacaoController {

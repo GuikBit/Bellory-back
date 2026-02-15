@@ -16,7 +16,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 
 @RestController
-@RequestMapping("/api/dashboard")
+@RequestMapping("/api/v1/dashboard")
 @Tag(name = "Dashboard", description = "Indicadores e métricas do dashboard")
 public class DashboardController {
 

@@ -23,11 +23,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
-@RequestMapping("/api/organizacao")
+@RequestMapping("/api/v1/organizacao")
 @RequiredArgsConstructor
 @Validated
 @Slf4j
@@ -578,6 +580,212 @@ public class OrganizacaoController {
                     .body(ResponseAPI.<Boolean>builder()
                             .success(false)
                             .message("Erro ao verificar slug: " + e.getMessage())
+                            .errorCode(500)
+                            .build());
+        }
+    }
+
+    // ==================== LOGO ====================
+
+    @PostMapping("/logo")
+    @Operation(summary = "Upload de logo da organização")
+    public ResponseEntity<ResponseAPI<Map<String, String>>> uploadLogo(
+            @RequestParam("file") MultipartFile file) {
+        try {
+            Map<String, String> resultado = organizacaoService.uploadLogo(file);
+            return ResponseEntity.ok(ResponseAPI.<Map<String, String>>builder()
+                    .success(true)
+                    .message("Logo atualizada com sucesso.")
+                    .dados(resultado)
+                    .build());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ResponseAPI.<Map<String, String>>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(400)
+                            .build());
+        } catch (SecurityException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ResponseAPI.<Map<String, String>>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(403)
+                            .build());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseAPI.<Map<String, String>>builder()
+                            .success(false)
+                            .message("Erro ao fazer upload da logo.")
+                            .errorCode(500)
+                            .build());
+        }
+    }
+
+    @GetMapping("/logo")
+    @Operation(summary = "Obter logo da organização")
+    public ResponseEntity<ResponseAPI<Map<String, String>>> getLogo() {
+        try {
+            Map<String, String> resultado = organizacaoService.getLogo();
+            return ResponseEntity.ok(ResponseAPI.<Map<String, String>>builder()
+                    .success(true)
+                    .dados(resultado)
+                    .build());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ResponseAPI.<Map<String, String>>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(404)
+                            .build());
+        } catch (SecurityException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ResponseAPI.<Map<String, String>>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(403)
+                            .build());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseAPI.<Map<String, String>>builder()
+                            .success(false)
+                            .message("Erro ao buscar logo.")
+                            .errorCode(500)
+                            .build());
+        }
+    }
+
+    @DeleteMapping("/logo")
+    @Operation(summary = "Remover logo da organização")
+    public ResponseEntity<ResponseAPI<Void>> deleteLogo() {
+        try {
+            organizacaoService.deleteLogo();
+            return ResponseEntity.ok(ResponseAPI.<Void>builder()
+                    .success(true)
+                    .message("Logo removida com sucesso.")
+                    .build());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ResponseAPI.<Void>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(404)
+                            .build());
+        } catch (SecurityException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ResponseAPI.<Void>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(403)
+                            .build());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseAPI.<Void>builder()
+                            .success(false)
+                            .message("Erro ao remover logo.")
+                            .errorCode(500)
+                            .build());
+        }
+    }
+
+    // ==================== BANNER ====================
+
+    @PostMapping("/banner")
+    @Operation(summary = "Upload de banner da organização")
+    public ResponseEntity<ResponseAPI<Map<String, String>>> uploadBanner(
+            @RequestParam("file") MultipartFile file) {
+        try {
+            Map<String, String> resultado = organizacaoService.uploadBanner(file);
+            return ResponseEntity.ok(ResponseAPI.<Map<String, String>>builder()
+                    .success(true)
+                    .message("Banner atualizado com sucesso.")
+                    .dados(resultado)
+                    .build());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ResponseAPI.<Map<String, String>>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(400)
+                            .build());
+        } catch (SecurityException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ResponseAPI.<Map<String, String>>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(403)
+                            .build());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseAPI.<Map<String, String>>builder()
+                            .success(false)
+                            .message("Erro ao fazer upload do banner.")
+                            .errorCode(500)
+                            .build());
+        }
+    }
+
+    @GetMapping("/banner")
+    @Operation(summary = "Obter banner da organização")
+    public ResponseEntity<ResponseAPI<Map<String, String>>> getBanner() {
+        try {
+            Map<String, String> resultado = organizacaoService.getBanner();
+            return ResponseEntity.ok(ResponseAPI.<Map<String, String>>builder()
+                    .success(true)
+                    .dados(resultado)
+                    .build());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ResponseAPI.<Map<String, String>>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(404)
+                            .build());
+        } catch (SecurityException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ResponseAPI.<Map<String, String>>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(403)
+                            .build());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseAPI.<Map<String, String>>builder()
+                            .success(false)
+                            .message("Erro ao buscar banner.")
+                            .errorCode(500)
+                            .build());
+        }
+    }
+
+    @DeleteMapping("/banner")
+    @Operation(summary = "Remover banner da organização")
+    public ResponseEntity<ResponseAPI<Void>> deleteBanner() {
+        try {
+            organizacaoService.deleteBanner();
+            return ResponseEntity.ok(ResponseAPI.<Void>builder()
+                    .success(true)
+                    .message("Banner removido com sucesso.")
+                    .build());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ResponseAPI.<Void>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(404)
+                            .build());
+        } catch (SecurityException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ResponseAPI.<Void>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(403)
+                            .build());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseAPI.<Void>builder()
+                            .success(false)
+                            .message("Erro ao remover banner.")
                             .errorCode(500)
                             .build());
         }

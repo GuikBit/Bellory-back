@@ -21,7 +21,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 
 @RestController
-@RequestMapping("/api/funcionario")
+@RequestMapping("/api/v1/funcionario")
 @Tag(name = "Funcionários", description = "Gerenciamento de funcionários, cargos e fotos de perfil")
 public class FuncionarioController {
 
@@ -37,6 +37,7 @@ public class FuncionarioController {
         this.fileStorageService = fileStorageService;
         this.bloqueioAgendaService = bloqueioAgendaService;
     }
+
 
     @GetMapping
     @Operation(summary = "Listar todos os funcionários")

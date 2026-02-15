@@ -9,7 +9,10 @@ import org.exemplo.bellory.model.entity.users.Cliente;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "cartao_credito", schema = "app")
+@Table(name = "cartao_credito", schema = "app", indexes = {
+    @Index(name = "idx_cartao_cliente_id", columnList = "cliente_id"),
+    @Index(name = "idx_cartao_organizacao_id", columnList = "organizacao_id")
+})
 @Getter
 @Setter
 @NoArgsConstructor

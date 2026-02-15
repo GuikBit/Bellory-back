@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/admin/metricas")
+@RequestMapping("/api/v1/admin/metricas")
 @RequiredArgsConstructor
 @Tag(name = "Admin - Metricas", description = "Endpoints de metricas detalhadas por dominio: agendamentos, faturamento, servicos, funcionarios, clientes, instancias e planos")
 public class AdminMetricasController {

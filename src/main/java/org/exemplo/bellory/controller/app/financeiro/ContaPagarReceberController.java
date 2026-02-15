@@ -15,7 +15,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/financeiro")
+@RequestMapping("/api/v1/financeiro")
 @RequiredArgsConstructor
 @Tag(name = "Financeiro - Contas a Pagar/Receber", description = "Gerenciamento de contas a pagar e contas a receber")
 public class ContaPagarReceberController {

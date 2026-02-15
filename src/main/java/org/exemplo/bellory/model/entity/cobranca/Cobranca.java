@@ -22,7 +22,19 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "cobranca", schema = "app")
+@Table(name = "cobranca", schema = "app", indexes = {
+    @Index(name = "idx_cobranca_organizacao_id", columnList = "organizacao_id"),
+    @Index(name = "idx_cobranca_cliente_id", columnList = "cliente_id"),
+    @Index(name = "idx_cobranca_agendamento_id", columnList = "agendamento_id"),
+    @Index(name = "idx_cobranca_status", columnList = "status_cobranca"),
+    @Index(name = "idx_cobranca_tipo", columnList = "tipo_cobranca"),
+    @Index(name = "idx_cobranca_subtipo", columnList = "subtipo_cobranca_agendamento"),
+    @Index(name = "idx_cobranca_org_status", columnList = "organizacao_id, status_cobranca"),
+    @Index(name = "idx_cobranca_org_tipo", columnList = "organizacao_id, tipo_cobranca"),
+    @Index(name = "idx_cobranca_dt_vencimento", columnList = "dt_vencimento"),
+    @Index(name = "idx_cobranca_dt_criacao", columnList = "dt_criacao"),
+    @Index(name = "idx_cobranca_org_dt_criacao", columnList = "organizacao_id, dt_criacao")
+})
 @Getter
 @Setter
 @AllArgsConstructor

@@ -41,7 +41,7 @@ public class SwaggerConfig {
     public GroupedOpenApi publicApi() {
         return GroupedOpenApi.builder()
                 .group("bellory-api")
-                .pathsToMatch("/api/**")
+                .pathsToMatch("/api/v1/**")
                 .build();
     }
 }

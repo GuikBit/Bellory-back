@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/config/notificacao")
+@RequestMapping("/api/v1/config/notificacao")
 @RequiredArgsConstructor
 @Tag(name = "Configuração de Notificações", description = "Gerenciamento das configurações de notificações")
 public class ConfigNotificacaoController {

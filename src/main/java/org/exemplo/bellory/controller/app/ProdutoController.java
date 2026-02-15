@@ -19,7 +19,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/produto")
+@RequestMapping("/api/v1/produto")
 @Tag(name = "Produtos", description = "Gerenciamento de produtos, estoque, imagens e relacionados")
 public class ProdutoController {
 

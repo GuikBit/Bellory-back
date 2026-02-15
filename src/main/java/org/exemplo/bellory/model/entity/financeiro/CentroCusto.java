@@ -11,7 +11,9 @@ import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "centro_custo", schema = "app")
+@Table(name = "centro_custo", schema = "app", indexes = {
+    @Index(name = "idx_cc_org_ativo", columnList = "organizacao_id, ativo")
+})
 @Getter
 @Setter
 @AllArgsConstructor

@@ -11,7 +11,11 @@ import org.hibernate.annotations.CreationTimestamp;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "instance_knowledgebase", schema = "app")
+@Table(name = "instance_knowledgebase", schema = "app",
+    indexes = {
+        @Index(name = "idx_kb_instance_id", columnList = "instance_id"),
+        @Index(name = "idx_kb_instance_type", columnList = "instance_id, type")
+    })
 @Getter
 @Setter
 @NoArgsConstructor

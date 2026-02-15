@@ -30,7 +30,9 @@ public class FileStorageService {
         FOTO_PERFIL_COLABORADOR("colaboradores"),
         FOTO_PERFIL_CLIENTE("clientes"),
         FOTO_SERVICO("servicos"),
-        FOTO_PRODUTO("produtos");
+        FOTO_PRODUTO("produtos"),
+        LOGO_ORGANIZACAO("organizacao/logo"),
+        BANNER_ORGANIZACAO("organizacao/banner");
 
         private final String pasta;
 

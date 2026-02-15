@@ -13,7 +13,11 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "lancamento_financeiro", schema = "app")
+@Table(name = "lancamento_financeiro", schema = "app", indexes = {
+    @Index(name = "idx_lf_conta_destino", columnList = "conta_bancaria_destino_id"),
+    @Index(name = "idx_lf_org_tipo_dt", columnList = "organizacao_id, tipo, dt_lancamento"),
+    @Index(name = "idx_lf_org_status_dt", columnList = "organizacao_id, status, dt_lancamento")
+})
 @Getter
 @Setter
 @AllArgsConstructor

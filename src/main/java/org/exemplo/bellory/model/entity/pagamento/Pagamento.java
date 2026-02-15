@@ -14,7 +14,16 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "pagamento", schema = "app")
+@Table(name = "pagamento", schema = "app", indexes = {
+    @Index(name = "idx_pagamento_cobranca_id", columnList = "cobranca_id"),
+    @Index(name = "idx_pagamento_cliente_id", columnList = "cliente_id"),
+    @Index(name = "idx_pagamento_organizacao_id", columnList = "organizacao_id"),
+    @Index(name = "idx_pagamento_cartao_credito_id", columnList = "cartao_credito_id"),
+    @Index(name = "idx_pagamento_status", columnList = "status_pagamento"),
+    @Index(name = "idx_pagamento_cobranca_status", columnList = "cobranca_id, status_pagamento"),
+    @Index(name = "idx_pagamento_forma", columnList = "forma_pagamento"),
+    @Index(name = "idx_pagamento_dt_criacao", columnList = "dt_criacao")
+})
 @Getter
 @Setter
 @AllArgsConstructor

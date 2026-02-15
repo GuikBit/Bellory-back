@@ -11,7 +11,12 @@ import org.exemplo.bellory.model.entity.users.Cliente;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "plano_cliente", schema = "app")
+@Table(name = "plano_cliente", schema = "app",
+    indexes = {
+        @Index(name = "idx_plano_cliente_cliente_id", columnList = "cliente_id"),
+        @Index(name = "idx_plano_cliente_plano_servico_id", columnList = "plano_servico_id"),
+        @Index(name = "idx_plano_cliente_cliente_status", columnList = "cliente_id, status")
+    })
 @Getter
 @Setter
 @AllArgsConstructor

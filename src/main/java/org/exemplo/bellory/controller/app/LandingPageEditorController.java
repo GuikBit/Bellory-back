@@ -34,7 +34,7 @@ import java.util.stream.Collectors;
  * AUTENTICAÇÃO: Requer token JWT ou API Key válido.
  */
 @RestController
-@RequestMapping("/api/landing-pages")
+@RequestMapping("/api/v1/landing-pages")
 @Tag(name = "Editor de Landing Pages", description = "Gerenciamento de landing pages, seções e versões")
 public class LandingPageEditorController {
 

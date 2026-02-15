@@ -21,6 +21,12 @@ import java.util.Set;
 @Table(name = "funcionario", schema = "app", uniqueConstraints = {
         @UniqueConstraint(name = "uk_funcionario_org_username", columnNames = {"organizacao_id", "username"}),
         @UniqueConstraint(name = "uk_funcionario_org_email", columnNames = {"organizacao_id", "email"})
+}, indexes = {
+        @Index(name = "idx_funcionario_organizacao_id", columnList = "organizacao_id"),
+        @Index(name = "idx_funcionario_cpf", columnList = "cpf"),
+        @Index(name = "idx_funcionario_cargo_id", columnList = "cargo_id"),
+        @Index(name = "idx_funcionario_org_ativo", columnList = "organizacao_id, ativo"),
+        @Index(name = "idx_funcionario_org_visivel", columnList = "organizacao_id, ativo, isVisivelExterno")
 })
 @Getter
 @Setter

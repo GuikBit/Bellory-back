@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/questionarios")
+@RequestMapping("/api/v1/questionarios")
 @Tag(name = "Questionários", description = "Gerenciamento de questionários")
 public class QuestionarioController {
 

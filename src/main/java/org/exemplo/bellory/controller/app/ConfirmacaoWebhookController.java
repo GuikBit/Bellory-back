@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/webhook")
+@RequestMapping("/api/v1/webhook")
 @Tag(name = "Webhooks de Confirmação", description = "Endpoints para integração com N8N - confirmações e lembretes via WhatsApp")
 public class ConfirmacaoWebhookController {
 

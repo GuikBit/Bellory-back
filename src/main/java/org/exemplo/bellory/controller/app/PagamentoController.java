@@ -20,7 +20,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api/pagamentos")
+@RequestMapping("/api/v1/pagamentos")
 @RequiredArgsConstructor
 @Tag(name = "Pagamentos", description = "Processamento de pagamentos e gerenciamento de cobranças")
 public class PagamentoController {

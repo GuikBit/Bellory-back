@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/api-keys")
+@RequestMapping("/api/v1/api-keys")
 @RequiredArgsConstructor
 @Tag(name = "API Keys", description = "Gerenciamento de chaves de API")
 public class ApiKeyController {

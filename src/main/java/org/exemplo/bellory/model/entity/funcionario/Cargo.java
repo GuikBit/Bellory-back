@@ -9,7 +9,10 @@ import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "cargo_funcionario", schema = "app")
+@Table(name = "cargo_funcionario", schema = "app", indexes = {
+        @Index(name = "idx_cargo_organizacao_id", columnList = "organizacao_id"),
+        @Index(name = "idx_cargo_org_ativo", columnList = "organizacao_id, ativo")
+})
 @Getter
 @Setter
 public class Cargo {

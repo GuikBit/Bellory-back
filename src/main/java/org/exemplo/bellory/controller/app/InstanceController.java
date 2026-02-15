@@ -19,7 +19,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/instances")
+@RequestMapping("/api/v1/instances")
 @Slf4j
 @Tag(name = "Instâncias WhatsApp", description = "Gerenciamento de instâncias WhatsApp via Evolution API")
 public class InstanceController {
