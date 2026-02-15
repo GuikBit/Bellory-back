@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.exemplo.bellory.model.dto.*;
 import org.exemplo.bellory.model.entity.error.ResponseAPI;
 import org.exemplo.bellory.model.entity.funcionario.Funcionario;
+import org.exemplo.bellory.service.BloqueioAgendaService;
 import org.exemplo.bellory.service.CargoService;
 import org.exemplo.bellory.service.FileStorageService;
 import org.exemplo.bellory.service.FuncionarioService;
@@ -13,6 +14,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,11 +28,14 @@ public class FuncionarioController {
     FileStorageService fileStorageService;
     FuncionarioService funcionarioService;
     CargoService cargoService;
+    BloqueioAgendaService bloqueioAgendaService;
 
-    public FuncionarioController(FuncionarioService funcionarioService, CargoService cargoService, FileStorageService fileStorageService) {
+    public FuncionarioController(FuncionarioService funcionarioService, CargoService cargoService,
+                                  FileStorageService fileStorageService, BloqueioAgendaService bloqueioAgendaService) {
         this.funcionarioService = funcionarioService;
         this.cargoService = cargoService;
         this.fileStorageService = fileStorageService;
+        this.bloqueioAgendaService = bloqueioAgendaService;
     }
 
     @GetMapping
@@ -589,6 +594,183 @@ public class FuncionarioController {
                     .body(ResponseAPI.<Void>builder()
                             .success(false)
                             .message("Erro ao remover foto de perfil.")
+                            .errorCode(500)
+                            .build());
+        }
+    }
+
+    // === AGENDA DO FUNCIONÁRIO ===
+
+    @GetMapping("/{id}/agendamentos")
+    @Operation(summary = "Listar agendamentos e bloqueios do funcionário")
+    public ResponseEntity<ResponseAPI<Map<String, Object>>> getAgendaFuncionario(@PathVariable Long id) {
+        try {
+            Map<String, Object> agenda = funcionarioService.getAgendaFuncionario(id);
+            return ResponseEntity
+                    .status(HttpStatus.OK)
+                    .body(ResponseAPI.<Map<String, Object>>builder()
+                            .success(true)
+                            .message("Agenda do funcionário recuperada com sucesso.")
+                            .dados(agenda)
+                            .build());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity
+                    .status(HttpStatus.NOT_FOUND)
+                    .body(ResponseAPI.<Map<String, Object>>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(404)
+                            .build());
+        } catch (SecurityException e) {
+            return ResponseEntity
+                    .status(HttpStatus.FORBIDDEN)
+                    .body(ResponseAPI.<Map<String, Object>>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(403)
+                            .build());
+        } catch (Exception e) {
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseAPI.<Map<String, Object>>builder()
+                            .success(false)
+                            .message("Erro interno ao buscar agenda do funcionário.")
+                            .errorCode(500)
+                            .build());
+        }
+    }
+
+    // === BLOQUEIO DE AGENDA ===
+
+    @PostMapping("/{id}/bloqueio")
+    @Operation(summary = "Criar bloqueio na agenda do funcionário")
+    public ResponseEntity<ResponseAPI> criarBloqueio(@PathVariable Long id, @RequestBody BloqueioAgendaDTO dto) {
+        try {
+            Object resultado = bloqueioAgendaService.criarBloqueio(id, dto);
+
+            if (resultado instanceof Map<?, ?> map && Boolean.TRUE.equals(map.get("conflito"))) {
+                return ResponseEntity
+                        .status(HttpStatus.CONFLICT)
+                        .body(ResponseAPI.builder()
+                                .success(false)
+                                .message((String) map.get("message"))
+                                .dados(map.get("agendamentos"))
+                                .errorCode(409)
+                                .build());
+            }
+
+            return ResponseEntity
+                    .status(HttpStatus.CREATED)
+                    .body(ResponseAPI.builder()
+                            .success(true)
+                            .message("Bloqueio criado com sucesso.")
+                            .dados(resultado)
+                            .build());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity
+                    .status(HttpStatus.BAD_REQUEST)
+                    .body(ResponseAPI.builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(400)
+                            .build());
+        } catch (SecurityException e) {
+            return ResponseEntity
+                    .status(HttpStatus.FORBIDDEN)
+                    .body(ResponseAPI.builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(403)
+                            .build());
+        } catch (Exception e) {
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseAPI.builder()
+                            .success(false)
+                            .message("Erro interno ao criar bloqueio: " + e.getMessage())
+                            .errorCode(500)
+                            .build());
+        }
+    }
+
+    @GetMapping("/{id}/bloqueio")
+    @Operation(summary = "Listar bloqueios do funcionário e da organização por período")
+    public ResponseEntity<ResponseAPI<Map<String, Object>>> listarBloqueios(
+            @PathVariable Long id,
+            @RequestParam LocalDateTime inicio,
+            @RequestParam LocalDateTime fim) {
+        try {
+            Map<String, Object> bloqueios = bloqueioAgendaService.listarBloqueiosPorPeriodo(id, inicio, fim);
+
+            return ResponseEntity
+                    .status(HttpStatus.OK)
+                    .body(ResponseAPI.<Map<String, Object>>builder()
+                            .success(true)
+                            .message("Bloqueios recuperados com sucesso.")
+                            .dados(bloqueios)
+                            .build());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity
+                    .status(HttpStatus.BAD_REQUEST)
+                    .body(ResponseAPI.<Map<String, Object>>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(400)
+                            .build());
+        } catch (SecurityException e) {
+            return ResponseEntity
+                    .status(HttpStatus.FORBIDDEN)
+                    .body(ResponseAPI.<Map<String, Object>>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(403)
+                            .build());
+        } catch (Exception e) {
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseAPI.<Map<String, Object>>builder()
+                            .success(false)
+                            .message("Erro interno ao listar bloqueios.")
+                            .errorCode(500)
+                            .build());
+        }
+    }
+
+    @DeleteMapping("/{id}/bloqueio/{bloqueioId}")
+    @Operation(summary = "Remover bloqueio da agenda do funcionário")
+    public ResponseEntity<ResponseAPI<Void>> removerBloqueio(
+            @PathVariable Long id,
+            @PathVariable Long bloqueioId) {
+        try {
+            bloqueioAgendaService.removerBloqueio(id, bloqueioId);
+            return ResponseEntity
+                    .status(HttpStatus.OK)
+                    .body(ResponseAPI.<Void>builder()
+                            .success(true)
+                            .message("Bloqueio removido com sucesso.")
+                            .build());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity
+                    .status(HttpStatus.BAD_REQUEST)
+                    .body(ResponseAPI.<Void>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(400)
+                            .build());
+        } catch (SecurityException e) {
+            return ResponseEntity
+                    .status(HttpStatus.FORBIDDEN)
+                    .body(ResponseAPI.<Void>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(403)
+                            .build());
+        } catch (Exception e) {
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseAPI.<Void>builder()
+                            .success(false)
+                            .message("Erro interno ao remover bloqueio.")
                             .errorCode(500)
                             .build());
         }

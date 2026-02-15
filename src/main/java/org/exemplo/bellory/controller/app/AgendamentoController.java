@@ -806,7 +806,7 @@ public class AgendamentoController {
 
             return ResponseEntity.ok(ResponseAPI.<List<AgendamentoDTO>>builder()
                     .success(true)
-                    .message("Agenda do funcionário para " + dataConsulta.toString() + " recuperada com sucesso.")
+                    .message("Agenda do funcionário para " + dataConsulta + " recuperada com sucesso.")
                     .dados(agendamentos)
                     .build());
 
@@ -893,10 +893,10 @@ public class AgendamentoController {
         try {
             FuncionarioServicoResponse resultado = agendamentoService.consultarFuncionariosPorServicos(servicoIds);
 
-            return ResponseEntity.ok(ResponseAPI.<FuncionarioServicoResponse>builder()
+            return ResponseEntity.ok(ResponseAPI.<List>builder()
                     .success(true)
                     .message(String.format("Encontrados %d funcionário(s) que prestam todos os serviços informados.", resultado.getDados().size()))
-                    .dados(resultado)
+                    .dados(resultado.getDados())
                     .build());
 
         } catch (IllegalArgumentException e) {

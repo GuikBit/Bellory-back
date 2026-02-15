@@ -75,6 +75,15 @@ public interface AgendamentoRepository extends JpaRepository<Agendamento, Long> 
                                                     @Param("inicio") LocalDateTime inicio,
                                                     @Param("fim") LocalDateTime fim);
 
+    @Query("SELECT a FROM Agendamento a JOIN a.funcionarios f " +
+            "WHERE f.id = :funcionarioId " +
+            "AND a.status NOT IN (org.exemplo.bellory.model.entity.agendamento.Status.CANCELADO, " +
+            "org.exemplo.bellory.model.entity.agendamento.Status.CONCLUIDO) " +
+            "AND a.dtAgendamento BETWEEN :inicio AND :fim")
+    List<Agendamento> findAtivosByFuncionarioAndDataRange(@Param("funcionarioId") Long funcionarioId,
+                                                          @Param("inicio") LocalDateTime inicio,
+                                                          @Param("fim") LocalDateTime fim);
+
     @Query("SELECT COUNT(a) FROM Agendamento a JOIN a.funcionarios f WHERE f.id = :funcionarioId AND a.dtAgendamento BETWEEN :inicio AND :fim")
     Long countByFuncionarioAndDataRange(@Param("funcionarioId") Long funcionarioId,
                                         @Param("inicio") LocalDateTime inicio,

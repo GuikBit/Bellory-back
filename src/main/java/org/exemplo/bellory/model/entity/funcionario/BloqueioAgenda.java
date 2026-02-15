@@ -29,6 +29,9 @@ public class BloqueioAgenda {
     @JsonIgnore
     private Funcionario funcionario; // O funcionário cujo tempo está sendo bloqueado
 
+    @Column(name = "titulo", length = 100)
+    private String titulo;
+
     @Column(name = "inicio_bloqueio", nullable = false)
     private LocalDateTime inicioBloqueio;
 

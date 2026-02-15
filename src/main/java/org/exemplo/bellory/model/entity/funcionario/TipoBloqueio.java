@@ -6,6 +6,7 @@ public enum TipoBloqueio {
     REUNIAO("Reunião"),
     PAUSA("Pausa"),
     FERIAS("Ferias"),
+    FOLGA("Folga"),
     OUTRO("Outro Bloqueio");
 
     private final String descricao;

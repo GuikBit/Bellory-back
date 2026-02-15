@@ -14,7 +14,11 @@ import org.exemplo.bellory.model.dto.*;
 import org.exemplo.bellory.model.entity.funcionario.Funcionario;
 import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 import org.exemplo.bellory.model.entity.servico.Servico;
+import org.exemplo.bellory.model.entity.agendamento.Agendamento;
+import org.exemplo.bellory.model.repository.agendamento.AgendamentoRepository;
+import org.exemplo.bellory.model.repository.funcionario.BloqueioAgendaRepository;
 import org.exemplo.bellory.model.repository.funcionario.FuncionarioRepository;
+import org.exemplo.bellory.model.repository.organizacao.BloqueioOrganizacaoRepository;
 import org.exemplo.bellory.model.repository.organizacao.OrganizacaoRepository;
 import org.exemplo.bellory.model.repository.servico.ServicoRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -35,6 +39,9 @@ public class FuncionarioService {
     private final OrganizacaoRepository organizacaoRepository;
     private final CargoRepository cargoRepository;
     private final ServicoRepository servicoRepository;
+    private final AgendamentoRepository agendamentoRepository;
+    private final BloqueioAgendaRepository bloqueioAgendaRepository;
+    private final BloqueioOrganizacaoRepository bloqueioOrganizacaoRepository;
     private final PasswordEncoder passwordEncoder;
     private final FileStorageService fileStorageService;
     private final JornadaTrabalhoService jornadaTrabalhoService;
@@ -45,6 +52,9 @@ public class FuncionarioService {
             OrganizacaoRepository organizacaoRepository,
             CargoRepository cargoRepository,
             ServicoRepository servicoRepository,
+            AgendamentoRepository agendamentoRepository,
+            BloqueioAgendaRepository bloqueioAgendaRepository,
+            BloqueioOrganizacaoRepository bloqueioOrganizacaoRepository,
             PasswordEncoder passwordEncoder,
             FileStorageService fileStorageService,
             JornadaTrabalhoService jornadaTrabalhoService,
@@ -53,6 +63,9 @@ public class FuncionarioService {
         this.organizacaoRepository = organizacaoRepository;
         this.cargoRepository = cargoRepository;
         this.servicoRepository = servicoRepository;
+        this.agendamentoRepository = agendamentoRepository;
+        this.bloqueioAgendaRepository = bloqueioAgendaRepository;
+        this.bloqueioOrganizacaoRepository = bloqueioOrganizacaoRepository;
         this.passwordEncoder = passwordEncoder;
         this.fileStorageService = fileStorageService;
         this.jornadaTrabalhoService = jornadaTrabalhoService;
@@ -424,6 +437,40 @@ public class FuncionarioService {
         funcionario.setDataUpdate(LocalDateTime.now());
 
         return funcionarioRepository.save(funcionario);
+    }
+
+    @Transactional
+    public Map<String, Object> getAgendaFuncionario(Long funcionarioId) {
+        Funcionario funcionario = funcionarioRepository.findById(funcionarioId)
+                .orElseThrow(() -> new IllegalArgumentException("Funcionário com ID " + funcionarioId + " não encontrado."));
+
+        Long organizacaoId = getOrganizacaoIdFromContext();
+        validarOrganizacao(funcionario.getOrganizacao().getId());
+
+        List<AgendamentoDTO> agendamentos = agendamentoRepository
+                .findByFuncionariosIdAndClienteOrganizacaoId(funcionarioId, organizacaoId)
+                .stream()
+                .map(AgendamentoDTO::new)
+                .collect(Collectors.toList());
+
+        List<BloqueioAgendaDTO> bloqueiosFuncionario = bloqueioAgendaRepository
+                .findBloqueiosManuaisByFuncionarioId(funcionarioId)
+                .stream()
+                .map(BloqueioAgendaDTO::new)
+                .collect(Collectors.toList());
+
+        List<BloqueioOrganizacaoDTO> bloqueiosOrganizacao = bloqueioOrganizacaoRepository
+                .findByOrganizacaoIdAndAtivoTrueOrderByDataInicioAsc(organizacaoId)
+                .stream()
+                .map(BloqueioOrganizacaoDTO::new)
+                .collect(Collectors.toList());
+
+        Map<String, Object> resultado = new HashMap<>();
+        resultado.put("agendamentos", agendamentos);
+        resultado.put("bloqueiosFuncionario", bloqueiosFuncionario);
+        resultado.put("bloqueiosOrganizacao", bloqueiosOrganizacao);
+
+        return resultado;
     }
 
     private void validarCamposObrigatorios(FuncionarioCreateDTO dto) {
