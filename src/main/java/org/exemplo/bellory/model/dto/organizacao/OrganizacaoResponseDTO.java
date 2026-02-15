@@ -47,6 +47,10 @@ public class OrganizacaoResponseDTO {
     private Endereco enderecoPrincipal;
     private PlanoLimitesBellory limitesPersonalizados;
 
+    // Imagens
+    private String logoUrl;
+    private String bannerUrl;
+
     // Controle
     private Boolean ativo;
     private LocalDateTime dtCadastro;

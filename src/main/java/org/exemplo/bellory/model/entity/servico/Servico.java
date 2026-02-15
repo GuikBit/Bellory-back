@@ -20,7 +20,13 @@ import java.util.UUID;
  * manicure, etc.
  */
 @Entity
-@Table(name = "servico", schema = "app")
+@Table(name = "servico", schema = "app", indexes = {
+        @Index(name = "idx_servico_organizacao_id", columnList = "organizacao_id"),
+        @Index(name = "idx_servico_categoria_id", columnList = "categoria_id"),
+        @Index(name = "idx_servico_org_ativo", columnList = "organizacao_id, isDeletado, ativo"),
+        @Index(name = "idx_servico_ativo", columnList = "ativo"),
+        @Index(name = "idx_servico_deletado", columnList = "isDeletado")
+})
 @Getter
 @Setter
 @NoArgsConstructor
@@ -57,8 +63,11 @@ public class Servico {
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal preco;
 
-    @Column
-    private Integer desconto;
+    @Column(precision = 4, scale = 1, nullable = false)
+    private BigDecimal desconto;
+
+    @Column(nullable = false, precision = 10, scale = 2)
+    private BigDecimal precoFinal;
 
     // Mapeia a lista de nomes de produtos para uma tabela de suporte.
     // Lista de produtos usados no serviço
@@ -83,6 +92,8 @@ public class Servico {
     @Column(name = "dt_atualizacao")
     private LocalDateTime dtAtualizacao;
 
+    private String usuarioAtualizacao;
+
     @Column(nullable = false)
     private boolean ativo;
 
@@ -92,7 +103,13 @@ public class Servico {
     @Column(nullable = false)
     private boolean isAvaliacao;
 
-    private String usuarioAtualizacao;
+    @Column(nullable = false)
+    private boolean isDeletado = false;
+
+    private String usuarioDeletado;
+
+    @Column(name = "dt_deletado")
+    private LocalDateTime dtDeletado;
 
     /**
      * Este método é chamado automaticamente pelo JPA antes de a entidade ser guardada
@@ -104,8 +121,6 @@ public class Servico {
             dtCriacao = LocalDateTime.now();
         }
     }
-
-
 
     public void adicionarUrlImagem(String imagem) {
         if (this.urlsImagens == null) {

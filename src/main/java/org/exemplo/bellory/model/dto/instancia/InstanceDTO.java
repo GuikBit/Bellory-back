@@ -11,6 +11,7 @@ import org.exemplo.bellory.model.entity.instancia.KnowledgeBase.KnowledgeType;
 
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -46,6 +47,7 @@ public class InstanceDTO {
     private Integer messageCount;
     private Integer contactCount;
     private Integer chatCount;
+    private boolean ativo;
 
     private Tools tools;
     private WebhookSettings webhookSettings;
@@ -59,6 +61,7 @@ public class InstanceDTO {
         this.integration = instance.getIntegration();
         this.personality = instance.getPersonality();
         this.description = instance.getDescription();
+        this.ativo = instance.isAtivo();
 
         if (instance.getOrganizacao() != null) {
             this.organizacaoNome = instance.getOrganizacao().getNomeFantasia();
@@ -67,8 +70,20 @@ public class InstanceDTO {
 
         this.tools = instance.getTools();
 
-        // --- Correção da Lógica do Webhook ---
-        // Verifica se a configuração existe na entidade antes de mapear
+        if(instance.getSettings() != null){
+            this.settings = new Settings();
+            this.settings.alwaysOnline = instance.getSettings().getAlwaysOnline();
+            this.settings.groupsIgnore = instance.getSettings().getGroupsIgnore();
+            this.settings.msgCall = instance.getSettings().getMsgCall();
+            this.settings.readMessages = instance.getSettings().getReadMessages();
+            this.settings.rejectCall = instance.getSettings().getRejectCall();
+            this.settings.readStatus = instance.getSettings().getReadStatus();
+        }
+
+        if(instance.getKnowledgeBase() != null){
+            this.knowledgeBase = new ArrayList<>();
+        }
+
         if (instance.getWebhookConfig() != null) {
             this.webhookSettings = new WebhookSettings();
             this.webhookSettings.setUrl(instance.getWebhookConfig().getUrl());
@@ -76,15 +91,6 @@ public class InstanceDTO {
             this.webhookSettings.setEvents(instance.getWebhookConfig().getEvents());
         }
 
-        // --- Mapeamento de Settings (Opcional, assumindo que exista na entidade) ---
-        // Exemplo de como mapear se existir na entidade Instance:
-        /*
-        if (instance.getSettings() != null) {
-            this.settings = new Settings();
-            this.settings.setRejectCall(instance.getSettings().getRejectCall());
-            // ... outros campos
-        }
-        */
     }
 
     @Getter

@@ -645,13 +645,17 @@ CREATE TABLE app.servico
     descricao              TEXT,
     tempo_estimado_minutos INTEGER                                 NOT NULL,
     preco                  DECIMAL(10, 2)                          NOT NULL,
-    desconto               INTEGER,
+    desconto               DECIMAL(4, 1)                           NOT NULL,
+    preco_final            DECIMAL(10, 2)                          NOT NULL,
     dt_criacao             TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW(),
     dt_atualizacao         TIMESTAMP WITHOUT TIME ZONE,
+    usuario_atualizacao    VARCHAR(255),
     ativo                  BOOLEAN                                 NOT NULL,
     is_home                BOOLEAN,
     is_avaliacao           BOOLEAN                                 NOT NULL,
-    usuario_atualizacao    VARCHAR(255),
+    is_deletado            BOOLEAN                                 NOT NULL,
+    usuario_deletado       VARCHAR(255),
+    dt_deletado            TIMESTAMP WITHOUT TIME ZONE,
     CONSTRAINT pk_servico PRIMARY KEY (id)
 );
 
@@ -738,16 +742,16 @@ CREATE TABLE admin.plano_limites_bellory
 );
 
 ALTER TABLE admin.plano_bellory
-    ADD CONSTRAINT FK_PLANO_BELLORY_ON_CARTAOCREDITO FOREIGN KEY (cartao_credito_id) REFERENCES app.cartao_credito (id);
-
-ALTER TABLE admin.plano_limites_bellory
-    ADD CONSTRAINT FK_PLANO_LIMITES_BELLORY_ON_PLANO_BELLORY FOREIGN KEY (plano_bellory_id) REFERENCES admin.plano_bellory (id);
+    ADD CONSTRAINT uc_plano_bellory_codigo UNIQUE (codigo);
 
 ALTER TABLE admin.plano_limites_bellory
     ADD CONSTRAINT uc_plano_limites_bellory_plano_bellory UNIQUE (plano_bellory_id);
 
 ALTER TABLE admin.plano_bellory
-    ADD CONSTRAINT uc_plano_bellory_codigo UNIQUE (codigo);
+    ADD CONSTRAINT FK_PLANO_BELLORY_ON_CARTAOCREDITO FOREIGN KEY (cartao_credito_id) REFERENCES app.cartao_credito (id);
+
+ALTER TABLE admin.plano_limites_bellory
+    ADD CONSTRAINT FK_PLANO_LIMITES_BELLORY_ON_PLANO_BELLORY FOREIGN KEY (plano_bellory_id) REFERENCES admin.plano_bellory (id);
 
 ALTER TABLE app.admin
     ADD CONSTRAINT uc_admin_email UNIQUE (email);
@@ -760,6 +764,9 @@ ALTER TABLE app.bloqueio_agenda
 
 ALTER TABLE app.cliente
     ADD CONSTRAINT uc_cliente_email UNIQUE (email);
+
+ALTER TABLE app.cliente
+    ADD CONSTRAINT uc_cliente_telefone UNIQUE (telefone);
 
 ALTER TABLE app.cliente
     ADD CONSTRAINT uc_cliente_username UNIQUE (username);

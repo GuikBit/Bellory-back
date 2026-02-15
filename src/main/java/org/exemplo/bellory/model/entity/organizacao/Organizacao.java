@@ -20,7 +20,12 @@ import org.exemplo.bellory.model.entity.tema.Tema;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "organizacao", schema = "app")
+@Table(name = "organizacao", schema = "app", indexes = {
+        @Index(name = "idx_organizacao_slug_ativo", columnList = "slug, ativo"),
+        @Index(name = "idx_organizacao_plano_id", columnList = "plano_id"),
+        @Index(name = "idx_organizacao_ativo", columnList = "ativo"),
+        @Index(name = "idx_organizacao_dt_cadastro", columnList = "dt_cadastro")
+})
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -143,6 +148,12 @@ public class Organizacao {
     @OneToOne(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @JoinColumn(name = "limites_personalizados_id")
     private PlanoLimitesBellory limitesPersonalizados;
+
+    @Column(name = "logo_url")
+    private String logoUrl;
+
+    @Column(name = "banner_url")
+    private String bannerUrl;
 
     @Column(name = "ativo", nullable = false)
     private Boolean ativo = true;

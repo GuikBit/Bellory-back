@@ -38,16 +38,39 @@ public class ConfigSistema {
     private boolean disparaNotificacoesPush = true;
 
     @Column(name = "url_acesso", nullable = false)
-    private String urlAcesso;
+    private String urlAcesso = "";
 
     @Column(name = "tenant_id", nullable = false)
-    private String tenantId;
+    private String tenantId = "";
+
+    @Embedded
+    @AttributeOverrides({
+            @AttributeOverride(name = "toleranciaAgendamento", column = @Column(name = "agend_tolerancia")),
+    })
+    private ConfigAgendamento configAgendamento;
+
+    @Embedded
+    @AttributeOverrides({
+            @AttributeOverride(name = "config_servico", column = @Column(name = "config_servico")),
+    })
+    private ConfigServico configServico;
+
+    @Embedded
+    @AttributeOverrides({ @AttributeOverride(name = "config_cliente", column = @Column(name = "config_cliente")) })
+    private ConfigCliente configCliente;
+
+    @Embedded
+    @AttributeOverrides({ @AttributeOverride(name = "config_colaborador", column = @Column(name = "config_colaborador")) })
+    private ConfigColaborador configColaborador;
+
+    @Embedded
+    @AttributeOverrides({ @AttributeOverride(name = "config_notificacao", column = @Column(name = "config_notificacao")) })
+    private ConfigNotificacao configNotificacao;
 
     @Column(name = "dt_criacao", columnDefinition = "TIMESTAMP DEFAULT now()")
     private LocalDateTime dtCriacao;
 
     @Column(name = "dt_atualizacao")
     private LocalDateTime dtAtualizacao;
-
-
+    //outras configuracoes de modulos
 }

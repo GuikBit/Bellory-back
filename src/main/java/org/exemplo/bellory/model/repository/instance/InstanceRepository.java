@@ -17,7 +17,7 @@ public interface InstanceRepository extends JpaRepository<Instance, Long> {
     /**
      * Buscar todas as instâncias de uma organização
      */
-    List<Instance> findByOrganizacaoId(Long organizacaoId);
+    List<Instance> findByOrganizacaoIdAndDeletadoFalse(Long organizacaoId);
 
     /**
      * Verificar se existe instância com o nome
@@ -28,11 +28,31 @@ public interface InstanceRepository extends JpaRepository<Instance, Long> {
             "LEFT JOIN FETCH i.tools " +
             "LEFT JOIN FETCH i.webhookConfig " +
             "LEFT JOIN FETCH i.organizacao " +
-            "WHERE i.organizacao.id = :organizacaoId")
+            "WHERE i.organizacao.id = :organizacaoId " +
+            "AND i.deletado = false")
     List<Instance> findByOrganizacaoIdWithRelations(@Param("organizacaoId") Long organizacaoId);
 
+    @Query("""
+        SELECT i FROM Instance i
+        LEFT JOIN FETCH i.organizacao
+        LEFT JOIN FETCH i.tools
+        LEFT JOIN FETCH i.webhookConfig
+        LEFT JOIN FETCH i.settings
+        LEFT JOIN FETCH i.knowledgeBase
+        WHERE i.instanceName = :instanceName
+        AND i.deletado = false
+    """)
+    Optional<Instance> findByInstanceNameWithRelations(@Param("instanceName") String instanceName);
 
+    Optional<Instance> findByInstanceName(String instanceName);
 
+    // ==================== QUERIES PARA RELATÓRIOS ====================
+
+    /**
+     * Conta instâncias por status e organização
+     */
+    @Query("SELECT i.status, COUNT(i) FROM Instance i " +
+            "WHERE i.organizacao.id = :organizacaoId " +
+            "GROUP BY i.status")
+    List<Object[]> countByStatusAndOrganizacao(@Param("organizacaoId") Long organizacaoId);
 }
-
-

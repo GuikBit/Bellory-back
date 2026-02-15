@@ -30,7 +30,7 @@ public abstract class User implements UserDetails {
     @JoinColumn(name = "organizacao_id", nullable = false)
     private Organizacao organizacao;
 
-    @Column(unique = true, nullable = false)
+    @Column(nullable = false)
     private String username;
 
     @Column(name="nome_completo", nullable = false)
@@ -39,7 +39,7 @@ public abstract class User implements UserDetails {
     @Column(nullable = false)
     private String password;
 
-    @Column(unique = true, nullable = false)
+    @Column(nullable = false)
     private String email;
 
     private boolean ativo = true;

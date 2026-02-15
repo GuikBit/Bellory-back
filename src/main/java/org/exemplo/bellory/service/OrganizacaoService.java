@@ -20,6 +20,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -37,12 +38,13 @@ public class OrganizacaoService {
     PlanoBelloryRepository planoBelloryRepository;
     AdminRepository adminRepository;
     private EmailService emailService;
+    private FileStorageService fileStorageService;
     private static final int MAX_TENTATIVAS_SLUG = 10;
 
     @Value("${app.url}")
     private String appUrl;
 
-    public OrganizacaoService(OrganizacaoRepository organizacaoRepository, OrganizacaoMapper organizacaoMapper, PasswordEncoder passwordEncoder, PlanoRepository planoRepository, AdminRepository adminRepository, EmailService emailService, PlanoBelloryRepository planoBelloryRepository) {
+    public OrganizacaoService(OrganizacaoRepository organizacaoRepository, OrganizacaoMapper organizacaoMapper, PasswordEncoder passwordEncoder, PlanoRepository planoRepository, AdminRepository adminRepository, EmailService emailService, PlanoBelloryRepository planoBelloryRepository, FileStorageService fileStorageService) {
         this.organizacaoRepository = organizacaoRepository;
         this.organizacaoMapper = organizacaoMapper;
         this.passwordEncoder = passwordEncoder;
@@ -50,6 +52,7 @@ public class OrganizacaoService {
         this.adminRepository = adminRepository;
         this.emailService = emailService;
         this.planoBelloryRepository = planoBelloryRepository;
+        this.fileStorageService = fileStorageService;
     }
 
     public Organizacao getOrganizacaoPadrao() {
@@ -321,6 +324,126 @@ public class OrganizacaoService {
             // Não falha a criação da organização se o e-mail não for enviado
 //            log.error("Erro ao enviar e-mail de boas-vindas para: {}", organizacao.getEmail(), e);
         }
+    }
+
+    // ==================== LOGO ====================
+
+    @Transactional
+    public Map<String, String> uploadLogo(MultipartFile file) {
+        Long organizacaoId = getOrganizacaoIdFromContext();
+        Organizacao organizacao = organizacaoRepository.findById(organizacaoId)
+                .orElseThrow(() -> new IllegalArgumentException("Organização não encontrada."));
+
+        // Deletar logo antiga se existir
+        if (organizacao.getLogoUrl() != null) {
+            String oldRelativePath = fileStorageService.getRelativePathFromUrl(organizacao.getLogoUrl());
+            fileStorageService.deleteFile(oldRelativePath, organizacaoId);
+        }
+
+        String relativePath = fileStorageService.storeFile(file, organizacaoId, organizacaoId, FileStorageService.TipoUpload.LOGO_ORGANIZACAO);
+        String fullUrl = fileStorageService.getFileUrl(relativePath);
+
+        organizacao.setLogoUrl(fullUrl);
+        organizacaoRepository.save(organizacao);
+
+        Map<String, String> response = new HashMap<>();
+        response.put("filename", relativePath.substring(relativePath.lastIndexOf("/") + 1));
+        response.put("url", fullUrl);
+        response.put("relativePath", relativePath);
+        return response;
+    }
+
+    @Transactional(readOnly = true)
+    public Map<String, String> getLogo() {
+        Long organizacaoId = getOrganizacaoIdFromContext();
+        Organizacao organizacao = organizacaoRepository.findById(organizacaoId)
+                .orElseThrow(() -> new IllegalArgumentException("Organização não encontrada."));
+
+        if (organizacao.getLogoUrl() == null) {
+            throw new IllegalArgumentException("Organização não possui logo cadastrada.");
+        }
+
+        Map<String, String> response = new HashMap<>();
+        response.put("url", organizacao.getLogoUrl());
+        response.put("filename", organizacao.getLogoUrl().substring(organizacao.getLogoUrl().lastIndexOf("/") + 1));
+        return response;
+    }
+
+    @Transactional
+    public void deleteLogo() {
+        Long organizacaoId = getOrganizacaoIdFromContext();
+        Organizacao organizacao = organizacaoRepository.findById(organizacaoId)
+                .orElseThrow(() -> new IllegalArgumentException("Organização não encontrada."));
+
+        if (organizacao.getLogoUrl() == null) {
+            throw new IllegalArgumentException("Organização não possui logo para remover.");
+        }
+
+        String relativePath = fileStorageService.getRelativePathFromUrl(organizacao.getLogoUrl());
+        fileStorageService.deleteFile(relativePath, organizacaoId);
+
+        organizacao.setLogoUrl(null);
+        organizacaoRepository.save(organizacao);
+    }
+
+    // ==================== BANNER ====================
+
+    @Transactional
+    public Map<String, String> uploadBanner(MultipartFile file) {
+        Long organizacaoId = getOrganizacaoIdFromContext();
+        Organizacao organizacao = organizacaoRepository.findById(organizacaoId)
+                .orElseThrow(() -> new IllegalArgumentException("Organização não encontrada."));
+
+        // Deletar banner antigo se existir
+        if (organizacao.getBannerUrl() != null) {
+            String oldRelativePath = fileStorageService.getRelativePathFromUrl(organizacao.getBannerUrl());
+            fileStorageService.deleteFile(oldRelativePath, organizacaoId);
+        }
+
+        String relativePath = fileStorageService.storeFile(file, organizacaoId, organizacaoId, FileStorageService.TipoUpload.BANNER_ORGANIZACAO);
+        String fullUrl = fileStorageService.getFileUrl(relativePath);
+
+        organizacao.setBannerUrl(fullUrl);
+        organizacaoRepository.save(organizacao);
+
+        Map<String, String> response = new HashMap<>();
+        response.put("filename", relativePath.substring(relativePath.lastIndexOf("/") + 1));
+        response.put("url", fullUrl);
+        response.put("relativePath", relativePath);
+        return response;
+    }
+
+    @Transactional(readOnly = true)
+    public Map<String, String> getBanner() {
+        Long organizacaoId = getOrganizacaoIdFromContext();
+        Organizacao organizacao = organizacaoRepository.findById(organizacaoId)
+                .orElseThrow(() -> new IllegalArgumentException("Organização não encontrada."));
+
+        if (organizacao.getBannerUrl() == null) {
+            throw new IllegalArgumentException("Organização não possui banner cadastrado.");
+        }
+
+        Map<String, String> response = new HashMap<>();
+        response.put("url", organizacao.getBannerUrl());
+        response.put("filename", organizacao.getBannerUrl().substring(organizacao.getBannerUrl().lastIndexOf("/") + 1));
+        return response;
+    }
+
+    @Transactional
+    public void deleteBanner() {
+        Long organizacaoId = getOrganizacaoIdFromContext();
+        Organizacao organizacao = organizacaoRepository.findById(organizacaoId)
+                .orElseThrow(() -> new IllegalArgumentException("Organização não encontrada."));
+
+        if (organizacao.getBannerUrl() == null) {
+            throw new IllegalArgumentException("Organização não possui banner para remover.");
+        }
+
+        String relativePath = fileStorageService.getRelativePathFromUrl(organizacao.getBannerUrl());
+        fileStorageService.deleteFile(relativePath, organizacaoId);
+
+        organizacao.setBannerUrl(null);
+        organizacaoRepository.save(organizacao);
     }
 
     private void validarOrganizacao(Long entityOrganizacaoId) {

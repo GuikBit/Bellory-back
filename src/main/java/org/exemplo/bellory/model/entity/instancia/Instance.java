@@ -12,7 +12,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "instance", schema = "app")
+@Table(name = "instance", schema = "app",
+    indexes = {
+        @Index(name = "idx_instance_organizacao_id", columnList = "organizacao_id")
+    })
 @Getter
 @Setter
 @NoArgsConstructor
@@ -36,6 +39,10 @@ public class Instance {
 
     @Column(columnDefinition = "TEXT")
     private String description;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", length = 20)
+    private InstanceStatus status;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "organizacao_id", nullable = false)
@@ -66,6 +73,15 @@ public class Instance {
     )
     @JsonIgnore
     private List<KnowledgeBase> knowledgeBase = new ArrayList<>();
+
+    @Column(name = "ativo")
+    private boolean ativo;
+
+    @Column(name = "deletado")
+    private boolean deletado = false;
+
+
+
 
     @PrePersist
     @PreUpdate

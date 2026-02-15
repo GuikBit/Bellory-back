@@ -6,15 +6,18 @@ import org.exemplo.bellory.model.dto.*;
 import org.exemplo.bellory.model.entity.agendamento.Agendamento;
 import org.exemplo.bellory.model.entity.agendamento.Status;
 import org.exemplo.bellory.model.entity.cobranca.Cobranca;
+import org.exemplo.bellory.model.entity.config.ConfigSistema;
 import org.exemplo.bellory.model.entity.funcionario.*;
 import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 import org.exemplo.bellory.model.entity.servico.Servico;
 import org.exemplo.bellory.model.entity.users.Cliente;
+import org.exemplo.bellory.model.entity.organizacao.BloqueioOrganizacao;
 import org.exemplo.bellory.model.repository.Transacao.CobrancaRepository;
 import org.exemplo.bellory.model.repository.agendamento.AgendamentoRepository;
 import org.exemplo.bellory.model.repository.funcionario.DisponibilidadeRepository;
 import org.exemplo.bellory.model.repository.funcionario.FuncionarioRepository;
 import org.exemplo.bellory.model.repository.funcionario.JornadaTrabalhoRepository;
+import org.exemplo.bellory.model.repository.organizacao.BloqueioOrganizacaoRepository;
 import org.exemplo.bellory.model.repository.organizacao.OrganizacaoRepository;
 import org.exemplo.bellory.model.repository.servico.ServicoRepository;
 import org.exemplo.bellory.model.repository.users.ClienteRepository;
@@ -39,11 +42,27 @@ public class AgendamentoService {
     private final ClienteRepository clienteRepository;
     private final OrganizacaoRepository organizacaoRepository;
     private final CobrancaRepository cobrancaRepository;
+    private final BloqueioOrganizacaoRepository bloqueioOrganizacaoRepository;
 
     private final TransacaoService transacaoService;
 
 
-    private static final int TOLERANCIA_MINUTOS = 10;
+    //private static final int TOLERANCIA_MINUTOS = 10;
+
+    // Mapa de transições de status permitidas
+    private static final Map<Status, List<Status>> STATUS_TRANSITIONS = Map.ofEntries(
+            Map.entry(Status.PENDENTE, List.of(Status.AGENDADO, Status.CANCELADO)),
+            Map.entry(Status.AGENDADO, List.of(Status.AGUARDANDO_CONFIRMACAO, Status.REAGENDADO, Status.CANCELADO)),
+            Map.entry(Status.AGUARDANDO_CONFIRMACAO, List.of(Status.CONFIRMADO, Status.REAGENDADO, Status.CANCELADO, Status.NAO_COMPARECEU)),
+            Map.entry(Status.CONFIRMADO, List.of(Status.EM_ESPERA, Status.REAGENDADO, Status.CANCELADO, Status.NAO_COMPARECEU)),
+            Map.entry(Status.EM_ESPERA, List.of(Status.EM_ANDAMENTO, Status.CANCELADO)),
+            Map.entry(Status.EM_ANDAMENTO, List.of(Status.CONCLUIDO, Status.CANCELADO)),
+            Map.entry(Status.REAGENDADO, List.of(Status.AGENDADO)),
+            // Estados finais - sem transições
+            Map.entry(Status.CONCLUIDO, List.of()),
+            Map.entry(Status.CANCELADO, List.of()),
+            Map.entry(Status.NAO_COMPARECEU, List.of())
+    );
 
     public AgendamentoService(AgendamentoRepository agendamentoRepository,
                               DisponibilidadeRepository disponibilidadeRepository,
@@ -52,7 +71,9 @@ public class AgendamentoService {
                               ServicoRepository servicoRepository,
                               ClienteRepository clienteRepository,
                               OrganizacaoRepository organizacaoRepository,
-                              CobrancaRepository cobrancaRepository, TransacaoService transacaoService) {
+                              CobrancaRepository cobrancaRepository,
+                              BloqueioOrganizacaoRepository bloqueioOrganizacaoRepository,
+                              TransacaoService transacaoService) {
         this.agendamentoRepository = agendamentoRepository;
         this.disponibilidadeRepository = disponibilidadeRepository;
         this.jornadaTrabalhoRepository = jornadaTrabalhoRepository;
@@ -61,6 +82,7 @@ public class AgendamentoService {
         this.clienteRepository = clienteRepository;
         this.organizacaoRepository = organizacaoRepository;
         this.cobrancaRepository = cobrancaRepository;
+        this.bloqueioOrganizacaoRepository = bloqueioOrganizacaoRepository;
         this.transacaoService = transacaoService;
     }
 
@@ -367,19 +389,51 @@ public class AgendamentoService {
 
         validarOrganizacao(agendamento.getCliente().getOrganizacao().getId());
 
+        Status novoStatus;
         try {
-            Status novoStatus = Status.valueOf(status.toUpperCase());
-            alterarStatusAgendamento(agendamento, novoStatus);
-            agendamento.setDtAtualizacao(LocalDateTime.now());
-
-            Agendamento agendamentoAtualizado = agendamentoRepository.save(agendamento);
-            return new AgendamentoDTO(agendamentoAtualizado);
+            novoStatus = Status.valueOf(status.toUpperCase());
         } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("Status inválido: " + status);
+        }
+
+        // Validar se a transição de status é permitida
+        validarTransicaoStatus(agendamento.getStatus(), novoStatus);
+
+        alterarStatusAgendamento(agendamento, novoStatus);
+        agendamento.setDtAtualizacao(LocalDateTime.now());
+
+        Agendamento agendamentoAtualizado = agendamentoRepository.save(agendamento);
+        return new AgendamentoDTO(agendamentoAtualizado);
+    }
+
+    private void validarTransicaoStatus(Status statusAtual, Status novoStatus) {
+        // Se já está no status desejado, não precisa validar
+        if (statusAtual == novoStatus) {
+            return;
+        }
+
+        List<Status> transicoesPermitidas = STATUS_TRANSITIONS.getOrDefault(statusAtual, List.of());
+
+        if (!transicoesPermitidas.contains(novoStatus)) {
+            throw new IllegalArgumentException(
+                String.format("Transição de status inválida: não é possível mudar de %s para %s. " +
+                    "Transições permitidas: %s",
+                    statusAtual.getDescricao(),
+                    novoStatus.getDescricao(),
+                    transicoesPermitidas.isEmpty() ? "nenhuma (estado final)" :
+                        transicoesPermitidas.stream()
+                            .map(Status::getDescricao)
+                            .collect(Collectors.joining(", "))
+                )
+            );
         }
     }
 
     private void validarDisponibilidadeAgendamento(Agendamento agendamento) {
+        // Validar bloqueio da organização (feriados/bloqueios)
+        validarBloqueioOrganizacao(agendamento.getOrganizacao().getId(),
+                agendamento.getDtAgendamento().toLocalDate());
+
         // Calcular duração total dos serviços
         int duracaoTotalMinutos = agendamento.getServicos().stream()
                 .mapToInt(Servico::getTempoEstimadoMinutos)
@@ -467,15 +521,30 @@ public class AgendamentoService {
             }
         }
     }
+
     private void alterarStatusAgendamento(Agendamento agendamento, Status novoStatus) {
         switch (novoStatus) {
+            case PENDENTE:
+                agendamento.setStatus(Status.PENDENTE);
+                break;
+
             case AGENDADO:
                 agendamento.marcarComoAgendado();
                 break;
 
+            case AGUARDANDO_CONFIRMACAO:
+                agendamento.setStatus(Status.AGUARDANDO_CONFIRMACAO);
+                // Enviar notificação solicitando confirmação
+                break;
+
             case CONFIRMADO:
                 agendamento.setStatus(Status.CONFIRMADO);
-                // Enviar notificação de confirmação se necessário
+                agendamento.setDtConfirmacao(LocalDateTime.now());
+                // Enviar notificação de confirmação
+                break;
+
+            case EM_ESPERA:
+                agendamento.colocarEmEspera();
                 break;
 
             case EM_ANDAMENTO:
@@ -490,22 +559,43 @@ public class AgendamentoService {
 
             case CANCELADO:
                 agendamento.cancelarAgendamento();
-                // Cancelar cobrança somente se não estiver paga
-//                if (agendamento.getCobranca() != null &&
-//                        !agendamento.getCobranca().isPaga()) {
-//                    agendamento.getCobranca().cancelar();
-//                    cobrancaRepository.save(agendamento.getCobranca());
-//                }
+
+                // Remover bloqueios da agenda
+                if (agendamento.getBloqueioAgenda() != null) {
+                    disponibilidadeRepository.delete(agendamento.getBloqueioAgenda());
+                    agendamento.setBloqueioAgenda(null);
+                }
+
+                // Cancelar cobranças pendentes
+                if (agendamento.getCobrancas() != null) {
+                    agendamento.getCobrancas().stream()
+                        .filter(c -> !c.isPaga())
+                        .forEach(c -> {
+                            c.cancelar();
+                            cobrancaRepository.save(c);
+                        });
+                }
                 break;
 
-            case EM_ESPERA:
-                agendamento.colocarEmEspera();
+            case REAGENDADO:
+                agendamento.setStatus(Status.REAGENDADO);
+                // Preparar para novo agendamento - usuário deverá definir nova data
                 break;
 
             case NAO_COMPARECEU:
                 agendamento.setStatus(Status.NAO_COMPARECEU);
                 // Aplicar taxa de não comparecimento se configurada
                 aplicarTaxaNaoComparecimento(agendamento);
+                break;
+
+            case VENCIDA:
+                agendamento.setStatus(Status.VENCIDA);
+                // Cobrança vencida - pode enviar notificação
+                break;
+
+            case PAGO:
+                agendamento.setStatus(Status.PAGO);
+                // Todas as cobranças foram pagas
                 break;
 
             default:
@@ -615,6 +705,10 @@ public class AgendamentoService {
             throw new IllegalArgumentException("Não é possível agendar para o passado.");
         }
 
+        // 1.1 Validar se o dia está bloqueado na organização (feriados/bloqueios)
+        validarBloqueioOrganizacao(novoAgendamento.getOrganizacao().getId(),
+                novoAgendamento.getDtAgendamento().toLocalDate());
+
         // 2. Calcular a Duração Total dos Serviços
         int duracaoTotalMinutos = novoAgendamento.getServicos().stream()
                 .mapToInt(Servico::getTempoEstimadoMinutos)
@@ -654,6 +748,25 @@ public class AgendamentoService {
 
         agendamento.marcarComoConcluido();
         return agendamentoRepository.save(agendamento);
+    }
+
+    /**
+     * Valida se a data está bloqueada por feriado ou bloqueio da organização
+     */
+    private void validarBloqueioOrganizacao(Long organizacaoId, LocalDate data) {
+        List<BloqueioOrganizacao> bloqueios = bloqueioOrganizacaoRepository
+                .findBloqueiosAtivosNaData(organizacaoId, data);
+
+        if (!bloqueios.isEmpty()) {
+            BloqueioOrganizacao primeiro = bloqueios.get(0);
+            String motivo = primeiro.getTitulo();
+            if (primeiro.getDescricao() != null && !primeiro.getDescricao().isEmpty()) {
+                motivo += " - " + primeiro.getDescricao();
+            }
+            throw new IllegalArgumentException(
+                    "Não é possível agendar para o dia " + data +
+                    ". Motivo: " + motivo);
+        }
     }
 
     private void validarDisponibilidade(Funcionario funcionario, LocalDateTime inicioAgendamento, LocalDateTime fimAgendamento, int duracaoTotalMinutos) {
@@ -725,13 +838,22 @@ public class AgendamentoService {
         }
     }
 
+    @Transactional
     public List<HorarioDisponivelResponse> getHorariosDisponiveis(DisponibilidadeRequest request) {
         // 1. Recuperar o Funcionário
         Funcionario funcionario = funcionarioRepository.findById(request.getFuncionarioId())
                 .orElseThrow(() -> new RuntimeException("Funcionário não encontrado."));
 
+        ConfigSistema config = TenantContext.getCurrentConfigSistema();
         // 2. Validar organização
-        validarOrganizacao(funcionario.getOrganizacao().getId());
+        validarOrganizacao(request.getOrganizacaoId());
+
+        // 2.1 Verificar se o dia está bloqueado na organização (feriados/bloqueios)
+        List<BloqueioOrganizacao> bloqueiosOrg = bloqueioOrganizacaoRepository
+                .findBloqueiosAtivosNaData(request.getOrganizacaoId(), request.getDataDesejada());
+        if (!bloqueiosOrg.isEmpty()) {
+            return new ArrayList<>(); // Dia bloqueado, sem horários disponíveis
+        }
 
         // 3. Calcular a Duração Total dos Serviços + Tolerância
         int duracaoServicos = request.getServicoIds().stream()
@@ -741,7 +863,7 @@ public class AgendamentoService {
                 .mapToInt(Servico::getTempoEstimadoMinutos)
                 .sum();
 
-        int duracaoTotalNecessaria = duracaoServicos + TOLERANCIA_MINUTOS;
+        int duracaoTotalNecessaria = duracaoServicos + config.getConfigAgendamento().getToleranciaAgendamento();
 
         // 4. Obter a JornadaDia para o dia da semana desejado
         DayOfWeek diaDaSemana = request.getDataDesejada().getDayOfWeek();
@@ -863,7 +985,7 @@ public class AgendamentoService {
                             ));
                         }
 
-                        ponteiroAtual = slotFim.plusMinutes(TOLERANCIA_MINUTOS);
+                        ponteiroAtual = slotFim.plusMinutes(config.getConfigAgendamento().getToleranciaAgendamento());
                         duracaoGapMinutos = java.time.Duration.between(ponteiroAtual, inicioBloqueioAtual).toMinutes();
                     }
                 }
@@ -889,7 +1011,7 @@ public class AgendamentoService {
                             ponteiroAtual.toLocalTime() + " - " + slotFim.toLocalTime()
                     ));
 
-                    ponteiroAtual = slotFim.plusMinutes(TOLERANCIA_MINUTOS);
+                    ponteiroAtual = slotFim.plusMinutes(config.getConfigAgendamento().getToleranciaAgendamento());
                     duracaoFinalGapMinutos = java.time.Duration.between(ponteiroAtual, fimTrabalho).toMinutes();
                 }
             }
@@ -1392,7 +1514,7 @@ public class AgendamentoService {
 //                .mapToInt(Servico::getTempoEstimadoMinutos)
 //                .sum();
 //
-//        int duracaoTotalNecessaria = duracaoServicos + TOLERANCIA_MINUTOS; // Adiciona a tolerância
+//        int duracaoTotalNecessaria = duracaoServicos + config.getConfigAgendamento().getToleranciaAgendamento(); // Adiciona a tolerância
 //
 //        // 3. Obter a Jornada de Trabalho para o dia desejado
 //        DayOfWeek diaDaSemana = request.getDataDesejada().getDayOfWeek();
@@ -1473,7 +1595,7 @@ public class AgendamentoService {
 //
 //
 //                    // Avança o ponteiro para o próximo slot possível (fim do serviço + tolerância)
-//                    ponteiroAtual = slotFim.plusMinutes(TOLERANCIA_MINUTOS);
+//                    ponteiroAtual = slotFim.plusMinutes(config.getConfigAgendamento().getToleranciaAgendamento());
 //                    duracaoGapMinutos = java.time.Duration.between(ponteiroAtual, inicioBloqueioAtual).toMinutes();
 //                }
 //            }
@@ -1496,7 +1618,7 @@ public class AgendamentoService {
 //                        slotFim.toLocalTime(),
 //                        ponteiroAtual.toLocalTime() + " - " + slotFim.toLocalTime()
 //                ));
-//                ponteiroAtual = slotFim.plusMinutes(TOLERANCIA_MINUTOS);
+//                ponteiroAtual = slotFim.plusMinutes(config.getConfigAgendamento().getToleranciaAgendamento());
 //                duracaoFinalGapMinutos = java.time.Duration.between(ponteiroAtual, fimDaJornada).toMinutes();
 //            }
 //        }

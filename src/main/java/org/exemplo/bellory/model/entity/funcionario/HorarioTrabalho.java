@@ -11,7 +11,9 @@ import java.time.LocalTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "horario_trabalho", schema = "app")
+@Table(name = "horario_trabalho", schema = "app", indexes = {
+        @Index(name = "idx_horario_trabalho_jornada_id", columnList = "jornada_dia_id")
+})
 @Getter
 @Setter
 @AllArgsConstructor

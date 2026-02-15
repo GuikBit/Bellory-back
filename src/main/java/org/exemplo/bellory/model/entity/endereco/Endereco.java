@@ -5,7 +5,10 @@ import lombok.*;
 import org.exemplo.bellory.model.entity.users.Cliente;
 
 @Entity
-@Table(name = "endereco", schema = "app")
+@Table(name = "endereco", schema = "app", indexes = {
+    @Index(name = "idx_endereco_cliente_id", columnList = "cliente_id"),
+    @Index(name = "idx_endereco_tipo", columnList = "tipo")
+})
 @Getter
 @Setter
 @NoArgsConstructor

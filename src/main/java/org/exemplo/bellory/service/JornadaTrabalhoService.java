@@ -47,7 +47,7 @@ public class JornadaTrabalhoService {
      * Cria ou atualiza uma jornada de trabalho para um dia específico
      */
     @Transactional
-    public JornadaDiaDTO criarOuAtualizarJornada(Long funcionarioId, JornadaDiaCreateUpdateDTO dto) {
+    public JornadaDiaDTO criarOuAtualizarJornada(Long funcionarioId, JornadaDiaDTO dto) {
         // Validações
         if (dto.getDiaSemana() == null || dto.getDiaSemana().trim().isEmpty()) {
             throw new IllegalArgumentException("O dia da semana é obrigatório.");

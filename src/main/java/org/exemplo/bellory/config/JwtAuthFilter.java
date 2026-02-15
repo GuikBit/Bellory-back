@@ -5,25 +5,36 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.exemplo.bellory.context.TenantContext;
+import org.exemplo.bellory.model.dto.ApiKeyUserInfo;
+import org.exemplo.bellory.model.entity.config.ConfigSistema;
+import org.exemplo.bellory.model.repository.config.ConfigSistemaRepository;
+import org.exemplo.bellory.service.ApiKeyService;
 import org.exemplo.bellory.service.CustomUserDetailsService;
 import org.exemplo.bellory.service.TokenService;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Optional;
 
 @Component
 public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final TokenService tokenService;
     private final CustomUserDetailsService userDetailsService;
+    private final ApiKeyService apiKeyService;
+    private final ConfigSistemaRepository configSistemaRepository;
 
-    public JwtAuthFilter(TokenService tokenService, CustomUserDetailsService userDetailsService) {
+    public JwtAuthFilter(TokenService tokenService, CustomUserDetailsService userDetailsService,
+                         ApiKeyService apiKeyService, ConfigSistemaRepository configSistemaRepository) {
         this.tokenService = tokenService;
         this.userDetailsService = userDetailsService;
+        this.apiKeyService = apiKeyService;
+        this.configSistemaRepository = configSistemaRepository;
     }
 
     @Override
@@ -53,25 +64,57 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         }
 
         try {
-            // Processar JWT apenas se não for OPTIONS
+            // NOVA LÓGICA: Tentar API Key primeiro
+            String apiKey = request.getHeader("X-API-Key");
+
+            if (apiKey != null) {
+                // Autenticação via API Key
+                ApiKeyUserInfo userInfo = apiKeyService.validateApiKey(apiKey);
+
+                if (userInfo != null) {
+                    // Configurar contexto do tenant
+                    TenantContext.setContext(
+                            userInfo.getOrganizacaoId(),
+                            userInfo.getUserId(),
+                            userInfo.getUsername(),
+                            userInfo.getRole()
+                    );
+                    carregarConfigSistema(userInfo.getOrganizacaoId());
+
+                    // Carregar UserDetails usando o CustomUserDetailsService
+                    UserDetails userDetails = userDetailsService.loadUserByUsername(userInfo.getUsername());
+
+                    if (userDetails != null && userDetails.isEnabled()) {
+                        var authentication = new UsernamePasswordAuthenticationToken(
+                                userDetails, null, userDetails.getAuthorities()
+                        );
+                        SecurityContextHolder.getContext().setAuthentication(authentication);
+                    }
+
+                    filterChain.doFilter(request, response);
+                    return;
+                }
+            }
+
+            // Autenticação JWT (código original)
             String token = recoverToken(request);
 
             if (token != null) {
                 String subject = tokenService.validateToken(token);
 
                 if (subject != null && !subject.isEmpty()) {
-                    // Extrair informações do token
                     Long organizacaoId = tokenService.getOrganizacaoIdFromToken(token);
                     Long userId = tokenService.getUserIdFromToken(token);
                     String role = tokenService.getRoleFromToken(token);
 
-                    // Armazenar no contexto do tenant
                     TenantContext.setContext(organizacaoId, userId, subject, role);
+                    carregarConfigSistema(organizacaoId);
 
-                    // Configurar autenticação do Spring Security
                     UserDetails user = userDetailsService.loadUserByUsername(subject);
                     if (user != null) {
-                        var authentication = new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
+                        var authentication = new UsernamePasswordAuthenticationToken(
+                                user, null, user.getAuthorities()
+                        );
                         SecurityContextHolder.getContext().setAuthentication(authentication);
                     }
                 }
@@ -80,8 +123,14 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             filterChain.doFilter(request, response);
 
         } finally {
-            // CRÍTICO: Limpar o contexto após a requisição
             TenantContext.clear();
+        }
+    }
+
+    private void carregarConfigSistema(Long organizacaoId) {
+        if (organizacaoId != null) {
+            configSistemaRepository.findByOrganizacaoId(organizacaoId)
+                    .ifPresent(TenantContext::setCurrentConfigSistema);
         }
     }
 

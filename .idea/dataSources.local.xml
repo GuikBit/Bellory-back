@@ -1,41 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="dataSourceStorageLocal" created-in="IU-243.26053.27">
-    <data-source name="dentista" uuid="2f6b4953-8e1c-4b98-883f-45ab194fee4e">
-      <database-info product="MySQL" version="8.0.32" jdbc-version="4.2" driver-name="MySQL Connector/J" driver-version="mysql-connector-java-8.0.25 (Revision: 08be9e9b4cba6aa115f9b27b215887af40b159e0)" dbms="MYSQL" exact-version="8.0.32" exact-driver-version="8.0">
-        <extra-name-characters>#@</extra-name-characters>
-        <identifier-quote-string>`</identifier-quote-string>
-      </database-info>
-      <case-sensitivity plain-identifiers="lower" quoted-identifiers="lower" />
-      <secret-storage>master_key</secret-storage>
-      <user-name>root</user-name>
-      <schema-mapping>
-        <introspection-scope>
-          <node kind="schema" qname="@" />
-        </introspection-scope>
-      </schema-mapping>
-    </data-source>
-    <data-source name="Bellory" uuid="3c45ca43-5037-4674-abcd-690951c5a6ec">
+  <component name="dataSourceStorageLocal" created-in="IU-253.29346.240">
+    <data-source name="Bellory" uuid="9771a632-bab7-4843-b84b-b9b91cf8dd32">
       <database-info product="PostgreSQL" version="17.5" jdbc-version="4.2" driver-name="PostgreSQL JDBC Driver" driver-version="42.7.3" dbms="POSTGRES" exact-version="17.5" exact-driver-version="42.7">
         <identifier-quote-string>&quot;</identifier-quote-string>
       </database-info>
       <case-sensitivity plain-identifiers="lower" quoted-identifiers="exact" />
       <secret-storage>master_key</secret-storage>
-      <user-name>bellory_dev</user-name>
+      <user-name>postgres</user-name>
       <schema-mapping>
         <introspection-scope>
-          <node negative="1">
-            <node kind="database" qname="@">
-              <node kind="schema" qname="@" />
-            </node>
-            <node kind="database" qname="bellory_dev">
-              <node kind="schema">
-                <name qname="admin" />
-                <name qname="app" />
-                <name qname="auto" />
-                <name qname="site" />
-              </node>
-            </node>
+          <node kind="database" qname="@">
+            <node kind="schema" negative="1" />
           </node>
         </introspection-scope>
       </schema-mapping>

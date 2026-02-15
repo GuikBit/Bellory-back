@@ -11,6 +11,7 @@ import org.exemplo.bellory.model.repository.Transacao.CobrancaRepository;
 import org.exemplo.bellory.model.repository.Transacao.CompraRepository;
 import org.exemplo.bellory.model.repository.Transacao.PagamentoRepository;
 import org.exemplo.bellory.model.repository.agendamento.AgendamentoRepository;
+import org.exemplo.bellory.service.financeiro.ContaReceberService;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -18,7 +19,9 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Serviço responsável por gerenciar o ciclo completo de transações:
@@ -31,6 +34,7 @@ public class TransacaoService {
     private final PagamentoRepository pagamentoRepository;
     private final CompraRepository compraRepository;
     private final AgendamentoRepository agendamentoRepository;
+    private final ContaReceberService contaReceberService;
 
     // Percentual de sinal padrão (pode ser configurável por organização)
     private static final BigDecimal PERCENTUAL_SINAL_PADRAO = new BigDecimal("30.00");
@@ -38,11 +42,13 @@ public class TransacaoService {
     public TransacaoService(CobrancaRepository cobrancaRepository,
                             PagamentoRepository pagamentoRepository,
                             CompraRepository compraRepository,
-                            AgendamentoRepository agendamentoRepository) {
+                            AgendamentoRepository agendamentoRepository,
+                            ContaReceberService contaReceberService) {
         this.cobrancaRepository = cobrancaRepository;
         this.pagamentoRepository = pagamentoRepository;
         this.compraRepository = compraRepository;
         this.agendamentoRepository = agendamentoRepository;
+        this.contaReceberService = contaReceberService;
     }
 
     // ========================================================================
@@ -171,9 +177,87 @@ public class TransacaoService {
         cobranca.setPermiteParcelamento(false); // Sinal normalmente não permite parcelamento
         cobranca.setObservacoes("Sinal para confirmação do agendamento (" + percentual + "%)");
 
-        return cobrancaRepository.save(cobranca);
+        cobranca = cobrancaRepository.save(cobranca);
+        contaReceberService.criarParaCobranca(cobranca);
+        return cobranca;
     }
 
+    @Transactional
+    public void criarSinal(Long agendamentoId, Long cobrancaId, BigDecimal porcentagem) {
+        // Buscar entidades
+        Agendamento agendamento = agendamentoRepository.findById(agendamentoId)
+                .orElseThrow(() -> new IllegalArgumentException("Agendamento não encontrado"));
+
+        Cobranca cobrancaOriginal = cobrancaRepository.findById(cobrancaId)
+                .orElseThrow(() -> new IllegalArgumentException("Cobrança não encontrada"));
+
+        // Validações
+//        if (cobrancaOriginal.getSubtipoCobrancaAgendamento() != null) {
+//            throw new IllegalArgumentException("Esta cobrança já foi dividida em sinal/restante");
+//        }
+
+        if (porcentagem.compareTo(BigDecimal.ZERO) <= 0 || porcentagem.compareTo(new BigDecimal("100")) >= 100) {
+            throw new IllegalArgumentException("O percentual do sinal deve estar entre 0 e 100");
+        }
+
+        // Calcular valores
+        BigDecimal valorSinal = cobrancaOriginal.getValor()
+                .multiply(porcentagem)
+                .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
+
+        BigDecimal valorRestante = cobrancaOriginal.getValor().subtract(valorSinal);
+
+        // Criar cobrança do sinal
+        Cobranca cobrancaSinal = new Cobranca();
+        cobrancaSinal.setOrganizacao(cobrancaOriginal.getOrganizacao());
+        cobrancaSinal.setCliente(cobrancaOriginal.getCliente());
+        cobrancaSinal.setAgendamento(agendamento);
+        cobrancaSinal.setValor(valorSinal);
+        cobrancaSinal.setStatusCobranca(Cobranca.StatusCobranca.PENDENTE);
+        cobrancaSinal.setTipoCobranca(Cobranca.TipoCobranca.AGENDAMENTO);
+        cobrancaSinal.setSubtipoCobrancaAgendamento(Cobranca.SubtipoCobrancaAgendamento.SINAL);
+        cobrancaSinal.setDtVencimento(cobrancaOriginal.getDtVencimento());
+        cobrancaSinal.setPercentualSinal(porcentagem);
+        cobrancaSinal.setPermiteParcelamento(false);
+        cobrancaSinal.setObservacoes("Sinal para confirmação do agendamento (" + porcentagem + "%)");
+
+        // Criar cobrança do restante
+//        Cobranca cobrancaRestante = new Cobranca();
+//        cobrancaRestante.setOrganizacao(cobrancaOriginal.getOrganizacao());
+//        cobrancaRestante.setCliente(cobrancaOriginal.getCliente());
+//        cobrancaRestante.setAgendamento(agendamento);
+//        cobrancaRestante.setValor(valorRestante);
+//        cobrancaRestante.setStatusCobranca(Cobranca.StatusCobranca.PENDENTE);
+//        cobrancaRestante.setTipoCobranca(Cobranca.TipoCobranca.AGENDAMENTO);
+//        cobrancaRestante.setSubtipoCobrancaAgendamento(Cobranca.SubtipoCobrancaAgendamento.RESTANTE);
+//        cobrancaRestante.setDtVencimento(agendamento.getDtAgendamento().toLocalDate());
+//        cobrancaRestante.setPermiteParcelamento(true);
+//        cobrancaRestante.setObservacoes("Pagamento final do agendamento");
+        cobrancaOriginal.setValor(valorRestante);
+        cobrancaOriginal.setSubtipoCobrancaAgendamento(Cobranca.SubtipoCobrancaAgendamento.RESTANTE);
+        cobrancaOriginal.setPermiteParcelamento(false);
+
+        // Estabelecer relacionamento entre as cobranças
+        cobrancaSinal.setCobrancaRelacionada(cobrancaOriginal);
+        cobrancaOriginal.setCobrancaRelacionada(cobrancaSinal);
+
+        // Salvar novas cobranças
+        cobrancaRepository.save(cobrancaSinal);
+        cobrancaRepository.save(cobrancaOriginal);
+
+        // Inativar/remover cobrança original
+        // cobrancaRepository.delete(cobrancaOriginal);
+        // OU se preferir manter histórico:
+        // cobrancaOriginal.setStatusCobranca(Cobranca.StatusCobranca.CANCELADA);
+        // cobrancaRepository.save(cobrancaOriginal);
+
+        // Atualizar agendamento
+        agendamento.setRequerSinal(false);
+        agendamento.setPercentualSinal(porcentagem);
+        agendamentoRepository.save(agendamento);
+
+//        return Arrays.asList(cobrancaSinal, cobrancaOriginal);
+    }
     /**
      * Cria cobrança do valor restante
      */
@@ -191,7 +275,9 @@ public class TransacaoService {
         cobranca.setPermiteParcelamento(true); // Restante pode permitir parcelamento
         cobranca.setObservacoes("Pagamento final do agendamento");
 
-        return cobrancaRepository.save(cobranca);
+        cobranca = cobrancaRepository.save(cobranca);
+        contaReceberService.criarParaCobranca(cobranca);
+        return cobranca;
     }
 
     /**
@@ -211,7 +297,9 @@ public class TransacaoService {
         cobranca.setPermiteParcelamento(true);
         cobranca.setObservacoes("Pagamento integral do agendamento");
 
-        return cobrancaRepository.save(cobranca);
+        cobranca = cobrancaRepository.save(cobranca);
+        contaReceberService.criarParaCobranca(cobranca);
+        return cobranca;
     }
 
     // ========================================================================
@@ -248,8 +336,7 @@ public class TransacaoService {
      * @return Pagamento criado
      */
     @Transactional
-    public Pagamento processarPagamento(Long cobrancaId, BigDecimal valorPagamento,
-                                        Pagamento.FormaPagamento formaPagamento) {
+    public Pagamento processarPagamento(Long cobrancaId, BigDecimal valorPagamento, Pagamento.FormaPagamento formaPagamento) {
 
         Cobranca cobranca = cobrancaRepository.findById(cobrancaId)
                 .orElseThrow(() -> new IllegalArgumentException("Cobrança não encontrada."));
@@ -286,28 +373,40 @@ public class TransacaoService {
         cobranca.adicionarPagamento(pagamentoSalvo);
         cobrancaRepository.save(cobranca);
 
+        // Integração financeira: marcar ContaReceber como recebida
+        contaReceberService.receberPorCobranca(cobranca, valorPagamento, formaPagamento.name());
+
         // Se for sinal e foi totalmente pago, confirmar agendamento
         if (cobranca.isSinal() && cobranca.isPaga()) {
             confirmarAgendamentoPorPagamentoSinal(cobranca.getAgendamento());
         }
 
+        atualizarStatusPagamentoAgendamento(cobranca.getAgendamento().getId());
+
         return pagamentoSalvo;
+    }
+
+    private void atualizarStatusPagamentoAgendamento(long agendamentoId){
+        Optional<Agendamento> agendamento = agendamentoRepository.findById(agendamentoId);
+
+
+
     }
 
     /**
      * MÉTODO LEGADO: Mantido para compatibilidade
      */
-    @Transactional
-    public Pagamento processarPagamento(Long cobrancaId,
-                                        Pagamento.MetodoPagamento metodoPagamento,
-                                        BigDecimal valorPagamento,
-                                        Long cartaoCreditoId) {
-
-        // Converter MetodoPagamento para FormaPagamento
-        Pagamento.FormaPagamento formaPagamento = converterMetodoParaForma(metodoPagamento);
-
-        return processarPagamento(cobrancaId, valorPagamento, formaPagamento);
-    }
+//    @Transactional
+//    public Pagamento processarPagamento(Long cobrancaId,
+//                                        Pagamento.MetodoPagamento metodoPagamento,
+//                                        BigDecimal valorPagamento,
+//                                        Long cartaoCreditoId) {
+//
+//        // Converter MetodoPagamento para FormaPagamento
+//        Pagamento.FormaPagamento formaPagamento = converterMetodoParaForma(metodoPagamento);
+//
+//        return processarPagamento(cobrancaId, valorPagamento, formaPagamento);
+//    }
 
     /**
      * Confirma agendamento quando o sinal é pago
@@ -380,6 +479,9 @@ public class TransacaoService {
         cobranca.setObservacoes(cobranca.getObservacoes() + "\nCANCELADO: " + motivo);
         cobrancaRepository.save(cobranca);
 
+        // Integração financeira: cancelar ContaReceber vinculada
+        contaReceberService.cancelarPorCobranca(cobranca);
+
         // Se cancelar sinal, cancelar também o restante
         if (cobranca.isSinal() && cobranca.getCobrancaRelacionada() != null) {
             Cobranca cobrancaRestante = cobranca.getCobrancaRelacionada();
@@ -388,6 +490,7 @@ public class TransacaoService {
                     cobrancaRestante.getObservacoes() + "\nCANCELADO: Sinal cancelado"
             );
             cobrancaRepository.save(cobrancaRestante);
+            contaReceberService.cancelarPorCobranca(cobrancaRestante);
         }
     }
 
@@ -415,6 +518,9 @@ public class TransacaoService {
         // Estornar a cobrança
         cobranca.estornar();
         cobrancaRepository.save(cobranca);
+
+        // Integração financeira: estornar ContaReceber e lançamentos vinculados
+        contaReceberService.estornarPorCobranca(cobranca);
 
         // Atualizar status da transação original
         atualizarStatusTransacaoOriginal(cobranca);

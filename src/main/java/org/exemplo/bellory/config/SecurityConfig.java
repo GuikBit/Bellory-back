@@ -87,26 +87,34 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(
                                 // Rotas existentes
-                                "/api/auth/**",
-                                "/api/test/**",
-                                "/api/servico/**",
-                                "/api/funcionario/**",
-                                "/api/agendamento/**",
-                                "/api/produto/**",
-                                "/api/cliente/**",
-                                "/api/dashboard/**",
+                                "/api/v1/auth/**",
+                                "/api/v1/test/**",
+                                "/api/v1/servico/**",
+                                "/api/v1/funcionario/**",
+                                "/api/v1/agendamento/**",
+                                "/api/v1/produto/**",
+                                "/api/v1/cliente/**",
+                                "/api/v1/dashboard/**",
 
-                               "/api/public/site/**",
+                               "/api/v1/public/site/**",
 
-                                "/api/organizacao",
-                                "/api/organizacao/verificar-cnpj/**",
-                                "/api/organizacao/verificar-email/**",
-                                "/api/organizacao/verificar-username/**",
+                                // Tracking endpoint (publico, dados anonimos com rate limiting)
+                                "/api/v1/tracking",
 
-                                "/api/email/teste",
+                                "/api/v1/instances/by-name/**",
+
+                                "/api/v1/organizacao",
+                                "/api/v1/organizacao/verificar-cnpj/**",
+                                "/api/v1/organizacao/verificar-email/**",
+                                "/api/v1/organizacao/verificar-username/**",
+
+                                "/api/v1/email/teste",
                                 // NOVAS ROTAS MULTI-TENANT
-                                "/api/pages/**",        // Páginas multi-tenant (públicas)
-                                "/api/tenant/**",       // Gestão de tenants (pode precisar auth dependendo do caso)
+                                "/api/v1/pages/**",        // Páginas multi-tenant (públicas)
+                                "/api/v1/tenant/**",       // Gestão de tenants (pode precisar auth dependendo do caso)
+
+                                // Versao da API (publico)
+                                "/api/v1/version",
 
                                 // Rotas de documentação e health check
                                 "/v3/api-docs/**",
@@ -116,9 +124,11 @@ public class SecurityConfig {
                                 "/swagger-resources/**",
                                 "/webjars/**",
                                 "/actuator/**",
-                                "/health"
+                                "/health",
+                                "/scalar.html"
                         ).permitAll()
                         .requestMatchers("/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/v1/admin/**").hasAnyRole("SUPERADMIN", "ADMIN")
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)

@@ -16,5 +16,6 @@ public class PagamentoAgendamentoDTO {
     private String metodoPagamento;
     private Long cartaoCreditoId;
     private String observacoes;
+    private Long cobrancaId;
 
 }

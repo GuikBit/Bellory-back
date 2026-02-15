@@ -4,12 +4,12 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.exemplo.bellory.context.TenantContext;
+import org.exemplo.bellory.model.dto.instancia.InstanceByNameDTO;
 import org.exemplo.bellory.model.dto.instancia.InstanceCreateDTO;
 import org.exemplo.bellory.model.dto.instancia.InstanceDTO;
 import org.exemplo.bellory.model.dto.instancia.InstanceUpdateDTO;
 import org.exemplo.bellory.model.dto.sendMessage.whatsapp.SendTextMessageDTO;
-import org.exemplo.bellory.model.entity.instancia.Instance;
-import org.exemplo.bellory.model.entity.instancia.InstanceStatus;
+import org.exemplo.bellory.model.entity.instancia.*;
 import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 import org.exemplo.bellory.model.repository.instance.InstanceRepository;
 import org.exemplo.bellory.model.repository.organizacao.OrganizacaoRepository;
@@ -22,6 +22,7 @@ import org.springframework.web.client.RestTemplate;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
+
 @Service
 @Slf4j
 public class InstanceService {
@@ -31,9 +32,11 @@ public class InstanceService {
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
 
-    private String evolutionApiUrl = "https://wa.bellory.com.br";
+    @Value("${evolution.api.url:https://wa.bellory.com.br}")
+    private String evolutionApiUrl;
 
-    private String evolutionApiKey = "0626f19f09bd356cc21037164c7c3ca51752fef8";
+    @Value("${evolution.api.key:0626f19f09bd356cc21037164c7c3ca51752fef8}")
+    private String evolutionApiKey;
 
     public InstanceService(
             InstanceRepository instanceRepository,
@@ -46,66 +49,89 @@ public class InstanceService {
         this.objectMapper = objectMapper;
     }
 
-    /**
-     * Criar nova instância no Evolution API e salvar no banco
-     */
-    @Transactional
-    public InstanceDTO createInstance(InstanceCreateDTO dto) {
+    // ================================================================
+    //  HEADERS — apikey como header (conforme Postman collection auth)
+    // ================================================================
 
-        // Validar organização do contexto
-        Long organizacaoId = getOrganizacaoIdFromContext();
-        Organizacao organizacao = organizacaoRepository.findById(organizacaoId)
+    private HttpHeaders createHeaders() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("apikey", evolutionApiKey);
+        return headers;
+    }
+
+    // ================================================================
+    //  CREATE INSTANCE
+    //  POST {{baseUrl}}/instance/create
+    // ================================================================
+
+    @Transactional
+    public InstanceDTO createInstance(InstanceCreateDTO dto, boolean interno, long orgId) {
+
+        Long organizacaoId = 0L;
+        if (!interno) {
+            organizacaoId = getOrganizacaoIdFromContext();
+        }
+
+        Organizacao organizacao = organizacaoRepository.findById(interno ? orgId : organizacaoId)
                 .orElseThrow(() -> new IllegalArgumentException("Organização não encontrada"));
 
-        // Verificar se já existe instância com esse nome
         if (instanceRepository.existsByInstanceName(dto.getInstanceName())) {
             throw new IllegalArgumentException("Já existe uma instância com este nome");
         }
 
         try {
-            // 1. Criar instância no Evolution API
-            String url = evolutionApiUrl + "/instance/create";
-            HttpHeaders headers = createHeaders();
+            // ---- Montar body conforme Postman collection ----
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("instanceName", dto.getInstanceName());
+            body.put("qrcode", true);
+            body.put("integration", "WHATSAPP-BAILEYS");
 
-            Map<String, Object> requestBody = new HashMap<>();
-            requestBody.put("instanceName", dto.getInstanceName());
-            requestBody.put("qrcode", true);
-            requestBody.put("integration", "WHATSAPP-BAILEYS");
-            requestBody.put("number", dto.getInstanceNumber().toString());
-            requestBody.put("alwaysOnline", false);
-            requestBody.put("readMessages", false);
-            requestBody.put("syncFullHistory", false);
-            requestBody.put("readStatus", false);
-            requestBody.put("groupsIgnore", false);
-            requestBody.put("rejectCall", true);
+            // number (opcional)
+            if (dto.getInstanceNumber() != null && !dto.getInstanceNumber().isEmpty()) {
+                body.put("number", dto.getInstanceNumber());
+            }
 
+            // settings inline no create (conforme Postman)
+            body.put("rejectCall", dto.getRejectCall() != null ? dto.getRejectCall() : false);
+            body.put("msgCall", dto.getMsgCall() != null ? dto.getMsgCall() : "");
+            body.put("groupsIgnore", dto.getGroupsIgnore() != null ? dto.getGroupsIgnore() : false);
+            body.put("alwaysOnline", dto.getAlwaysOnline() != null ? dto.getAlwaysOnline() : false);
+            body.put("readMessages", dto.getReadMessages() != null ? dto.getReadMessages() : false);
+            body.put("readStatus", dto.getReadStatus() != null ? dto.getReadStatus() : false);
+            body.put("syncFullHistory", false);
 
-            Map<String, Object> webhook = new HashMap<>();
-            webhook.put("url", "https://auto.bellory.com.br/webhook/webhook/whatsapp"); // URL do seu endpoint
+            // webhook — objeto aninhado conforme Postman
+            Map<String, Object> webhook = new LinkedHashMap<>();
+            webhook.put("url", dto.getWebhookUrl() != null
+                    ? dto.getWebhookUrl()
+                    : "https://auto.bellory.com.br/webhook/whatsapp");
             webhook.put("byEvents", false);
             webhook.put("base64", false);
 
-            Map<String, String> webhookHeaders = new HashMap<>();
-            webhookHeaders.put("authorization", "Bearer 0626f19f09bd356cc21037164c7c3ca51752fef8");
+            Map<String, String> webhookHeaders = new LinkedHashMap<>();
+            webhookHeaders.put("autorization", "Bearer " + evolutionApiKey);  // "autorization" — typo da Evolution API
             webhookHeaders.put("Content-Type", "application/json");
             webhook.put("headers", webhookHeaders);
 
-            List<String> events = Arrays.asList(
-                    "MESSAGES_UPSERT"
-            );
+            List<String> events = dto.getWebhookEvents() != null && !dto.getWebhookEvents().isEmpty()
+                    ? dto.getWebhookEvents()
+                    : Arrays.asList("MESSAGES_UPSERT");
             webhook.put("events", events);
 
-            requestBody.put("webhook", webhook);
+            body.put("webhook", webhook);
 
-            HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
+            // ---- Chamada à Evolution API ----
+            String url = evolutionApiUrl + "/instance/create";
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, createHeaders());
             ResponseEntity<String> response = restTemplate.postForEntity(url, request, String.class);
 
-            // Parsear resposta
-            JsonNode jsonResponse = objectMapper.readTree(response.getBody());
+            log.info("Evolution API /instance/create response: {}", response.getStatusCode());
 
+            JsonNode jsonResponse = objectMapper.readTree(response.getBody());
             JsonNode instanceNode = jsonResponse.path("instance");
 
-            // 2. Criar entidade no banco de dados
+            // ---- Salvar no banco de dados ----
             Instance instance = new Instance();
             instance.setInstanceId(instanceNode.path("instanceId").asText());
             instance.setInstanceName(instanceNode.path("instanceName").asText());
@@ -113,8 +139,31 @@ public class InstanceService {
             instance.setOrganizacao(organizacao);
             instance.setDescription(dto.getDescription());
             instance.setPersonality(dto.getPersonality());
+            instance.setAtivo(false);
+
+            // ✅ Status inicial = DISCONNECTED (aguardando QR code scan)
+            instance.setStatus(InstanceStatus.DISCONNECTED);
+
+            // Inicializar Settings com valores do DTO
+            Settings settings = new Settings();
+            settings.setRejectCall(dto.getRejectCall() != null ? dto.getRejectCall() : false);
+            settings.setMsgCall(dto.getMsgCall());
+            settings.setGroupsIgnore(dto.getGroupsIgnore() != null ? dto.getGroupsIgnore() : false);
+            settings.setAlwaysOnline(dto.getAlwaysOnline() != null ? dto.getAlwaysOnline() : false);
+            settings.setReadMessages(dto.getReadMessages() != null ? dto.getReadMessages() : false);
+            settings.setReadStatus(dto.getReadStatus() != null ? dto.getReadStatus() : false);
+            instance.setSettings(settings);
+
+            // Inicializar WebhookConfig
+            WebhookConfig webhookConfig = new WebhookConfig();
+            webhookConfig.setUrl((String) webhook.get("url"));
+            webhookConfig.setEnabled(dto.getWebhookEnabled() != null ? dto.getWebhookEnabled() : true);
+            webhookConfig.setEvents(events);
+            instance.setWebhookConfig(webhookConfig);
 
             Instance savedInstance = instanceRepository.save(instance);
+
+            log.info("Instância criada com sucesso: {} (ID: {})", savedInstance.getInstanceName(), savedInstance.getId());
 
             return new InstanceDTO(savedInstance);
 
@@ -124,101 +173,72 @@ public class InstanceService {
         }
     }
 
-    /**
-     * Listar todas as instâncias da organização
-     */
-    /**
-     * Listar todas as instâncias da organização com dados do Evolution API
-     */
+    // ================================================================
+    //  GET ALL INSTANCES
+    //  GET {{baseUrl}}/instance/fetchInstances
+    // ================================================================
+
     @Transactional(readOnly = true)
     public List<InstanceDTO> getAllInstances() {
         Long organizacaoId = getOrganizacaoIdFromContext();
 
-        // Buscar instâncias com EAGER fetch para evitar lazy loading
         List<Instance> instances = instanceRepository.findByOrganizacaoIdWithRelations(organizacaoId);
 
-        // Buscar TODAS as instâncias do Evolution API de uma vez
         Map<String, JsonNode> evolutionDataMap = fetchAllEvolutionInstances();
 
         return instances.stream()
                 .map(instance -> {
                     InstanceDTO dto = new InstanceDTO(instance);
-
-                    // Buscar dados do Evolution API pelo instanceName
                     JsonNode evolutionData = evolutionDataMap.get(instance.getInstanceName());
                     if (evolutionData != null) {
                         populateFromEvolutionData(dto, evolutionData);
                     }
-
                     return dto;
                 })
                 .collect(Collectors.toList());
     }
 
-    /**
-     * Busca todas as instâncias do Evolution API de uma vez
-     */
     private Map<String, JsonNode> fetchAllEvolutionInstances() {
         try {
             String url = evolutionApiUrl + "/instance/fetchInstances";
-            HttpHeaders headers = createHeaders();
-            HttpEntity<Void> request = new HttpEntity<>(headers);
+            HttpEntity<Void> request = new HttpEntity<>(createHeaders());
 
-            ResponseEntity<String> response = restTemplate.exchange(
-                    url, HttpMethod.GET, request, String.class
-            );
-
+            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, request, String.class);
             JsonNode jsonResponse = objectMapper.readTree(response.getBody());
-            Map<String, JsonNode> dataMap = new HashMap<>();
 
-            // Verificar se a resposta é um array
+            Map<String, JsonNode> dataMap = new HashMap<>();
             if (jsonResponse.isArray()) {
                 jsonResponse.forEach(node -> {
-                    String instanceName = node.path("name").asText();
-//                    String instanceName = instanceNode.path("instanceName").asText();
-
-                    if (!instanceName.isEmpty()) {
-                        dataMap.put(instanceName, node);
+                    String name = node.path("name").asText("");
+                    if (!name.isEmpty()) {
+                        dataMap.put(name, node);
                     }
                 });
-            } else if (!jsonResponse.isMissingNode()) {
-                // Se for um objeto único
-                JsonNode instanceNode = jsonResponse.path("instance");
-                String instanceName = instanceNode.path("instanceName").asText();
-
-                if (!instanceName.isEmpty()) {
-                    dataMap.put(instanceName, jsonResponse);
-                }
             }
 
             log.info("Buscadas {} instâncias do Evolution API", dataMap.size());
             return dataMap;
 
         } catch (Exception e) {
-            log.error("Erro ao buscar todas as instâncias do Evolution API: {}", e.getMessage(), e);
+            log.error("Erro ao buscar instâncias do Evolution API: {}", e.getMessage());
             return new HashMap<>();
         }
     }
 
     private void populateFromEvolutionData(InstanceDTO dto, JsonNode evolutionData) {
         try {
-            // Campos principais da instância
             dto.setInstanceId(evolutionData.path("id").asText(dto.getInstanceId()));
             dto.setInstanceName(evolutionData.path("name").asText(dto.getInstanceName()));
             dto.setIntegration(evolutionData.path("integration").asText(dto.getIntegration()));
 
-            // Status da conexão
             String connectionStatus = evolutionData.path("connectionStatus").asText("close");
             dto.setStatus(mapConnectionStatus(connectionStatus));
 
-            // Dados do perfil do WhatsApp
+            // Phone number
             String ownerJid = evolutionData.path("ownerJid").asText(null);
             if (ownerJid != null && !ownerJid.isEmpty()) {
-                String phoneNumber = ownerJid.split("@")[0];
-                dto.setPhoneNumber(phoneNumber);
+                dto.setPhoneNumber(ownerJid.split("@")[0]);
             }
-
-            // Número formatado (sobrescreve se existir)
             String number = evolutionData.path("number").asText(null);
             if (number != null && !number.isEmpty()) {
                 dto.setPhoneNumber(number);
@@ -226,90 +246,48 @@ public class InstanceService {
 
             dto.setProfileName(evolutionData.path("profileName").asText(null));
             dto.setProfilePictureUrl(evolutionData.path("profilePicUrl").asText(null));
-
-            // Campos adicionais
             dto.setToken(evolutionData.path("token").asText(null));
             dto.setClientName(evolutionData.path("clientName").asText(null));
             dto.setBusinessId(evolutionData.path("businessId").asText(null));
 
-            // Parsing de datas ISO 8601
             dto.setDisconnectionAt(parseIsoDateTime(evolutionData.path("disconnectionAt").asText(null)));
             dto.setCreatedAt(parseIsoDateTime(evolutionData.path("createdAt").asText(null)));
             dto.setUpdatedAt(parseIsoDateTime(evolutionData.path("updatedAt").asText(null)));
 
-            // Configurações (Setting object)
-            JsonNode settings = evolutionData.path("Setting");
-//            if (!settings.isMissingNode() && !settings.isNull()) {
-//                dto.setRejectCall(settings.path("rejectCall").asBoolean(false));
-//                dto.setMsgCall(settings.path("msgCall").asText(""));
-//                dto.setGroupsIgnore(settings.path("groupsIgnore").asBoolean(false));
-//                dto.setAlwaysOnline(settings.path("alwaysOnline").asBoolean(false));
-//                dto.setReadMessages(settings.path("readMessages").asBoolean(false));
-//                dto.setReadStatus(settings.path("readStatus").asBoolean(false));
-//            }
+            // Settings do Evolution (complementar ao banco)
+            JsonNode settingsNode = evolutionData.path("Setting");
+            if (!settingsNode.isMissingNode() && !settingsNode.isNull()) {
+                InstanceDTO.Settings s = dto.getSettings() != null ? dto.getSettings() : new InstanceDTO.Settings();
+                if (s.getRejectCall() == null) s.setRejectCall(settingsNode.path("rejectCall").asBoolean(false));
+                if (s.getMsgCall() == null) s.setMsgCall(settingsNode.path("msgCall").asText(""));
+                if (s.getGroupsIgnore() == null) s.setGroupsIgnore(settingsNode.path("groupsIgnore").asBoolean(false));
+                if (s.getAlwaysOnline() == null) s.setAlwaysOnline(settingsNode.path("alwaysOnline").asBoolean(false));
+                if (s.getReadMessages() == null) s.setReadMessages(settingsNode.path("readMessages").asBoolean(false));
+                if (s.getReadStatus() == null) s.setReadStatus(settingsNode.path("readStatus").asBoolean(false));
+                dto.setSettings(s);
+            }
 
-            // Contadores (_count)
+            // Counts
             JsonNode count = evolutionData.path("_count");
-            if (!count.isMissingNode() && !count.isNull()) {
+            if (!count.isMissingNode()) {
                 dto.setMessageCount(count.path("Message").asInt(0));
                 dto.setContactCount(count.path("Contact").asInt(0));
                 dto.setChatCount(count.path("Chat").asInt(0));
             }
 
-            // Determinar se está ativa baseado no status
             InstanceStatus currentStatus = dto.getStatus();
-            dto.setIsActive(currentStatus == InstanceStatus.CONNECTED ||
-                    currentStatus == InstanceStatus.OPEN);
-
-            // QR Code será buscado APENAS quando solicitado individualmente
-            // Não buscar aqui para evitar N+1 queries
+            dto.setIsActive(currentStatus == InstanceStatus.CONNECTED || currentStatus == InstanceStatus.OPEN);
             dto.setQrcode(null);
 
         } catch (Exception e) {
-            log.error("Erro ao preencher dados da Evolution API para instância {}: {}",
-                    dto.getInstanceName(), e.getMessage(), e);
+            log.error("Erro ao preencher dados da Evolution API para {}: {}", dto.getInstanceName(), e.getMessage());
         }
     }
 
-    /**
-     * Parse de datas ISO 8601 com timezone
-     */
-    private LocalDateTime parseIsoDateTime(String dateTimeStr) {
-        if (dateTimeStr == null || dateTimeStr.isEmpty()) {
-            return null;
-        }
+    // ================================================================
+    //  GET INSTANCE BY ID
+    // ================================================================
 
-        try {
-            // Remover timezone e milissegundos extras para parsing
-            // De: "2025-12-05T17:12:24.681Z" para "2025-12-05T17:12:24"
-            if (dateTimeStr.contains(".")) {
-                dateTimeStr = dateTimeStr.substring(0, dateTimeStr.indexOf('.'));
-            } else if (dateTimeStr.endsWith("Z")) {
-                dateTimeStr = dateTimeStr.substring(0, dateTimeStr.length() - 1);
-            }
-
-            return LocalDateTime.parse(dateTimeStr);
-        } catch (Exception e) {
-            log.debug("Erro ao parsear data/hora: {} - {}", dateTimeStr, e.getMessage());
-            return null;
-        }
-    }
-
-    private InstanceStatus mapConnectionStatus(String connectionStatus) {
-        if (connectionStatus == null) {
-            return InstanceStatus.DISCONNECTED;
-        }
-
-        return switch (connectionStatus.toLowerCase()) {
-            case "open" -> InstanceStatus.OPEN;
-            case "connecting" -> InstanceStatus.CONNECTING;
-            case "close", "closed" -> InstanceStatus.DISCONNECTED;
-            default -> InstanceStatus.ERROR;
-        };
-    }
-    /**
-     * Buscar instância por ID
-     */
     @Transactional(readOnly = true)
     public InstanceDTO getInstanceById(Long id) {
         Instance instance = findInstanceById(id);
@@ -317,9 +295,11 @@ public class InstanceService {
         return new InstanceDTO(instance);
     }
 
-    /**
-     * Atualizar instância
-     */
+    // ================================================================
+    //  UPDATE INSTANCE
+    //  Persiste no banco + sincroniza Settings e Webhook com Evolution
+    // ================================================================
+
     @Transactional
     public InstanceDTO updateInstance(Long id, InstanceUpdateDTO dto) {
         log.info("Atualizando instância ID: {}", id);
@@ -328,34 +308,77 @@ public class InstanceService {
         validarOrganizacao(instance.getOrganizacao().getId());
 
         try {
-            // Atualizar campos locais
-//            if (dto.getWebhookUrl() != null) instance.setWebhookUrl(dto.getWebhookUrl());
-//            if (dto.getWebhookEnabled() != null) instance.setWebhookEnabled(dto.getWebhookEnabled());
-//            if (dto.getRejectCall() != null) instance.setRejectCall(dto.getRejectCall());
-//            if (dto.getMsgCall() != null) instance.setMsgCall(dto.getMsgCall());
-//            if (dto.getGroupsIgnore() != null) instance.setGroupsIgnore(dto.getGroupsIgnore());
-//            if (dto.getAlwaysOnline() != null) instance.setAlwaysOnline(dto.getAlwaysOnline());
-//            if (dto.getReadMessages() != null) instance.setReadMessages(dto.getReadMessages());
-//            if (dto.getReadStatus() != null) instance.setReadStatus(dto.getReadStatus());
-//            if (dto.getIsActive() != null) instance.setIsActive(dto.getIsActive());
-            if (dto.getDescription() != null) instance.setDescription(dto.getDescription());
-
-            if (dto.getWebhookEvents() != null) {
-//                instance.setWebhookEvents(dto.getWebhookEvents().toString());
+            // ---- Description / Personality ----
+            if (dto.getDescription() != null) {
+                instance.setDescription(dto.getDescription());
+            }
+            if (dto.getPersonality() != null) {
+                instance.setPersonality(dto.getPersonality());
+            }
+            if(dto.getAtivo() != null){
+                instance.setAtivo(dto.getAtivo());
             }
 
-            // Atualizar settings no Evolution API
-            configureSettings(instance);
+            // ---- Settings (banco) ----
+            boolean settingsChanged = false;
+            Settings settings = instance.getSettings();
+            if (settings == null) {
+                settings = new Settings();
+                instance.setSettings(settings);
+            }
+            if (dto.getRejectCall() != null)   { settings.setRejectCall(dto.getRejectCall());     settingsChanged = true; }
+            if (dto.getMsgCall() != null)       { settings.setMsgCall(dto.getMsgCall());           settingsChanged = true; }
+            if (dto.getGroupsIgnore() != null)  { settings.setGroupsIgnore(dto.getGroupsIgnore());settingsChanged = true; }
+            if (dto.getAlwaysOnline() != null)  { settings.setAlwaysOnline(dto.getAlwaysOnline());settingsChanged = true; }
+            if (dto.getReadMessages() != null)  { settings.setReadMessages(dto.getReadMessages());settingsChanged = true; }
+            if (dto.getReadStatus() != null)    { settings.setReadStatus(dto.getReadStatus());    settingsChanged = true; }
 
-            // Atualizar webhook no Evolution API
-            if (dto.getWebhookUrl() != null || dto.getWebhookEnabled() != null) {
-                configureWebhook(instance);
+            // ---- Tools (banco apenas — não tem equivalente na Evolution API) ----
+            if (dto.getTools() != null) {
+                Tools tools = instance.getTools();
+                if (tools == null) {
+                    tools = new Tools();
+                    instance.setTools(tools);
+                }
+                InstanceUpdateDTO.ToolsDTO t = dto.getTools();
+                if (t.getGetServices() != null)          tools.setGetServices(t.getGetServices());
+                if (t.getGetProfessional() != null)      tools.setGetProfessional(t.getGetProfessional());
+                if (t.getGetProducts() != null)          tools.setGetProducts(t.getGetProducts());
+                if (t.getGetAvaliableSchedules() != null)tools.setGetAvaliableSchedules(t.getGetAvaliableSchedules());
+                if (t.getPostScheduling() != null)       tools.setPostScheduling(t.getPostScheduling());
+                if (t.getSendTextMessage() != null)      tools.setSendTextMessage(t.getSendTextMessage());
+                if (t.getSendMediaMessage() != null)     tools.setSendMediaMessage(t.getSendMediaMessage());
+                if (t.getPostConfirmations() != null)    tools.setPostConfirmations(t.getPostConfirmations());
+                if (t.getPostCancellations() != null)    tools.setPostCancellations(t.getPostCancellations());
+
             }
 
-            Instance updatedInstance = instanceRepository.save(instance);
-            log.info("Instância atualizada com sucesso: {}", updatedInstance.getInstanceName());
+            // ---- Webhook (banco) ----
+            boolean webhookChanged = false;
+            if (dto.getWebhookUrl() != null || dto.getWebhookEnabled() != null || dto.getWebhookEvents() != null) {
+                WebhookConfig wc = instance.getWebhookConfig();
+                if (wc == null) {
+                    wc = new WebhookConfig();
+                    instance.setWebhookConfig(wc);
+                }
+                if (dto.getWebhookUrl() != null)     { wc.setUrl(dto.getWebhookUrl());         webhookChanged = true; }
+                if (dto.getWebhookEnabled() != null)  { wc.setEnabled(dto.getWebhookEnabled()); webhookChanged = true; }
+                if (dto.getWebhookEvents() != null)   { wc.setEvents(dto.getWebhookEvents());   webhookChanged = true; }
+            }
 
-            return new InstanceDTO(updatedInstance);
+            // ---- Salvar no banco ----
+            Instance saved = instanceRepository.save(instance);
+
+            // ---- Sincronizar com Evolution API ----
+            if (settingsChanged) {
+                syncSettingsToEvolution(saved);
+            }
+            if (webhookChanged) {
+                syncWebhookToEvolution(saved);
+            }
+
+            log.info("Instância atualizada com sucesso: {}", saved.getInstanceName());
+            return new InstanceDTO(saved);
 
         } catch (Exception e) {
             log.error("Erro ao atualizar instância: {}", e.getMessage(), e);
@@ -363,9 +386,119 @@ public class InstanceService {
         }
     }
 
-    /**
-     * Deletar instância
-     */
+    // ================================================================
+    //  SYNC SETTINGS → Evolution API
+    //  POST {{baseUrl}}/settings/set/{{instance}}
+    //
+    //  Body (FLAT — conforme Postman collection):
+    //  {
+    //      "rejectCall": true,
+    //      "msgCall": "I do not accept calls",
+    //      "groupsIgnore": false,
+    //      "alwaysOnline": true,
+    //      "readMessages": false,
+    //      "syncFullHistory": false,
+    //      "readStatus": false
+    //  }
+    // ================================================================
+
+    private void syncSettingsToEvolution(Instance instance) {
+        try {
+            String url = evolutionApiUrl + "/settings/set/" + instance.getInstanceName();
+
+            Settings s = instance.getSettings();
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("rejectCall",      s.getRejectCall()   != null ? s.getRejectCall()   : false);
+            body.put("msgCall",         s.getMsgCall()      != null ? s.getMsgCall()       : "");
+            body.put("groupsIgnore",    s.getGroupsIgnore() != null ? s.getGroupsIgnore() : false);
+            body.put("alwaysOnline",    s.getAlwaysOnline() != null ? s.getAlwaysOnline() : false);
+            body.put("readMessages",    s.getReadMessages() != null ? s.getReadMessages() : false);
+            body.put("syncFullHistory", false);
+            body.put("readStatus",      s.getReadStatus()   != null ? s.getReadStatus()   : false);
+
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, createHeaders());
+            ResponseEntity<String> response = restTemplate.postForEntity(url, request, String.class);
+
+            log.info("Evolution /settings/set/{} → {} | Body: {}",
+                    instance.getInstanceName(), response.getStatusCode(), body);
+
+        } catch (Exception e) {
+            log.error("Falha ao sincronizar settings com Evolution para {}: {}",
+                    instance.getInstanceName(), e.getMessage());
+        }
+    }
+
+    // ================================================================
+    //  SYNC WEBHOOK → Evolution API
+    //  POST {{baseUrl}}/webhook/set/{{instance}}
+    //
+    //  Body (ANINHADO em "webhook" — conforme Postman collection):
+    //  {
+    //      "webhook": {
+    //          "enabled": true,
+    //          "url": "https://webhook.site",
+    //          "headers": {
+    //              "autorization": "Bearer TOKEN",   ← typo da Evolution API
+    //              "Content-Type": "application/json"
+    //          },
+    //          "byEvents": false,
+    //          "base64": false,
+    //          "events": ["MESSAGES_UPSERT", ...]
+    //      }
+    //  }
+    // ================================================================
+
+    private void syncWebhookToEvolution(Instance instance) {
+        WebhookConfig wc = instance.getWebhookConfig();
+        if (wc == null || wc.getUrl() == null || wc.getUrl().isEmpty()) {
+            log.debug("Webhook não configurado para {}, pulando sincronização", instance.getInstanceName());
+            return;
+        }
+
+        try {
+            String url = evolutionApiUrl + "/webhook/set/" + instance.getInstanceName();
+
+            // Objeto interno "webhook" — conforme Postman collection
+            Map<String, Object> webhookInner = new LinkedHashMap<>();
+            webhookInner.put("enabled", wc.getEnabled() != null ? wc.getEnabled() : true);
+            webhookInner.put("url", wc.getUrl());
+
+            Map<String, String> hdrs = new LinkedHashMap<>();
+            hdrs.put("autorization", "Bearer " + evolutionApiKey);  // "autorization" — typo da Evolution API
+            hdrs.put("Content-Type", "application/json");
+            webhookInner.put("headers", hdrs);
+
+            webhookInner.put("byEvents", false);
+            webhookInner.put("base64", false);
+
+            if (wc.getEvents() != null && !wc.getEvents().isEmpty()) {
+                webhookInner.put("events", wc.getEvents());
+            } else {
+                webhookInner.put("events", Arrays.asList("MESSAGES_UPSERT"));
+            }
+
+            // Body raiz com chave "webhook"
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("webhook", webhookInner);
+
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, createHeaders());
+            ResponseEntity<String> response = restTemplate.postForEntity(url, request, String.class);
+
+            log.info("Evolution /webhook/set/{} → {} | Events: {}",
+                    instance.getInstanceName(), response.getStatusCode(),
+                    wc.getEvents() != null ? wc.getEvents().size() : 0);
+
+        } catch (Exception e) {
+            log.error("Falha ao sincronizar webhook com Evolution para {}: {}",
+                    instance.getInstanceName(), e.getMessage());
+        }
+    }
+
+    // ================================================================
+    //  DELETE INSTANCE
+    //  DELETE {{baseUrl}}/instance/delete/{{instance}}
+    // ================================================================
+
     @Transactional
     public void deleteInstance(Long id) {
         log.info("Deletando instância ID: {}", id);
@@ -373,28 +506,32 @@ public class InstanceService {
         Instance instance = findInstanceById(id);
         validarOrganizacao(instance.getOrganizacao().getId());
 
-        try {
-            // Deletar do Evolution API
-            String url = evolutionApiUrl + "/instance/delete/" + instance.getInstanceName();
-            HttpHeaders headers = createHeaders();
-            HttpEntity<Void> request = new HttpEntity<>(headers);
+        instance.setAtivo(false);
+        instance.setDeletado(true);
+        instance.setStatus(InstanceStatus.DISCONNECTED);
 
+        instanceRepository.save(instance);
+
+        try {
+            String url = evolutionApiUrl + "/instance/delete/" + instance.getInstanceName();
+            HttpEntity<Void> request = new HttpEntity<>(createHeaders());
             restTemplate.exchange(url, HttpMethod.DELETE, request, String.class);
 
-            // Deletar do banco de dados
-            instanceRepository.delete(instance);
-
-            log.info("Instância deletada com sucesso: {}", instance.getInstanceName());
+            log.info("Evolution /instance/delete/{} → OK", instance.getInstanceName());
 
         } catch (Exception e) {
-            log.error("Erro ao deletar instância: {}", e.getMessage(), e);
-            throw new RuntimeException("Erro ao deletar instância: " + e.getMessage());
+            log.warn("Falha ao deletar na Evolution API (prosseguindo com remoção local): {}", e.getMessage());
         }
+
+        instanceRepository.delete(instance);
+        log.info("Instância deletada do banco: {}", instance.getInstanceName());
     }
 
-    /**
-     * Obter QR Code para conectar WhatsApp
-     */
+    // ================================================================
+    //  QR CODE
+    //  GET {{baseUrl}}/instance/connect/{{instance}}
+    // ================================================================
+
     public Map<String, String> getQRCode(Long id) {
         log.info("Obtendo QR Code para instância ID: {}", id);
 
@@ -403,22 +540,20 @@ public class InstanceService {
 
         try {
             String url = evolutionApiUrl + "/instance/connect/" + instance.getInstanceName();
-            HttpHeaders headers = createHeaders();
-            HttpEntity<Void> request = new HttpEntity<>(headers);
 
+            HttpHeaders headers = createHeaders();
+            headers.set("Accept", "application/json");  // conforme Postman collection
+
+            HttpEntity<Void> request = new HttpEntity<>(headers);
             ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, request, String.class);
+
             JsonNode jsonResponse = objectMapper.readTree(response.getBody());
 
-            String base64 = jsonResponse.has("base64")
-                    ? jsonResponse.get("base64").asText()
-                    : null;
-
-
+            String base64 = jsonResponse.has("base64") ? jsonResponse.get("base64").asText() : null;
 
             Map<String, String> result = new HashMap<>();
             result.put("base64", base64);
             result.put("instanceName", instance.getInstanceName());
-
             return result;
 
         } catch (Exception e) {
@@ -427,9 +562,15 @@ public class InstanceService {
         }
     }
 
-    /**
-     * Obter status de conexão
-     */
+    // ================================================================
+    //  CONNECTION STATUS
+    //  GET {{baseUrl}}/instance/connectionState/{{instance}}
+    //
+    //  Retorna: { "instance": {...}, "state": "open" | "close" | "connecting" }
+    //  ✅ Persiste o status no banco de dados
+    // ================================================================
+
+    @Transactional
     public Map<String, Object> getConnectionStatus(Long id) {
         log.info("Obtendo status de conexão para instância ID: {}", id);
 
@@ -438,33 +579,66 @@ public class InstanceService {
 
         try {
             String url = evolutionApiUrl + "/instance/connectionState/" + instance.getInstanceName();
-            HttpHeaders headers = createHeaders();
-            HttpEntity<Void> request = new HttpEntity<>(headers);
+            HttpEntity<Void> request = new HttpEntity<>(createHeaders());
 
             ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, request, String.class);
             JsonNode jsonResponse = objectMapper.readTree(response.getBody());
+            log.debug("Evolution API connectionState response: {}", response.getBody());
 
-            // Atualizar status no banco
-            String state = jsonResponse.has("state") ? jsonResponse.get("state").asText() : "disconnected";
-
-
-            if (jsonResponse.has("instance")) {
-                JsonNode instanceNode = jsonResponse.get("instance");
+            // state pode vir no top-level ou aninhado em "instance"
+            String state = null;
+            if (jsonResponse.has("state")) {
+                state = jsonResponse.get("state").asText();
+            } else if (jsonResponse.has("instance") && jsonResponse.get("instance").has("state")) {
+                state = jsonResponse.get("instance").get("state").asText();
             }
 
-            instanceRepository.save(instance);
+            // Só atualiza o status se obteve um state válido da API
+            if (state != null) {
+                InstanceStatus newStatus = mapConnectionStatus(state);
 
-            return objectMapper.convertValue(jsonResponse, Map.class);
+                // Não permitir transição DISCONNECTED → CONNECTING via polling.
+                // Após logout, a Evolution API pode tentar reconectar automaticamente
+                // e retornar "connecting" brevemente. Essa transição só deve ocorrer
+                // por ação explícita do usuário (restart, QR scan).
+                boolean isAutoReconnect = instance.getStatus() == InstanceStatus.DISCONNECTED
+                        && newStatus == InstanceStatus.CONNECTING;
+
+                if (!isAutoReconnect && instance.getStatus() != newStatus) {
+                    log.info("Status mudou: {} → {} ({})", instance.getStatus(), newStatus, instance.getInstanceName());
+                    instance.setStatus(newStatus);
+                    instanceRepository.save(instance);
+                } else if (isAutoReconnect) {
+                    log.debug("Ignorando auto-reconnect da Evolution API para {} (status atual: DISCONNECTED)",
+                            instance.getInstanceName());
+                }
+            }
+
+            // Retornar os dados da Evolution API + status interno
+            Map<String, Object> result = objectMapper.convertValue(jsonResponse, Map.class);
+            result.put("statusInternal", instance.getStatus() != null ? instance.getStatus().name() : "DISCONNECTED");
+            return result;
 
         } catch (Exception e) {
-            log.error("Erro ao obter status de conexão: {}", e.getMessage(), e);
-            throw new RuntimeException("Erro ao obter status de conexão: " + e.getMessage());
+            // FALLBACK: retornar último status conhecido do banco em vez de lançar exceção
+            log.warn("Falha ao consultar Evolution API para {}, retornando último status conhecido: {}",
+                    instance.getInstanceName(), e.getMessage());
+
+            InstanceStatus cachedStatus = instance.getStatus() != null ? instance.getStatus() : InstanceStatus.DISCONNECTED;
+            Map<String, Object> fallback = new LinkedHashMap<>();
+            fallback.put("state", cachedStatus == InstanceStatus.CONNECTED ? "open" :
+                                  cachedStatus == InstanceStatus.CONNECTING ? "connecting" : "close");
+            fallback.put("statusInternal", cachedStatus.name());
+            fallback.put("cached", true);
+            return fallback;
         }
     }
 
-    /**
-     * Desconectar instância (logout)
-     */
+    // ================================================================
+    //  LOGOUT
+    //  DELETE {{baseUrl}}/instance/logout/{{instance}}
+    // ================================================================
+
     @Transactional
     public void logout(Long id) {
         log.info("Desconectando instância ID: {}", id);
@@ -474,31 +648,25 @@ public class InstanceService {
 
         try {
             String url = evolutionApiUrl + "/instance/logout/" + instance.getInstanceName();
-            HttpHeaders headers = createHeaders();
-            HttpEntity<Void> request = new HttpEntity<>(headers);
-
+            HttpEntity<Void> request = new HttpEntity<>(createHeaders());
             restTemplate.exchange(url, HttpMethod.DELETE, request, String.class);
 
-            // Atualizar status no banco
-//            instance.setStatus(InstanceStatus.DISCONNECTED);
-//            instance.setQrcode(null);
-//            instance.setPhoneNumber(null);
-//            instance.setProfileName(null);
-//            instance.setProfilePictureUrl(null);
-
-            instanceRepository.save(instance);
-
-            log.info("Instância desconectada com sucesso: {}", instance.getInstanceName());
+            log.info("Evolution /instance/logout/{} → OK", instance.getInstanceName());
 
         } catch (Exception e) {
-            log.error("Erro ao desconectar instância: {}", e.getMessage(), e);
-            throw new RuntimeException("Erro ao desconectar instância: " + e.getMessage());
+            log.warn("Falha ao deslogar na Evolution API: {}", e.getMessage());
         }
+
+        instance.setStatus(InstanceStatus.DISCONNECTED);
+        instanceRepository.save(instance);
     }
 
-    /**
-     * Reiniciar instância
-     */
+    // ================================================================
+    //  RESTART
+    //  POST {{baseUrl}}/instance/restart/{{instance}}   ← POST, não PUT!
+    // ================================================================
+
+    @Transactional
     public void restart(Long id) {
         log.info("Reiniciando instância ID: {}", id);
 
@@ -507,12 +675,15 @@ public class InstanceService {
 
         try {
             String url = evolutionApiUrl + "/instance/restart/" + instance.getInstanceName();
-            HttpHeaders headers = createHeaders();
-            HttpEntity<Void> request = new HttpEntity<>(headers);
+            HttpEntity<Void> request = new HttpEntity<>(createHeaders());
 
-            restTemplate.exchange(url, HttpMethod.PUT, request, String.class);
+            // POST (não PUT) — conforme Postman collection
+            restTemplate.postForEntity(url, request, String.class);
 
-            log.info("Instância reiniciada com sucesso: {}", instance.getInstanceName());
+            log.info("Evolution /instance/restart/{} → OK", instance.getInstanceName());
+
+            instance.setStatus(InstanceStatus.CONNECTING);
+            instanceRepository.save(instance);
 
         } catch (Exception e) {
             log.error("Erro ao reiniciar instância: {}", e.getMessage(), e);
@@ -520,33 +691,34 @@ public class InstanceService {
         }
     }
 
-    /**
-     * Enviar mensagem de texto
-     */
+    // ================================================================
+    //  SEND TEXT MESSAGE
+    //  POST {{baseUrl}}/message/sendText/{{instance}}
+    // ================================================================
+
     public Map<String, Object> sendTextMessage(Long id, SendTextMessageDTO dto) {
-        log.info("Enviando mensagem de texto pela instância ID: {}", id);
+        log.info("Enviando mensagem pela instância ID: {}", id);
 
         Instance instance = findInstanceById(id);
         validarOrganizacao(instance.getOrganizacao().getId());
 
-//        if (!instance.getStatus().equals(InstanceStatus.OPEN) &&
-//                !instance.getStatus().equals(InstanceStatus.CONNECTED)) {
-//            throw new IllegalStateException("A instância não está conectada");
-//        }
+        if (instance.getStatus() != null
+                && instance.getStatus() != InstanceStatus.OPEN
+                && instance.getStatus() != InstanceStatus.CONNECTED) {
+            throw new IllegalStateException("Instância não conectada. Status: " + instance.getStatus());
+        }
 
         try {
             String url = evolutionApiUrl + "/message/sendText/" + instance.getInstanceName();
-            HttpHeaders headers = createHeaders();
 
-            Map<String, Object> requestBody = new HashMap<>();
-            requestBody.put("number", dto.getNumber());
-            requestBody.put("text", dto.getText());
+            Map<String, Object> body = new HashMap<>();
+            body.put("number", dto.getNumber());
+            body.put("text", dto.getText());
 
-            HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, createHeaders());
             ResponseEntity<String> response = restTemplate.postForEntity(url, request, String.class);
 
-            JsonNode jsonResponse = objectMapper.readTree(response.getBody());
-            return objectMapper.convertValue(jsonResponse, Map.class);
+            return objectMapper.convertValue(objectMapper.readTree(response.getBody()), Map.class);
 
         } catch (Exception e) {
             log.error("Erro ao enviar mensagem: {}", e.getMessage(), e);
@@ -554,117 +726,93 @@ public class InstanceService {
         }
     }
 
-    // ==================== MÉTODOS AUXILIARES ====================
+    // ================================================================
+    //  GET INSTANCE BY NAME (custom endpoint)
+    // ================================================================
 
-    /**
-     * Configurar settings da instância no Evolution API
-     */
-    private void configureSettings(Instance instance) {
-        try {
-            String url = evolutionApiUrl + "/instance/settings/" + instance.getInstanceName();
-            HttpHeaders headers = createHeaders();
+    @Transactional(readOnly = true)
+    public InstanceByNameDTO getInstanceByNameCustom(String instanceName) {
+        log.info("Buscando instância pelo nome: {}", instanceName);
 
-            Map<String, Object> settings = new HashMap<>();
-//            settings.put("reject_call", instance.getRejectCall());
-//            settings.put("msg_call", instance.getMsgCall());
-//            settings.put("groups_ignore", instance.getGroupsIgnore());
-//            settings.put("always_online", instance.getAlwaysOnline());
-//            settings.put("read_messages", instance.getReadMessages());
-//            settings.put("read_status", instance.getReadStatus());
+        Instance instance = instanceRepository.findByInstanceNameWithRelations(instanceName)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Instância não encontrada com o nome: " + instanceName));
 
-            HttpEntity<Map<String, Object>> request = new HttpEntity<>(settings, headers);
-            restTemplate.postForEntity(url, request, String.class);
-
-            log.debug("Settings configurados para instância: {}", instance.getInstanceName());
-
-        } catch (Exception e) {
-            log.error("Erro ao configurar settings: {}", e.getMessage());
-        }
-    }
-
-    /**
-     * Configurar webhook da instância no Evolution API
-     */
-    private void configureWebhook(Instance instance) {
-//        if (instance.getWebhookUrl() == null || instance.getWebhookUrl().isEmpty()) {
-//            return;
-//        }
+        InstanceByNameDTO dto = new InstanceByNameDTO(instance);
 
         try {
-            String url = evolutionApiUrl + "/webhook/set/" + instance.getInstanceName();
-            HttpHeaders headers = createHeaders();
+            String url = evolutionApiUrl + "/instance/fetchInstances?instanceName=" + instanceName;
+            HttpEntity<Void> request = new HttpEntity<>(createHeaders());
 
-            Map<String, Object> webhook = new HashMap<>();
+            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, request, String.class);
+            JsonNode jsonResponse = objectMapper.readTree(response.getBody());
 
-            HttpEntity<Map<String, Object>> request = new HttpEntity<>(webhook, headers);
-            restTemplate.postForEntity(url, request, String.class);
+            String phoneNumber = null, profileName = null, profilePictureUrl = null;
 
-            log.debug("Webhook configurado para instância: {}", instance.getInstanceName());
+            if (jsonResponse.isArray() && jsonResponse.size() > 0) {
+                JsonNode instNode = jsonResponse.get(0).path("instance");
+                phoneNumber = instNode.path("owner").asText(null);
+                profileName = instNode.path("profileName").asText(null);
+                profilePictureUrl = instNode.path("profilePictureUrl").asText(null);
+            }
+
+            dto.updateFromEvolutionData(phoneNumber, profileName, profilePictureUrl);
 
         } catch (Exception e) {
-            log.error("Erro ao configurar webhook: {}", e.getMessage());
+            log.warn("Não foi possível buscar dados Evolution para {}: {}", instanceName, e.getMessage());
         }
+
+        return dto;
     }
 
-    /**
-     * Criar headers para requisição na Evolution API
-     * IMPORTANTE: A Evolution API requer o header 'apikey' em todas as requisições
-     */
-    private HttpHeaders createHeaders() {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.set("apikey", evolutionApiKey); // Header obrigatório para Evolution API
+    // ================================================================
+    //  UTILITÁRIOS
+    // ================================================================
 
-        log.debug("Headers criados com apikey: {}",
-                evolutionApiKey != null ? "***" + evolutionApiKey.substring(Math.max(0, evolutionApiKey.length() - 4)) : "null");
-
-        return headers;
-    }
-
-    /**
-     * Mapear status retornado pela Evolution API para enum local
-     */
-    private InstanceStatus mapStatusFromEvolution(String status) {
+    private InstanceStatus mapConnectionStatus(String status) {
+        if (status == null) return InstanceStatus.DISCONNECTED;
         return switch (status.toLowerCase()) {
-            case "open", "connected" -> InstanceStatus.CONNECTED;
+            case "open" -> InstanceStatus.CONNECTED;
             case "connecting" -> InstanceStatus.CONNECTING;
+            case "close", "closed" -> InstanceStatus.DISCONNECTED;
             default -> InstanceStatus.DISCONNECTED;
         };
     }
 
-    /**
-     * Buscar instância por ID com validação
-     */
+    private LocalDateTime parseIsoDateTime(String dateTimeStr) {
+        if (dateTimeStr == null || dateTimeStr.isEmpty()) return null;
+        try {
+            if (dateTimeStr.contains(".")) {
+                dateTimeStr = dateTimeStr.substring(0, dateTimeStr.indexOf('.'));
+            } else if (dateTimeStr.endsWith("Z")) {
+                dateTimeStr = dateTimeStr.substring(0, dateTimeStr.length() - 1);
+            }
+            return LocalDateTime.parse(dateTimeStr);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     private Instance findInstanceById(Long id) {
         return instanceRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Instância não encontrada com ID: " + id));
     }
 
-    /**
-     * Validar se a entidade pertence à organização do usuário
-     */
     private void validarOrganizacao(Long entityOrganizacaoId) {
         Long organizacaoId = TenantContext.getCurrentOrganizacaoId();
-
         if (organizacaoId == null) {
             throw new SecurityException("Organização não identificada no token");
         }
-
         if (!organizacaoId.equals(entityOrganizacaoId)) {
             throw new SecurityException("Acesso negado: Você não tem permissão para acessar este recurso");
         }
     }
 
-    /**
-     * Obter ID da organização do contexto
-     */
     private Long getOrganizacaoIdFromContext() {
         Long organizacaoId = TenantContext.getCurrentOrganizacaoId();
-
         if (organizacaoId == null) {
             throw new SecurityException("Organização não identificada. Token inválido ou expirado");
         }
-
         return organizacaoId;
     }
 }

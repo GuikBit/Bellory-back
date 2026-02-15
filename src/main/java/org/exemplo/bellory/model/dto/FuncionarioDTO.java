@@ -1,6 +1,5 @@
 package org.exemplo.bellory.model.dto;
 
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -20,7 +19,7 @@ public class FuncionarioDTO {
 
     private Long id;
     private Long idOrganizacao;
-    private String foto;
+    private String fotoPerfil;
     private String nomeCompleto; // Mantido de 'nome'
     private String username; // Mantido de 'login'
     private String password;
@@ -78,7 +77,7 @@ public class FuncionarioDTO {
     public FuncionarioDTO(Funcionario funcionario, List<BloqueioAgendaDTO> bloqueiosDTO, List<JornadaDiaDTO> jornadaDTO, List<Servico> servicos) {
         this.id = funcionario.getId();
         this.idOrganizacao = funcionario.getOrganizacao().getId();
-        this.foto = funcionario.getFotoPerfil();
+        this.fotoPerfil = funcionario.getFotoPerfil();
         this.nomeCompleto = funcionario.getNomeCompleto();
         this.username = funcionario.getUsername();
         this.cpf = funcionario.getCpf();

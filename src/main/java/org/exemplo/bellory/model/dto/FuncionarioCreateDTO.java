@@ -13,16 +13,18 @@ public class FuncionarioCreateDTO {
     private Long idOrganizacao;
     private String username;
     private String nomeCompleto;
+    private String fotoPerfil;
     private String email;
     private String password;
     private Integer nivel;
     private String role;
-    private boolean isVisibleExterno;
-
     private Cargo cargo;
-
     private String telefone;
     private String cpf;
     private List<Long> servicosId;
+    private List<JornadaDiaDTO> planoHorarios;
+
     private boolean isResumido;
+    private boolean isVisibleExterno;
+
 }

@@ -1,7 +1,10 @@
 package org.exemplo.bellory.service;
 
+import org.exemplo.bellory.model.dto.instancia.InstanceCreateDTO;
 import org.exemplo.bellory.model.entity.agendamento.Agendamento;
 import org.exemplo.bellory.model.entity.agendamento.Status;
+import org.exemplo.bellory.model.entity.cobranca.Cobranca;
+import org.exemplo.bellory.model.entity.config.*;
 import org.exemplo.bellory.model.entity.endereco.Endereco;
 import org.exemplo.bellory.model.entity.enums.TipoCategoria;
 import org.exemplo.bellory.model.entity.funcionario.*;
@@ -22,8 +25,22 @@ import org.exemplo.bellory.model.entity.tenant.Tenant;
 import org.exemplo.bellory.model.entity.users.Admin;
 import org.exemplo.bellory.model.entity.users.Cliente;
 import org.exemplo.bellory.model.entity.users.Role;
+import org.exemplo.bellory.model.entity.compra.Compra;
+import org.exemplo.bellory.model.entity.compra.CompraProduto;
+import org.exemplo.bellory.model.entity.financeiro.*;
+import org.exemplo.bellory.model.entity.notificacao.TipoNotificacao;
+import org.exemplo.bellory.model.entity.pagamento.Pagamento;
+import org.exemplo.bellory.model.entity.questionario.OpcaoResposta;
+import org.exemplo.bellory.model.entity.questionario.Pergunta;
+import org.exemplo.bellory.model.entity.questionario.Questionario;
+import org.exemplo.bellory.model.entity.questionario.enums.TipoPergunta;
+import org.exemplo.bellory.model.entity.questionario.enums.TipoQuestionario;
+import org.exemplo.bellory.model.repository.Transacao.CobrancaRepository;
+import org.exemplo.bellory.model.repository.Transacao.CompraRepository;
+import org.exemplo.bellory.model.repository.Transacao.PagamentoRepository;
 import org.exemplo.bellory.model.repository.agendamento.AgendamentoRepository;
 import org.exemplo.bellory.model.repository.categoria.CategoriaRepository;
+import org.exemplo.bellory.model.repository.config.ConfigSistemaRepository;
 import org.exemplo.bellory.model.repository.funcionario.CargoRepository;
 import org.exemplo.bellory.model.repository.funcionario.FuncionarioRepository;
 import org.exemplo.bellory.model.repository.organizacao.OrganizacaoRepository;
@@ -35,6 +52,9 @@ import org.exemplo.bellory.model.repository.servico.ServicoRepository;
 import org.exemplo.bellory.model.repository.tenant.PageComponentRepository;
 import org.exemplo.bellory.model.repository.tenant.PageRepository;
 import org.exemplo.bellory.model.repository.tenant.TenantRepository;
+import org.exemplo.bellory.model.repository.financeiro.*;
+import org.exemplo.bellory.model.repository.notificacao.ConfigNotificacaoRepository;
+import org.exemplo.bellory.model.repository.questionario.QuestionarioRepository;
 import org.exemplo.bellory.model.repository.users.AdminRepository;
 import org.exemplo.bellory.model.repository.users.ClienteRepository;
 import org.exemplo.bellory.model.repository.users.RoleRepository;
@@ -61,6 +81,7 @@ public class DatabaseSeederService {
     private final ServicoRepository servicoRepository;
     private final AgendamentoRepository agendamentoRepository;
     private final PlanoRepository planoRepository;
+    private final CobrancaRepository cobrancaRepository;
 
     private final PlanoLimiteBelloryRepository planoLimiteBelloryRepository;
     private final PlanoBelloryRepository planoBelloryRepository;
@@ -68,11 +89,26 @@ public class DatabaseSeederService {
     private final PasswordEncoder passwordEncoder;
     private final CategoriaRepository categoriaRepository;
     private final AdminRepository adminRepository;
+    private final ConfigSistemaRepository configSistemaRepository;
 
     private final TenantRepository tenantRepository;
     private final PageRepository pageRepository;
     private final PageComponentRepository componentRepository;
+    private final ApiKeyService apiKeyService;
 
+    private final InstanceService instanceService;
+
+    // Novos repositories para módulos expandidos
+    private final ContaBancariaRepository contaBancariaRepository;
+    private final CategoriaFinanceiraRepository categoriaFinanceiraRepository;
+    private final CentroCustoRepository centroCustoRepository;
+    private final ContaPagarRepository contaPagarRepository;
+    private final ContaReceberRepository contaReceberRepository;
+    private final LancamentoFinanceiroRepository lancamentoFinanceiroRepository;
+    private final CompraRepository compraRepository;
+    private final PagamentoRepository pagamentoRepository;
+    private final ConfigNotificacaoRepository notificacaoConfigRepository;
+    private final QuestionarioRepository questionarioRepository;
 
     // Arrays com dados diversos para randomização
     private final String[] nomesFemininos = {"Ana", "Maria", "Julia", "Carla", "Fernanda", "Beatriz", "Camila", "Larissa", "Rafaela", "Amanda", "Gabriela", "Bruna", "Letícia", "Mariana", "Priscila", "Débora", "Tatiane", "Vanessa", "Patrícia", "Luciana"};
@@ -99,7 +135,19 @@ public class DatabaseSeederService {
                                  PlanoRepository planoRepository, ProdutoRepository produtoRepository,
                                  PasswordEncoder passwordEncoder, CategoriaRepository categoriaRepository,
                                  PageComponentRepository componentRepository, PageRepository pageRepository, TenantRepository tenantRepository,
-                                 AdminRepository adminRepository, PlanoBelloryRepository planoBelloryRepository, CargoRepository cargoRepository, PlanoLimiteBelloryRepository planoLimiteBelloryRepository) {
+                                 AdminRepository adminRepository, PlanoBelloryRepository planoBelloryRepository, CargoRepository cargoRepository,
+                                 PlanoLimiteBelloryRepository planoLimiteBelloryRepository, ConfigSistemaRepository configSistemaRepository, ApiKeyService apiKeyService, InstanceService instanceService,
+                                 CobrancaRepository cobrancaRepository,
+                                 ContaBancariaRepository contaBancariaRepository,
+                                 CategoriaFinanceiraRepository categoriaFinanceiraRepository,
+                                 CentroCustoRepository centroCustoRepository,
+                                 ContaPagarRepository contaPagarRepository,
+                                 ContaReceberRepository contaReceberRepository,
+                                 LancamentoFinanceiroRepository lancamentoFinanceiroRepository,
+                                 CompraRepository compraRepository,
+                                 PagamentoRepository pagamentoRepository,
+                                 ConfigNotificacaoRepository notificacaoConfigRepository,
+                                 QuestionarioRepository questionarioRepository) {
         this.organizacaoRepository = organizacaoRepository;
         this.roleRepository = roleRepository;
         this.funcionarioRepository = funcionarioRepository;
@@ -117,6 +165,20 @@ public class DatabaseSeederService {
         this.planoBelloryRepository = planoBelloryRepository;
         this.cargoRepository = cargoRepository;
         this.planoLimiteBelloryRepository = planoLimiteBelloryRepository;
+        this.configSistemaRepository = configSistemaRepository;
+        this.apiKeyService = apiKeyService;
+        this.instanceService = instanceService;
+        this.cobrancaRepository = cobrancaRepository;
+        this.contaBancariaRepository = contaBancariaRepository;
+        this.categoriaFinanceiraRepository = categoriaFinanceiraRepository;
+        this.centroCustoRepository = centroCustoRepository;
+        this.contaPagarRepository = contaPagarRepository;
+        this.contaReceberRepository = contaReceberRepository;
+        this.lancamentoFinanceiroRepository = lancamentoFinanceiroRepository;
+        this.compraRepository = compraRepository;
+        this.pagamentoRepository = pagamentoRepository;
+        this.notificacaoConfigRepository = notificacaoConfigRepository;
+        this.questionarioRepository = questionarioRepository;
     }
 
     @Transactional
@@ -151,10 +213,30 @@ public class DatabaseSeederService {
         vincularServicosComFuncionarios(funcionarios, servicos);
 
         // 8. PRODUTOS (50 produtos)
-        criarProdutos(orgPrincipal, categorias);
+        List<Produto> produtos = criarProdutos(orgPrincipal, categorias);
 
         // 9. AGENDAMENTOS (100 agendamentos com todos os status)
         criarAgendamentos(orgPrincipal, funcionarios, clientes, servicos);
+
+        // 10. MÓDULO FINANCEIRO
+        List<ContaBancaria> contasBancarias = criarContasBancarias(orgPrincipal);
+        List<CategoriaFinanceira> categoriasFinanceiras = criarCategoriasFinanceiras(orgPrincipal);
+        List<CentroCusto> centrosCusto = criarCentrosCusto(orgPrincipal);
+        criarContasPagar(orgPrincipal, contasBancarias, categoriasFinanceiras, centrosCusto);
+        criarContasReceber(orgPrincipal, clientes, contasBancarias, categoriasFinanceiras, centrosCusto);
+        criarLancamentosFinanceiros(orgPrincipal, contasBancarias, categoriasFinanceiras, centrosCusto);
+
+        // 11. COMPRAS DE PRODUTOS
+        criarCompras(orgPrincipal, clientes, produtos);
+
+        // 12. PAGAMENTOS COMPLETOS PARA COBRANÇAS DE AGENDAMENTOS
+        criarPagamentosParaCobrancas(orgPrincipal);
+
+        // 13. CONFIGURAÇÕES DE NOTIFICAÇÃO
+        criarConfigNotificacoesOrganizacao(orgPrincipal);
+
+        // 14. QUESTIONÁRIOS
+        criarQuestionarios(orgPrincipal);
 
         // seedTenantData();
 
@@ -165,8 +247,16 @@ public class DatabaseSeederService {
         System.out.println("   - Funcionários: " + funcionarios.size());
         System.out.println("   - Clientes: " + clientes.size());
         System.out.println("   - Serviços: " + servicos.size());
-        System.out.println("   - Produtos: 50");
+        System.out.println("   - Produtos: " + produtos.size());
         System.out.println("   - Agendamentos: 100");
+        System.out.println("   - Contas Bancárias: " + contasBancarias.size());
+        System.out.println("   - Categorias Financeiras: " + categoriasFinanceiras.size());
+        System.out.println("   - Centros de Custo: " + centrosCusto.size());
+        System.out.println("   - Módulo Financeiro: Contas a pagar/receber + Lançamentos");
+        System.out.println("   - Compras de Produtos: com cobranças e pagamentos");
+        System.out.println("   - Pagamentos de Agendamentos: com fluxo completo");
+        System.out.println("   - Configurações de Notificação: 4 regras");
+        System.out.println("   - Questionários: 3 com perguntas e opções");
     }
 
     private List<PlanoBellory> criarPlanos() {
@@ -634,10 +724,34 @@ public class DatabaseSeederService {
                 o.setDtCadastro(LocalDateTime.now());
                 o.setDtAtualizacao(LocalDateTime.now());
 
+
+
                 return organizacaoRepository.save(o);
             });
 
-            Optional<Admin> adminEx = adminRepository.findByUsername(data[11]);
+            ConfigAgendamento configAgendamento = new ConfigAgendamento();
+            ConfigServico configServico = new ConfigServico();
+            ConfigColaborador configColaborador= new ConfigColaborador();
+            ConfigNotificacao configNotificacao = new ConfigNotificacao();
+
+            ConfigCliente configCliente = new ConfigCliente();
+
+            ConfigSistema configSistema = new ConfigSistema();
+            configSistema.setOrganizacao(org);
+            configSistema.setConfigAgendamento(configAgendamento);
+            configSistema.setConfigServico(configServico);
+            configSistema.setConfigColaborador(configColaborador);
+            configSistema.setConfigNotificacao(configNotificacao);
+            configSistema.setConfigCliente(configCliente);
+
+            configSistemaRepository.save(configSistema);
+
+            org.setConfigSistema(configSistema);
+
+            organizacaoRepository.save(org);
+
+
+            Optional<Admin> adminEx = adminRepository.findByUsernameAndOrganizacao_Id(data[11], org.getId());
 
             if (adminEx.isEmpty()) {
                 Admin admin = new Admin();
@@ -648,8 +762,18 @@ public class DatabaseSeederService {
                 admin.setUsername(data[11]);
                 admin.setPassword(passwordEncoder.encode(data[12]));
 
-                adminRepository.save(admin);
+                Admin saveAdmin = adminRepository.save(admin);
+
+                Map<String, Object> teste = apiKeyService.generateApiKey(saveAdmin.getId(), ApiKey.UserType.SISTEMA, "API_KEY_DEFAULT", "API Key para execução de automações internas do sistema", null);
+
+                System.out.println("   ✓ API Key criada: " + teste);
             }
+            InstanceCreateDTO instance = new InstanceCreateDTO();
+            instance.setInstanceName(org.getSlug());
+            instance.setInstanceNumber(org.getTelefone1().replaceAll("\\D", ""));
+            instance.setWebhookUrl("https://auto.bellory.com.br/webhook/whatsapp");
+
+            instanceService.createInstance(instance, true, org.getId());
 
             organizacoes.add(org);
             System.out.println("   ✓ Organização criada: " + org.getNomeFantasia());
@@ -779,7 +903,7 @@ public class DatabaseSeederService {
 
         for (String[] data : catData) {
             TipoCategoria tipo = TipoCategoria.valueOf(data[2]);
-            Categoria categoria = categoriaRepository.findByTipo(tipo).stream()
+            Categoria categoria = categoriaRepository.findByOrganizacao_IdAndTipo(org.getId(), tipo).stream()
                     .filter(c -> c.getLabel().equalsIgnoreCase(data[0]))
                     .findFirst()
                     .orElseGet(() -> {
@@ -819,8 +943,7 @@ public class DatabaseSeederService {
             String username = "funcionario" + i;
             int finalI = i;
 
-            Funcionario funcionario = funcionarioRepository.findByUsername(username)
-                    .map(user -> (Funcionario) user)
+            Funcionario funcionario = funcionarioRepository.findByUsernameAndOrganizacao_Id(username, org.getId())
                     .orElseGet(() -> {
                         String[] dados = especialidadesPorFuncionario[finalI - 1];
                         String nomeCompleto = dados[0];
@@ -902,7 +1025,7 @@ public class DatabaseSeederService {
         for (int i = 1; i <= 50; i++) {
             String username = "cliente" + i;
 
-            Cliente cliente = clienteRepository.findByUsername(username).orElseGet(() -> {
+            Cliente cliente = clienteRepository.findByUsernameAndOrganizacao_Id(username, org.getId()).orElseGet(() -> {
                 boolean isFeminino = ThreadLocalRandom.current().nextDouble() < 0.7; // 70% feminino
                 String[] nomes = isFeminino ? nomesFemininos : nomesMasculinos;
                 String nome = nomes[ThreadLocalRandom.current().nextInt(nomes.length)];
@@ -1004,6 +1127,8 @@ public class DatabaseSeederService {
                 s.setDescricao(data[2]);
                 s.setTempoEstimadoMinutos(Integer.parseInt(data[3]));
                 s.setPreco(new BigDecimal(data[4]));
+                s.setDesconto(new BigDecimal(0));
+                s.setPrecoFinal(new BigDecimal(data[4]));
                 s.setGenero(data[5]);
                 s.setOrganizacao(org);
                 s.setAtivo(ThreadLocalRandom.current().nextDouble() < 0.95); // 95% ativos
@@ -1032,8 +1157,9 @@ public class DatabaseSeederService {
         return servicos;
     }
 
-    private void criarProdutos(Organizacao org, List<Categoria> categorias) {
+    private List<Produto> criarProdutos(Organizacao org, List<Categoria> categorias) {
         System.out.println("🛍️ Criando produtos...");
+        List<Produto> produtosCriados = new ArrayList<>();
 
         // Criar mapa para facilitar busca de categorias por nome
         Map<String, Categoria> categoriaMap = categorias.stream()
@@ -1168,7 +1294,9 @@ public class DatabaseSeederService {
                     specs.put("Testado", "Dermatologicamente");
                     p.setEspecificacoes(specs);
 
-                    return produtoRepository.save(p);
+                    Produto saved = produtoRepository.save(p);
+                    produtosCriados.add(saved);
+                    return saved;
 
                 } catch (NumberFormatException e) {
                     System.err.println("❌ Erro ao converter dados numéricos para produto: " + data[0]);
@@ -1182,6 +1310,7 @@ public class DatabaseSeederService {
         }
 
         System.out.println("✅ Produtos criados com sucesso!");
+        return produtosCriados;
     }
 
     private void adicionarImagensPorCategoria(Produto produto, String nomeCategoria) {
@@ -1280,7 +1409,26 @@ public class DatabaseSeederService {
                     funcionario.addBloqueio(bloqueio);
                     agendamento.setBloqueioAgenda(bloqueio);
 
-                    agendamentoRepository.save(agendamento);
+                    Agendamento saveAgen = agendamentoRepository.save(agendamento);
+
+                    Cobranca cob = new Cobranca();
+
+                    cob.setAgendamento(saveAgen);
+                    cob.setCliente(cliente);
+                    cob.setOrganizacao(org);
+
+                    BigDecimal valorTotal = servicosEscolhidos.stream()
+                            .map(Servico::getPreco)
+                            .reduce(BigDecimal.ZERO, BigDecimal::add);
+                    cob.setValor(valorTotal);
+                    cob.setValorPago(BigDecimal.valueOf(0));
+                    cob.setValorPendente(valorTotal);
+                    cob.setStatusCobranca(Cobranca.StatusCobranca.PENDENTE);
+                    cob.setTipoCobranca(Cobranca.TipoCobranca.AGENDAMENTO);
+                    cob.setDtVencimento(saveAgen.getDtAgendamento().toLocalDate());
+
+                    cobrancaRepository.save(cob);
+
                     contador++;
                 }
             }
@@ -1847,6 +1995,1126 @@ public class DatabaseSeederService {
         componentRepository.save(heroComponent);
 
         // Outros componentes similares...
+    }
+
+    // ===========================================================================================
+    // ========================= NOVOS MÉTODOS - MÓDULOS EXPANDIDOS ==============================
+    // ===========================================================================================
+
+    /**
+     * Cria contas bancárias da organização para o módulo financeiro.
+     */
+    private List<ContaBancaria> criarContasBancarias(Organizacao org) {
+        System.out.println("🏦 Criando contas bancárias...");
+        List<ContaBancaria> contas = new ArrayList<>();
+
+        Object[][] contasData = {
+                {"Conta Principal Bradesco", ContaBancaria.TipoConta.CONTA_CORRENTE, "Bradesco", "1234", "56789-0", 50000.00, 47523.45, true, "#E91E63", "bank"},
+                {"Poupança Itaú", ContaBancaria.TipoConta.POUPANCA, "Itaú", "4567", "12345-6", 30000.00, 32150.00, false, "#FF9800", "savings"},
+                {"Caixa do Salão", ContaBancaria.TipoConta.CAIXA, null, null, null, 5000.00, 3275.50, false, "#4CAF50", "cash"},
+                {"PIX Nubank", ContaBancaria.TipoConta.CARTEIRA_DIGITAL, "Nubank", "0001", "98765-4", 15000.00, 18930.75, false, "#9C27B0", "pix"}
+        };
+
+        for (Object[] data : contasData) {
+            ContaBancaria conta = new ContaBancaria();
+            conta.setOrganizacao(org);
+            conta.setNome((String) data[0]);
+            conta.setTipoConta((ContaBancaria.TipoConta) data[1]);
+            conta.setBanco((String) data[2]);
+            conta.setAgencia((String) data[3]);
+            conta.setNumeroConta((String) data[4]);
+            conta.setSaldoInicial(BigDecimal.valueOf((double) data[5]));
+            conta.setSaldoAtual(BigDecimal.valueOf((double) data[6]));
+            conta.setPrincipal((boolean) data[7]);
+            conta.setAtivo(true);
+            conta.setCor((String) data[8]);
+            conta.setIcone((String) data[9]);
+            conta.setDtCriacao(LocalDateTime.now().minusDays(90));
+            contas.add(contaBancariaRepository.save(conta));
+        }
+
+        System.out.println("✅ " + contas.size() + " contas bancárias criadas!");
+        return contas;
+    }
+
+    /**
+     * Cria categorias financeiras (receitas e despesas) para o módulo financeiro.
+     */
+    private List<CategoriaFinanceira> criarCategoriasFinanceiras(Organizacao org) {
+        System.out.println("📂 Criando categorias financeiras...");
+        List<CategoriaFinanceira> categorias = new ArrayList<>();
+
+        // === CATEGORIAS DE RECEITA ===
+        CategoriaFinanceira servicosPrestados = criarCategoriaFinanceira(org, "Serviços Prestados", "Receitas de serviços realizados", CategoriaFinanceira.TipoCategoria.RECEITA, "#4CAF50", "scissors", null);
+        categorias.add(servicosPrestados);
+        categorias.add(criarCategoriaFinanceira(org, "Cortes e Penteados", "Receitas com cortes e penteados", CategoriaFinanceira.TipoCategoria.RECEITA, "#66BB6A", "cut", servicosPrestados));
+        categorias.add(criarCategoriaFinanceira(org, "Tratamentos Capilares", "Receitas com tratamentos", CategoriaFinanceira.TipoCategoria.RECEITA, "#81C784", "spa", servicosPrestados));
+        categorias.add(criarCategoriaFinanceira(org, "Estética e Beleza", "Receitas com serviços estéticos", CategoriaFinanceira.TipoCategoria.RECEITA, "#A5D6A7", "star", servicosPrestados));
+
+        CategoriaFinanceira vendaProdutos = criarCategoriaFinanceira(org, "Venda de Produtos", "Receitas com venda de produtos", CategoriaFinanceira.TipoCategoria.RECEITA, "#2196F3", "shopping-bag", null);
+        categorias.add(vendaProdutos);
+
+        categorias.add(criarCategoriaFinanceira(org, "Outros Recebimentos", "Outras receitas", CategoriaFinanceira.TipoCategoria.RECEITA, "#00BCD4", "plus-circle", null));
+
+        // === CATEGORIAS DE DESPESA ===
+        CategoriaFinanceira folhaPagamento = criarCategoriaFinanceira(org, "Folha de Pagamento", "Gastos com pessoal", CategoriaFinanceira.TipoCategoria.DESPESA, "#F44336", "users", null);
+        categorias.add(folhaPagamento);
+        categorias.add(criarCategoriaFinanceira(org, "Salários", "Pagamento de salários", CategoriaFinanceira.TipoCategoria.DESPESA, "#EF5350", "dollar-sign", folhaPagamento));
+        categorias.add(criarCategoriaFinanceira(org, "Encargos Sociais", "INSS, FGTS e encargos", CategoriaFinanceira.TipoCategoria.DESPESA, "#E57373", "file-text", folhaPagamento));
+
+        categorias.add(criarCategoriaFinanceira(org, "Aluguel e Condomínio", "Despesas com imóvel", CategoriaFinanceira.TipoCategoria.DESPESA, "#FF9800", "home", null));
+        categorias.add(criarCategoriaFinanceira(org, "Produtos e Insumos", "Compra de materiais", CategoriaFinanceira.TipoCategoria.DESPESA, "#9C27B0", "package", null));
+        categorias.add(criarCategoriaFinanceira(org, "Marketing e Publicidade", "Gastos com marketing", CategoriaFinanceira.TipoCategoria.DESPESA, "#E91E63", "trending-up", null));
+
+        CategoriaFinanceira utilidades = criarCategoriaFinanceira(org, "Utilidades", "Contas de consumo", CategoriaFinanceira.TipoCategoria.DESPESA, "#795548", "zap", null);
+        categorias.add(utilidades);
+        categorias.add(criarCategoriaFinanceira(org, "Energia Elétrica", "Conta de energia", CategoriaFinanceira.TipoCategoria.DESPESA, "#8D6E63", "zap", utilidades));
+        categorias.add(criarCategoriaFinanceira(org, "Água e Esgoto", "Conta de água", CategoriaFinanceira.TipoCategoria.DESPESA, "#A1887F", "droplet", utilidades));
+        categorias.add(criarCategoriaFinanceira(org, "Internet e Telefone", "Telecomunicações", CategoriaFinanceira.TipoCategoria.DESPESA, "#BCAAA4", "wifi", utilidades));
+
+        categorias.add(criarCategoriaFinanceira(org, "Manutenção", "Reparos e manutenção", CategoriaFinanceira.TipoCategoria.DESPESA, "#607D8B", "tool", null));
+        categorias.add(criarCategoriaFinanceira(org, "Impostos e Taxas", "Tributos e taxas", CategoriaFinanceira.TipoCategoria.DESPESA, "#455A64", "percent", null));
+
+        System.out.println("✅ " + categorias.size() + " categorias financeiras criadas!");
+        return categorias;
+    }
+
+    private CategoriaFinanceira criarCategoriaFinanceira(Organizacao org, String nome, String descricao,
+                                                          CategoriaFinanceira.TipoCategoria tipo, String cor,
+                                                          String icone, CategoriaFinanceira categoriaPai) {
+        CategoriaFinanceira cat = new CategoriaFinanceira();
+        cat.setOrganizacao(org);
+        cat.setNome(nome);
+        cat.setDescricao(descricao);
+        cat.setTipo(tipo);
+        cat.setCor(cor);
+        cat.setIcone(icone);
+        cat.setAtivo(true);
+        cat.setCategoriaPai(categoriaPai);
+        cat.setDtCriacao(LocalDateTime.now().minusDays(90));
+        return categoriaFinanceiraRepository.save(cat);
+    }
+
+    /**
+     * Cria centros de custo da organização.
+     */
+    private List<CentroCusto> criarCentrosCusto(Organizacao org) {
+        System.out.println("🏢 Criando centros de custo...");
+        List<CentroCusto> centros = new ArrayList<>();
+
+        String[][] centrosData = {
+                {"Operacional", "CC001", "Custos operacionais do salão"},
+                {"Administrativo", "CC002", "Custos administrativos gerais"},
+                {"Marketing", "CC003", "Investimentos em marketing e publicidade"},
+                {"Financeiro", "CC004", "Custos do setor financeiro"},
+                {"Recursos Humanos", "CC005", "Custos com pessoal e treinamento"}
+        };
+
+        for (String[] data : centrosData) {
+            CentroCusto centro = new CentroCusto();
+            centro.setOrganizacao(org);
+            centro.setNome(data[0]);
+            centro.setCodigo(data[1]);
+            centro.setDescricao(data[2]);
+            centro.setAtivo(true);
+            centro.setDtCriacao(LocalDateTime.now().minusDays(90));
+            centros.add(centroCustoRepository.save(centro));
+        }
+
+        System.out.println("✅ " + centros.size() + " centros de custo criados!");
+        return centros;
+    }
+
+    /**
+     * Cria contas a pagar com diversos status e cenários.
+     */
+    private void criarContasPagar(Organizacao org, List<ContaBancaria> contas,
+                                   List<CategoriaFinanceira> categorias, List<CentroCusto> centros) {
+        System.out.println("💸 Criando contas a pagar...");
+
+        ContaBancaria contaPrincipal = contas.get(0);
+        CentroCusto centroOperacional = centros.get(0);
+        CentroCusto centroAdmin = centros.get(1);
+        CentroCusto centroMarketing = centros.get(2);
+        CentroCusto centroRH = centros.get(4);
+
+        // Buscar categorias de despesa
+        CategoriaFinanceira catAluguel = categorias.stream().filter(c -> c.getNome().equals("Aluguel e Condomínio")).findFirst().orElse(categorias.get(0));
+        CategoriaFinanceira catProdutos = categorias.stream().filter(c -> c.getNome().equals("Produtos e Insumos")).findFirst().orElse(categorias.get(0));
+        CategoriaFinanceira catMarketing = categorias.stream().filter(c -> c.getNome().equals("Marketing e Publicidade")).findFirst().orElse(categorias.get(0));
+        CategoriaFinanceira catSalarios = categorias.stream().filter(c -> c.getNome().equals("Salários")).findFirst().orElse(categorias.get(0));
+        CategoriaFinanceira catEnergia = categorias.stream().filter(c -> c.getNome().equals("Energia Elétrica")).findFirst().orElse(categorias.get(0));
+        CategoriaFinanceira catAgua = categorias.stream().filter(c -> c.getNome().equals("Água e Esgoto")).findFirst().orElse(categorias.get(0));
+        CategoriaFinanceira catInternet = categorias.stream().filter(c -> c.getNome().equals("Internet e Telefone")).findFirst().orElse(categorias.get(0));
+        CategoriaFinanceira catManutencao = categorias.stream().filter(c -> c.getNome().equals("Manutenção")).findFirst().orElse(categorias.get(0));
+        CategoriaFinanceira catImpostos = categorias.stream().filter(c -> c.getNome().equals("Impostos e Taxas")).findFirst().orElse(categorias.get(0));
+
+        int contador = 0;
+
+        // --- CONTAS PAGAS (passado) ---
+        for (int i = 1; i <= 3; i++) {
+            ContaPagar cp = criarContaPagarBase(org, contaPrincipal, catAluguel, centroAdmin,
+                    "Aluguel do Salão - Mês " + i, "Imobiliária Central",
+                    BigDecimal.valueOf(4500.00), LocalDate.now().minusMonths(i));
+            cp.setStatus(ContaPagar.StatusContaPagar.PAGA);
+            cp.setValorPago(BigDecimal.valueOf(4500.00));
+            cp.setDtPagamento(cp.getDtVencimento().minusDays(2));
+            cp.setRecorrente(true);
+            cp.setPeriodicidade(ContaPagar.Periodicidade.MENSAL);
+            cp.setFormaPagamento("TRANSFERENCIA");
+            contaPagarRepository.save(cp);
+            contador++;
+        }
+
+        for (int i = 1; i <= 2; i++) {
+            ContaPagar cp = criarContaPagarBase(org, contaPrincipal, catEnergia, centroOperacional,
+                    "Conta de Energia - Mês " + i, "CEMIG",
+                    BigDecimal.valueOf(850.00 + ThreadLocalRandom.current().nextInt(0, 200)), LocalDate.now().minusMonths(i));
+            cp.setStatus(ContaPagar.StatusContaPagar.PAGA);
+            cp.setValorPago(cp.getValor());
+            cp.setDtPagamento(cp.getDtVencimento());
+            cp.setRecorrente(true);
+            cp.setPeriodicidade(ContaPagar.Periodicidade.MENSAL);
+            cp.setFormaPagamento("PIX");
+            contaPagarRepository.save(cp);
+            contador++;
+        }
+
+        // Fornecedor de produtos - pago
+        ContaPagar cpProdutos1 = criarContaPagarBase(org, contaPrincipal, catProdutos, centroOperacional,
+                "Compra de Shampoos e Condicionadores", "Beauty Distribuidora LTDA",
+                BigDecimal.valueOf(3200.00), LocalDate.now().minusDays(20));
+        cpProdutos1.setStatus(ContaPagar.StatusContaPagar.PAGA);
+        cpProdutos1.setValorPago(BigDecimal.valueOf(3200.00));
+        cpProdutos1.setDtPagamento(LocalDate.now().minusDays(19));
+        cpProdutos1.setNumeroNota("NF-2024-001234");
+        cpProdutos1.setFormaPagamento("CARTAO_CREDITO");
+        contaPagarRepository.save(cpProdutos1);
+        contador++;
+
+        ContaPagar cpProdutos2 = criarContaPagarBase(org, contaPrincipal, catProdutos, centroOperacional,
+                "Esmaltes e Material de Manicure", "Nail Supply Brasil",
+                BigDecimal.valueOf(1850.00), LocalDate.now().minusDays(15));
+        cpProdutos2.setStatus(ContaPagar.StatusContaPagar.PAGA);
+        cpProdutos2.setValorPago(BigDecimal.valueOf(1850.00));
+        cpProdutos2.setDtPagamento(LocalDate.now().minusDays(14));
+        cpProdutos2.setFormaPagamento("PIX");
+        contaPagarRepository.save(cpProdutos2);
+        contador++;
+
+        // Marketing pago
+        ContaPagar cpMkt = criarContaPagarBase(org, contaPrincipal, catMarketing, centroMarketing,
+                "Campanha Instagram Ads - Janeiro", "Meta Platforms",
+                BigDecimal.valueOf(1500.00), LocalDate.now().minusDays(10));
+        cpMkt.setStatus(ContaPagar.StatusContaPagar.PAGA);
+        cpMkt.setValorPago(BigDecimal.valueOf(1500.00));
+        cpMkt.setDtPagamento(LocalDate.now().minusDays(10));
+        cpMkt.setFormaPagamento("CARTAO_CREDITO");
+        contaPagarRepository.save(cpMkt);
+        contador++;
+
+        // Salários pagos
+        for (int i = 0; i < 3; i++) {
+            ContaPagar cpSalario = criarContaPagarBase(org, contaPrincipal, catSalarios, centroRH,
+                    "Salário Funcionário " + (i + 1) + " - Mês Anterior", "Folha de Pagamento",
+                    BigDecimal.valueOf(2500.00 + i * 500), LocalDate.now().minusDays(5));
+            cpSalario.setStatus(ContaPagar.StatusContaPagar.PAGA);
+            cpSalario.setValorPago(cpSalario.getValor());
+            cpSalario.setDtPagamento(LocalDate.now().minusDays(5));
+            cpSalario.setRecorrente(true);
+            cpSalario.setPeriodicidade(ContaPagar.Periodicidade.MENSAL);
+            cpSalario.setFormaPagamento("TRANSFERENCIA");
+            contaPagarRepository.save(cpSalario);
+            contador++;
+        }
+
+        // --- CONTAS PENDENTES (futuras) ---
+        ContaPagar cpAluguelFuturo = criarContaPagarBase(org, contaPrincipal, catAluguel, centroAdmin,
+                "Aluguel do Salão - Mês Atual", "Imobiliária Central",
+                BigDecimal.valueOf(4500.00), LocalDate.now().plusDays(10));
+        cpAluguelFuturo.setStatus(ContaPagar.StatusContaPagar.PENDENTE);
+        cpAluguelFuturo.setRecorrente(true);
+        cpAluguelFuturo.setPeriodicidade(ContaPagar.Periodicidade.MENSAL);
+        contaPagarRepository.save(cpAluguelFuturo);
+        contador++;
+
+        ContaPagar cpEnergiaFutura = criarContaPagarBase(org, contaPrincipal, catEnergia, centroOperacional,
+                "Conta de Energia - Mês Atual", "CEMIG",
+                BigDecimal.valueOf(920.00), LocalDate.now().plusDays(15));
+        cpEnergiaFutura.setStatus(ContaPagar.StatusContaPagar.PENDENTE);
+        cpEnergiaFutura.setFormaPagamento("PIX");
+        contaPagarRepository.save(cpEnergiaFutura);
+        contador++;
+
+        ContaPagar cpAguaFutura = criarContaPagarBase(org, contaPrincipal, catAgua, centroOperacional,
+                "Conta de Água - Mês Atual", "COPASA",
+                BigDecimal.valueOf(380.00), LocalDate.now().plusDays(12));
+        cpAguaFutura.setStatus(ContaPagar.StatusContaPagar.PENDENTE);
+        contaPagarRepository.save(cpAguaFutura);
+        contador++;
+
+        ContaPagar cpInternetFutura = criarContaPagarBase(org, contaPrincipal, catInternet, centroAdmin,
+                "Internet Fibra 500MB", "Vivo Empresas",
+                BigDecimal.valueOf(249.90), LocalDate.now().plusDays(8));
+        cpInternetFutura.setStatus(ContaPagar.StatusContaPagar.PENDENTE);
+        cpInternetFutura.setRecorrente(true);
+        cpInternetFutura.setPeriodicidade(ContaPagar.Periodicidade.MENSAL);
+        contaPagarRepository.save(cpInternetFutura);
+        contador++;
+
+        ContaPagar cpProdutosFuturo = criarContaPagarBase(org, contaPrincipal, catProdutos, centroOperacional,
+                "Reposição de Tintas e Colorações", "Color Pro Distribuidora",
+                BigDecimal.valueOf(4800.00), LocalDate.now().plusDays(20));
+        cpProdutosFuturo.setStatus(ContaPagar.StatusContaPagar.PENDENTE);
+        cpProdutosFuturo.setParcelaAtual(1);
+        cpProdutosFuturo.setTotalParcelas(3);
+        contaPagarRepository.save(cpProdutosFuturo);
+        contador++;
+
+        // --- CONTAS VENCIDAS ---
+        ContaPagar cpImpostoVencido = criarContaPagarBase(org, contaPrincipal, catImpostos, centroAdmin,
+                "DAS Simples Nacional - Dezembro", "Receita Federal",
+                BigDecimal.valueOf(1890.00), LocalDate.now().minusDays(15));
+        cpImpostoVencido.setStatus(ContaPagar.StatusContaPagar.VENCIDA);
+        cpImpostoVencido.setValorJuros(BigDecimal.valueOf(28.35));
+        cpImpostoVencido.setValorMulta(BigDecimal.valueOf(37.80));
+        cpImpostoVencido.setObservacoes("Verificar com contador possibilidade de parcelamento");
+        contaPagarRepository.save(cpImpostoVencido);
+        contador++;
+
+        ContaPagar cpFornecedorVencido = criarContaPagarBase(org, contaPrincipal, catProdutos, centroOperacional,
+                "Material de Limpeza - Lote 47", "Higiene Total LTDA",
+                BigDecimal.valueOf(650.00), LocalDate.now().minusDays(8));
+        cpFornecedorVencido.setStatus(ContaPagar.StatusContaPagar.VENCIDA);
+        cpFornecedorVencido.setObservacoes("Fornecedor cobrando juros de mora");
+        contaPagarRepository.save(cpFornecedorVencido);
+        contador++;
+
+        ContaPagar cpManutencaoVencida = criarContaPagarBase(org, contaPrincipal, catManutencao, centroOperacional,
+                "Reparo do Ar Condicionado", "Cool Service Refrigeração",
+                BigDecimal.valueOf(1200.00), LocalDate.now().minusDays(5));
+        cpManutencaoVencida.setStatus(ContaPagar.StatusContaPagar.VENCIDA);
+        contaPagarRepository.save(cpManutencaoVencida);
+        contador++;
+
+        // Contas parcialmente pagas
+        ContaPagar cpParcelada1 = criarContaPagarBase(org, contaPrincipal, catProdutos, centroOperacional,
+                "Equipamento de Secagem Profissional", "Salon Equipment Brasil",
+                BigDecimal.valueOf(5600.00), LocalDate.now().minusDays(3));
+        cpParcelada1.setStatus(ContaPagar.StatusContaPagar.PARCIALMENTE_PAGA);
+        cpParcelada1.setValorPago(BigDecimal.valueOf(2800.00));
+        cpParcelada1.setParcelaAtual(1);
+        cpParcelada1.setTotalParcelas(2);
+        cpParcelada1.setObservacoes("Primeira parcela paga, segunda parcela em 30 dias");
+        contaPagarRepository.save(cpParcelada1);
+        contador++;
+
+        ContaPagar cpParcelada2 = criarContaPagarBase(org, contaPrincipal, catManutencao, centroOperacional,
+                "Reforma do Banheiro Social", "Construtora JR",
+                BigDecimal.valueOf(8500.00), LocalDate.now().minusDays(10));
+        cpParcelada2.setStatus(ContaPagar.StatusContaPagar.PARCIALMENTE_PAGA);
+        cpParcelada2.setValorPago(BigDecimal.valueOf(4250.00));
+        cpParcelada2.setParcelaAtual(2);
+        cpParcelada2.setTotalParcelas(4);
+        contaPagarRepository.save(cpParcelada2);
+        contador++;
+
+        // Conta cancelada
+        ContaPagar cpCancelada = criarContaPagarBase(org, contaPrincipal, catMarketing, centroMarketing,
+                "Panfletos Promocionais - Cancelado", "Gráfica Express",
+                BigDecimal.valueOf(800.00), LocalDate.now().plusDays(5));
+        cpCancelada.setStatus(ContaPagar.StatusContaPagar.CANCELADA);
+        cpCancelada.setObservacoes("Cancelado - optamos por marketing digital");
+        contaPagarRepository.save(cpCancelada);
+        contador++;
+
+        System.out.println("✅ " + contador + " contas a pagar criadas!");
+    }
+
+    private ContaPagar criarContaPagarBase(Organizacao org, ContaBancaria conta, CategoriaFinanceira categoria,
+                                            CentroCusto centro, String descricao, String fornecedor,
+                                            BigDecimal valor, LocalDate dtVencimento) {
+        ContaPagar cp = new ContaPagar();
+        cp.setOrganizacao(org);
+        cp.setContaBancaria(conta);
+        cp.setCategoriaFinanceira(categoria);
+        cp.setCentroCusto(centro);
+        cp.setDescricao(descricao);
+        cp.setFornecedor(fornecedor);
+        cp.setValor(valor);
+        cp.setValorPago(BigDecimal.ZERO);
+        cp.setValorDesconto(BigDecimal.ZERO);
+        cp.setValorJuros(BigDecimal.ZERO);
+        cp.setValorMulta(BigDecimal.ZERO);
+        cp.setDtEmissao(dtVencimento.minusDays(15));
+        cp.setDtVencimento(dtVencimento);
+        cp.setDtCompetencia(dtVencimento.withDayOfMonth(1));
+        cp.setStatus(ContaPagar.StatusContaPagar.PENDENTE);
+        cp.setRecorrente(false);
+        cp.setDtCriacao(LocalDateTime.now());
+        return cp;
+    }
+
+    /**
+     * Cria contas a receber com diversos status e cenários.
+     */
+    private void criarContasReceber(Organizacao org, List<Cliente> clientes, List<ContaBancaria> contas,
+                                     List<CategoriaFinanceira> categorias, List<CentroCusto> centros) {
+        System.out.println("💰 Criando contas a receber...");
+
+        ContaBancaria contaPrincipal = contas.get(0);
+        ContaBancaria contaPix = contas.size() > 3 ? contas.get(3) : contas.get(0);
+        CentroCusto centroOperacional = centros.get(0);
+
+        CategoriaFinanceira catServicos = categorias.stream().filter(c -> c.getNome().equals("Serviços Prestados")).findFirst().orElse(categorias.get(0));
+        CategoriaFinanceira catVendas = categorias.stream().filter(c -> c.getNome().equals("Venda de Produtos")).findFirst().orElse(categorias.get(0));
+        CategoriaFinanceira catOutros = categorias.stream().filter(c -> c.getNome().equals("Outros Recebimentos")).findFirst().orElse(categorias.get(0));
+
+        int contador = 0;
+        String[] servicosDescricao = {
+                "Corte e Escova", "Coloração Completa", "Progressiva", "Manicure e Pedicure",
+                "Design de Sobrancelhas", "Pacote Noiva", "Massagem Relaxante", "Limpeza de Pele",
+                "Barba e Corte", "Hidratação Capilar"
+        };
+        String[] formaPagamento = {"PIX", "CARTAO_CREDITO", "CARTAO_DEBITO", "DINHEIRO", "TRANSFERENCIA"};
+
+        // --- RECEBIDAS (8 entradas) ---
+        for (int i = 0; i < 8; i++) {
+            Cliente cliente = clientes.get(ThreadLocalRandom.current().nextInt(clientes.size()));
+            String servDesc = servicosDescricao[i % servicosDescricao.length];
+            BigDecimal valor = BigDecimal.valueOf(80 + ThreadLocalRandom.current().nextInt(300));
+            LocalDate dtVenc = LocalDate.now().minusDays(ThreadLocalRandom.current().nextInt(1, 45));
+
+            ContaReceber cr = criarContaReceberBase(org, i < 6 ? contaPrincipal : contaPix,
+                    i < 6 ? catServicos : catVendas, centroOperacional, cliente,
+                    servDesc + " - " + cliente.getNomeCompleto(), valor, dtVenc);
+            cr.setStatus(ContaReceber.StatusContaReceber.RECEBIDA);
+            cr.setValorRecebido(valor);
+            cr.setDtRecebimento(dtVenc);
+            cr.setFormaPagamento(formaPagamento[ThreadLocalRandom.current().nextInt(formaPagamento.length)]);
+            contaReceberRepository.save(cr);
+            contador++;
+        }
+
+        // --- PENDENTES (5 entradas) ---
+        for (int i = 0; i < 5; i++) {
+            Cliente cliente = clientes.get(ThreadLocalRandom.current().nextInt(clientes.size()));
+            String servDesc = servicosDescricao[(i + 3) % servicosDescricao.length];
+            BigDecimal valor = BigDecimal.valueOf(100 + ThreadLocalRandom.current().nextInt(500));
+            LocalDate dtVenc = LocalDate.now().plusDays(ThreadLocalRandom.current().nextInt(1, 20));
+
+            ContaReceber cr = criarContaReceberBase(org, contaPrincipal, catServicos, centroOperacional,
+                    cliente, servDesc + " - " + cliente.getNomeCompleto(), valor, dtVenc);
+            cr.setStatus(ContaReceber.StatusContaReceber.PENDENTE);
+            contaReceberRepository.save(cr);
+            contador++;
+        }
+
+        // --- VENCIDAS (3 entradas) ---
+        for (int i = 0; i < 3; i++) {
+            Cliente cliente = clientes.get(ThreadLocalRandom.current().nextInt(clientes.size()));
+            BigDecimal valor = BigDecimal.valueOf(150 + ThreadLocalRandom.current().nextInt(400));
+            LocalDate dtVenc = LocalDate.now().minusDays(ThreadLocalRandom.current().nextInt(5, 30));
+
+            ContaReceber cr = criarContaReceberBase(org, contaPrincipal, catServicos, centroOperacional,
+                    cliente, "Serviço pendente - " + cliente.getNomeCompleto(), valor, dtVenc);
+            cr.setStatus(ContaReceber.StatusContaReceber.VENCIDA);
+            cr.setValorJuros(valor.multiply(BigDecimal.valueOf(0.02)));
+            cr.setObservacoes("Cliente não realizou o pagamento. Entrar em contato.");
+            contaReceberRepository.save(cr);
+            contador++;
+        }
+
+        // --- PARCIALMENTE RECEBIDAS (2 entradas) ---
+        for (int i = 0; i < 2; i++) {
+            Cliente cliente = clientes.get(ThreadLocalRandom.current().nextInt(clientes.size()));
+            BigDecimal valor = BigDecimal.valueOf(500 + ThreadLocalRandom.current().nextInt(500));
+            LocalDate dtVenc = LocalDate.now().minusDays(ThreadLocalRandom.current().nextInt(1, 10));
+            BigDecimal valorRecebido = valor.divide(BigDecimal.valueOf(2), 2, BigDecimal.ROUND_HALF_UP);
+
+            ContaReceber cr = criarContaReceberBase(org, contaPrincipal, catServicos, centroOperacional,
+                    cliente, "Pacote de Serviços - " + cliente.getNomeCompleto(), valor, dtVenc);
+            cr.setStatus(ContaReceber.StatusContaReceber.PARCIALMENTE_RECEBIDA);
+            cr.setValorRecebido(valorRecebido);
+            cr.setDtRecebimento(dtVenc);
+            cr.setParcelaAtual(1);
+            cr.setTotalParcelas(2);
+            cr.setObservacoes("Pagamento parcial realizado. Restante em " + dtVenc.plusDays(30));
+            contaReceberRepository.save(cr);
+            contador++;
+        }
+
+        // --- CANCELADAS (2 entradas) ---
+        for (int i = 0; i < 2; i++) {
+            Cliente cliente = clientes.get(ThreadLocalRandom.current().nextInt(clientes.size()));
+            BigDecimal valor = BigDecimal.valueOf(200 + ThreadLocalRandom.current().nextInt(200));
+            LocalDate dtVenc = LocalDate.now().plusDays(ThreadLocalRandom.current().nextInt(5, 15));
+
+            ContaReceber cr = criarContaReceberBase(org, contaPrincipal, catServicos, centroOperacional,
+                    cliente, "Serviço cancelado - " + cliente.getNomeCompleto(), valor, dtVenc);
+            cr.setStatus(ContaReceber.StatusContaReceber.CANCELADA);
+            cr.setObservacoes("Cliente cancelou o agendamento");
+            contaReceberRepository.save(cr);
+            contador++;
+        }
+
+        System.out.println("✅ " + contador + " contas a receber criadas!");
+    }
+
+    private ContaReceber criarContaReceberBase(Organizacao org, ContaBancaria conta, CategoriaFinanceira categoria,
+                                                CentroCusto centro, Cliente cliente,
+                                                String descricao, BigDecimal valor, LocalDate dtVencimento) {
+        ContaReceber cr = new ContaReceber();
+        cr.setOrganizacao(org);
+        cr.setContaBancaria(conta);
+        cr.setCategoriaFinanceira(categoria);
+        cr.setCentroCusto(centro);
+        cr.setCliente(cliente);
+        cr.setDescricao(descricao);
+        cr.setValor(valor);
+        cr.setValorRecebido(BigDecimal.ZERO);
+        cr.setValorDesconto(BigDecimal.ZERO);
+        cr.setValorJuros(BigDecimal.ZERO);
+        cr.setValorMulta(BigDecimal.ZERO);
+        cr.setDtEmissao(dtVencimento.minusDays(5));
+        cr.setDtVencimento(dtVencimento);
+        cr.setDtCompetencia(dtVencimento.withDayOfMonth(1));
+        cr.setStatus(ContaReceber.StatusContaReceber.PENDENTE);
+        cr.setRecorrente(false);
+        cr.setDtCriacao(LocalDateTime.now());
+        return cr;
+    }
+
+    /**
+     * Cria lançamentos financeiros com diversos tipos e status.
+     */
+    private void criarLancamentosFinanceiros(Organizacao org, List<ContaBancaria> contas,
+                                              List<CategoriaFinanceira> categorias, List<CentroCusto> centros) {
+        System.out.println("📒 Criando lançamentos financeiros...");
+
+        ContaBancaria contaPrincipal = contas.get(0);
+        ContaBancaria contaPoupanca = contas.size() > 1 ? contas.get(1) : contas.get(0);
+        ContaBancaria contaCaixa = contas.size() > 2 ? contas.get(2) : contas.get(0);
+        ContaBancaria contaPix = contas.size() > 3 ? contas.get(3) : contas.get(0);
+        CentroCusto centroOp = centros.get(0);
+        CentroCusto centroAdmin = centros.get(1);
+
+        CategoriaFinanceira catServicos = categorias.stream().filter(c -> c.getNome().equals("Serviços Prestados")).findFirst().orElse(categorias.get(0));
+        CategoriaFinanceira catCortes = categorias.stream().filter(c -> c.getNome().equals("Cortes e Penteados")).findFirst().orElse(catServicos);
+        CategoriaFinanceira catTratamentos = categorias.stream().filter(c -> c.getNome().equals("Tratamentos Capilares")).findFirst().orElse(catServicos);
+        CategoriaFinanceira catVendas = categorias.stream().filter(c -> c.getNome().equals("Venda de Produtos")).findFirst().orElse(categorias.get(0));
+        CategoriaFinanceira catAluguel = categorias.stream().filter(c -> c.getNome().equals("Aluguel e Condomínio")).findFirst().orElse(categorias.get(0));
+        CategoriaFinanceira catProdutos = categorias.stream().filter(c -> c.getNome().equals("Produtos e Insumos")).findFirst().orElse(categorias.get(0));
+        CategoriaFinanceira catSalarios = categorias.stream().filter(c -> c.getNome().equals("Salários")).findFirst().orElse(categorias.get(0));
+        CategoriaFinanceira catEnergia = categorias.stream().filter(c -> c.getNome().equals("Energia Elétrica")).findFirst().orElse(categorias.get(0));
+
+        int contador = 0;
+        String[] formasPagamento = {"PIX", "DINHEIRO", "CARTAO_CREDITO", "CARTAO_DEBITO", "TRANSFERENCIA"};
+
+        // === RECEITAS (25 lançamentos nos últimos 3 meses) ===
+        for (int i = 0; i < 25; i++) {
+            LancamentoFinanceiro lf = new LancamentoFinanceiro();
+            lf.setOrganizacao(org);
+            lf.setTipo(LancamentoFinanceiro.TipoLancamento.RECEITA);
+
+            LocalDate dtLanc = LocalDate.now().minusDays(ThreadLocalRandom.current().nextInt(1, 90));
+            lf.setDtLancamento(dtLanc);
+            lf.setDtCompetencia(dtLanc.withDayOfMonth(1));
+
+            ContaBancaria contaDest;
+            String forma = formasPagamento[ThreadLocalRandom.current().nextInt(formasPagamento.length)];
+            if (forma.equals("PIX")) {
+                contaDest = contaPix;
+            } else if (forma.equals("DINHEIRO")) {
+                contaDest = contaCaixa;
+            } else {
+                contaDest = contaPrincipal;
+            }
+            lf.setContaBancaria(contaDest);
+            lf.setFormaPagamento(forma);
+
+            if (i < 10) {
+                lf.setCategoriaFinanceira(catCortes);
+                lf.setDescricao("Corte e Escova - Atendimento #" + (1000 + i));
+                lf.setValor(BigDecimal.valueOf(80 + ThreadLocalRandom.current().nextInt(120)));
+            } else if (i < 17) {
+                lf.setCategoriaFinanceira(catTratamentos);
+                lf.setDescricao("Tratamento Capilar - Atendimento #" + (2000 + i));
+                lf.setValor(BigDecimal.valueOf(120 + ThreadLocalRandom.current().nextInt(200)));
+            } else if (i < 22) {
+                lf.setCategoriaFinanceira(catVendas);
+                lf.setDescricao("Venda de Produtos - Pedido #" + (3000 + i));
+                lf.setValor(BigDecimal.valueOf(50 + ThreadLocalRandom.current().nextInt(300)));
+            } else {
+                lf.setCategoriaFinanceira(catServicos);
+                lf.setDescricao("Serviço Diverso - Atendimento #" + (4000 + i));
+                lf.setValor(BigDecimal.valueOf(100 + ThreadLocalRandom.current().nextInt(400)));
+            }
+
+            lf.setCentroCusto(centroOp);
+            lf.setStatus(i < 22 ? LancamentoFinanceiro.StatusLancamento.EFETIVADO : LancamentoFinanceiro.StatusLancamento.PENDENTE);
+            lf.setDtCriacao(LocalDateTime.now());
+            lancamentoFinanceiroRepository.save(lf);
+            contador++;
+        }
+
+        // === DESPESAS (12 lançamentos) ===
+        Object[][] despesasData = {
+                {"Aluguel do Salão - Janeiro", 4500.00, catAluguel, centroAdmin, "TRANSFERENCIA", 30},
+                {"Aluguel do Salão - Fevereiro", 4500.00, catAluguel, centroAdmin, "TRANSFERENCIA", 60},
+                {"Compra de Produtos Capilares", 2800.00, catProdutos, centroOp, "CARTAO_CREDITO", 25},
+                {"Compra de Esmaltes e Acessórios", 1200.00, catProdutos, centroOp, "PIX", 18},
+                {"Conta de Energia - Janeiro", 890.00, catEnergia, centroOp, "PIX", 35},
+                {"Conta de Energia - Fevereiro", 920.00, catEnergia, centroOp, "PIX", 5},
+                {"Salário Cabeleireira Ana", 3500.00, catSalarios, centroOp, "TRANSFERENCIA", 5},
+                {"Salário Manicure Carla", 2800.00, catSalarios, centroOp, "TRANSFERENCIA", 5},
+                {"Salário Barbeiro João", 3200.00, catSalarios, centroOp, "TRANSFERENCIA", 5},
+                {"Material de Limpeza", 450.00, catProdutos, centroOp, "DINHEIRO", 12},
+                {"Manutenção Ar Condicionado", 850.00, catProdutos, centroOp, "PIX", 20},
+                {"Assinatura Software Gestão", 199.90, catProdutos, centroAdmin, "CARTAO_CREDITO", 2}
+        };
+
+        for (Object[] data : despesasData) {
+            LancamentoFinanceiro lf = new LancamentoFinanceiro();
+            lf.setOrganizacao(org);
+            lf.setTipo(LancamentoFinanceiro.TipoLancamento.DESPESA);
+            lf.setDescricao((String) data[0]);
+            lf.setValor(BigDecimal.valueOf((double) data[1]));
+            lf.setCategoriaFinanceira((CategoriaFinanceira) data[2]);
+            lf.setCentroCusto((CentroCusto) data[3]);
+            lf.setFormaPagamento((String) data[4]);
+            lf.setDtLancamento(LocalDate.now().minusDays((int) data[5]));
+            lf.setDtCompetencia(lf.getDtLancamento().withDayOfMonth(1));
+            lf.setContaBancaria(contaPrincipal);
+            lf.setStatus(LancamentoFinanceiro.StatusLancamento.EFETIVADO);
+            lf.setDtCriacao(LocalDateTime.now());
+            lancamentoFinanceiroRepository.save(lf);
+            contador++;
+        }
+
+        // === TRANSFERÊNCIAS (3 lançamentos) ===
+        Object[][] transferencias = {
+                {"Transferência para Poupança", 5000.00, contaPrincipal, contaPoupanca, 15},
+                {"Retirada de Caixa para Conta", 2000.00, contaCaixa, contaPrincipal, 7},
+                {"Transferência PIX para Conta Principal", 3500.00, contaPix, contaPrincipal, 3}
+        };
+
+        for (Object[] data : transferencias) {
+            LancamentoFinanceiro lf = new LancamentoFinanceiro();
+            lf.setOrganizacao(org);
+            lf.setTipo(LancamentoFinanceiro.TipoLancamento.TRANSFERENCIA);
+            lf.setDescricao((String) data[0]);
+            lf.setValor(BigDecimal.valueOf((double) data[1]));
+            lf.setContaBancaria((ContaBancaria) data[2]);
+            lf.setContaBancariaDestino((ContaBancaria) data[3]);
+            lf.setDtLancamento(LocalDate.now().minusDays((int) data[4]));
+            lf.setDtCompetencia(lf.getDtLancamento().withDayOfMonth(1));
+            lf.setStatus(LancamentoFinanceiro.StatusLancamento.EFETIVADO);
+            lf.setFormaPagamento("TRANSFERENCIA");
+            lf.setDtCriacao(LocalDateTime.now());
+            lancamentoFinanceiroRepository.save(lf);
+            contador++;
+        }
+
+        System.out.println("✅ " + contador + " lançamentos financeiros criados!");
+    }
+
+    /**
+     * Cria compras de produtos com diversos status, cobranças e pagamentos.
+     */
+    private void criarCompras(Organizacao org, List<Cliente> clientes, List<Produto> produtos) {
+        System.out.println("🛒 Criando compras de produtos...");
+
+        if (produtos == null || produtos.isEmpty()) {
+            System.out.println("⚠️ Nenhum produto disponível para criar compras.");
+            return;
+        }
+
+        Compra.StatusCompra[] statusDistribuicao = {
+                Compra.StatusCompra.CARRINHO, Compra.StatusCompra.CARRINHO,
+                Compra.StatusCompra.AGUARDANDO_PAGAMENTO, Compra.StatusCompra.AGUARDANDO_PAGAMENTO,
+                Compra.StatusCompra.PAGO, Compra.StatusCompra.PAGO, Compra.StatusCompra.PAGO, Compra.StatusCompra.PAGO,
+                Compra.StatusCompra.PROCESSANDO, Compra.StatusCompra.PROCESSANDO,
+                Compra.StatusCompra.PRONTO,
+                Compra.StatusCompra.ENTREGUE, Compra.StatusCompra.ENTREGUE,
+                Compra.StatusCompra.CANCELADA, Compra.StatusCompra.CANCELADA
+        };
+
+        Compra.TipoCompra[] tiposCompra = {
+                Compra.TipoCompra.BALCAO, Compra.TipoCompra.BALCAO, Compra.TipoCompra.ONLINE,
+                Compra.TipoCompra.BALCAO, Compra.TipoCompra.ONLINE, Compra.TipoCompra.BALCAO,
+                Compra.TipoCompra.TELEFONE, Compra.TipoCompra.BALCAO, Compra.TipoCompra.ONLINE,
+                Compra.TipoCompra.BALCAO, Compra.TipoCompra.BALCAO, Compra.TipoCompra.ONLINE,
+                Compra.TipoCompra.BALCAO, Compra.TipoCompra.TELEFONE, Compra.TipoCompra.BALCAO
+        };
+
+        Pagamento.FormaPagamento[] formasPag = Pagamento.FormaPagamento.values();
+
+        for (int i = 0; i < statusDistribuicao.length; i++) {
+            Cliente cliente = clientes.get(ThreadLocalRandom.current().nextInt(clientes.size()));
+            Compra.StatusCompra status = statusDistribuicao[i];
+
+            Compra compra = new Compra();
+            compra.setOrganizacao(org);
+            compra.setCliente(cliente);
+            compra.setStatusCompra(status);
+            compra.setTipoCompra(tiposCompra[i]);
+            compra.setNumeroPedido("PED-" + String.format("%06d", 1000 + i));
+            compra.setDtCriacao(LocalDateTime.now().minusDays(ThreadLocalRandom.current().nextInt(1, 60)));
+
+            if (status == Compra.StatusCompra.ENTREGUE) {
+                compra.setDtFinalizacao(compra.getDtCriacao().plusDays(ThreadLocalRandom.current().nextInt(1, 5)));
+            }
+
+            // Adicionar itens (1-3 produtos aleatórios)
+            int numItens = 1 + ThreadLocalRandom.current().nextInt(3);
+            List<CompraProduto> itens = new ArrayList<>();
+            BigDecimal valorTotal = BigDecimal.ZERO;
+            Set<Long> produtosUsados = new HashSet<>();
+
+            for (int j = 0; j < numItens; j++) {
+                Produto produto;
+                int tentativas = 0;
+                do {
+                    produto = produtos.get(ThreadLocalRandom.current().nextInt(produtos.size()));
+                    tentativas++;
+                } while (produtosUsados.contains(produto.getId()) && tentativas < 10);
+
+                if (produtosUsados.contains(produto.getId())) continue;
+                produtosUsados.add(produto.getId());
+
+                int quantidade = 1 + ThreadLocalRandom.current().nextInt(3);
+                BigDecimal precoUnit = produto.getPreco();
+                BigDecimal subtotal = precoUnit.multiply(BigDecimal.valueOf(quantidade));
+
+                CompraProduto item = new CompraProduto();
+                item.setCompra(compra);
+                item.setProduto(produto);
+                item.setQuantidade(quantidade);
+                item.setPrecoUnitario(precoUnit);
+                item.setSubtotal(subtotal);
+                item.setDescontoItem(BigDecimal.ZERO);
+                item.setDtAdicionado(compra.getDtCriacao());
+
+                itens.add(item);
+                valorTotal = valorTotal.add(subtotal);
+            }
+
+            compra.setItens(itens);
+            compra.setValorTotal(valorTotal);
+            compra.setValorDesconto(BigDecimal.ZERO);
+            compra.setValorFinal(valorTotal);
+
+            Compra compraSalva = compraRepository.save(compra);
+
+            // Criar cobrança para compras que não são CARRINHO
+            if (status != Compra.StatusCompra.CARRINHO) {
+                Cobranca cob = new Cobranca();
+                cob.setOrganizacao(org);
+                cob.setCliente(cliente);
+                cob.setCompra(compraSalva);
+                cob.setValor(valorTotal);
+                cob.setTipoCobranca(Cobranca.TipoCobranca.COMPRA);
+                cob.setDtVencimento(compraSalva.getDtCriacao().toLocalDate().plusDays(3));
+
+                boolean isPaga = status == Compra.StatusCompra.PAGO || status == Compra.StatusCompra.PROCESSANDO
+                        || status == Compra.StatusCompra.PRONTO || status == Compra.StatusCompra.ENTREGUE;
+
+                if (isPaga) {
+                    cob.setStatusCobranca(Cobranca.StatusCobranca.PAGO);
+                    cob.setValorPago(valorTotal);
+                    cob.setValorPendente(BigDecimal.ZERO);
+                    cob.setDtPagamentoCompleto(compraSalva.getDtCriacao().plusHours(1));
+                } else if (status == Compra.StatusCompra.CANCELADA) {
+                    cob.setStatusCobranca(Cobranca.StatusCobranca.CANCELADA);
+                    cob.setValorPago(BigDecimal.ZERO);
+                    cob.setValorPendente(valorTotal);
+                } else {
+                    cob.setStatusCobranca(Cobranca.StatusCobranca.PENDENTE);
+                    cob.setValorPago(BigDecimal.ZERO);
+                    cob.setValorPendente(valorTotal);
+                }
+
+                Cobranca cobSalva = cobrancaRepository.save(cob);
+
+                // Criar pagamento para compras pagas
+                if (isPaga) {
+                    Pagamento pag = new Pagamento();
+                    pag.setCobranca(cobSalva);
+                    pag.setCliente(cliente);
+                    pag.setOrganizacao(org);
+                    pag.setValor(valorTotal);
+                    pag.setDtPagamento(compraSalva.getDtCriacao().plusHours(1));
+                    pag.setFormaPagamento(formasPag[ThreadLocalRandom.current().nextInt(formasPag.length)]);
+                    pag.setStatusPagamento(Pagamento.StatusPagamento.CONFIRMADO);
+                    pag.setNumeroTransacao("TXN-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
+                    pag.setDtCriacao(compraSalva.getDtCriacao());
+                    pagamentoRepository.save(pag);
+                }
+            }
+        }
+
+        System.out.println("✅ " + statusDistribuicao.length + " compras criadas com cobranças e pagamentos!");
+    }
+
+    /**
+     * Cria pagamentos para as cobranças de agendamentos, simulando diversos cenários.
+     */
+    private void criarPagamentosParaCobrancas(Organizacao org) {
+        System.out.println("💳 Criando pagamentos para cobranças de agendamentos...");
+
+        List<Cobranca> cobrancas = cobrancaRepository.findAll().stream()
+                .filter(c -> c.getOrganizacao() != null && c.getOrganizacao().getId().equals(org.getId()))
+                .filter(c -> c.getTipoCobranca() == Cobranca.TipoCobranca.AGENDAMENTO)
+                .collect(Collectors.toList());
+
+        if (cobrancas.isEmpty()) {
+            System.out.println("⚠️ Nenhuma cobrança de agendamento encontrada.");
+            return;
+        }
+
+        int pagos = 0, parciais = 0, vencidos = 0, cancelados = 0;
+        Pagamento.FormaPagamento[] formasPag = Pagamento.FormaPagamento.values();
+
+        for (int i = 0; i < cobrancas.size(); i++) {
+            Cobranca cob = cobrancas.get(i);
+
+            // Verificar se o agendamento tem status que justifica pagamento
+            if (cob.getAgendamento() == null) continue;
+            Status statusAgendamento = cob.getAgendamento().getStatus();
+
+            if (statusAgendamento == Status.CONCLUIDO || statusAgendamento == Status.PAGO) {
+                // Agendamento concluído → cobrança PAGO + pagamento confirmado
+                cob.setStatusCobranca(Cobranca.StatusCobranca.PAGO);
+                cob.setValorPago(cob.getValor());
+                cob.setValorPendente(BigDecimal.ZERO);
+                cob.setSubtipoCobrancaAgendamento(Cobranca.SubtipoCobrancaAgendamento.INTEGRAL);
+                cob.setDtPagamentoCompleto(cob.getAgendamento().getDtAgendamento().plusHours(2));
+                cobrancaRepository.save(cob);
+
+                Pagamento pag = new Pagamento();
+                pag.setCobranca(cob);
+                pag.setCliente(cob.getCliente());
+                pag.setOrganizacao(org);
+                pag.setValor(cob.getValor());
+                pag.setDtPagamento(cob.getAgendamento().getDtAgendamento().plusHours(2));
+                pag.setFormaPagamento(formasPag[ThreadLocalRandom.current().nextInt(formasPag.length)]);
+                pag.setStatusPagamento(Pagamento.StatusPagamento.CONFIRMADO);
+                pag.setNumeroTransacao("AGD-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
+                pag.setDtCriacao(pag.getDtPagamento());
+                pagamentoRepository.save(pag);
+                pagos++;
+
+            } else if (statusAgendamento == Status.AGENDADO || statusAgendamento == Status.CONFIRMADO) {
+                // 50% pagam sinal, 50% ficam pendentes
+                if (i % 2 == 0 && cob.getValor().compareTo(BigDecimal.valueOf(50)) > 0) {
+                    // Pagar sinal (30%)
+                    BigDecimal valorSinal = cob.getValor().multiply(BigDecimal.valueOf(0.30)).setScale(2, BigDecimal.ROUND_HALF_UP);
+                    cob.setStatusCobranca(Cobranca.StatusCobranca.PARCIALMENTE_PAGO);
+                    cob.setValorPago(valorSinal);
+                    cob.setValorPendente(cob.getValor().subtract(valorSinal));
+                    cob.setSubtipoCobrancaAgendamento(Cobranca.SubtipoCobrancaAgendamento.SINAL);
+                    cob.setPercentualSinal(BigDecimal.valueOf(30));
+                    cobrancaRepository.save(cob);
+
+                    Pagamento pagSinal = new Pagamento();
+                    pagSinal.setCobranca(cob);
+                    pagSinal.setCliente(cob.getCliente());
+                    pagSinal.setOrganizacao(org);
+                    pagSinal.setValor(valorSinal);
+                    pagSinal.setDtPagamento(cob.getDtVencimento().atTime(10, 0).minusDays(1));
+                    pagSinal.setFormaPagamento(Pagamento.FormaPagamento.PIX);
+                    pagSinal.setStatusPagamento(Pagamento.StatusPagamento.CONFIRMADO);
+                    pagSinal.setNumeroTransacao("SIN-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
+                    pagSinal.setObservacoes("Pagamento de sinal - 30% do valor total");
+                    pagSinal.setDtCriacao(pagSinal.getDtPagamento());
+                    pagamentoRepository.save(pagSinal);
+                    parciais++;
+                }
+                // Demais ficam PENDENTE (já é o default)
+
+            } else if (statusAgendamento == Status.CANCELADO) {
+                cob.setStatusCobranca(Cobranca.StatusCobranca.CANCELADA);
+                cob.setValorPago(BigDecimal.ZERO);
+                cob.setValorPendente(cob.getValor());
+                cobrancaRepository.save(cob);
+                cancelados++;
+
+            } else if (statusAgendamento == Status.NAO_COMPARECEU) {
+                // Cobrança vencida - cliente não pagou e não compareceu
+                cob.setStatusCobranca(Cobranca.StatusCobranca.VENCIDA);
+                cob.setValorPago(BigDecimal.ZERO);
+                cob.setValorPendente(cob.getValor());
+                cob.setObservacoes("Cliente não compareceu ao agendamento");
+                cobrancaRepository.save(cob);
+                vencidos++;
+
+            } else if (statusAgendamento == Status.EM_ANDAMENTO) {
+                // Pagamento pendente ou parcial
+                cob.setSubtipoCobrancaAgendamento(Cobranca.SubtipoCobrancaAgendamento.INTEGRAL);
+                cobrancaRepository.save(cob);
+            }
+        }
+
+        System.out.println("✅ Pagamentos de agendamentos processados: " + pagos + " pagos, "
+                + parciais + " parciais, " + vencidos + " vencidos, " + cancelados + " cancelados");
+    }
+
+    /**
+     * Cria configurações de notificação da organização.
+     */
+    private void criarConfigNotificacoesOrganizacao(Organizacao org) {
+        System.out.println("🔔 Criando configurações de notificação...");
+
+        Object[][] configs = {
+                {TipoNotificacao.CONFIRMACAO, 24, true,
+                        "Olá {{cliente_nome}}! Seu agendamento no {{org_nome}} está confirmado para {{data_agendamento}} às {{hora_agendamento}}. Confirma sua presença? Responda SIM ou NÃO."},
+                {TipoNotificacao.CONFIRMACAO, 48, true,
+                        "Olá {{cliente_nome}}! Lembrando que você tem um agendamento no {{org_nome}} em 2 dias ({{data_agendamento}} às {{hora_agendamento}}). Confirma? Responda SIM, NÃO ou REAGENDAR."},
+                {TipoNotificacao.LEMBRETE, 1, true,
+                        "{{cliente_nome}}, seu horário no {{org_nome}} é daqui a 1 hora! Te esperamos às {{hora_agendamento}}. Endereço: {{org_endereco}}."},
+                {TipoNotificacao.LEMBRETE, 3, true,
+                        "Olá {{cliente_nome}}! Lembrando que hoje você tem um agendamento no {{org_nome}} às {{hora_agendamento}}. Nos vemos em breve!"}
+        };
+
+        for (Object[] data : configs) {
+            org.exemplo.bellory.model.entity.notificacao.ConfigNotificacao config =
+                    new org.exemplo.bellory.model.entity.notificacao.ConfigNotificacao();
+            config.setOrganizacao(org);
+            config.setTipo((TipoNotificacao) data[0]);
+            config.setHorasAntes((Integer) data[1]);
+            config.setAtivo((Boolean) data[2]);
+            config.setMensagemTemplate((String) data[3]);
+            config.setDtCriacao(LocalDateTime.now().minusDays(60));
+            notificacaoConfigRepository.save(config);
+        }
+
+        System.out.println("✅ 4 configurações de notificação criadas!");
+    }
+
+    /**
+     * Cria questionários completos com perguntas e opções de resposta.
+     */
+    private void criarQuestionarios(Organizacao org) {
+        System.out.println("📝 Criando questionários...");
+
+        // === QUESTIONÁRIO 1: Pesquisa de Satisfação ===
+        Questionario q1 = Questionario.builder()
+                .organizacao(org)
+                .titulo("Pesquisa de Satisfação")
+                .descricao("Ajude-nos a melhorar! Avalie sua experiência conosco.")
+                .tipo(TipoQuestionario.PESQUISA_SATISFACAO)
+                .ativo(true)
+                .obrigatorio(false)
+                .anonimo(false)
+                .corTema("#4CAF50")
+                .build();
+
+        Pergunta p1_1 = Pergunta.builder()
+                .texto("Como você avalia nosso atendimento?")
+                .descricao("Avalie de 1 a 5 estrelas")
+                .tipo(TipoPergunta.AVALIACAO_ESTRELAS)
+                .obrigatoria(true)
+                .ordem(1)
+                .escalaMin(1)
+                .escalaMax(5)
+                .build();
+        q1.addPergunta(p1_1);
+
+        Pergunta p1_2 = Pergunta.builder()
+                .texto("O que mais gostou no serviço?")
+                .descricao("Selecione todas as opções que se aplicam")
+                .tipo(TipoPergunta.SELECAO_MULTIPLA)
+                .obrigatoria(false)
+                .ordem(2)
+                .build();
+        adicionarOpcoes(p1_2, "Qualidade do serviço", "Atendimento dos profissionais", "Ambiente do salão", "Preço justo", "Pontualidade");
+        q1.addPergunta(p1_2);
+
+        Pergunta p1_3 = Pergunta.builder()
+                .texto("Você recomendaria nosso salão para amigos e familiares?")
+                .tipo(TipoPergunta.SIM_NAO)
+                .obrigatoria(true)
+                .ordem(3)
+                .build();
+        q1.addPergunta(p1_3);
+
+        Pergunta p1_4 = Pergunta.builder()
+                .texto("Em uma escala de 0 a 10, qual a probabilidade de você nos recomendar?")
+                .descricao("NPS - Net Promoter Score")
+                .tipo(TipoPergunta.ESCALA)
+                .obrigatoria(true)
+                .ordem(4)
+                .escalaMin(0)
+                .escalaMax(10)
+                .labelMin("Nada provável")
+                .labelMax("Muito provável")
+                .build();
+        q1.addPergunta(p1_4);
+
+        Pergunta p1_5 = Pergunta.builder()
+                .texto("Deixe sua sugestão ou comentário")
+                .descricao("Sua opinião é muito importante para nós")
+                .tipo(TipoPergunta.TEXTO_LONGO)
+                .obrigatoria(false)
+                .ordem(5)
+                .maxCaracteres(1000)
+                .build();
+        q1.addPergunta(p1_5);
+
+        questionarioRepository.save(q1);
+
+        // === QUESTIONÁRIO 2: Feedback de Atendimento ===
+        Questionario q2 = Questionario.builder()
+                .organizacao(org)
+                .titulo("Feedback de Atendimento")
+                .descricao("Conte-nos como foi seu atendimento hoje.")
+                .tipo(TipoQuestionario.FEEDBACK_ATENDIMENTO)
+                .ativo(true)
+                .obrigatorio(false)
+                .anonimo(false)
+                .corTema("#2196F3")
+                .build();
+
+        Pergunta p2_1 = Pergunta.builder()
+                .texto("Qual serviço você realizou?")
+                .tipo(TipoPergunta.SELECAO_UNICA)
+                .obrigatoria(true)
+                .ordem(1)
+                .build();
+        adicionarOpcoes(p2_1, "Corte", "Coloração", "Tratamento Capilar", "Manicure/Pedicure", "Barba", "Estética Facial", "Massagem", "Outro");
+        q2.addPergunta(p2_1);
+
+        Pergunta p2_2 = Pergunta.builder()
+                .texto("Como avalia o profissional que te atendeu?")
+                .descricao("Avalie a qualidade técnica e o atendimento")
+                .tipo(TipoPergunta.AVALIACAO_ESTRELAS)
+                .obrigatoria(true)
+                .ordem(2)
+                .escalaMin(1)
+                .escalaMax(5)
+                .build();
+        q2.addPergunta(p2_2);
+
+        Pergunta p2_3 = Pergunta.builder()
+                .texto("O tempo de espera foi adequado?")
+                .tipo(TipoPergunta.SIM_NAO)
+                .obrigatoria(false)
+                .ordem(3)
+                .build();
+        q2.addPergunta(p2_3);
+
+        Pergunta p2_4 = Pergunta.builder()
+                .texto("O resultado ficou como esperava?")
+                .tipo(TipoPergunta.SELECAO_UNICA)
+                .obrigatoria(true)
+                .ordem(4)
+                .build();
+        adicionarOpcoes(p2_4, "Superou minhas expectativas", "Ficou como eu esperava", "Ficou abaixo do esperado");
+        q2.addPergunta(p2_4);
+
+        Pergunta p2_5 = Pergunta.builder()
+                .texto("Comentários adicionais sobre o atendimento")
+                .tipo(TipoPergunta.TEXTO_LONGO)
+                .obrigatoria(false)
+                .ordem(5)
+                .maxCaracteres(500)
+                .build();
+        q2.addPergunta(p2_5);
+
+        questionarioRepository.save(q2);
+
+        // === QUESTIONÁRIO 3: Avaliação de Desempenho ===
+        Questionario q3 = Questionario.builder()
+                .organizacao(org)
+                .titulo("Avaliação de Desempenho do Colaborador")
+                .descricao("Avaliação periódica de desempenho dos colaboradores.")
+                .tipo(TipoQuestionario.AVALIACAO_DESEMPENHO)
+                .ativo(true)
+                .obrigatorio(true)
+                .anonimo(false)
+                .corTema("#FF9800")
+                .build();
+
+        Pergunta p3_1 = Pergunta.builder()
+                .texto("Pontualidade do colaborador")
+                .descricao("Avalie a pontualidade e cumprimento de horários")
+                .tipo(TipoPergunta.ESCALA)
+                .obrigatoria(true)
+                .ordem(1)
+                .escalaMin(1)
+                .escalaMax(5)
+                .labelMin("Muito ruim")
+                .labelMax("Excelente")
+                .build();
+        q3.addPergunta(p3_1);
+
+        Pergunta p3_2 = Pergunta.builder()
+                .texto("Qualidade técnica do trabalho")
+                .descricao("Habilidade técnica nos serviços realizados")
+                .tipo(TipoPergunta.ESCALA)
+                .obrigatoria(true)
+                .ordem(2)
+                .escalaMin(1)
+                .escalaMax(5)
+                .labelMin("Muito ruim")
+                .labelMax("Excelente")
+                .build();
+        q3.addPergunta(p3_2);
+
+        Pergunta p3_3 = Pergunta.builder()
+                .texto("Relacionamento com clientes")
+                .descricao("Capacidade de atender bem e se comunicar com clientes")
+                .tipo(TipoPergunta.ESCALA)
+                .obrigatoria(true)
+                .ordem(3)
+                .escalaMin(1)
+                .escalaMax(5)
+                .labelMin("Muito ruim")
+                .labelMax("Excelente")
+                .build();
+        q3.addPergunta(p3_3);
+
+        Pergunta p3_4 = Pergunta.builder()
+                .texto("Trabalho em equipe")
+                .descricao("Colaboração com colegas e contribuição ao ambiente")
+                .tipo(TipoPergunta.ESCALA)
+                .obrigatoria(true)
+                .ordem(4)
+                .escalaMin(1)
+                .escalaMax(5)
+                .labelMin("Muito ruim")
+                .labelMax("Excelente")
+                .build();
+        q3.addPergunta(p3_4);
+
+        Pergunta p3_5 = Pergunta.builder()
+                .texto("Áreas de melhoria e observações")
+                .descricao("Descreva pontos que o colaborador pode melhorar")
+                .tipo(TipoPergunta.TEXTO_LONGO)
+                .obrigatoria(false)
+                .ordem(5)
+                .maxCaracteres(1000)
+                .build();
+        q3.addPergunta(p3_5);
+
+        questionarioRepository.save(q3);
+
+        System.out.println("✅ 3 questionários criados com perguntas e opções!");
+    }
+
+    /**
+     * Método auxiliar para adicionar opções de resposta a uma pergunta.
+     */
+    private void adicionarOpcoes(Pergunta pergunta, String... textos) {
+        for (int i = 0; i < textos.length; i++) {
+            OpcaoResposta opcao = OpcaoResposta.builder()
+                    .texto(textos[i])
+                    .valor(String.valueOf(i + 1))
+                    .ordem(i + 1)
+                    .build();
+            pergunta.addOpcao(opcao);
+        }
     }
 
 }

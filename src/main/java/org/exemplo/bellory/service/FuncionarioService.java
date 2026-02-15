@@ -4,6 +4,7 @@ import org.exemplo.bellory.model.entity.error.ResponseAPI;
 import org.exemplo.bellory.model.entity.funcionario.Cargo;
 import org.exemplo.bellory.model.entity.users.RoleEnum;
 import org.exemplo.bellory.model.repository.funcionario.CargoRepository;
+import org.exemplo.bellory.util.HorarioValidator;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -13,7 +14,11 @@ import org.exemplo.bellory.model.dto.*;
 import org.exemplo.bellory.model.entity.funcionario.Funcionario;
 import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 import org.exemplo.bellory.model.entity.servico.Servico;
+import org.exemplo.bellory.model.entity.agendamento.Agendamento;
+import org.exemplo.bellory.model.repository.agendamento.AgendamentoRepository;
+import org.exemplo.bellory.model.repository.funcionario.BloqueioAgendaRepository;
 import org.exemplo.bellory.model.repository.funcionario.FuncionarioRepository;
+import org.exemplo.bellory.model.repository.organizacao.BloqueioOrganizacaoRepository;
 import org.exemplo.bellory.model.repository.organizacao.OrganizacaoRepository;
 import org.exemplo.bellory.model.repository.servico.ServicoRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -32,116 +37,113 @@ public class FuncionarioService {
 
     private final FuncionarioRepository funcionarioRepository;
     private final OrganizacaoRepository organizacaoRepository;
+    private final CargoRepository cargoRepository;
     private final ServicoRepository servicoRepository;
+    private final AgendamentoRepository agendamentoRepository;
+    private final BloqueioAgendaRepository bloqueioAgendaRepository;
+    private final BloqueioOrganizacaoRepository bloqueioOrganizacaoRepository;
     private final PasswordEncoder passwordEncoder;
     private final FileStorageService fileStorageService;
-    private final CargoRepository cargoRepository;
+    private final JornadaTrabalhoService jornadaTrabalhoService;
+    private final HorarioValidator horarioValidator;
 
-    public FuncionarioService(FuncionarioRepository funcionarioRepository, OrganizacaoRepository organizacaoRepository,
-                              ServicoRepository servicoRepository, PasswordEncoder passwordEncoder, FileStorageService fileStorageService, CargoRepository cargoRepository) {
+    public FuncionarioService(
+            FuncionarioRepository funcionarioRepository,
+            OrganizacaoRepository organizacaoRepository,
+            CargoRepository cargoRepository,
+            ServicoRepository servicoRepository,
+            AgendamentoRepository agendamentoRepository,
+            BloqueioAgendaRepository bloqueioAgendaRepository,
+            BloqueioOrganizacaoRepository bloqueioOrganizacaoRepository,
+            PasswordEncoder passwordEncoder,
+            FileStorageService fileStorageService,
+            JornadaTrabalhoService jornadaTrabalhoService,
+            HorarioValidator horarioValidator) {
         this.funcionarioRepository = funcionarioRepository;
         this.organizacaoRepository = organizacaoRepository;
-        this.passwordEncoder = passwordEncoder;
-        this.servicoRepository = servicoRepository;
-        this.fileStorageService = fileStorageService;
         this.cargoRepository = cargoRepository;
+        this.servicoRepository = servicoRepository;
+        this.agendamentoRepository = agendamentoRepository;
+        this.bloqueioAgendaRepository = bloqueioAgendaRepository;
+        this.bloqueioOrganizacaoRepository = bloqueioOrganizacaoRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.fileStorageService = fileStorageService;
+        this.jornadaTrabalhoService = jornadaTrabalhoService;
+        this.horarioValidator = horarioValidator;
     }
 
     @Transactional
     public Funcionario postNewFuncionario(FuncionarioCreateDTO dto) {
-        // --- VALIDAÇÕES ESSENCIAIS ---
-        if (dto.getIdOrganizacao() == null) {
-            throw new IllegalArgumentException("O ID da organização é obrigatório.");
-        }
-        if (dto.getUsername() == null || dto.getUsername().trim().isEmpty()) {
-            throw new IllegalArgumentException("O login é obrigatório.");
-        }
-        if (dto.getNomeCompleto() == null || dto.getNomeCompleto().trim().isEmpty()) {
-            throw new IllegalArgumentException("O nome completo é obrigatório.");
-        }
-        if (dto.getEmail() == null || dto.getEmail().trim().isEmpty()) {
-            throw new IllegalArgumentException("O e-mail é obrigatório.");
-        }
-        if (dto.getPassword() == null || dto.getPassword().trim().isEmpty()) {
-            throw new IllegalArgumentException("A senha é obrigatória.");
-        }
-        if ( dto.getCargo().getId() == null && dto.getCargo().isAtivo()) {
-            throw new IllegalArgumentException("O cargo é obrigatório.");
-        }
-        if (dto.getNivel() == null) {
-            throw new IllegalArgumentException("O nível é obrigatório.");
-        }
-        if (dto.getRole() == null || dto.getRole().trim().isEmpty()) {
-            throw new IllegalArgumentException("O perfil de acesso é obrigatório.");
-        }
-
-        // Validar que o ID da organização no DTO corresponde ao contexto
+        // === VALIDAÇÃO DE SEGURANÇA ===
         Long organizacaoId = getOrganizacaoIdFromContext();
         if (!organizacaoId.equals(dto.getIdOrganizacao())) {
             throw new SecurityException("Acesso negado: Você não tem permissão para criar funcionário nesta organização");
         }
 
-        // --- VERIFICAÇÃO DE UNICIDADE ---
-        funcionarioRepository.findByUsername(dto.getUsername()).ifPresent(f -> {
-            throw new IllegalArgumentException("O login '" + dto.getUsername() + "' já está em uso.");
-        });
+        // === VALIDAÇÕES OBRIGATÓRIAS ===
+        validarCamposObrigatorios(dto);
 
-        // --- BUSCA DA ORGANIZAÇÃO ---
+        // === VALIDAÇÃO DE PLANO DE HORÁRIOS ===
+        if (dto.getPlanoHorarios() != null && !dto.getPlanoHorarios().isEmpty()) {
+            String erroHorario = horarioValidator.validarPlanoHorarios(dto.getPlanoHorarios());
+            if (erroHorario != null) {
+                throw new IllegalArgumentException("Erro no plano de horários: " + erroHorario);
+            }
+        }
+
+        // === VALIDAÇÃO DE UNICIDADE ===
+        validarUnicidade(dto);
+
+        // === BUSCA DE ENTIDADES RELACIONADAS ===
         Organizacao org = organizacaoRepository.findById(organizacaoId)
-                .orElseThrow(() -> new IllegalArgumentException("Organização com ID " + organizacaoId + " não encontrada."));
+                .orElseThrow(() -> new IllegalArgumentException("Organização não encontrada"));
 
-        Cargo cargo = cargoRepository.findById(dto.getCargo().getId()).orElseThrow(() -> new IllegalArgumentException("O Cargo " + dto.getCargo().getNome() +" não encontrado."));
+        Cargo cargo = cargoRepository.findById(dto.getCargo().getId())
+                .orElseThrow(() -> new IllegalArgumentException("Cargo '" + dto.getCargo().getNome() + "' não encontrado"));
 
-        // --- CRIAÇÃO E MAPEAMENTO DA ENTIDADE ---
-        Funcionario novoFuncionario = new Funcionario();
-        novoFuncionario.setOrganizacao(org);
-        novoFuncionario.setUsername(dto.getUsername());
-        novoFuncionario.setNomeCompleto(dto.getNomeCompleto());
-        novoFuncionario.setEmail(dto.getEmail());
-        novoFuncionario.setPassword(passwordEncoder.encode(dto.getPassword()));
-        novoFuncionario.setCargo(cargo);
-        novoFuncionario.setTelefone(dto.getTelefone());
-        novoFuncionario.setNivel(dto.getNivel());
-        novoFuncionario.setVisivelExterno(dto.isVisibleExterno());
-        novoFuncionario.setAtivo(true);
-        novoFuncionario.setRole(RoleEnum.FUNCIONARIO.getDescricao());
-        novoFuncionario.setDataContratacao(LocalDateTime.now());
-        novoFuncionario.setDataCriacao(LocalDateTime.now());
-        novoFuncionario.setPrimeiroAcesso(true);
+        // === CRIAÇÃO DO FUNCIONÁRIO ===
+        Funcionario novoFuncionario = criarFuncionario(dto, org, cargo);
 
-        if (dto.getTelefone() != null && !dto.getTelefone().trim().isEmpty()) {
-            novoFuncionario.setTelefone(dto.getTelefone());
-        }
+        // === PROCESSAR FOTO DE PERFIL (BASE64) ===
+        if (dto.getFotoPerfil() != null && dto.getFotoPerfil().startsWith("data:image/")) {
+            try {
+                // Salva funcionário primeiro para ter o ID
+                Funcionario funcionarioSalvo = funcionarioRepository.save(novoFuncionario);
 
-        if (dto.getCpf() != null && !dto.getCpf().trim().isEmpty()) {
-            // Validação básica de CPF
-            String cpfLimpo = dto.getCpf().replaceAll("[^0-9]", "");
-            if (cpfLimpo.length() != 11) {
-                throw new IllegalArgumentException("CPF inválido. Deve conter 11 dígitos.");
+                String relativePath = fileStorageService.storeProfilePictureFromBase64(
+                        dto.getFotoPerfil(),
+                        funcionarioSalvo.getId(),
+                        organizacaoId
+                );
+
+                String fullUrl = fileStorageService.getFileUrl(relativePath);
+                funcionarioSalvo.setFotoPerfil(fullUrl);
+
+                novoFuncionario = funcionarioSalvo;
+            } catch (Exception e) {
+                System.err.println("❌ Erro ao salvar foto de perfil: " + e.getMessage());
+                // Continua sem a foto
             }
-
-            // Verifica se o CPF já está em uso
-            funcionarioRepository.findByCpf(cpfLimpo).ifPresent(f -> {
-                throw new IllegalArgumentException("O CPF '" + dto.getCpf() + "' já está cadastrado.");
-            });
-
-            novoFuncionario.setCpf(cpfLimpo);
         }
 
-        if (dto.getServicosId() != null && !dto.getServicosId().isEmpty()) {
-            List<Servico> servicos = servicoRepository.findAllById(dto.getServicosId());
+        // === SALVAR FUNCIONÁRIO ===
+        Funcionario funcionarioFinal = funcionarioRepository.save(novoFuncionario);
 
-            // Valida se todos os serviços foram encontrados
-            if (servicos.size() != dto.getServicosId().size()) {
-                throw new IllegalArgumentException("Um ou mais serviços informados não foram encontrados.");
+        // === PROCESSAR PLANO DE HORÁRIOS ===
+        if (dto.getPlanoHorarios() != null && !dto.getPlanoHorarios().isEmpty()) {
+            for (JornadaDiaDTO jornadaDTO : dto.getPlanoHorarios()) {
+                if (jornadaDTO.getAtivo() && jornadaDTO.getHorarios() != null && !jornadaDTO.getHorarios().isEmpty()) {
+                    try {
+                        jornadaTrabalhoService.criarOuAtualizarJornada(funcionarioFinal.getId(), jornadaDTO);
+                    } catch (Exception e) {
+                        System.err.println("⚠️ Erro ao salvar jornada do dia " + jornadaDTO.getDiaSemana() + ": " + e.getMessage());
+                    }
+                }
             }
-
-            novoFuncionario.setServicos(servicos);
         }
 
-        return funcionarioRepository.save(novoFuncionario);
+        return funcionarioFinal;
     }
-
     @Transactional
     public Funcionario updateFuncionario(Long id, FuncionarioUpdateDTO dto) {
         Funcionario funcionario = funcionarioRepository.findById(id)
@@ -301,20 +303,25 @@ public class FuncionarioService {
 
         // Deletar foto antiga se existir
         if (funcionario.getFotoPerfil() != null) {
-            fileStorageService.deleteFile(funcionario.getFotoPerfil(), organizacaoId);
+            String oldRelativePath = fileStorageService.getRelativePathFromUrl(funcionario.getFotoPerfil());
+            fileStorageService.deleteFile(oldRelativePath, organizacaoId);
         }
 
-        // Salvar nova foto
-        String filename = fileStorageService.storeProfilePicture(file, id, organizacaoId);
+        // Salvar nova foto e obter path relativo
+        String relativePath = fileStorageService.storeProfilePicture(file, id, organizacaoId);
 
-        // Atualizar registro no banco
-        funcionario.setFotoPerfil(filename);
+        // Construir URL completa
+        String fullUrl = fileStorageService.getFileUrl(relativePath);
+
+        // Salvar URL completa no banco
+        funcionario.setFotoPerfil(fullUrl);
         funcionario.setDataUpdate(LocalDateTime.now());
         funcionarioRepository.save(funcionario);
 
         Map<String, String> response = new HashMap<>();
-        response.put("filename", filename);
-        response.put("url", "/api/funcionario/" + id + "/foto-perfil");
+        response.put("filename", relativePath.substring(relativePath.lastIndexOf("/") + 1));
+        response.put("url", fullUrl); // URL completa para acessar a imagem
+        response.put("relativePath", relativePath);
 
         return response;
     }
@@ -333,22 +340,11 @@ public class FuncionarioService {
             throw new IllegalArgumentException("Funcionário não possui foto de perfil.");
         }
 
-        Resource resource = fileStorageService.loadFileAsResource(funcionario.getFotoPerfil(), organizacaoId);
-
-        // Determinar content type baseado na extensão
-        String contentType = "image/jpeg";
-        if (funcionario.getFotoPerfil().endsWith(".png")) {
-            contentType = "image/png";
-        } else if (funcionario.getFotoPerfil().endsWith(".gif")) {
-            contentType = "image/gif";
-        } else if (funcionario.getFotoPerfil().endsWith(".webp")) {
-            contentType = "image/webp";
-        }
-
+        // Agora o banco já tem a URL completa
+        // Esse endpoint pode redirecionar ou retornar a URL
         Map<String, Object> response = new HashMap<>();
-        response.put("resource", resource);
-        response.put("contentType", contentType);
-        response.put("filename", funcionario.getFotoPerfil());
+        response.put("url", funcionario.getFotoPerfil()); // URL completa
+        response.put("filename", funcionario.getFotoPerfil().substring(funcionario.getFotoPerfil().lastIndexOf("/") + 1));
 
         return response;
     }
@@ -367,8 +363,11 @@ public class FuncionarioService {
             throw new IllegalArgumentException("Funcionário não possui foto de perfil para remover.");
         }
 
+        // Extrair path relativo da URL completa
+        String relativePath = fileStorageService.getRelativePathFromUrl(funcionario.getFotoPerfil());
+
         // Deletar arquivo físico
-        fileStorageService.deleteFile(funcionario.getFotoPerfil(), organizacaoId);
+        fileStorageService.deleteFile(relativePath, organizacaoId);
 
         // Atualizar registro no banco
         funcionario.setFotoPerfil(null);
@@ -376,6 +375,152 @@ public class FuncionarioService {
         funcionarioRepository.save(funcionario);
     }
 
+    private Funcionario criarFuncionario(FuncionarioCreateDTO dto, Organizacao org, Cargo cargo) {
+        Funcionario funcionario = new Funcionario();
+        funcionario.setOrganizacao(org);
+        funcionario.setUsername(dto.getUsername());
+        funcionario.setNomeCompleto(dto.getNomeCompleto());
+        funcionario.setEmail(dto.getEmail());
+        funcionario.setPassword(passwordEncoder.encode(dto.getPassword()));
+        funcionario.setCargo(cargo);
+        funcionario.setNivel(dto.getNivel());
+        funcionario.setVisivelExterno(dto.isVisibleExterno());
+        funcionario.setAtivo(true);
+        funcionario.setRole(RoleEnum.FUNCIONARIO.getDescricao());
+        funcionario.setDataContratacao(LocalDateTime.now());
+        funcionario.setDataCriacao(LocalDateTime.now());
+        funcionario.setPrimeiroAcesso(true);
+
+        // Campos opcionais
+        if (dto.getTelefone() != null && !dto.getTelefone().trim().isEmpty()) {
+            funcionario.setTelefone(dto.getTelefone());
+        }
+
+        if (dto.getCpf() != null && !dto.getCpf().trim().isEmpty()) {
+            String cpfLimpo = dto.getCpf().replaceAll("[^0-9]", "");
+            funcionario.setCpf(cpfLimpo);
+        }
+
+        // Foto de perfil (URL ou será processada depois se for base64)
+        if (dto.getFotoPerfil() != null && !dto.getFotoPerfil().startsWith("data:image/")) {
+            funcionario.setFotoPerfil(dto.getFotoPerfil());
+        }
+
+        // Serviços
+        if (dto.getServicosId() != null && !dto.getServicosId().isEmpty()) {
+            List<Servico> servicos = servicoRepository.findAllById(dto.getServicosId());
+
+            if (servicos.size() != dto.getServicosId().size()) {
+                throw new IllegalArgumentException("Um ou mais serviços informados não foram encontrados");
+            }
+
+            funcionario.setServicos(servicos);
+        }
+
+        return funcionario;
+    }
+
+    @Transactional
+    public Funcionario atualizarServicos(Long funcionarioId, List<Long> servicosIds) {
+        Funcionario funcionario = funcionarioRepository.findById(funcionarioId)
+                .orElseThrow(() -> new IllegalArgumentException("Funcionário com ID " + funcionarioId + " não encontrado."));
+
+        validarOrganizacao(funcionario.getOrganizacao().getId());
+
+        List<Servico> servicos = servicoRepository.findAllById(servicosIds);
+
+        if (servicos.size() != servicosIds.size()) {
+            throw new IllegalArgumentException("Um ou mais serviços informados não foram encontrados.");
+        }
+
+        funcionario.setServicos(servicos);
+        funcionario.setDataUpdate(LocalDateTime.now());
+
+        return funcionarioRepository.save(funcionario);
+    }
+
+    @Transactional
+    public Map<String, Object> getAgendaFuncionario(Long funcionarioId) {
+        Funcionario funcionario = funcionarioRepository.findById(funcionarioId)
+                .orElseThrow(() -> new IllegalArgumentException("Funcionário com ID " + funcionarioId + " não encontrado."));
+
+        Long organizacaoId = getOrganizacaoIdFromContext();
+        validarOrganizacao(funcionario.getOrganizacao().getId());
+
+        List<AgendamentoDTO> agendamentos = agendamentoRepository
+                .findByFuncionariosIdAndClienteOrganizacaoId(funcionarioId, organizacaoId)
+                .stream()
+                .map(AgendamentoDTO::new)
+                .collect(Collectors.toList());
+
+        List<BloqueioAgendaDTO> bloqueiosFuncionario = bloqueioAgendaRepository
+                .findBloqueiosManuaisByFuncionarioId(funcionarioId)
+                .stream()
+                .map(BloqueioAgendaDTO::new)
+                .collect(Collectors.toList());
+
+        List<BloqueioOrganizacaoDTO> bloqueiosOrganizacao = bloqueioOrganizacaoRepository
+                .findByOrganizacaoIdAndAtivoTrueOrderByDataInicioAsc(organizacaoId)
+                .stream()
+                .map(BloqueioOrganizacaoDTO::new)
+                .collect(Collectors.toList());
+
+        Map<String, Object> resultado = new HashMap<>();
+        resultado.put("agendamentos", agendamentos);
+        resultado.put("bloqueiosFuncionario", bloqueiosFuncionario);
+        resultado.put("bloqueiosOrganizacao", bloqueiosOrganizacao);
+
+        return resultado;
+    }
+
+    private void validarCamposObrigatorios(FuncionarioCreateDTO dto) {
+        if (dto.getUsername() == null || dto.getUsername().trim().isEmpty()) {
+            throw new IllegalArgumentException("O login é obrigatório");
+        }
+        if (dto.getNomeCompleto() == null || dto.getNomeCompleto().trim().isEmpty()) {
+            throw new IllegalArgumentException("O nome completo é obrigatório");
+        }
+        if (dto.getEmail() == null || dto.getEmail().trim().isEmpty()) {
+            throw new IllegalArgumentException("O e-mail é obrigatório");
+        }
+        if (dto.getPassword() == null || dto.getPassword().trim().isEmpty()) {
+            throw new IllegalArgumentException("A senha é obrigatória");
+        }
+        if (dto.getCargo() == null || dto.getCargo().getId() == null) {
+            throw new IllegalArgumentException("O cargo é obrigatório");
+        }
+        if (dto.getNivel() == null) {
+            throw new IllegalArgumentException("O nível é obrigatório");
+        }
+        if (dto.getRole() == null || dto.getRole().trim().isEmpty()) {
+            throw new IllegalArgumentException("O perfil de acesso é obrigatório");
+        }
+
+        // Validação de e-mail básica
+        if (!dto.getEmail().matches("^[A-Za-z0-9+_.-]+@(.+)$")) {
+            throw new IllegalArgumentException("E-mail inválido");
+        }
+    }
+
+    private void validarUnicidade(FuncionarioCreateDTO dto) {
+        Long organizacaoId = getOrganizacaoIdFromContext();
+
+        funcionarioRepository.findByUsernameAndOrganizacao_Id(dto.getUsername(), organizacaoId).ifPresent(f -> {
+            throw new IllegalArgumentException("O login '" + dto.getUsername() + "' já está em uso");
+        });
+
+        if (dto.getCpf() != null && !dto.getCpf().trim().isEmpty()) {
+            String cpfLimpo = dto.getCpf().replaceAll("[^0-9]", "");
+
+            if (cpfLimpo.length() != 11) {
+                throw new IllegalArgumentException("CPF inválido. Deve conter 11 dígitos");
+            }
+
+            funcionarioRepository.findByCpfAndOrganizacao_Id(cpfLimpo, organizacaoId).ifPresent(f -> {
+                throw new IllegalArgumentException("O CPF '" + dto.getCpf() + "' já está cadastrado");
+            });
+        }
+    }
 
     private void validarOrganizacao(Long entityOrganizacaoId) {
         Long organizacaoId = TenantContext.getCurrentOrganizacaoId();

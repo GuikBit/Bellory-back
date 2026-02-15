@@ -9,6 +9,9 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import org.exemplo.bellory.model.dto.notificacao.NotificacaoSemInstanciaDTO;
+import org.exemplo.bellory.model.entity.notificacao.TipoNotificacao;
+
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
@@ -71,6 +74,15 @@ public interface AgendamentoRepository extends JpaRepository<Agendamento, Long> 
     List<Agendamento> findByFuncionarioAndDataRange(@Param("funcionarioId") Long funcionarioId,
                                                     @Param("inicio") LocalDateTime inicio,
                                                     @Param("fim") LocalDateTime fim);
+
+    @Query("SELECT a FROM Agendamento a JOIN a.funcionarios f " +
+            "WHERE f.id = :funcionarioId " +
+            "AND a.status NOT IN (org.exemplo.bellory.model.entity.agendamento.Status.CANCELADO, " +
+            "org.exemplo.bellory.model.entity.agendamento.Status.CONCLUIDO) " +
+            "AND a.dtAgendamento BETWEEN :inicio AND :fim")
+    List<Agendamento> findAtivosByFuncionarioAndDataRange(@Param("funcionarioId") Long funcionarioId,
+                                                          @Param("inicio") LocalDateTime inicio,
+                                                          @Param("fim") LocalDateTime fim);
 
     @Query("SELECT COUNT(a) FROM Agendamento a JOIN a.funcionarios f WHERE f.id = :funcionarioId AND a.dtAgendamento BETWEEN :inicio AND :fim")
     Long countByFuncionarioAndDataRange(@Param("funcionarioId") Long funcionarioId,
@@ -219,4 +231,580 @@ public interface AgendamentoRepository extends JpaRepository<Agendamento, Long> 
     List<Agendamento> findByClienteId(Long clienteId);
 
     List<Agendamento> findByOrganizacaoIdAndStatus(Long organizacaoId, Status status);
+
+    // ==================== QUERIES OTIMIZADAS PARA DASHBOARD ====================
+
+    /**
+     * Busca agendamentos por organização e período com cliente
+     * Nota: Não pode fazer JOIN FETCH em múltiplas coleções (bags) simultaneamente
+     */
+    @Query("SELECT DISTINCT a FROM Agendamento a " +
+            "LEFT JOIN FETCH a.cliente " +
+            "WHERE a.organizacao.id = :organizacaoId " +
+            "AND a.dtAgendamento BETWEEN :inicio AND :fim")
+    List<Agendamento> findByOrganizacaoAndPeriodoWithDetails(
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim
+    );
+
+    /**
+     * Conta agendamentos por status e organização no período
+     */
+    @Query("SELECT a.status, COUNT(a) FROM Agendamento a " +
+            "WHERE a.organizacao.id = :organizacaoId " +
+            "AND a.dtAgendamento BETWEEN :inicio AND :fim " +
+            "GROUP BY a.status")
+    List<Object[]> countByStatusAndOrganizacaoAndPeriodo(
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim
+    );
+
+    /**
+     * Conta agendamentos por organização no período
+     */
+    @Query("SELECT COUNT(a) FROM Agendamento a " +
+            "WHERE a.organizacao.id = :organizacaoId " +
+            "AND a.dtAgendamento BETWEEN :inicio AND :fim")
+    Long countByOrganizacaoAndPeriodo(
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim
+    );
+
+    /**
+     * Conta atendimentos por funcionário no período
+     */
+    @Query("SELECT f.id, f.nomeCompleto, COUNT(a) FROM Agendamento a " +
+            "JOIN a.funcionarios f " +
+            "WHERE a.organizacao.id = :organizacaoId " +
+            "AND a.dtAgendamento BETWEEN :inicio AND :fim " +
+            "GROUP BY f.id, f.nomeCompleto " +
+            "ORDER BY COUNT(a) DESC")
+    List<Object[]> countByFuncionarioAndOrganizacaoAndPeriodo(
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim
+    );
+
+    /**
+     * Conta serviços mais vendidos no período
+     */
+    @Query("SELECT s.id, s.nome, COUNT(a) FROM Agendamento a " +
+            "JOIN a.servicos s " +
+            "WHERE a.organizacao.id = :organizacaoId " +
+            "AND a.dtAgendamento BETWEEN :inicio AND :fim " +
+            "AND a.status NOT IN ('CANCELADO') " +
+            "GROUP BY s.id, s.nome " +
+            "ORDER BY COUNT(a) DESC")
+    List<Object[]> countServicosMaisVendidosByOrganizacaoAndPeriodo(
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim
+    );
+
+    /**
+     * Busca agendamentos futuros com detalhes (para receita prevista)
+     */
+    @Query("SELECT a FROM Agendamento a " +
+            "LEFT JOIN FETCH a.servicos " +
+            "WHERE a.organizacao.id = :organizacaoId " +
+            "AND a.dtAgendamento > :agora " +
+            "AND a.status NOT IN ('CANCELADO', 'CONCLUIDO')")
+    List<Agendamento> findAgendamentosFuturosByOrganizacao(
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("agora") LocalDateTime agora
+    );
+
+    /**
+     * Conta clientes distintos com agendamentos no período
+     */
+    @Query("SELECT COUNT(DISTINCT a.cliente.id) FROM Agendamento a " +
+            "WHERE a.organizacao.id = :organizacaoId " +
+            "AND a.dtAgendamento BETWEEN :inicio AND :fim")
+    Long countClientesDistintosComAgendamentos(
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim
+    );
+
+    /**
+     * Conta clientes recorrentes (mais de 1 agendamento no período)
+     */
+    @Query("SELECT COUNT(DISTINCT a.cliente.id) FROM Agendamento a " +
+            "WHERE a.organizacao.id = :organizacaoId " +
+            "AND a.dtAgendamento BETWEEN :inicio AND :fim " +
+            "AND a.cliente.id IN (" +
+            "   SELECT a2.cliente.id FROM Agendamento a2 " +
+            "   WHERE a2.organizacao.id = :organizacaoId " +
+            "   AND a2.dtAgendamento BETWEEN :inicio AND :fim " +
+            "   GROUP BY a2.cliente.id " +
+            "   HAVING COUNT(a2.id) > 1" +
+            ")")
+    Long countClientesRecorrentesByOrganizacaoAndPeriodo(
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim
+    );
+
+    /**
+     * Busca clientes inativos (sem agendamentos após data limite) - EVITA N+1
+     */
+    @Query("SELECT COUNT(c.id) FROM Cliente c " +
+            "WHERE c.organizacao.id = :organizacaoId " +
+            "AND c.ativo = true " +
+            "AND c.id NOT IN (" +
+            "   SELECT DISTINCT a.cliente.id FROM Agendamento a " +
+            "   WHERE a.organizacao.id = :organizacaoId " +
+            "   AND a.dtAgendamento >= :dataLimite" +
+            ")")
+    Long countClientesInativos(
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("dataLimite") LocalDateTime dataLimite
+    );
+
+    /**
+     * Vendas (agendamentos concluídos e pagos) no período
+     */
+    @Query("SELECT COUNT(a) FROM Agendamento a " +
+            "WHERE a.organizacao.id = :organizacaoId " +
+            "AND a.dtAgendamento BETWEEN :inicio AND :fim " +
+            "AND a.status = 'CONCLUIDO'")
+    Long countVendasByOrganizacaoAndPeriodo(
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim
+    );
+
+    /**
+     * Conta vendas por categoria de serviço
+     */
+    @Query("SELECT s.categoria.label, COUNT(DISTINCT a.id) FROM Agendamento a " +
+            "JOIN a.servicos s " +
+            "WHERE a.organizacao.id = :organizacaoId " +
+            "AND a.dtAgendamento BETWEEN :inicio AND :fim " +
+            "AND a.status = 'CONCLUIDO' " +
+            "GROUP BY s.categoria.id, s.categoria.label")
+    List<Object[]> countVendasByCategoriaAndOrganizacao(
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim
+    );
+
+    // ==================== QUERIES PARA SISTEMA DE NOTIFICACOES ====================
+
+    /**
+     * Query principal do sistema de notificacoes.
+     * Busca agendamentos que precisam de notificacao AGORA baseado
+     * na configuracao dinamica de cada organizacao.
+     */
+//    @Query("""
+//        SELECT new org.exemplo.bellory.model.dto.notificacao.NotificacaoPendenteDTO(
+//            a.id,
+//            a.dtAgendamento,
+//            c.nomeCompleto,
+//            c.telefone,
+//            o.id,
+//            o.nomeFantasia,
+//            cn.tipo,
+//            cn.horasAntes,
+//            cn.mensagemTemplate,
+//            i.instanceName
+//        )
+//        FROM Agendamento a
+//        JOIN a.cliente c
+//        JOIN a.organizacao o
+//        JOIN ConfigNotificacao cn ON cn.organizacao = o AND cn.ativo = true
+//        JOIN Instance i ON i.organizacao = o
+//        WHERE a.status = 'AGENDADO'
+//          AND a.dtAgendamento > :agora
+//          AND i.status = 'CONNECTED'
+//          AND FUNCTION('TIMESTAMPADD', HOUR, -cn.horasAntes, a.dtAgendamento)
+//              BETWEEN :inicioJanela AND :fimJanela
+//          AND NOT EXISTS (
+//              SELECT 1 FROM NotificacaoEnviada ne
+//              WHERE ne.agendamento = a
+//                AND ne.tipo = cn.tipo
+//                AND ne.horasAntes = cn.horasAntes
+//          )
+//        ORDER BY o.id, a.dtAgendamento ASC
+//        """)
+//    List<NotificacaoPendenteDTO> findNotificacoesPendentes(
+//        @Param("agora") LocalDateTime agora,
+//        @Param("inicioJanela") LocalDateTime inicioJanela,
+//        @Param("fimJanela") LocalDateTime fimJanela
+//    );
+
+    /**
+     * Busca notificacoes sem instancia WhatsApp conectada (para alertar).
+     */
+    @Query("""
+        SELECT new org.exemplo.bellory.model.dto.notificacao.NotificacaoSemInstanciaDTO(
+            a.id, o.id, o.nomeFantasia, o.emailPrincipal, cn.tipo, cn.horasAntes, a.dtAgendamento
+        )
+        FROM Agendamento a
+        JOIN a.cliente c
+        JOIN a.organizacao o
+        JOIN ConfigNotificacao cn ON cn.organizacao = o AND cn.ativo = true
+        LEFT JOIN Instance i ON i.organizacao = o
+        WHERE a.status = 'AGENDADO'
+          AND a.dtAgendamento > :agora
+          AND (i IS NULL OR i.status != 'CONNECTED')
+          AND FUNCTION('TIMESTAMPADD', HOUR, -cn.horasAntes, a.dtAgendamento)
+              BETWEEN :inicioJanela AND :fimJanela
+          AND NOT EXISTS (
+              SELECT 1 FROM NotificacaoEnviada ne
+              WHERE ne.agendamento = a AND ne.tipo = cn.tipo AND ne.horasAntes = cn.horasAntes
+          )
+        ORDER BY o.id
+        """)
+    List<NotificacaoSemInstanciaDTO> findNotificacoesSemInstanciaConectada(
+        @Param("agora") LocalDateTime agora,
+        @Param("inicioJanela") LocalDateTime inicioJanela,
+        @Param("fimJanela") LocalDateTime fimJanela
+    );
+
+    // ==================== QUERIES SEPARADAS POR TIPO DE NOTIFICACAO ====================
+
+
+    /**
+     * Busca notificacoes pendentes de CONFIRMACAO.
+     * Retorna agendamentos onde o momento de envio (dt_agendamento - horas_antes) já passou.
+     */
+    @Query(value = """
+    SELECT
+        a.id,                                                    
+        o.id as organizacao_id,                                  
+        o.nome_fantasia,                                         
+        c.nome_completo,                                         
+        c.telefone,                                              
+        STRING_AGG(s.nome, ', ') as nome_servico,                
+        f.nome_completo as nome_funcionario,                     
+        a.dt_agendamento,                                        
+        co.valor,                                                
+        CONCAT_WS(', ', e.logradouro, e.bairro, e.numero) as endereco, 
+        cn.tipo,                                                 
+        cn.horas_antes,                                         
+        cn.mensagem_template,                                  
+        i.instance_name                                        
+    FROM app.agendamento a
+    JOIN app.cliente c ON c.id = a.cliente_id
+    JOIN app.organizacao o ON o.id = a.organizacao_id
+    JOIN app.config_notificacao cn ON cn.organizacao_id = o.id AND cn.ativo = true AND cn.tipo = 'CONFIRMACAO'
+    JOIN app.instance i ON i.organizacao_id = o.id
+    JOIN app.agendamento_funcionario af ON af.agendamento_id = a.id
+    JOIN app.funcionario f ON f.id = af.funcionario_id
+    JOIN app.agendamento_servico as2 ON as2.agendamento_id = a.id
+    JOIN app.servico s ON s.id = as2.servico_id
+    JOIN app.cobranca co ON co.agendamento_id = a.id
+    JOIN app.endereco e ON e.id = o.endereco_principal_id
+    WHERE a.status IN ('AGENDADO', 'REAGENDADO', 'PENDENTE')
+      AND a.dt_agendamento > :agora
+      AND i.status = 'CONNECTED'
+      AND CAST(a.dt_agendamento + (-cn.horas_antes) * INTERVAL '1 hour' AS TIMESTAMP) <= :agora
+      AND NOT EXISTS (
+          SELECT 1 FROM app.notificacao_enviada ne
+          WHERE ne.agendamento_id = a.id AND ne.tipo = cn.tipo
+      )
+    GROUP BY
+        a.id, o.id, o.nome_fantasia, c.nome_completo, c.telefone,
+        f.nome_completo, a.dt_agendamento, co.valor,
+        e.logradouro, e.bairro, e.numero,
+        cn.tipo, cn.horas_antes, cn.mensagem_template,
+        i.instance_name
+    ORDER BY a.id, a.dt_agendamento ASC
+    """, nativeQuery = true)
+    List<Object[]> findConfirmacoesPendentes(@Param("agora") LocalDateTime agora);
+
+    @Query(value = """
+    SELECT
+        a.id,                                                    
+        o.id as organizacao_id,                                  
+        o.nome_fantasia,                                         
+        c.nome_completo,                                         
+        c.telefone,                                              
+        STRING_AGG(s.nome, ', ') as nome_servico,                
+        f.nome_completo as nome_funcionario,                     
+        a.dt_agendamento,                                        
+        co.valor,                                                
+        CONCAT_WS(', ', e.logradouro, e.bairro, e.numero) as endereco, 
+        cn.tipo,                                                 
+        cn.horas_antes,                                         
+        cn.mensagem_template,                                  
+        i.instance_name                                        
+    FROM app.agendamento a
+    JOIN app.cliente c ON c.id = a.cliente_id
+    JOIN app.organizacao o ON o.id = a.organizacao_id
+    JOIN app.config_notificacao cn ON cn.organizacao_id = o.id AND cn.ativo = true AND cn.tipo = 'LEMBRETE'
+    JOIN app.instance i ON i.organizacao_id = o.id
+    JOIN app.agendamento_funcionario af ON af.agendamento_id = a.id
+    JOIN app.funcionario f ON f.id = af.funcionario_id
+    JOIN app.agendamento_servico as2 ON as2.agendamento_id = a.id
+    JOIN app.servico s ON s.id = as2.servico_id
+    JOIN app.cobranca co ON co.agendamento_id = a.id
+    JOIN app.endereco e ON e.id = o.endereco_principal_id
+    WHERE a.status IN ('CONFIRMADO', 'AGUARDANDO_CONFIRMACAO')
+      AND a.dt_agendamento > :agora
+      AND i.status = 'CONNECTED'
+      AND CAST(a.dt_agendamento + (-cn.horas_antes) * INTERVAL '1 hour' AS TIMESTAMP) <= :agora
+      AND NOT EXISTS (
+          SELECT 1 FROM app.notificacao_enviada ne
+          WHERE ne.agendamento_id = a.id AND ne.tipo = cn.tipo
+      )
+    GROUP BY
+        a.id, o.id, o.nome_fantasia, c.nome_completo, c.telefone,
+        f.nome_completo, a.dt_agendamento, co.valor,
+        e.logradouro, e.bairro, e.numero,
+        cn.tipo, cn.horas_antes, cn.mensagem_template,
+        i.instance_name
+    ORDER BY a.id, a.dt_agendamento ASC
+    """, nativeQuery = true)
+    List<Object[]> findLembretesPendentes(@Param("agora") LocalDateTime agora);
+
+    /**
+     * Busca notificacoes pendentes de LEMBRETE.
+     * LEMBRETE: 1/2/3/4/5/6 horas antes do agendamento.
+     * Filtra apenas configuracoes do tipo LEMBRETE que estao ativas.
+     */
+//    @Query("""
+//        SELECT new org.exemplo.bellory.model.dto.notificacao.NotificacaoPendenteDTO(
+//            a.id,
+//            a.dtAgendamento,
+//            c.nomeCompleto,
+//            c.telefone,
+//            o.id,
+//            o.nomeFantasia,
+//            cn.tipo,
+//            cn.horasAntes,
+//            cn.mensagemTemplate,
+//            i.instanceName
+//        )
+//        FROM Agendamento a
+//        JOIN a.cliente c
+//        JOIN a.organizacao o
+//        JOIN ConfigNotificacao cn ON cn.organizacao = o AND cn.ativo = true AND cn.tipo = 'LEMBRETE'
+//        JOIN Instance i ON i.organizacao = o
+//        WHERE a.status = 'AGENDADO'
+//          AND a.dtAgendamento > :agora
+//          AND i.status = 'CONNECTED'
+//          AND FUNCTION('TIMESTAMPADD', HOUR, -cn.horasAntes, a.dtAgendamento)
+//              BETWEEN :inicioJanela AND :fimJanela
+//          AND NOT EXISTS (
+//              SELECT 1 FROM NotificacaoEnviada ne
+//              WHERE ne.agendamento = a
+//                AND ne.tipo = cn.tipo
+//                AND ne.horasAntes = cn.horasAntes
+//          )
+//        ORDER BY o.id, a.dtAgendamento ASC
+//        """)
+//    List<NotificacaoPendenteDTO> findLembretesPendentes(
+//        @Param("agora") LocalDateTime agora,
+//        @Param("inicioJanela") LocalDateTime inicioJanela,
+//        @Param("fimJanela") LocalDateTime fimJanela
+//    );
+
+    /**
+     * Busca notificacoes pendentes por tipo especifico.
+     * Permite filtrar por CONFIRMACAO ou LEMBRETE dinamicamente.
+     */
+//    @Query("""
+//        SELECT new org.exemplo.bellory.model.dto.notificacao.NotificacaoPendenteDTO(
+//            a.id,
+//            a.dtAgendamento,
+//            c.nomeCompleto,
+//            c.telefone,
+//            o.id,
+//            o.nomeFantasia,
+//            cn.tipo,
+//            cn.horasAntes,
+//            cn.mensagemTemplate,
+//            i.instanceName
+//        )
+//        FROM Agendamento a
+//        JOIN a.cliente c
+//        JOIN a.organizacao o
+//        JOIN ConfigNotificacao cn ON cn.organizacao = o AND cn.ativo = true AND cn.tipo = :tipo
+//        JOIN Instance i ON i.organizacao = o
+//        WHERE a.status = 'AGENDADO'
+//          AND a.dtAgendamento > :agora
+//          AND i.status = 'CONNECTED'
+//          AND FUNCTION('TIMESTAMPADD', HOUR, -cn.horasAntes, a.dtAgendamento)
+//              BETWEEN :inicioJanela AND :fimJanela
+//          AND NOT EXISTS (
+//              SELECT 1 FROM NotificacaoEnviada ne
+//              WHERE ne.agendamento = a
+//                AND ne.tipo = cn.tipo
+//                AND ne.horasAntes = cn.horasAntes
+//          )
+//        ORDER BY o.id, a.dtAgendamento ASC
+//        """)
+//    List<NotificacaoPendenteDTO> findNotificacoesPendentesPorTipo(
+//        @Param("agora") LocalDateTime agora,
+//        @Param("inicioJanela") LocalDateTime inicioJanela,
+//        @Param("fimJanela") LocalDateTime fimJanela,
+//        @Param("tipo") TipoNotificacao tipo
+//    );
+
+    /**
+     * Busca notificacoes sem instancia WhatsApp conectada por tipo especifico (para alertar).
+     */
+    @Query("""
+        SELECT new org.exemplo.bellory.model.dto.notificacao.NotificacaoSemInstanciaDTO(
+            a.id, o.id, o.nomeFantasia, o.emailPrincipal, cn.tipo, cn.horasAntes, a.dtAgendamento
+        )
+        FROM Agendamento a
+        JOIN a.cliente c
+        JOIN a.organizacao o
+        JOIN ConfigNotificacao cn ON cn.organizacao = o AND cn.ativo = true AND cn.tipo = :tipo
+        LEFT JOIN Instance i ON i.organizacao = o
+        WHERE a.status = 'AGENDADO'
+          AND a.dtAgendamento > :agora
+          AND (i IS NULL OR i.status != 'CONNECTED')
+          AND FUNCTION('TIMESTAMPADD', HOUR, -cn.horasAntes, a.dtAgendamento)
+              BETWEEN :inicioJanela AND :fimJanela
+          AND NOT EXISTS (
+              SELECT 1 FROM NotificacaoEnviada ne
+              WHERE ne.agendamento = a AND ne.tipo = cn.tipo AND ne.horasAntes = cn.horasAntes
+          )
+        ORDER BY o.id
+        """)
+    List<NotificacaoSemInstanciaDTO> findNotificacoesSemInstanciaConectadaPorTipo(
+        @Param("agora") LocalDateTime agora,
+        @Param("tipo") TipoNotificacao tipo
+    );
+
+    // ==================== QUERIES PARA RELATÓRIOS ====================
+
+    /**
+     * Conta agendamentos por dia da semana no período
+     */
+    @Query(value = "SELECT EXTRACT(DOW FROM a.dt_agendamento), COUNT(a.id) FROM app.agendamento a " +
+            "WHERE a.organizacao_id = :organizacaoId " +
+            "AND a.dt_agendamento BETWEEN :inicio AND :fim " +
+            "GROUP BY EXTRACT(DOW FROM a.dt_agendamento) " +
+            "ORDER BY EXTRACT(DOW FROM a.dt_agendamento)", nativeQuery = true)
+    List<Object[]> countByDiaSemanaAndOrganizacaoAndPeriodo(
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim
+    );
+
+    /**
+     * Conta agendamentos por hora do dia no período
+     */
+    @Query(value = "SELECT EXTRACT(HOUR FROM a.dt_agendamento), COUNT(a.id) FROM app.agendamento a " +
+            "WHERE a.organizacao_id = :organizacaoId " +
+            "AND a.dt_agendamento BETWEEN :inicio AND :fim " +
+            "GROUP BY EXTRACT(HOUR FROM a.dt_agendamento) " +
+            "ORDER BY EXTRACT(HOUR FROM a.dt_agendamento)", nativeQuery = true)
+    List<Object[]> countByHoraAndOrganizacaoAndPeriodo(
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim
+    );
+
+    /**
+     * Conta agendamentos por data e status (para gráfico de evolução)
+     */
+    @Query(value = "SELECT CAST(a.dt_agendamento AS DATE), a.status, COUNT(a.id) FROM app.agendamento a " +
+            "WHERE a.organizacao_id = :organizacaoId " +
+            "AND a.dt_agendamento BETWEEN :inicio AND :fim " +
+            "GROUP BY CAST(a.dt_agendamento AS DATE), a.status " +
+            "ORDER BY CAST(a.dt_agendamento AS DATE)", nativeQuery = true)
+    List<Object[]> countByDataAndStatusAndOrganizacao(
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim
+    );
+
+    /**
+     * Conta agendamentos NAO_COMPARECEU por organização e período
+     */
+    @Query("SELECT COUNT(a) FROM Agendamento a " +
+            "WHERE a.organizacao.id = :organizacaoId " +
+            "AND a.status = 'NAO_COMPARECEU' " +
+            "AND a.dtAgendamento BETWEEN :inicio AND :fim")
+    Long countNoShowByOrganizacaoAndPeriodo(
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim
+    );
+
+    /**
+     * Conta no-show por agendamentos que possuem notificação (lista de IDs)
+     */
+    @Query("SELECT COUNT(DISTINCT a.id) FROM Agendamento a " +
+            "WHERE a.organizacao.id = :organizacaoId " +
+            "AND a.status = 'NAO_COMPARECEU' " +
+            "AND a.dtAgendamento BETWEEN :inicio AND :fim " +
+            "AND a.id IN :agendamentoIds")
+    Long countNoShowByAgendamentoIds(
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim,
+            @Param("agendamentoIds") List<Long> agendamentoIds
+    );
+
+    /**
+     * Conta agendamentos por funcionário com detalhes de status no período
+     */
+    @Query("SELECT f.id, f.nomeCompleto, a.status, COUNT(a) FROM Agendamento a " +
+            "JOIN a.funcionarios f " +
+            "WHERE a.organizacao.id = :organizacaoId " +
+            "AND a.dtAgendamento BETWEEN :inicio AND :fim " +
+            "GROUP BY f.id, f.nomeCompleto, a.status " +
+            "ORDER BY f.nomeCompleto")
+    List<Object[]> countByFuncionarioAndStatusAndOrganizacaoAndPeriodo(
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim
+    );
+
+    /**
+     * Conta serviços realizados com detalhes (para relatório de serviços)
+     */
+    @Query("SELECT s.id, s.nome, s.categoria.label, COUNT(a), COALESCE(SUM(s.preco), 0), s.tempoEstimadoMinutos " +
+            "FROM Agendamento a " +
+            "JOIN a.servicos s " +
+            "WHERE a.organizacao.id = :organizacaoId " +
+            "AND a.dtAgendamento BETWEEN :inicio AND :fim " +
+            "AND a.status NOT IN ('CANCELADO') " +
+            "GROUP BY s.id, s.nome, s.categoria.label, s.tempoEstimadoMinutos " +
+            "ORDER BY COUNT(a) DESC")
+    List<Object[]> countServicosDetalhadosByOrganizacaoAndPeriodo(
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim
+    );
+
+    /**
+     * Clientes com frequência detalhada para relatório
+     */
+    @Query("SELECT a.cliente.id, a.cliente.nomeCompleto, a.cliente.telefone, " +
+            "COUNT(a), MAX(a.dtAgendamento) " +
+            "FROM Agendamento a " +
+            "WHERE a.organizacao.id = :organizacaoId " +
+            "AND a.dtAgendamento BETWEEN :inicio AND :fim " +
+            "GROUP BY a.cliente.id, a.cliente.nomeCompleto, a.cliente.telefone " +
+            "ORDER BY COUNT(a) DESC")
+    List<Object[]> findClientesComFrequenciaByOrganizacaoAndPeriodo(
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim
+    );
+
+    /**
+     * Conta agendamentos REAGENDADO por organização e período
+     */
+    @Query("SELECT COUNT(a) FROM Agendamento a " +
+            "WHERE a.organizacao.id = :organizacaoId " +
+            "AND a.status = 'REAGENDADO' " +
+            "AND a.dtAgendamento BETWEEN :inicio AND :fim")
+    Long countReagendadosByOrganizacaoAndPeriodo(
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim
+    );
+
 }

@@ -13,7 +13,11 @@ import org.exemplo.bellory.model.entity.agendamento.Agendamento;
 
 
 @Entity
-@Table(name = "bloqueio_agenda", schema = "app")
+@Table(name = "bloqueio_agenda", schema = "app", indexes = {
+        @Index(name = "idx_bloqueio_agenda_funcionario_id", columnList = "funcionario_id"),
+        @Index(name = "idx_bloqueio_agenda_tipo", columnList = "tipo_bloqueio"),
+        @Index(name = "idx_bloqueio_agenda_func_periodo", columnList = "funcionario_id, inicio_bloqueio, fim_bloqueio")
+})
 @Getter
 @Setter
 @AllArgsConstructor
@@ -28,6 +32,9 @@ public class BloqueioAgenda {
     @JoinColumn(name = "funcionario_id", nullable = false)
     @JsonIgnore
     private Funcionario funcionario; // O funcionário cujo tempo está sendo bloqueado
+
+    @Column(name = "titulo", length = 100)
+    private String titulo;
 
     @Column(name = "inicio_bloqueio", nullable = false)
     private LocalDateTime inicioBloqueio;

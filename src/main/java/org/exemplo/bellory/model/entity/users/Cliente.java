@@ -17,7 +17,17 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "cliente", schema = "app")
+@Table(name = "cliente", schema = "app", uniqueConstraints = {
+        @UniqueConstraint(name = "uk_cliente_org_username", columnNames = {"organizacao_id", "username"}),
+        @UniqueConstraint(name = "uk_cliente_org_email", columnNames = {"organizacao_id", "email"}),
+        @UniqueConstraint(name = "uk_cliente_org_telefone", columnNames = {"organizacao_id", "telefone"})
+}, indexes = {
+        @Index(name = "idx_cliente_organizacao_id", columnList = "organizacao_id"),
+        @Index(name = "idx_cliente_telefone", columnList = "telefone"),
+        @Index(name = "idx_cliente_cpf", columnList = "cpf"),
+        @Index(name = "idx_cliente_org_ativo", columnList = "organizacao_id, ativo"),
+        @Index(name = "idx_cliente_dt_criacao", columnList = "dt_criacao")
+})
 @Getter
 @Setter
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})

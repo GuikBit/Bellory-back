@@ -23,7 +23,16 @@ import org.exemplo.bellory.model.entity.servico.Servico;
 
 @AllArgsConstructor
 @Entity
-@Table(name = "agendamento", schema = "app")
+@Table(name = "agendamento", schema = "app", indexes = {
+        @Index(name = "idx_agendamento_organizacao_id", columnList = "organizacao_id"),
+        @Index(name = "idx_agendamento_cliente_id", columnList = "cliente_id"),
+        @Index(name = "idx_agendamento_status", columnList = "status"),
+        @Index(name = "idx_agendamento_dt_agendamento", columnList = "dtAgendamento"),
+        @Index(name = "idx_agendamento_org_dt", columnList = "organizacao_id, dtAgendamento"),
+        @Index(name = "idx_agendamento_org_status", columnList = "organizacao_id, status"),
+        @Index(name = "idx_agendamento_org_dt_status", columnList = "organizacao_id, dtAgendamento, status"),
+        @Index(name = "idx_agendamento_dt_criacao", columnList = "dtCriacao")
+})
 @Getter
 @Setter
 public class Agendamento {
@@ -133,7 +142,9 @@ public class Agendamento {
     // === MÉTODOS DE MUDANÇA DE STATUS ===
 
     public void marcarComoAgendado() {
-        if (this.status == Status.PENDENTE || this.status == Status.EM_ESPERA) {
+        if (this.status == Status.PENDENTE ||
+            this.status == Status.EM_ESPERA ||
+            this.status == Status.REAGENDADO) {
             this.status = Status.AGENDADO;
         } else {
             throw new IllegalStateException("Não é possível mudar o status de " + this.status + " para AGENDADO.");
@@ -151,7 +162,9 @@ public class Agendamento {
     }
 
     public void marcarComoConcluido() {
-        if (this.status == Status.AGENDADO || this.status == Status.EM_ESPERA) {
+        if (this.status == Status.AGENDADO ||
+            this.status == Status.EM_ESPERA ||
+            this.status == Status.EM_ANDAMENTO) {
             this.status = Status.CONCLUIDO;
         } else {
             throw new IllegalStateException("Não é possível mudar o status de " + this.status + " para CONCLUÍDO.");
@@ -167,7 +180,9 @@ public class Agendamento {
     }
 
     public void colocarEmEspera() {
-        if (this.status == Status.PENDENTE || this.status == Status.AGENDADO) {
+        if (this.status == Status.PENDENTE ||
+            this.status == Status.AGENDADO ||
+            this.status == Status.CONFIRMADO) {
             this.status = Status.EM_ESPERA;
         } else {
             throw new IllegalStateException("Não é possível colocar em espera um agendamento com status " + this.status + ".");
@@ -251,15 +266,14 @@ public class Agendamento {
 
     // NOVO: Verifica se o pagamento está completo
     public boolean isPagamentoCompleto() {
-        if (!this.requerSinal) {
-            return getCobrancaIntegral()
-                    .map(Cobranca::isPaga)
-                    .orElse(false);
+        // Verifica se há pelo menos uma cobrança
+        if (cobrancas == null || cobrancas.isEmpty()) {
+            return false;
         }
 
-        return isSinalPago() && getCobrancaRestante()
-                .map(Cobranca::isPaga)
-                .orElse(false);
+        // Verifica se todas as cobranças estão pagas
+        return cobrancas.stream()
+                .allMatch(Cobranca::isPaga);
     }
 
     // NOVO: Verifica se está confirmado (sinal pago ou não requer sinal)

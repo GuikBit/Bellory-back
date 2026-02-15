@@ -10,4 +10,6 @@ public interface ServicoAgendamento {
     List<String> getUrlsImagens();
     String getTempoEstimadoMinutos();
     String getDescricao();
+    Integer getDesconto();
+
 }

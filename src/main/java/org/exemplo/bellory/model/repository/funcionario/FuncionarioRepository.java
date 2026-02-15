@@ -13,19 +13,14 @@ import java.util.Optional;
 @Repository
 public interface FuncionarioRepository extends JpaRepository<Funcionario, Long> {
 
+    // Usado apenas para autenticação (login/JWT) - não usar para validações de negócio
     Optional<Funcionario> findByUsername(String username);
 
-    List<FuncionarioAgendamento> findAllProjectedBy();
+    Optional<Funcionario> findByCpf(String cpf);
 
-    @Query("SELECT f FROM Funcionario f WHERE f.situacao = 'Ativo'")
-    List<Funcionario> findByAtivo(boolean ativo);
+    Optional<Funcionario> findByCpfAndOrganizacao_Id(String cpf, Long organizacaoId);
 
-    @Query("SELECT COUNT(f) FROM Funcionario f WHERE f.situacao = 'Ativo'")
-    Long countByAtivo(boolean ativo);
-
-    Optional<Object> findByCpf(String cpf);
-
-    Optional<Object> findByUsernameAndOrganizacao_Id(String trim, Long organizacaoId);
+    Optional<Funcionario> findByUsernameAndOrganizacao_Id(String trim, Long organizacaoId);
 
     List<FuncionarioAgendamento> findAllProjectedByOrganizacao_Id(Long organizacaoId);
 

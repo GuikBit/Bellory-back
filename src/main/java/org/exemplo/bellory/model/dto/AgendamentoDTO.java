@@ -67,7 +67,8 @@ public class AgendamentoDTO {
                         servico.getId(),
                         servico.getNome(),
                         servico.getPreco(),
-                        servico.getTempoEstimadoMinutos()
+                        servico.getTempoEstimadoMinutos(),
+                        servico.getDesconto()
                 ))
                 .collect(Collectors.toList());
 

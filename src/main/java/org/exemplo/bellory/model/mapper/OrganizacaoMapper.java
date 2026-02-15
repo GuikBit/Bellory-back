@@ -345,6 +345,10 @@ public class OrganizacaoMapper {
             dto.setEnderecoPrincipal(endDTO);
         }
 
+        // Imagens
+        dto.setLogoUrl(org.getLogoUrl());
+        dto.setBannerUrl(org.getBannerUrl());
+
         // Controle
         dto.setAtivo(org.getAtivo());
         dto.setDtCadastro(org.getDtCadastro());

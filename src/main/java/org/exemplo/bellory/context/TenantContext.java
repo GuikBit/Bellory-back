@@ -1,5 +1,7 @@
 package org.exemplo.bellory.context;
 
+import org.exemplo.bellory.model.entity.config.ConfigSistema;
+
 /**
  * Context holder para armazenar informações do tenant (organização)
  * da requisição atual usando ThreadLocal.
@@ -12,6 +14,7 @@ public class TenantContext {
     private static final ThreadLocal<Long> currentUserId = new ThreadLocal<>();
     private static final ThreadLocal<String> currentUsername = new ThreadLocal<>();
     private static final ThreadLocal<String> currentRole = new ThreadLocal<>();
+    private static final ThreadLocal<ConfigSistema> currentConfigSistema = new ThreadLocal<>();
 
     /**
      * Define o ID da organização para a requisição atual
@@ -70,6 +73,20 @@ public class TenantContext {
     }
 
     /**
+     * Define a ConfigSistema para a requisição atual
+     */
+    public static void setCurrentConfigSistema(ConfigSistema configSistema) {
+        currentConfigSistema.set(configSistema);
+    }
+
+    /**
+     * Retorna a ConfigSistema da requisição atual
+     */
+    public static ConfigSistema getCurrentConfigSistema() {
+        return currentConfigSistema.get();
+    }
+
+    /**
      * Limpa todas as informações do contexto
      * IMPORTANTE: Deve ser chamado após cada requisição
      */
@@ -78,6 +95,7 @@ public class TenantContext {
         currentUserId.remove();
         currentUsername.remove();
         currentRole.remove();
+        currentConfigSistema.remove();
     }
 
     /**

@@ -24,7 +24,7 @@ public class ServicoPublicDTO {
     private Integer tempoEstimadoMinutos;
     private BigDecimal preco;
     private BigDecimal precoComDesconto;
-    private Integer descontoPercentual;
+    private BigDecimal descontoPercentual;
     private List<String> imagens;
     private Boolean disponivel;
     private List<Long> funcionarioIds;   // Funcionários que atendem
