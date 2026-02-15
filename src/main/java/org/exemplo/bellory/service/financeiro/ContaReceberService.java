@@ -3,6 +3,7 @@ package org.exemplo.bellory.service.financeiro;
 import lombok.RequiredArgsConstructor;
 import org.exemplo.bellory.context.TenantContext;
 import org.exemplo.bellory.model.dto.financeiro.*;
+import org.exemplo.bellory.model.entity.cobranca.Cobranca;
 import org.exemplo.bellory.model.entity.financeiro.*;
 import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 import org.exemplo.bellory.model.entity.users.Cliente;
@@ -29,6 +30,7 @@ public class ContaReceberService {
     private final ClienteRepository clienteRepository;
     private final OrganizacaoRepository organizacaoRepository;
     private final LancamentoFinanceiroService lancamentoService;
+    private final LancamentoFinanceiroRepository lancamentoRepository;
 
     @Transactional
     public ContaReceberResponseDTO criar(ContaReceberCreateDTO dto) {
@@ -279,6 +281,147 @@ public class ContaReceberService {
         return contaReceberRepository.findPendentesByCliente(orgId, clienteId).stream()
                 .map(ContaReceberResponseDTO::new)
                 .collect(Collectors.toList());
+    }
+
+    // ========================================================================
+    // MÉTODOS DE INTEGRAÇÃO COM COBRANÇA (Agendamento → Financeiro)
+    // ========================================================================
+
+    /**
+     * Cria uma ContaReceber vinculada a uma Cobrança de agendamento.
+     */
+    @Transactional
+    public ContaReceber criarParaCobranca(Cobranca cobranca) {
+        Long orgId = cobranca.getOrganizacao().getId();
+
+        String descricao;
+        if (cobranca.getSubtipoCobrancaAgendamento() != null && cobranca.getAgendamento() != null) {
+            Long agendamentoId = cobranca.getAgendamento().getId();
+            descricao = switch (cobranca.getSubtipoCobrancaAgendamento()) {
+                case SINAL -> "Sinal - Agendamento #" + agendamentoId;
+                case RESTANTE -> "Pagamento Final - Agendamento #" + agendamentoId;
+                case INTEGRAL -> "Pagamento Integral - Agendamento #" + agendamentoId;
+            };
+        } else {
+            descricao = "Cobrança #" + cobranca.getNumeroCobranca();
+        }
+
+        ContaReceber conta = new ContaReceber();
+        conta.setCobranca(cobranca);
+        conta.setOrganizacao(cobranca.getOrganizacao());
+        conta.setCliente(cobranca.getCliente());
+        conta.setDescricao(descricao);
+        conta.setValor(cobranca.getValor());
+        conta.setDtEmissao(LocalDate.now());
+        conta.setDtVencimento(cobranca.getDtVencimento());
+        conta.setDtCompetencia(cobranca.getDtVencimento());
+        conta.setObservacoes(cobranca.getObservacoes());
+
+        CategoriaFinanceira categoria = categoriaRepository
+                .findFirstByNomeAndOrganizacaoIdAndTipoAndAtivoTrue(
+                        "Agendamento", orgId, CategoriaFinanceira.TipoCategoria.RECEITA)
+                .orElse(null);
+        conta.setCategoriaFinanceira(categoria);
+
+        return contaReceberRepository.save(conta);
+    }
+
+    /**
+     * Marca a ContaReceber vinculada como recebida quando um pagamento é processado na cobrança.
+     */
+    @Transactional
+    public void receberPorCobranca(Cobranca cobranca, BigDecimal valor, String formaPagamento) {
+        Long orgId = cobranca.getOrganizacao().getId();
+
+        ContaReceber conta = contaReceberRepository
+                .findByCobrancaIdAndOrganizacaoId(cobranca.getId(), orgId)
+                .orElse(null);
+
+        if (conta == null || conta.isRecebida()) {
+            return;
+        }
+
+        ContaBancaria contaBancaria = contaBancariaRepository
+                .findByOrganizacaoIdAndPrincipalTrue(orgId)
+                .orElse(null);
+
+        conta.receber(valor, LocalDate.now());
+        conta.setFormaPagamento(formaPagamento);
+
+        if (contaBancaria != null) {
+            contaBancaria.creditar(valor);
+            contaBancariaRepository.save(contaBancaria);
+            conta.setContaBancaria(contaBancaria);
+        }
+
+        contaReceberRepository.save(conta);
+
+        LancamentoFinanceiroCreateDTO lancamentoDTO = new LancamentoFinanceiroCreateDTO();
+        lancamentoDTO.setTipo("RECEITA");
+        lancamentoDTO.setDescricao("Recebimento: " + conta.getDescricao());
+        lancamentoDTO.setValor(valor);
+        lancamentoDTO.setDtLancamento(LocalDate.now());
+        lancamentoDTO.setDtCompetencia(conta.getDtCompetencia());
+        lancamentoDTO.setContaReceberId(conta.getId());
+        lancamentoDTO.setFormaPagamento(formaPagamento);
+        lancamentoDTO.setStatus("EFETIVADO");
+        if (conta.getCategoriaFinanceira() != null) {
+            lancamentoDTO.setCategoriaFinanceiraId(conta.getCategoriaFinanceira().getId());
+        }
+        lancamentoService.criar(lancamentoDTO);
+    }
+
+    /**
+     * Cancela a ContaReceber vinculada quando uma cobrança é cancelada.
+     */
+    @Transactional
+    public void cancelarPorCobranca(Cobranca cobranca) {
+        Long orgId = cobranca.getOrganizacao().getId();
+
+        ContaReceber conta = contaReceberRepository
+                .findByCobrancaIdAndOrganizacaoId(cobranca.getId(), orgId)
+                .orElse(null);
+
+        if (conta == null || conta.isRecebida()) {
+            return;
+        }
+
+        conta.cancelar();
+        contaReceberRepository.save(conta);
+    }
+
+    /**
+     * Estorna a ContaReceber vinculada quando uma cobrança é estornada.
+     * Cancela lançamentos financeiros vinculados (revertendo saldo bancário).
+     */
+    @Transactional
+    public void estornarPorCobranca(Cobranca cobranca) {
+        Long orgId = cobranca.getOrganizacao().getId();
+
+        ContaReceber conta = contaReceberRepository
+                .findByCobrancaIdAndOrganizacaoId(cobranca.getId(), orgId)
+                .orElse(null);
+
+        if (conta == null) {
+            return;
+        }
+
+        if (conta.getStatus() == ContaReceber.StatusContaReceber.RECEBIDA
+                || conta.getStatus() == ContaReceber.StatusContaReceber.PARCIALMENTE_RECEBIDA) {
+
+            List<LancamentoFinanceiro> lancamentos = lancamentoRepository
+                    .findByContaReceberIdAndOrganizacaoIdAndStatusNot(
+                            conta.getId(), orgId, LancamentoFinanceiro.StatusLancamento.CANCELADO);
+
+            for (LancamentoFinanceiro lancamento : lancamentos) {
+                lancamentoService.cancelar(lancamento.getId());
+            }
+
+            conta.setValorRecebido(BigDecimal.ZERO);
+        }
+
+        conta.cancelar();
+        contaReceberRepository.save(conta);
     }
 
     private void vincularRelacionamentos(ContaReceber conta, Long categoriaId, Long centroCustoId, Long contaBancariaId, Long orgId) {

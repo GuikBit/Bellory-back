@@ -31,4 +31,7 @@ public interface CategoriaFinanceiraRepository extends JpaRepository<CategoriaFi
     Optional<CategoriaFinanceira> findByIdAndOrganizacaoId(Long id, Long organizacaoId);
 
     boolean existsByNomeAndOrganizacaoIdAndTipo(String nome, Long organizacaoId, CategoriaFinanceira.TipoCategoria tipo);
+
+    Optional<CategoriaFinanceira> findFirstByNomeAndOrganizacaoIdAndTipoAndAtivoTrue(
+            String nome, Long organizacaoId, CategoriaFinanceira.TipoCategoria tipo);
 }

@@ -68,4 +68,8 @@ public interface LancamentoFinanceiroRepository extends JpaRepository<Lancamento
     // Contagem por tipo e período
     @Query("SELECT COUNT(l) FROM LancamentoFinanceiro l WHERE l.organizacao.id = :orgId AND l.tipo = :tipo AND l.dtLancamento BETWEEN :inicio AND :fim AND l.status = 'EFETIVADO'")
     long countByTipoAndPeriodo(@Param("orgId") Long organizacaoId, @Param("tipo") LancamentoFinanceiro.TipoLancamento tipo, @Param("inicio") LocalDate inicio, @Param("fim") LocalDate fim);
+
+    // Por conta a receber (excluindo cancelados)
+    List<LancamentoFinanceiro> findByContaReceberIdAndOrganizacaoIdAndStatusNot(
+            Long contaReceberId, Long organizacaoId, LancamentoFinanceiro.StatusLancamento status);
 }

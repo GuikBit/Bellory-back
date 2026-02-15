@@ -73,4 +73,7 @@ public interface ContaReceberRepository extends JpaRepository<ContaReceber, Long
     // Por cliente
     @Query("SELECT c FROM ContaReceber c WHERE c.organizacao.id = :orgId AND c.cliente.id = :clienteId AND c.status NOT IN ('RECEBIDA', 'CANCELADA')")
     List<ContaReceber> findPendentesByCliente(@Param("orgId") Long organizacaoId, @Param("clienteId") Long clienteId);
+
+    // Por cobrança
+    Optional<ContaReceber> findByCobrancaIdAndOrganizacaoId(Long cobrancaId, Long organizacaoId);
 }
