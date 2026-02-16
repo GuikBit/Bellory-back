@@ -7,6 +7,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -29,6 +31,10 @@ public class EnderecoDTO {
 
     @NotBlank(message = "Cidade é obrigatória")
     private String cidade;
+
+    private BigDecimal latitude;
+
+    private BigDecimal longitude;
 
     // ✅ Aceita "estado" do JSON e mapeia para uf
     @NotBlank(message = "Estado é obrigatório")

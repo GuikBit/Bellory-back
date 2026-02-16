@@ -1,6 +1,8 @@
 package org.exemplo.bellory.service;
 
 import org.exemplo.bellory.model.dto.instancia.InstanceCreateDTO;
+import org.exemplo.bellory.model.dto.organizacao.*;
+import org.exemplo.bellory.model.dto.tema.*;
 import org.exemplo.bellory.model.entity.agendamento.Agendamento;
 import org.exemplo.bellory.model.entity.agendamento.Status;
 import org.exemplo.bellory.model.entity.cobranca.Cobranca;
@@ -97,6 +99,7 @@ public class DatabaseSeederService {
     private final ApiKeyService apiKeyService;
 
     private final InstanceService instanceService;
+    private final OrganizacaoService organizacaoService;
 
     // Novos repositories para módulos expandidos
     private final ContaBancariaRepository contaBancariaRepository;
@@ -147,7 +150,8 @@ public class DatabaseSeederService {
                                  CompraRepository compraRepository,
                                  PagamentoRepository pagamentoRepository,
                                  ConfigNotificacaoRepository notificacaoConfigRepository,
-                                 QuestionarioRepository questionarioRepository) {
+                                 QuestionarioRepository questionarioRepository,
+                                 OrganizacaoService organizacaoService) {
         this.organizacaoRepository = organizacaoRepository;
         this.roleRepository = roleRepository;
         this.funcionarioRepository = funcionarioRepository;
@@ -179,6 +183,7 @@ public class DatabaseSeederService {
         this.pagamentoRepository = pagamentoRepository;
         this.notificacaoConfigRepository = notificacaoConfigRepository;
         this.questionarioRepository = questionarioRepository;
+        this.organizacaoService = organizacaoService;
     }
 
     @Transactional
@@ -581,18 +586,18 @@ public class DatabaseSeederService {
     }
 
     private List<Organizacao> criarOrganizacoes(List<PlanoBellory> planos) {
-        System.out.println("🏢 Criando organizações...");
+        System.out.println("🏢 Criando organizações via OrganizacaoService.create()...");
         List<Organizacao> organizacoes = new ArrayList<>();
 
         // Dados de exemplo para organizações
+        // {nomeFantasia, razaoSocial, cnpj (válido), telefone1, telefone2, whatsapp, emailPrincipal,
+        //  inscricaoEstadual, responsavelNome, responsavelEmail, responsavelTelefone,
+        //  adminLogin, adminSenha, planoCodigo}
         String[][] orgData = {
-                // {nomeFantasia, razaoSocial, cnpj, telefone1, telefone2, whatsapp, emailPrincipal,
-                //  inscricaoEstadual, responsavelNome, responsavelEmail, responsavelTelefone,
-                //  adminLogin, adminSenha, adminRole, slug}
                 {
                         "Bellory Salon",
                         "Bellory Salon & Spa LTDA",
-                        "00.000.000/0001-00",
+                        "12.345.678/0001-95",
                         "(11) 3000-1000",
                         "(11) 3000-1001",
                         "(11) 99000-1000",
@@ -603,13 +608,12 @@ public class DatabaseSeederService {
                         "(11) 99999-0001",
                         "admin",
                         "admin123",
-                        "ROLE_ADMIN",
-                        "bellory-salon",
+                        "gratuito"
                 },
                 {
                         "Studio Elegance",
                         "Studio Elegance Premium LTDA",
-                        "11.111.111/0001-11",
+                        "98.765.432/0001-98",
                         "(11) 3100-2000",
                         "(11) 3100-2001",
                         "(11) 99100-2000",
@@ -620,13 +624,12 @@ public class DatabaseSeederService {
                         "(11) 99999-0002",
                         "elegance_admin",
                         "elegance123",
-                        "ROLE_ADMIN",
-                        "studio-elegance"
+                        "basico"
                 },
                 {
                         "Salon Moderno",
                         "Salon Moderno Hair & Beauty LTDA",
-                        "22.222.222/0001-22",
+                        "11.222.333/0001-81",
                         "(11) 3200-3000",
                         "(11) 3200-3001",
                         "(11) 99200-3000",
@@ -637,8 +640,7 @@ public class DatabaseSeederService {
                         "(11) 99999-0003",
                         "moderno_admin",
                         "moderno123",
-                        "ROLE_ADMIN",
-                        "salon-moderno",
+                        "plus"
                 }
         };
 
@@ -646,137 +648,84 @@ public class DatabaseSeederService {
             String[] data = orgData[i];
             int finalI = i;
 
-            Organizacao org = organizacaoRepository.findByNomeFantasia(data[0]).orElseGet(() -> {
-                Organizacao o = new Organizacao();
+            // Verifica se a organização já existe (idempotência)
+            Optional<Organizacao> existente = organizacaoRepository.findByNomeFantasia(data[0]);
+            if (existente.isPresent()) {
+                organizacoes.add(existente.get());
+                System.out.println("   ✓ Organização já existe: " + data[0]);
+                continue;
+            }
 
-                // === DADOS BÁSICOS DA ORGANIZAÇÃO ===
-                o.setNomeFantasia(data[0]);
-                o.setRazaoSocial(data[1]);
-                o.setCnpj(data[2]);
-                o.setTelefone1(data[3]);
-                o.setTelefone2(data[4]);
-                o.setWhatsapp(data[5]);
-                o.setEmailPrincipal(data[6]);
-                o.setInscricaoEstadual(data[7]);
-                o.setSlug(data[14]);
-                // === RESPONSÁVEL (Embeddable) ===
-                Responsavel responsavel = new Responsavel();
-                responsavel.setNome(data[8]);
-                responsavel.setEmail(data[9]);
-                responsavel.setTelefone(data[10]);
-                o.setResponsavel(responsavel);
+            // === Monta o DTO completo para criação via service ===
+            CreateOrganizacaoDTO dto = new CreateOrganizacaoDTO();
+            dto.setNomeFantasia(data[0]);
+            dto.setRazaoSocial(data[1]);
+            dto.setCnpj(data[2]);
+            dto.setTelefone1(data[3]);
+            dto.setTelefone2(data[4]);
+            dto.setWhatsapp(data[5]);
+            dto.setEmail(data[6]);
+            dto.setInscricaoEstadual(data[7]);
 
-                // === ACESSO ADM (Embeddable) ===
-//                Admin acessoAdm = new Admin();
-//                acessoAdm.setUsername(data[11]);
-//                acessoAdm.setPassword(passwordEncoder.encode(data[12]));
-//                acessoAdm.setRole(data[13]);
-//                o.setAcessoAdm(acessoAdm);
+            ResponsavelDTO responsavel = new ResponsavelDTO();
+            responsavel.setNome(data[8]);
+            responsavel.setEmail(data[9]);
+            responsavel.setTelefone(data[10]);
+            dto.setResponsavel(responsavel);
 
+            AcessoAdmDTO acesso = new AcessoAdmDTO();
+            acesso.setLogin(data[11]);
+            acesso.setSenha(data[12]);
+            dto.setAcessoAdm(acesso);
 
-                Endereco end = new Endereco();
-                end.setCep("36048310");
-                end.setLogradouro("Rua Diomar Monteiro");
-                end.setNumero("1509");
-                end.setComplemento("Rua Diomar Monteiro");
-                end.setBairro("Grama");
-                end.setCidade("Juiz de Fora");
-                end.setUf("MG");
-                end.setPrincipal(true);
+            PlanoDTO planoDTO = new PlanoDTO();
+            planoDTO.setId(data[13]);
+            dto.setPlano(planoDTO);
 
-                o.setEnderecoPrincipal(end);
+            EnderecoDTO endereco = new EnderecoDTO();
+            endereco.setCep("36048310");
+            endereco.setLogradouro("Rua Diomar Monteiro");
+            endereco.setNumero("1509");
+            endereco.setComplemento("Rua Diomar Monteiro");
+            endereco.setBairro("Grama");
+            endereco.setCidade("Juiz de Fora");
+            endereco.setUf("MG");
+            dto.setEndereco(endereco);
 
-                // === REDES SOCIAIS (Embeddable) ===
-                RedesSociais redesSociais = new RedesSociais();
-                redesSociais.setInstagram("@" + data[0].toLowerCase().replaceAll(" ", ""));
-                redesSociais.setFacebook("facebook.com/" + data[0].toLowerCase().replaceAll(" ", ""));
-                redesSociais.setWhatsapp(data[5]);
-                redesSociais.setLinkedin("linkedin.com/company/" + data[0].toLowerCase().replaceAll(" ", ""));
-                redesSociais.setMessenger(null);
-                redesSociais.setSite("www." + data[0].toLowerCase().replaceAll(" ", "") + ".com.br");
-                redesSociais.setYoutube(null);
-                o.setRedesSociais(redesSociais);
+            dto.setTema(criarTemaDTOPersonalizado(finalI));
 
-                // === TEMA (Embeddable) ===
-                Tema tema = criarTemaPersonalizado(finalI);
-                o.setTema(tema);
+            // Cria organização via service (valida CNPJ, cria Funcionário ADMIN, Admin suporte, ConfigSistema, Cargo)
+            OrganizacaoResponseDTO response = organizacaoService.create(dto);
 
-                // === PLANO (ManyToOne) ===
-                o.setPlano(planos.get(finalI % planos.size()));
+            // Busca a entidade para operações subsequentes do seeder
+            Organizacao org = organizacaoRepository.findById(response.getId()).get();
 
-                // === ENDERECO PRINCIPAL (OneToOne) ===
-                // Nota: Assumindo que você tem uma entidade Endereco
-                // Se precisar criar endereços, descomente e ajuste:
-            /*
-            Endereco endereco = new Endereco();
-            endereco.setCep("01310-100");
-            endereco.setLogradouro("Av. Paulista");
-            endereco.setNumero(String.valueOf(1000 + finalI * 100));
-            endereco.setBairro("Bela Vista");
-            endereco.setCidade("São Paulo");
-            endereco.setUf("SP");
-            endereco.setComplemento("Sala " + (finalI + 1));
-            o.setEnderecoPrincipal(endereco);
-            */
-
-                // === CAMPOS DE CONTROLE ===
-                o.setAtivo(true);
-                o.setDtCadastro(LocalDateTime.now());
-                o.setDtAtualizacao(LocalDateTime.now());
-
-
-
-                return organizacaoRepository.save(o);
-            });
-
-            ConfigAgendamento configAgendamento = new ConfigAgendamento();
-            ConfigServico configServico = new ConfigServico();
-            ConfigColaborador configColaborador= new ConfigColaborador();
-            ConfigNotificacao configNotificacao = new ConfigNotificacao();
-
-            ConfigCliente configCliente = new ConfigCliente();
-
-            ConfigSistema configSistema = new ConfigSistema();
-            configSistema.setOrganizacao(org);
-            configSistema.setConfigAgendamento(configAgendamento);
-            configSistema.setConfigServico(configServico);
-            configSistema.setConfigColaborador(configColaborador);
-            configSistema.setConfigNotificacao(configNotificacao);
-            configSistema.setConfigCliente(configCliente);
-
-            configSistemaRepository.save(configSistema);
-
-            org.setConfigSistema(configSistema);
-
+            // Redes sociais (não faz parte do CreateDTO)
+            RedesSociais redesSociais = new RedesSociais();
+            redesSociais.setInstagram("@" + data[0].toLowerCase().replaceAll(" ", ""));
+            redesSociais.setFacebook("facebook.com/" + data[0].toLowerCase().replaceAll(" ", ""));
+            redesSociais.setWhatsapp(data[5]);
+            redesSociais.setLinkedin("linkedin.com/company/" + data[0].toLowerCase().replaceAll(" ", ""));
+            redesSociais.setSite("www." + data[0].toLowerCase().replaceAll(" ", "") + ".com.br");
+            org.setRedesSociais(redesSociais);
             organizacaoRepository.save(org);
 
+            // API Key para o admin suporte (criado pelo OrganizacaoService.create)
+            Admin adminSuporte = adminRepository.findByUsernameAndOrganizacao_Id("bellory_suporte", org.getId()).get();
+            Map<String, Object> apiKey = apiKeyService.generateApiKey(
+                    adminSuporte.getId(), ApiKey.UserType.SISTEMA,
+                    "API_KEY_DEFAULT", "API Key para execução de automações internas do sistema", null);
+            System.out.println("   ✓ API Key criada: " + apiKey);
 
-            Optional<Admin> adminEx = adminRepository.findByUsernameAndOrganizacao_Id(data[11], org.getId());
-
-            if (adminEx.isEmpty()) {
-                Admin admin = new Admin();
-
-                admin.setOrganizacao(org);
-                admin.setEmail(data[6]);
-                admin.setNomeCompleto(data[1]);
-                admin.setUsername(data[11]);
-                admin.setPassword(passwordEncoder.encode(data[12]));
-
-                Admin saveAdmin = adminRepository.save(admin);
-
-                Map<String, Object> teste = apiKeyService.generateApiKey(saveAdmin.getId(), ApiKey.UserType.SISTEMA, "API_KEY_DEFAULT", "API Key para execução de automações internas do sistema", null);
-
-                System.out.println("   ✓ API Key criada: " + teste);
-            }
+            // Instância WhatsApp
             InstanceCreateDTO instance = new InstanceCreateDTO();
             instance.setInstanceName(org.getSlug());
             instance.setInstanceNumber(org.getTelefone1().replaceAll("\\D", ""));
             instance.setWebhookUrl("https://auto.bellory.com.br/webhook/whatsapp");
-
             instanceService.createInstance(instance, true, org.getId());
 
             organizacoes.add(org);
-            System.out.println("   ✓ Organização criada: " + org.getNomeFantasia());
+            System.out.println("   ✓ Organização criada via service: " + org.getNomeFantasia() + " (slug: " + org.getSlug() + ")");
         }
 
         return organizacoes;
@@ -859,6 +808,86 @@ public class DatabaseSeederService {
 
         // === SHADOWS ===
         Shadows shadows = new Shadows();
+        shadows.setBase("0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24)");
+        shadows.setMd("0 4px 6px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.06)");
+        shadows.setLg("0 10px 15px rgba(0, 0, 0, 0.1), 0 4px 6px rgba(0, 0, 0, 0.05)");
+        shadows.setPrimaryGlow("0 0 20px " + cores.getPrimary() + "80");
+        shadows.setAccentGlow("0 0 20px " + cores.getAccent() + "80");
+        tema.setShadows(shadows);
+
+        return tema;
+    }
+
+    private TemaDTO criarTemaDTOPersonalizado(int indice) {
+        TemaDTO tema = new TemaDTO();
+
+        String[] nomesTemas = {"Tema Elegante", "Tema Moderno", "Tema Clássico"};
+        String[] tiposTemas = {"LIGHT", "DARK", "LIGHT"};
+
+        tema.setNome(nomesTemas[indice % nomesTemas.length]);
+        tema.setTipo(tiposTemas[indice % tiposTemas.length]);
+
+        CoresDTO cores = new CoresDTO();
+
+        if (indice == 0) {
+            cores.setPrimary("#E91E63");
+            cores.setSecondary("#F48FB1");
+            cores.setAccent("#C2185B");
+        } else if (indice == 1) {
+            cores.setPrimary("#2196F3");
+            cores.setSecondary("#64B5F6");
+            cores.setAccent("#1976D2");
+        } else {
+            cores.setPrimary("#9C27B0");
+            cores.setSecondary("#BA68C8");
+            cores.setAccent("#7B1FA2");
+        }
+
+        cores.setBackground("#FFFFFF");
+        cores.setText("#212121");
+        cores.setTextSecondary("#757575");
+        cores.setCardBackground("#FAFAFA");
+        cores.setCardBackgroundSecondary("#F5F5F5");
+        cores.setButtonText("#FFFFFF");
+        cores.setBackgroundLinear("linear-gradient(135deg, " + cores.getPrimary() + " 0%, " + cores.getSecondary() + " 100%)");
+        cores.setSuccess("#4CAF50");
+        cores.setWarning("#FF9800");
+        cores.setError("#F44336");
+        cores.setInfo("#2196F3");
+        cores.setBorder("#E0E0E0");
+        cores.setBorderLight("#F5F5F5");
+        cores.setDivider("#BDBDBD");
+        cores.setOverlay("rgba(0, 0, 0, 0.5)");
+        cores.setModalBackground("#FFFFFF");
+        cores.setInputBackground("#FAFAFA");
+        cores.setInputBorder("#E0E0E0");
+        cores.setInputFocus(cores.getPrimary());
+        cores.setPlaceholder("#9E9E9E");
+        cores.setNavBackground("#FFFFFF");
+        cores.setNavHover("#F5F5F5");
+        cores.setNavActive(cores.getPrimary());
+        cores.setOnline("#4CAF50");
+        cores.setOffline("#9E9E9E");
+        cores.setAway("#FF9800");
+        cores.setBusy("#F44336");
+
+        tema.setCores(cores);
+
+        FontsDTO fonts = new FontsDTO();
+        fonts.setHeading("Poppins, sans-serif");
+        fonts.setBody("Inter, sans-serif");
+        fonts.setMono("JetBrains Mono, monospace");
+        tema.setFonts(fonts);
+
+        BorderRadiusDTO borderRadius = new BorderRadiusDTO();
+        borderRadius.setSmall("4px");
+        borderRadius.setMedium("8px");
+        borderRadius.setLarge("12px");
+        borderRadius.setXl("16px");
+        borderRadius.setFull("9999px");
+        tema.setBorderRadius(borderRadius);
+
+        ShadowsDTO shadows = new ShadowsDTO();
         shadows.setBase("0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24)");
         shadows.setMd("0 4px 6px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.06)");
         shadows.setLg("0 10px 15px rgba(0, 0, 0, 0.1), 0 4px 6px rgba(0, 0, 0, 0.05)");

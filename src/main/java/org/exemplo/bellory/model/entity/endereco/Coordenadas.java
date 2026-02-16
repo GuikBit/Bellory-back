@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Embeddable
-class Coordenadas {
+public class Coordenadas {
     private String latitude;
     private String longitude;
 }

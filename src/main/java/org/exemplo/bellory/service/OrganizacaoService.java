@@ -1,9 +1,11 @@
 package org.exemplo.bellory.service;
 
 import org.exemplo.bellory.context.TenantContext;
+import org.exemplo.bellory.model.dto.instancia.InstanceCreateDTO;
 import org.exemplo.bellory.model.dto.organizacao.CreateOrganizacaoDTO;
 import org.exemplo.bellory.model.dto.organizacao.OrganizacaoResponseDTO;
 import org.exemplo.bellory.model.dto.UpdateOrganizacaoDTO;
+import org.exemplo.bellory.model.entity.config.*;
 import org.exemplo.bellory.model.entity.email.EmailTemplate;
 import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 import org.exemplo.bellory.model.entity.plano.PlanoBellory;
@@ -44,12 +46,13 @@ public class OrganizacaoService {
     CargoRepository cargoRepository;
     private EmailService emailService;
     private FileStorageService fileStorageService;
+    private InstanceService instanceService;
     private static final int MAX_TENTATIVAS_SLUG = 10;
 
     @Value("${app.url}")
     private String appUrl;
 
-    public OrganizacaoService(OrganizacaoRepository organizacaoRepository, OrganizacaoMapper organizacaoMapper, PasswordEncoder passwordEncoder, PlanoRepository planoRepository, AdminRepository adminRepository, EmailService emailService, PlanoBelloryRepository planoBelloryRepository, FileStorageService fileStorageService, FuncionarioRepository funcionarioRepository, CargoRepository cargoRepository) {
+    public OrganizacaoService(OrganizacaoRepository organizacaoRepository, OrganizacaoMapper organizacaoMapper, PasswordEncoder passwordEncoder, PlanoRepository planoRepository, AdminRepository adminRepository, EmailService emailService, PlanoBelloryRepository planoBelloryRepository, FileStorageService fileStorageService, FuncionarioRepository funcionarioRepository, CargoRepository cargoRepository, InstanceService instanceService) {
         this.organizacaoRepository = organizacaoRepository;
         this.organizacaoMapper = organizacaoMapper;
         this.passwordEncoder = passwordEncoder;
@@ -60,6 +63,8 @@ public class OrganizacaoService {
         this.fileStorageService = fileStorageService;
         this.funcionarioRepository = funcionarioRepository;
         this.cargoRepository = cargoRepository;
+        this.instanceService = instanceService;
+
     }
 
     public Organizacao getOrganizacaoPadrao() {
@@ -148,6 +153,23 @@ public class OrganizacaoService {
         }
         organizacao.setPlano(planos);
 
+        ConfigAgendamento configAgendamento = new ConfigAgendamento();
+        ConfigServico configServico = new ConfigServico();
+        ConfigColaborador configColaborador= new ConfigColaborador();
+        ConfigNotificacao configNotificacao = new ConfigNotificacao();
+
+        ConfigCliente configCliente = new ConfigCliente();
+
+        ConfigSistema configSistema = new ConfigSistema();
+        configSistema.setOrganizacao(organizacao);
+        configSistema.setConfigAgendamento(configAgendamento);
+        configSistema.setConfigServico(configServico);
+        configSistema.setConfigColaborador(configColaborador);
+        configSistema.setConfigNotificacao(configNotificacao);
+        configSistema.setConfigCliente(configCliente);
+
+        organizacao.setConfigSistema(configSistema);
+
         // Salva a organização
         Organizacao savedOrganizacao = organizacaoRepository.save(organizacao);
 
@@ -185,6 +207,12 @@ public class OrganizacaoService {
         adminSuporte.setPassword(passwordEncoder.encode("B3ll0ry@Sup2026!"));
         adminSuporte.setDtCriacao(LocalDateTime.now());
         adminRepository.save(adminSuporte);
+
+        InstanceCreateDTO instance = new InstanceCreateDTO();
+        instance.setInstanceName(savedOrganizacao.getSlug());
+        instance.setInstanceNumber(savedOrganizacao.getTelefone1().replaceAll("\\D", ""));
+        instance.setWebhookUrl("https://auto.bellory.com.br/webhook/whatsapp");
+        instanceService.createInstance(instance, true, savedOrganizacao.getId());
 
         enviarEmailBoasVindas(savedOrganizacao, funcionario);
 

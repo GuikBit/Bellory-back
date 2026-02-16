@@ -4,6 +4,7 @@ import org.exemplo.bellory.model.dto.organizacao.CreateOrganizacaoDTO;
 import org.exemplo.bellory.model.dto.organizacao.OrganizacaoResponseDTO;
 import org.exemplo.bellory.model.dto.organizacao.ResponsavelDTO;
 import org.exemplo.bellory.model.entity.config.ConfigSistema;
+import org.exemplo.bellory.model.entity.endereco.Coordenadas;
 import org.exemplo.bellory.model.entity.endereco.Endereco;
 import org.exemplo.bellory.model.entity.organizacao.*;
 import org.exemplo.bellory.model.entity.plano.Plano;
@@ -55,7 +56,14 @@ public class OrganizacaoMapper {
             endereco.setBairro(dto.getEndereco().getBairro());
             endereco.setCidade(dto.getEndereco().getCidade());
             endereco.setUf(dto.getEndereco().getUf());
+
+            Coordenadas cood = new Coordenadas();
+            cood.setLatitude(dto.getEndereco().getLatitude().toString());
+            cood.setLatitude(dto.getEndereco().getLongitude().toString());
+            endereco.setCoordenadas(cood);
+
             org.setEnderecoPrincipal(endereco);
+
         }
 
         // AcessoAdm (Embeddable)
