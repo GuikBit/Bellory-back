@@ -39,7 +39,7 @@ public abstract class User implements UserDetails {
     @Column(nullable = false)
     private String password;
 
-    @Column(nullable = false)
+    @Column(nullable = true)
     private String email;
 
     private boolean ativo = true;
