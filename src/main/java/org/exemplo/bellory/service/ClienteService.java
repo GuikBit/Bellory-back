@@ -135,7 +135,7 @@ public class ClienteService {
         cliente.setNomeCompleto(dto.getNomeCompleto());
 
         // Salva email e CPF apenas se preenchidos, caso contrário salva null
-        cliente.setEmail(dto.getEmail() != null && !dto.getEmail().trim().isEmpty() ? dto.getEmail() : "cliente_rapido@gmail.com");
+        cliente.setEmail(dto.getEmail() != null && !dto.getEmail().trim().isEmpty() ? dto.getEmail() : null);
         cliente.setCpf(dto.getCpf() != null && !dto.getCpf().trim().isEmpty() ? dto.getCpf().replaceAll("[^0-9]", "") : null);
 
         cliente.setUsername(dto.getUsername());
