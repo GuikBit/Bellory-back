@@ -125,7 +125,10 @@ public class SecurityConfig {
                                 "/webjars/**",
                                 "/actuator/**",
                                 "/health",
-                                "/scalar.html"
+                                "/scalar.html",
+
+                                // Arquivos de upload (imagens públicas)
+                                "/uploads/**"
                         ).permitAll()
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/v1/admin/**").hasAnyRole("SUPERADMIN", "ADMIN")
