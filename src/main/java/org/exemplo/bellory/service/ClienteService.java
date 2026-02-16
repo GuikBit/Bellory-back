@@ -127,6 +127,12 @@ public class ClienteService {
             }
         }
 
+        if (dto.getUsername() != null && !dto.getUsername().trim().isEmpty()) {
+            if (clienteRepository.findByUsernameAndOrganizacao_Id(dto.getUsername(), organizacaoId).isPresent()) {
+                throw new IllegalArgumentException("Username já cadastrado.");
+            }
+        }
+
         Organizacao organizacao = organizacaoRepository.findById(organizacaoId)
                 .orElseThrow(() -> new IllegalArgumentException("Organização com ID " + organizacaoId + " não encontrada."));
 

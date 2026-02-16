@@ -114,14 +114,30 @@ public class ClienteController {
     @Operation(summary = "Criar novo cliente")
     @PostMapping
     public ResponseEntity<ResponseAPI<ClienteDTO>> createCliente(@RequestBody @Valid ClienteCreateDTO clienteCreateDTO) {
-        ClienteDTO novoCliente = clienteService.createCliente(clienteCreateDTO);
+        try {
+            ClienteDTO novoCliente = clienteService.createCliente(clienteCreateDTO);
 
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ResponseAPI.<ClienteDTO>builder()
-                        .success(true)
-                        .message("Cliente criado com sucesso.")
-                        .dados(novoCliente)
-                        .build());
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(ResponseAPI.<ClienteDTO>builder()
+                            .success(true)
+                            .message("Cliente criado com sucesso.")
+                            .dados(novoCliente)
+                            .build());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ResponseAPI.<ClienteDTO>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(400)
+                            .build());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseAPI.<ClienteDTO>builder()
+                            .success(false)
+                            .message("Erro interno ao criar cliente: " + e.getMessage())
+                            .errorCode(500)
+                            .build());
+        }
     }
 
     @Operation(summary = "Validar disponibilidade de username")
