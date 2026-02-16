@@ -16,6 +16,10 @@ public interface FuncionarioRepository extends JpaRepository<Funcionario, Long> 
     // Usado apenas para autenticação (login/JWT) - não usar para validações de negócio
     Optional<Funcionario> findByUsername(String username);
 
+    boolean existsByUsername(String username);
+
+    boolean existsByEmail(String email);
+
     Optional<Funcionario> findByCpf(String cpf);
 
     Optional<Funcionario> findByCpfAndOrganizacao_Id(String cpf, Long organizacaoId);
