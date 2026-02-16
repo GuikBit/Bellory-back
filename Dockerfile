@@ -31,7 +31,7 @@ RUN mkdir -p /var/bellory/dev/uploads && \
     chmod -R 755 /var/bellory/dev/uploads
 
 # Copia o JAR existente
-COPY Bellory-1.0-SNAPSHOT.jar app.jar
+COPY app.jar app.jar
 
 # Expõe a porta da aplicação
 EXPOSE 8081

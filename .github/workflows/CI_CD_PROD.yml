@@ -67,7 +67,7 @@ jobs:
             # Copia os arquivos novos do build
             cp /var/runner/api/docker-compose.yml /opt/api/
             cp /var/runner/api/Dockerfile /opt/api/
-            cp /var/runner/api/target/*.jar /opt/api/
+            cp /var/runner/api/target/Bellory-*.jar /opt/api/app.jar
 
             # Reinicia os containers
             cd /opt/api
