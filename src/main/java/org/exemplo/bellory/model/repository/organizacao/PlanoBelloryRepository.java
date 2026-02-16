@@ -11,7 +11,11 @@ import java.util.Optional;
 public interface PlanoBelloryRepository extends JpaRepository<PlanoBellory, Long> {
     Optional<PlanoBellory> findByNome(String nome);
 
+//    PlanoBellory findByCodigo(String id);
+
     Optional<PlanoBellory> findByCodigo(String codigo);
+//
+//    PlanoBellory findByCodigo(String codigo);
 }
 
 

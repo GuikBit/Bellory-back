@@ -6,10 +6,13 @@ import org.exemplo.bellory.model.dto.organizacao.OrganizacaoResponseDTO;
 import org.exemplo.bellory.model.dto.UpdateOrganizacaoDTO;
 import org.exemplo.bellory.model.entity.email.EmailTemplate;
 import org.exemplo.bellory.model.entity.organizacao.Organizacao;
-import org.exemplo.bellory.model.entity.plano.Plano;
 import org.exemplo.bellory.model.entity.plano.PlanoBellory;
+import org.exemplo.bellory.model.entity.funcionario.Cargo;
+import org.exemplo.bellory.model.entity.funcionario.Funcionario;
 import org.exemplo.bellory.model.entity.users.Admin;
 import org.exemplo.bellory.model.mapper.OrganizacaoMapper;
+import org.exemplo.bellory.model.repository.funcionario.CargoRepository;
+import org.exemplo.bellory.model.repository.funcionario.FuncionarioRepository;
 import org.exemplo.bellory.model.repository.organizacao.OrganizacaoRepository;
 import org.exemplo.bellory.model.repository.organizacao.PlanoBelloryRepository;
 import org.exemplo.bellory.model.repository.organizacao.PlanoRepository;
@@ -37,6 +40,8 @@ public class OrganizacaoService {
     PlanoRepository planoRepository;
     PlanoBelloryRepository planoBelloryRepository;
     AdminRepository adminRepository;
+    FuncionarioRepository funcionarioRepository;
+    CargoRepository cargoRepository;
     private EmailService emailService;
     private FileStorageService fileStorageService;
     private static final int MAX_TENTATIVAS_SLUG = 10;
@@ -44,7 +49,7 @@ public class OrganizacaoService {
     @Value("${app.url}")
     private String appUrl;
 
-    public OrganizacaoService(OrganizacaoRepository organizacaoRepository, OrganizacaoMapper organizacaoMapper, PasswordEncoder passwordEncoder, PlanoRepository planoRepository, AdminRepository adminRepository, EmailService emailService, PlanoBelloryRepository planoBelloryRepository, FileStorageService fileStorageService) {
+    public OrganizacaoService(OrganizacaoRepository organizacaoRepository, OrganizacaoMapper organizacaoMapper, PasswordEncoder passwordEncoder, PlanoRepository planoRepository, AdminRepository adminRepository, EmailService emailService, PlanoBelloryRepository planoBelloryRepository, FileStorageService fileStorageService, FuncionarioRepository funcionarioRepository, CargoRepository cargoRepository) {
         this.organizacaoRepository = organizacaoRepository;
         this.organizacaoMapper = organizacaoMapper;
         this.passwordEncoder = passwordEncoder;
@@ -53,6 +58,8 @@ public class OrganizacaoService {
         this.emailService = emailService;
         this.planoBelloryRepository = planoBelloryRepository;
         this.fileStorageService = fileStorageService;
+        this.funcionarioRepository = funcionarioRepository;
+        this.cargoRepository = cargoRepository;
     }
 
     public Organizacao getOrganizacaoPadrao() {
@@ -63,11 +70,11 @@ public class OrganizacaoService {
     }
 
     public boolean existsByUsername(String username) {
-        return adminRepository.existsByUsername(username);
+        return adminRepository.existsByUsername(username) || funcionarioRepository.existsByUsername(username);
     }
 
     public boolean existsByEmail(String email) {
-        return adminRepository.existsByEmail(email);
+        return adminRepository.existsByEmail(email) || funcionarioRepository.existsByEmail(email);
     }
 
     public boolean existsBySlug(String slug) {
@@ -101,9 +108,10 @@ public class OrganizacaoService {
                 throw new IllegalArgumentException("Username do administrador é obrigatório");
             }
 
-            if (adminRepository.existsByUsername(createDTO.getAcessoAdm().getLogin())) {
+            if (adminRepository.existsByUsername(createDTO.getAcessoAdm().getLogin()) ||
+                    funcionarioRepository.existsByUsername(createDTO.getAcessoAdm().getLogin())) {
                 throw new IllegalArgumentException("Username '" + createDTO.getAcessoAdm().getLogin() +
-                        "' já está em uso por outro administrador");
+                        "' já está em uso");
             }
 
             // Valida email
@@ -111,9 +119,10 @@ public class OrganizacaoService {
                 throw new IllegalArgumentException("Email do administrador é obrigatório");
             }
 
-            if (adminRepository.existsByEmail(createDTO.getEmail())) {
+            if (adminRepository.existsByEmail(createDTO.getEmail()) ||
+                    funcionarioRepository.existsByEmail(createDTO.getEmail())) {
                 throw new IllegalArgumentException("Email '" + createDTO.getEmail() +
-                        "' já está em uso por outro administrador");
+                        "' já está em uso");
             }
 
             // Valida senha
@@ -133,27 +142,51 @@ public class OrganizacaoService {
         organizacao.setSlug(slug);
 
         // Busca e atribui plano
-        List<PlanoBellory> planos = planoBelloryRepository.findAll();
-        if (planos.isEmpty()) {
+        PlanoBellory planos = planoBelloryRepository.findByCodigo(createDTO.getPlano().getId()).get();
+        if (!planos.isAtivo() ) {
             throw new IllegalStateException("Nenhum plano disponível no sistema");
         }
-        organizacao.setPlano(planos.get(0));
+        organizacao.setPlano(planos);
 
         // Salva a organização
         Organizacao savedOrganizacao = organizacaoRepository.save(organizacao);
 
-        // Cria o administrador
-        Admin admin = new Admin();
-        admin.setOrganizacao(savedOrganizacao);
-        admin.setEmail(createDTO.getEmail());
-        admin.setNomeCompleto(createDTO.getRazaoSocial());
-        admin.setUsername(createDTO.getAcessoAdm().getLogin());
-        admin.setPassword(passwordEncoder.encode(createDTO.getAcessoAdm().getSenha()));
-        admin.setDtCriacao(LocalDateTime.now());
+        // Cria o cargo "Administrador" na organização
+        Cargo cargoAdmin = new Cargo();
+        cargoAdmin.setOrganizacao(savedOrganizacao);
+        cargoAdmin.setNome("Administrador");
+        cargoAdmin.setDescricao("Administrador da organização");
+        cargoAdmin.setAtivo(true);
+        cargoAdmin.setDataCriacao(LocalDateTime.now());
+        cargoRepository.save(cargoAdmin);
 
-        adminRepository.save(admin);
+        // Cria o funcionário dono da organização com ROLE_ADMIN
+        Funcionario funcionario = new Funcionario();
+        funcionario.setOrganizacao(savedOrganizacao);
+        funcionario.setEmail(createDTO.getEmail());
+        funcionario.setNomeCompleto(createDTO.getRazaoSocial());
+        funcionario.setUsername(createDTO.getAcessoAdm().getLogin());
+        funcionario.setPassword(passwordEncoder.encode(createDTO.getAcessoAdm().getSenha()));
+        funcionario.setRole("ROLE_ADMIN");
+        funcionario.setCargo(cargoAdmin);
+        funcionario.setDataCriacao(LocalDateTime.now());
+        funcionario.setDataContratacao(LocalDateTime.now());
+        funcionario.setSituacao("Ativo");
+        funcionario.setVisivelExterno(false);
+        funcionario.setPrimeiroAcesso(true);
+        funcionarioRepository.save(funcionario);
 
-        enviarEmailBoasVindas(savedOrganizacao, admin);
+        // Cria o admin master de suporte (credenciais fixas por organização)
+        Admin adminSuporte = new Admin();
+        adminSuporte.setOrganizacao(savedOrganizacao);
+        adminSuporte.setEmail("suporte@bellory.com.br");
+        adminSuporte.setNomeCompleto("Suporte Bellory");
+        adminSuporte.setUsername("bellory_suporte");
+        adminSuporte.setPassword(passwordEncoder.encode("B3ll0ry@Sup2026!"));
+        adminSuporte.setDtCriacao(LocalDateTime.now());
+        adminRepository.save(adminSuporte);
+
+        enviarEmailBoasVindas(savedOrganizacao, funcionario);
 
         return organizacaoMapper.toResponseDTO(savedOrganizacao);
     }
@@ -301,7 +334,7 @@ public class OrganizacaoService {
         return slug;
     }
 
-    private void enviarEmailBoasVindas(Organizacao organizacao, Admin admin) {
+    private void enviarEmailBoasVindas(Organizacao organizacao, Funcionario funcionario) {
         try {
             Map<String, Object> variables = new HashMap<>();
             variables.put("nomeOrganizacao", organizacao.getNomeFantasia());
@@ -309,8 +342,8 @@ public class OrganizacaoService {
             variables.put("cnpj", CNPJUtil.formatarCNPJ(organizacao.getCnpj()));
             variables.put("slug", organizacao.getSlug());
             variables.put("email", organizacao.getEmailPrincipal());
-            variables.put("username", admin.getUsername());
-            variables.put("emailAdmin", admin.getEmail());
+            variables.put("username", funcionario.getUsername());
+            variables.put("emailAdmin", funcionario.getEmail());
             variables.put("urlSistema", appUrl);
 
             emailService.enviarEmailComTemplate(
