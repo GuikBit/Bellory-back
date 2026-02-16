@@ -26,9 +26,9 @@
 FROM eclipse-temurin:21-jre
 WORKDIR /app
 
-# Criar diretório de uploads dentro do container
-RUN mkdir -p /var/bellory/dev/uploads && \
-    chmod -R 755 /var/bellory/dev/uploads
+# Criar diretórios de uploads dentro do container
+RUN mkdir -p /var/bellory/dev/uploads /var/bellory/prod/uploads && \
+    chmod -R 755 /var/bellory/dev/uploads /var/bellory/prod/uploads
 
 # Copia o JAR existente
 COPY app.jar app.jar

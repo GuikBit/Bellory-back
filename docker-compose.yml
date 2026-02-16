@@ -46,6 +46,10 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
+    # VOLUME PERSISTENTE PARA UPLOADS - CRÍTICO!
+    volumes:
+      - /var/bellory/prod/uploads:/var/bellory/prod/uploads
+
     # Carrega variáveis do arquivo .env
     env_file:
       - .env
