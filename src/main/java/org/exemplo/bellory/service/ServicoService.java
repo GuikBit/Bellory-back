@@ -102,13 +102,12 @@ public class ServicoService {
         novoServico.setDescricao(dto.getDescricao());
         novoServico.setTempoEstimadoMinutos(dto.getTempoEstimadoMinutos());
         novoServico.setPreco(dto.getPreco());
-        novoServico.setDesconto(dto.getDesconto());
-        novoServico.setPreco(dto.getPreco());
-        novoServico.setDesconto(dto.getDesconto());
+        BigDecimal desconto = dto.getDesconto() != null ? dto.getDesconto() : BigDecimal.ZERO;
+        novoServico.setDesconto(desconto);
 
 // Calcula o valor do desconto: preco * (desconto / 100)
         BigDecimal valorDesconto = dto.getPreco()
-                .multiply(dto.getDesconto())
+                .multiply(desconto)
                 .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
 
         BigDecimal precoFinal = dto.getPreco().subtract(valorDesconto);
