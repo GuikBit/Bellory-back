@@ -81,8 +81,9 @@ public class AuthController {
             organizacaoInfo.setNome(org.getNomeFantasia());
             organizacaoInfo.setDtCadastro(org.getDtCadastro());
             organizacaoInfo.setNomeFantasia(org.getNomeFantasia());
-//            organizacaoInfo.setPlano(org.getPlano());
+            organizacaoInfo.setPlano(org.getPlano());
             organizacaoInfo.setConfigSistema(org.getConfigSistema());
+            organizacaoInfo.setTema(org.getTema());
             organizacaoInfo.setAtivo(org.getAtivo());
 //            organizacaoInfo.setLimitesPersonalizados(org.getLimitesPersonalizados());
 
