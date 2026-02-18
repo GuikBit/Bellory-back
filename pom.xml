@@ -11,7 +11,7 @@
     </parent>
     <groupId>org.example.bellory</groupId>
     <artifactId>Bellory</artifactId>
-    <version>1.1.20</version>
+    <version>1.1.21</version>
     <name>Bellory</name>
     <description>Bellory - Plataforma SaaS para gestão de salões e negócios de serviços</description>
 
