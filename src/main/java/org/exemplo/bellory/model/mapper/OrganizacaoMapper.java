@@ -79,7 +79,7 @@ public class OrganizacaoMapper {
         // Tema (Embeddable complexo)
         if (dto.getTema() != null) {
             Tema tema = new Tema();
-            tema.setNome(dto.getTema().getNome());
+            tema.setNome(dto.getTema().getId());
             tema.setTipo(dto.getTema().getTipo());
 
             // Cores

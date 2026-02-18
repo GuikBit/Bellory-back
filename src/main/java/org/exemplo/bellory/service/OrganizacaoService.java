@@ -47,12 +47,14 @@ public class OrganizacaoService {
     private EmailService emailService;
     private FileStorageService fileStorageService;
     private InstanceService instanceService;
+    private ApiKeyService apiKeyService;
+
     private static final int MAX_TENTATIVAS_SLUG = 10;
 
     @Value("${app.url}")
     private String appUrl;
 
-    public OrganizacaoService(OrganizacaoRepository organizacaoRepository, OrganizacaoMapper organizacaoMapper, PasswordEncoder passwordEncoder, PlanoRepository planoRepository, AdminRepository adminRepository, EmailService emailService, PlanoBelloryRepository planoBelloryRepository, FileStorageService fileStorageService, FuncionarioRepository funcionarioRepository, CargoRepository cargoRepository, InstanceService instanceService) {
+    public OrganizacaoService(OrganizacaoRepository organizacaoRepository, OrganizacaoMapper organizacaoMapper, PasswordEncoder passwordEncoder, PlanoRepository planoRepository, AdminRepository adminRepository, EmailService emailService, PlanoBelloryRepository planoBelloryRepository, FileStorageService fileStorageService, FuncionarioRepository funcionarioRepository, CargoRepository cargoRepository, InstanceService instanceService, ApiKeyService apiKeyService) {
         this.organizacaoRepository = organizacaoRepository;
         this.organizacaoMapper = organizacaoMapper;
         this.passwordEncoder = passwordEncoder;
@@ -64,7 +66,7 @@ public class OrganizacaoService {
         this.funcionarioRepository = funcionarioRepository;
         this.cargoRepository = cargoRepository;
         this.instanceService = instanceService;
-
+        this.apiKeyService = apiKeyService;
     }
 
     public Organizacao getOrganizacaoPadrao() {
@@ -214,27 +216,14 @@ public class OrganizacaoService {
         instance.setWebhookUrl("https://auto.bellory.com.br/webhook/whatsapp");
         instanceService.createInstance(instance, true, savedOrganizacao.getId());
 
+        Map<String, Object> apiKey = apiKeyService.generateApiKey(
+                adminSuporte.getId(), ApiKey.UserType.SISTEMA,
+                "API_KEY_DEFAULT", "API Key para execução de automações internas do sistema", null);
+
         enviarEmailBoasVindas(savedOrganizacao, funcionario);
 
         return organizacaoMapper.toResponseDTO(savedOrganizacao);
     }
-
-    /**
-     * Lista todas as organizações ativas
-     * Valida o token JWT antes de retornar os dados
-     */
-//    @Transactional(readOnly = true)
-//    public List<OrganizacaoResponseDTO> findAll() {
-//
-//
-//        // Valida o token JWT
-////        Long organizacaoId = getOrganizacaoIdFromContext();
-//
-//
-//        List<Organizacao> organizacoes = organizacaoRepository.findAllByAtivoTrue();
-//
-//        return organizacaoMapper.toResponseDTOList(organizacoes);
-//    }
 
     @Transactional(readOnly = true)
     public List<OrganizacaoResponseDTO> findAll() {
