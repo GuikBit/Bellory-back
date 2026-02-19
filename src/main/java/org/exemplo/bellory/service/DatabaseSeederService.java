@@ -690,6 +690,8 @@ public class DatabaseSeederService {
             endereco.setBairro("Grama");
             endereco.setCidade("Juiz de Fora");
             endereco.setUf("MG");
+            endereco.setLatitude(BigDecimal.valueOf(1));
+            endereco.setLongitude(BigDecimal.valueOf(32.34234));
             dto.setEndereco(endereco);
 
             dto.setTema(criarTemaDTOPersonalizado(finalI));
@@ -718,11 +720,11 @@ public class DatabaseSeederService {
             System.out.println("   ✓ API Key criada: " + apiKey);
 
             // Instância WhatsApp
-            InstanceCreateDTO instance = new InstanceCreateDTO();
-            instance.setInstanceName(org.getSlug());
-            instance.setInstanceNumber(org.getTelefone1().replaceAll("\\D", ""));
-            instance.setWebhookUrl("https://auto.bellory.com.br/webhook/whatsapp");
-            instanceService.createInstance(instance, true, org.getId());
+//            InstanceCreateDTO instance = new InstanceCreateDTO();
+//            instance.setInstanceName(org.getSlug());
+//            instance.setInstanceNumber(org.getTelefone1().replaceAll("\\D", ""));
+//            instance.setWebhookUrl("https://auto.bellory.com.br/webhook/whatsapp2");
+//            instanceService.createInstance(instance, true, org.getId());
 
             organizacoes.add(org);
             System.out.println("   ✓ Organização criada via service: " + org.getNomeFantasia() + " (slug: " + org.getSlug() + ")");
