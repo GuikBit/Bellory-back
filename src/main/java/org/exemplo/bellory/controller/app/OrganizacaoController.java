@@ -23,8 +23,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
-
 import java.util.List;
 import java.util.Map;
 
@@ -590,9 +588,10 @@ public class OrganizacaoController {
     @PostMapping("/logo")
     @Operation(summary = "Upload de logo da organização")
     public ResponseEntity<ResponseAPI<Map<String, String>>> uploadLogo(
-            @RequestParam("file") MultipartFile file) {
+            @RequestBody Map<String, Object> body) {
         try {
-            Map<String, String> resultado = organizacaoService.uploadLogo(file);
+            String base64Image = extractBase64FromBody(body);
+            Map<String, String> resultado = organizacaoService.uploadLogo(base64Image);
             return ResponseEntity.ok(ResponseAPI.<Map<String, String>>builder()
                     .success(true)
                     .message("Logo atualizada com sucesso.")
@@ -693,9 +692,10 @@ public class OrganizacaoController {
     @PostMapping("/banner")
     @Operation(summary = "Upload de banner da organização")
     public ResponseEntity<ResponseAPI<Map<String, String>>> uploadBanner(
-            @RequestParam("file") MultipartFile file) {
+            @RequestBody Map<String, Object> body) {
         try {
-            Map<String, String> resultado = organizacaoService.uploadBanner(file);
+            String base64Image = extractBase64FromBody(body);
+            Map<String, String> resultado = organizacaoService.uploadBanner(base64Image);
             return ResponseEntity.ok(ResponseAPI.<Map<String, String>>builder()
                     .success(true)
                     .message("Banner atualizado com sucesso.")
@@ -789,5 +789,19 @@ public class OrganizacaoController {
                             .errorCode(500)
                             .build());
         }
+    }
+
+    private String extractBase64FromBody(Map<String, Object> body) {
+        Object file = body.get("file");
+        if (file == null) {
+            throw new IllegalArgumentException("Campo 'file' é obrigatório.");
+        }
+        if (file instanceof List<?> list) {
+            if (list.isEmpty()) {
+                throw new IllegalArgumentException("Campo 'file' não pode ser vazio.");
+            }
+            return list.get(0).toString();
+        }
+        return file.toString();
     }
 }

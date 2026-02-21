@@ -16,6 +16,8 @@ import org.exemplo.bellory.model.repository.organizacao.OrganizacaoRepository;
 import org.exemplo.bellory.model.repository.users.ClienteRepository;
 import org.exemplo.bellory.model.repository.agendamento.AgendamentoRepository;
 import org.exemplo.bellory.model.repository.Transacao.CobrancaRepository;
+import org.exemplo.bellory.model.event.ClienteCadastradoEvent;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -41,19 +43,22 @@ public class ClienteService {
     private final PasswordEncoder passwordEncoder;
     private final OrganizacaoService organizacaoService;
     private final OrganizacaoRepository organizacaoRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     public ClienteService(ClienteRepository clienteRepository,
                           AgendamentoRepository agendamentoRepository,
                           CobrancaRepository cobrancaRepository,
                           PasswordEncoder passwordEncoder,
                           OrganizacaoService organizacaoService,
-                          OrganizacaoRepository organizacaoRepository) {
+                          OrganizacaoRepository organizacaoRepository,
+                          ApplicationEventPublisher eventPublisher) {
         this.clienteRepository = clienteRepository;
         this.agendamentoRepository = agendamentoRepository;
         this.cobrancaRepository = cobrancaRepository;
         this.passwordEncoder = passwordEncoder;
         this.organizacaoService = organizacaoService;
         this.organizacaoRepository = organizacaoRepository;
+        this.eventPublisher = eventPublisher;
     }
 
     // =============== MÉTODOS EXISTENTES ATUALIZADOS ===============
@@ -154,6 +159,15 @@ public class ClienteService {
         cliente.setDtCriacao(LocalDateTime.now());
 
         Cliente clienteSalvo = clienteRepository.save(cliente);
+
+        // Publicar evento de novo cliente cadastrado
+        eventPublisher.publishEvent(new ClienteCadastradoEvent(
+                this,
+                clienteSalvo.getId(),
+                clienteSalvo.getNomeCompleto(),
+                organizacaoId
+        ));
+
         return convertToDTO(clienteSalvo);
     }
 

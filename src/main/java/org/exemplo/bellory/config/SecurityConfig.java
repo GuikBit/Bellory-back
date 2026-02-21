@@ -128,7 +128,10 @@ public class SecurityConfig {
                                 "/scalar.html",
 
                                 // Arquivos de upload (imagens públicas)
-                                "/uploads/**"
+                                "/uploads/**",
+
+                                // Web Push - chave publica VAPID (publico)
+                                "/api/v1/push/vapid-public-key"
                         ).permitAll()
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/v1/admin/**").hasAnyRole("SUPERADMIN", "ADMIN")

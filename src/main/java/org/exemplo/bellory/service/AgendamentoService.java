@@ -12,6 +12,9 @@ import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 import org.exemplo.bellory.model.entity.servico.Servico;
 import org.exemplo.bellory.model.entity.users.Cliente;
 import org.exemplo.bellory.model.entity.organizacao.BloqueioOrganizacao;
+import org.exemplo.bellory.model.event.AgendamentoCanceladoEvent;
+import org.exemplo.bellory.model.event.AgendamentoConfirmadoEvent;
+import org.exemplo.bellory.model.event.AgendamentoCriadoEvent;
 import org.exemplo.bellory.model.repository.Transacao.CobrancaRepository;
 import org.exemplo.bellory.model.repository.agendamento.AgendamentoRepository;
 import org.exemplo.bellory.model.repository.funcionario.DisponibilidadeRepository;
@@ -21,6 +24,7 @@ import org.exemplo.bellory.model.repository.organizacao.BloqueioOrganizacaoRepos
 import org.exemplo.bellory.model.repository.organizacao.OrganizacaoRepository;
 import org.exemplo.bellory.model.repository.servico.ServicoRepository;
 import org.exemplo.bellory.model.repository.users.ClienteRepository;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -45,6 +49,7 @@ public class AgendamentoService {
     private final BloqueioOrganizacaoRepository bloqueioOrganizacaoRepository;
 
     private final TransacaoService transacaoService;
+    private final ApplicationEventPublisher eventPublisher;
 
 
     //private static final int TOLERANCIA_MINUTOS = 10;
@@ -73,7 +78,8 @@ public class AgendamentoService {
                               OrganizacaoRepository organizacaoRepository,
                               CobrancaRepository cobrancaRepository,
                               BloqueioOrganizacaoRepository bloqueioOrganizacaoRepository,
-                              TransacaoService transacaoService) {
+                              TransacaoService transacaoService,
+                              ApplicationEventPublisher eventPublisher) {
         this.agendamentoRepository = agendamentoRepository;
         this.disponibilidadeRepository = disponibilidadeRepository;
         this.jornadaTrabalhoRepository = jornadaTrabalhoRepository;
@@ -84,6 +90,7 @@ public class AgendamentoService {
         this.cobrancaRepository = cobrancaRepository;
         this.bloqueioOrganizacaoRepository = bloqueioOrganizacaoRepository;
         this.transacaoService = transacaoService;
+        this.eventPublisher = eventPublisher;
     }
 
 
@@ -233,6 +240,15 @@ public class AgendamentoService {
 
         agendamentoRepository.save(agendamentoSalvo);
 
+        // Publicar evento de agendamento criado
+        eventPublisher.publishEvent(new AgendamentoCriadoEvent(
+                this,
+                agendamentoSalvo.getId(),
+                cliente.getId(),
+                cliente.getNomeCompleto(),
+                organizacaoId
+        ));
+
         return new AgendamentoDTO(agendamentoSalvo);
     }
 
@@ -380,6 +396,18 @@ public class AgendamentoService {
 //        }
 
         agendamentoRepository.save(agendamento);
+
+        // Publicar evento de agendamento cancelado
+        List<Long> funcionarioIds = agendamento.getFuncionarios().stream()
+                .map(Funcionario::getId)
+                .collect(Collectors.toList());
+        eventPublisher.publishEvent(new AgendamentoCanceladoEvent(
+                this,
+                agendamento.getId(),
+                agendamento.getCliente().getNomeCompleto(),
+                funcionarioIds,
+                agendamento.getCliente().getOrganizacao().getId()
+        ));
     }
 
     @Transactional
@@ -540,7 +568,17 @@ public class AgendamentoService {
             case CONFIRMADO:
                 agendamento.setStatus(Status.CONFIRMADO);
                 agendamento.setDtConfirmacao(LocalDateTime.now());
-                // Enviar notificação de confirmação
+                // Publicar evento de confirmacao
+                List<Long> funcIds = agendamento.getFuncionarios().stream()
+                        .map(Funcionario::getId)
+                        .collect(Collectors.toList());
+                eventPublisher.publishEvent(new AgendamentoConfirmadoEvent(
+                        this,
+                        agendamento.getId(),
+                        agendamento.getCliente().getNomeCompleto(),
+                        funcIds,
+                        agendamento.getCliente().getOrganizacao().getId()
+                ));
                 break;
 
             case EM_ESPERA:

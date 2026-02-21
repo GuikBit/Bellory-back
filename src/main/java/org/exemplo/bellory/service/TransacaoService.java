@@ -3,6 +3,7 @@ package org.exemplo.bellory.service;
 import jakarta.transaction.Transactional;
 import org.exemplo.bellory.model.entity.agendamento.Agendamento;
 import org.exemplo.bellory.model.entity.agendamento.Status;
+import org.exemplo.bellory.model.event.PagamentoRecebidoEvent;
 import org.exemplo.bellory.model.entity.cobranca.Cobranca;
 import org.exemplo.bellory.model.entity.compra.Compra;
 import org.exemplo.bellory.model.entity.pagamento.Pagamento;
@@ -12,6 +13,7 @@ import org.exemplo.bellory.model.repository.Transacao.CompraRepository;
 import org.exemplo.bellory.model.repository.Transacao.PagamentoRepository;
 import org.exemplo.bellory.model.repository.agendamento.AgendamentoRepository;
 import org.exemplo.bellory.service.financeiro.ContaReceberService;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -35,6 +37,7 @@ public class TransacaoService {
     private final CompraRepository compraRepository;
     private final AgendamentoRepository agendamentoRepository;
     private final ContaReceberService contaReceberService;
+    private final ApplicationEventPublisher eventPublisher;
 
     // Percentual de sinal padrão (pode ser configurável por organização)
     private static final BigDecimal PERCENTUAL_SINAL_PADRAO = new BigDecimal("30.00");
@@ -43,12 +46,14 @@ public class TransacaoService {
                             PagamentoRepository pagamentoRepository,
                             CompraRepository compraRepository,
                             AgendamentoRepository agendamentoRepository,
-                            ContaReceberService contaReceberService) {
+                            ContaReceberService contaReceberService,
+                            ApplicationEventPublisher eventPublisher) {
         this.cobrancaRepository = cobrancaRepository;
         this.pagamentoRepository = pagamentoRepository;
         this.compraRepository = compraRepository;
         this.agendamentoRepository = agendamentoRepository;
         this.contaReceberService = contaReceberService;
+        this.eventPublisher = eventPublisher;
     }
 
     // ========================================================================
@@ -382,6 +387,17 @@ public class TransacaoService {
         }
 
         atualizarStatusPagamentoAgendamento(cobranca.getAgendamento().getId());
+
+        // Publicar evento de pagamento recebido
+        String nomeCliente = cobranca.getCliente() != null ? cobranca.getCliente().getNomeCompleto() : "Cliente";
+        Long orgId = cobranca.getOrganizacao() != null ? cobranca.getOrganizacao().getId() : null;
+        eventPublisher.publishEvent(new PagamentoRecebidoEvent(
+                this,
+                pagamentoSalvo.getId(),
+                valorPagamento,
+                nomeCliente,
+                orgId
+        ));
 
         return pagamentoSalvo;
     }

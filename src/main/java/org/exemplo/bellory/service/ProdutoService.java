@@ -7,11 +7,13 @@ import org.exemplo.bellory.model.dto.produto.ProdutoResponseDTO;
 import org.exemplo.bellory.model.dto.produto.ProdutoResumoDTO;
 import org.exemplo.bellory.model.dto.produto.ProdutoUpdateDTO;
 import org.exemplo.bellory.model.entity.organizacao.Organizacao;
+import org.exemplo.bellory.model.event.EstoqueBaixoEvent;
 import org.exemplo.bellory.model.entity.produto.Produto;
 import org.exemplo.bellory.model.entity.servico.Categoria;
 import org.exemplo.bellory.model.repository.categoria.CategoriaRepository;
 import org.exemplo.bellory.model.repository.organizacao.OrganizacaoRepository;
 import org.exemplo.bellory.model.repository.produtos.ProdutoRepository;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,6 +31,7 @@ public class ProdutoService {
     private final ProdutoRepository produtoRepository;
     private final OrganizacaoRepository organizacaoRepository;
     private final CategoriaRepository categoriaRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     // =============== CRUD BÁSICO ===============
 
@@ -136,6 +139,18 @@ public class ProdutoService {
         }
         produto.removerEstoque(quantidade);
         produto = produtoRepository.save(produto);
+
+        // Publicar evento de estoque baixo se abaixo do minimo
+        if (produto.estoqueAbaixoDoMinimo() && produto.getOrganizacao() != null) {
+            eventPublisher.publishEvent(new EstoqueBaixoEvent(
+                    this,
+                    produto.getId(),
+                    produto.getNome(),
+                    produto.getQuantidadeEstoque(),
+                    produto.getOrganizacao().getId()
+            ));
+        }
+
         return mapearParaResponseDTO(produto);
     }
 

@@ -256,6 +256,56 @@ public class FileStorageService {
         }
     }
 
+    public String storeFileFromBase64(String base64Image, Long entidadeId, Long organizacaoId, TipoUpload tipo) {
+        try {
+            if (base64Image == null || base64Image.isEmpty()) {
+                throw new IllegalArgumentException("Imagem base64 vazia ou nula");
+            }
+
+            String base64Data = base64Image;
+            String extension = "png";
+
+            if (base64Image.contains(",")) {
+                String[] parts = base64Image.split(",");
+                if (parts.length != 2) {
+                    throw new IllegalArgumentException("Formato base64 inválido");
+                }
+                extension = detectImageExtension(parts[0]);
+                base64Data = parts[1];
+            }
+
+            base64Data = base64Data.replaceAll("\\s", "");
+
+            byte[] imageBytes;
+            try {
+                imageBytes = Base64.getDecoder().decode(base64Data);
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("Erro ao decodificar base64: " + e.getMessage());
+            }
+
+            if (imageBytes.length > MAX_FILE_SIZE) {
+                throw new IllegalArgumentException("Imagem muito grande. Máximo: 5MB");
+            }
+
+            String filename = String.format("%d_%d_%d.%s",
+                    organizacaoId, entidadeId, System.currentTimeMillis(), extension);
+
+            Path targetDirectory = Paths.get(uploadDir,
+                    organizacaoId.toString(), tipo.getPasta());
+            Files.createDirectories(targetDirectory);
+
+            Path targetLocation = targetDirectory.resolve(filename);
+            Files.write(targetLocation, imageBytes);
+
+            return String.format("%d/%s/%s", organizacaoId, tipo.getPasta(), filename);
+
+        } catch (IllegalArgumentException ex) {
+            throw ex;
+        } catch (IOException ex) {
+            throw new RuntimeException("Erro ao armazenar imagem base64: " + ex.getMessage(), ex);
+        }
+    }
+
     private String detectImageExtension(String base64Image) {
         if (base64Image.startsWith("data:image/png")) {
             return "png";
