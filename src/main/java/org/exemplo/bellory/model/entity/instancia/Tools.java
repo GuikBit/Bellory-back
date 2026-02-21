@@ -21,29 +21,29 @@ public class Tools {
     private Long id;
 
     @Column(name = "get_services")
-    private boolean getServices;
+    private boolean getServices = false;
 
     @Column(name = "get_professional")
-    private boolean getProfessional;
+    private boolean getProfessional = false;
 
     @Column(name = "get_products")
-    private boolean getProducts;
+    private boolean getProducts = false;
 
     @Column(name = "get_avaliable_schedules")
-    private boolean getAvaliableSchedules;
+    private boolean getAvaliableSchedules = false;
 
     @Column(name = "post_scheduling")
-    private boolean postScheduling;
+    private boolean postScheduling = false;
 
     @Column(name = "send_text_message")
-    private boolean sendTextMessage;
+    private boolean sendTextMessage = false;
 
     @Column(name = "send_media_message")
-    private boolean sendMediaMessage;
+    private boolean sendMediaMessage = false;
 
     @Column(name = "post_confirmations")
-    private boolean postConfirmations;
+    private boolean postConfirmations = false;
 
     @Column(name = "post_cancellations")
-    private boolean postCancellations;
+    private boolean postCancellations = false;
 }

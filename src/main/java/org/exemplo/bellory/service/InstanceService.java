@@ -105,7 +105,7 @@ public class InstanceService {
             Map<String, Object> webhook = new LinkedHashMap<>();
             webhook.put("url", dto.getWebhookUrl() != null
                     ? dto.getWebhookUrl()
-                    : "https://auto.bellory.com.br/webhook/whatsapp");
+                    : "https://auto.bellory.com.br/webhook/bot");
             webhook.put("byEvents", false);
             webhook.put("base64", false);
 
@@ -139,6 +139,12 @@ public class InstanceService {
             instance.setOrganizacao(organizacao);
             instance.setDescription(dto.getDescription());
             instance.setPersonality(dto.getPersonality());
+
+            Tools tools = new Tools();
+            tools.setPostConfirmations(true);
+
+            instance.setTools(tools);
+
             instance.setAtivo(false);
 
             // ✅ Status inicial = DISCONNECTED (aguardando QR code scan)
