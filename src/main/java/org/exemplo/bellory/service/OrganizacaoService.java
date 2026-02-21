@@ -25,8 +25,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
-
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
@@ -379,7 +377,7 @@ public class OrganizacaoService {
     // ==================== LOGO ====================
 
     @Transactional
-    public Map<String, String> uploadLogo(MultipartFile file) {
+    public Map<String, String> uploadLogo(String base64Image) {
         Long organizacaoId = getOrganizacaoIdFromContext();
         Organizacao organizacao = organizacaoRepository.findById(organizacaoId)
                 .orElseThrow(() -> new IllegalArgumentException("Organização não encontrada."));
@@ -390,7 +388,7 @@ public class OrganizacaoService {
             fileStorageService.deleteFile(oldRelativePath, organizacaoId);
         }
 
-        String relativePath = fileStorageService.storeFile(file, organizacaoId, organizacaoId, FileStorageService.TipoUpload.LOGO_ORGANIZACAO);
+        String relativePath = fileStorageService.storeFileFromBase64(base64Image, organizacaoId, organizacaoId, FileStorageService.TipoUpload.LOGO_ORGANIZACAO);
         String fullUrl = fileStorageService.getFileUrl(relativePath);
 
         organizacao.setLogoUrl(fullUrl);
@@ -439,7 +437,7 @@ public class OrganizacaoService {
     // ==================== BANNER ====================
 
     @Transactional
-    public Map<String, String> uploadBanner(MultipartFile file) {
+    public Map<String, String> uploadBanner(String base64Image) {
         Long organizacaoId = getOrganizacaoIdFromContext();
         Organizacao organizacao = organizacaoRepository.findById(organizacaoId)
                 .orElseThrow(() -> new IllegalArgumentException("Organização não encontrada."));
@@ -450,7 +448,7 @@ public class OrganizacaoService {
             fileStorageService.deleteFile(oldRelativePath, organizacaoId);
         }
 
-        String relativePath = fileStorageService.storeFile(file, organizacaoId, organizacaoId, FileStorageService.TipoUpload.BANNER_ORGANIZACAO);
+        String relativePath = fileStorageService.storeFileFromBase64(base64Image, organizacaoId, organizacaoId, FileStorageService.TipoUpload.BANNER_ORGANIZACAO);
         String fullUrl = fileStorageService.getFileUrl(relativePath);
 
         organizacao.setBannerUrl(fullUrl);
