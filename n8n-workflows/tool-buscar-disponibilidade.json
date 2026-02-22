@@ -1,0 +1,164 @@
+{
+  "name": "Tool: Buscar Disponibilidade - Bellory",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "id": "g1b2c3d4-1007-4007-a007-000000000001",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [-800, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ════════════════════════════════════════════════════════\n// TOOL: BUSCAR DISPONIBILIDADE\n// Consulta horários disponíveis de um profissional\n// Replica a lógica do AgendamentoService.getHorariosDisponiveis()\n// ════════════════════════════════════════════════════════\n\nconst input = $input.item.json;\nconst query = input.query || '';\nconst organizacaoId = input.organizacao_id || input.organizacaoId;\nlet funcionarioId = input.funcionario_id || input.funcionarioId;\nlet servicoId = input.servico_id || input.servicoId;\nlet dataDesejada = input.data || input.dataDesejada || null;\n\n// Tentar extrair IDs do query\nif (query) {\n  if (!funcionarioId) {\n    const fMatch = query.match(/funcionario[_\\s]?(?:id)?[:\\s]*(\\d+)/i);\n    if (fMatch) funcionarioId = fMatch[1];\n  }\n  if (!servicoId) {\n    const sMatch = query.match(/servico[_\\s]?(?:id)?[:\\s]*(\\d+)/i);\n    if (sMatch) servicoId = sMatch[1];\n  }\n  if (!dataDesejada) {\n    // Tentar formato YYYY-MM-DD\n    const dMatch = query.match(/(\\d{4}-\\d{2}-\\d{2})/);\n    if (dMatch) {\n      dataDesejada = dMatch[1];\n    } else {\n      // Tentar formato DD/MM/YYYY\n      const dMatch2 = query.match(/(\\d{1,2})\\/(\\d{1,2})\\/(\\d{4})/);\n      if (dMatch2) {\n        dataDesejada = `${dMatch2[3]}-${dMatch2[2].padStart(2, '0')}-${dMatch2[1].padStart(2, '0')}`;\n      }\n    }\n  }\n}\n\nif (!funcionarioId) {\n  return [{ json: { error: true, message: 'funcionario_id não informado. Primeiro selecione um profissional.' } }];\n}\nif (!servicoId) {\n  return [{ json: { error: true, message: 'servico_id não informado. Primeiro selecione um serviço.' } }];\n}\nif (!organizacaoId) {\n  return [{ json: { error: true, message: 'organizacao_id não informado.' } }];\n}\n\n// Se não informou data, buscar próximos 3 dias úteis\nconst buscarProximosDias = !dataDesejada;\n\nreturn [{\n  json: {\n    funcionario_id: funcionarioId,\n    servico_id: servicoId,\n    organizacao_id: organizacaoId,\n    data_desejada: dataDesejada,\n    buscar_proximos_dias: buscarProximosDias\n  }\n}];"
+      },
+      "id": "g1b2c3d4-1007-4007-a007-000000000002",
+      "name": "Extrair Parâmetros",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [-600, 0]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.error }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "g1b2c3d4-1007-4007-a007-000000000003",
+      "name": "Tem Erro?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [-400, 0]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT s.tempo_estimado_minutos AS duracao FROM app.servico s WHERE s.id = $1 AND s.ativo = true AND s.is_deletado = false;",
+        "options": {
+          "queryReplacement": "={{ $json.servico_id }}"
+        }
+      },
+      "id": "g1b2c3d4-1007-4007-a007-000000000004",
+      "name": "Buscar Duração Serviço",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [-200, -64],
+      "credentials": {
+        "postgres": {
+          "id": "lq3dPcTNeSRNyXW9",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT COALESCE(cs.agend_tolerancia, 15) AS tolerancia FROM app.config_sistema cs JOIN app.organizacao o ON o.config_sistema_id = cs.id WHERE o.id = $1;",
+        "options": {
+          "queryReplacement": "={{ $('Extrair Parâmetros').item.json.organizacao_id }}"
+        }
+      },
+      "id": "g1b2c3d4-1007-4007-a007-000000000005",
+      "name": "Buscar Tolerância",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [0, -64],
+      "credentials": {
+        "postgres": {
+          "id": "lq3dPcTNeSRNyXW9",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ════════════════════════════════════════════════════════\n// PREPARAR DATAS PARA CONSULTA\n// Se data específica: usar essa data\n// Se sem data: gerar lista dos próximos 3 dias úteis\n// ════════════════════════════════════════════════════════\n\nconst params = $('Extrair Parâmetros').item.json;\nconst duracaoServico = $('Buscar Duração Serviço').item.json.duracao || 30;\nconst tolerancia = $input.item.json.tolerancia || 15;\n\nconst DIAS_SEMANA = ['DOMINGO', 'SEGUNDA', 'TERCA', 'QUARTA', 'QUINTA', 'SEXTA', 'SABADO'];\nconst DIAS_SEMANA_PT = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];\n\nlet datasParaConsultar = [];\n\nif (params.data_desejada) {\n  // Data específica informada\n  const d = new Date(params.data_desejada + 'T12:00:00');\n  datasParaConsultar.push({\n    iso: params.data_desejada,\n    diaSemana: DIAS_SEMANA[d.getDay()],\n    diaSemanaIdx: d.getDay(),\n    diaSemanaLabel: DIAS_SEMANA_PT[d.getDay()],\n    formatted: params.data_desejada.split('-').reverse().join('/')\n  });\n} else {\n  // Buscar próximos 3 dias úteis (até 14 dias à frente)\n  const hoje = new Date();\n  hoje.setHours(0, 0, 0, 0);\n  let diasEncontrados = 0;\n  let diasVerificados = 0;\n\n  while (diasEncontrados < 3 && diasVerificados < 14) {\n    const dia = new Date(hoje);\n    dia.setDate(dia.getDate() + diasVerificados + 1); // começa de amanhã\n\n    const diaSemanaIdx = dia.getDay();\n    // Incluir todos os dias (a jornada será verificada na query)\n    const iso = dia.toISOString().split('T')[0];\n    datasParaConsultar.push({\n      iso: iso,\n      diaSemana: DIAS_SEMANA[diaSemanaIdx],\n      diaSemanaIdx: diaSemanaIdx,\n      diaSemanaLabel: DIAS_SEMANA_PT[diaSemanaIdx],\n      formatted: iso.split('-').reverse().join('/')\n    });\n    diasEncontrados++;\n    diasVerificados++;\n  }\n}\n\nreturn [{\n  json: {\n    funcionario_id: params.funcionario_id,\n    servico_id: params.servico_id,\n    organizacao_id: params.organizacao_id,\n    duracao_servico: duracaoServico,\n    tolerancia: tolerancia,\n    duracao_total: duracaoServico + tolerancia,\n    datas: datasParaConsultar,\n    buscar_proximos_dias: params.buscar_proximos_dias\n  }\n}];"
+      },
+      "id": "g1b2c3d4-1007-4007-a007-000000000006",
+      "name": "Preparar Datas",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [200, -64]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH datas_consulta AS (\n  SELECT unnest(string_to_array($3, ',')) AS data_iso\n),\njornadas AS (\n  SELECT\n    dc.data_iso,\n    UPPER(jd.dia_semana) AS dia_semana,\n    ht.hora_inicio,\n    ht.hora_fim\n  FROM datas_consulta dc\n  CROSS JOIN app.jornada_dia jd\n  JOIN app.horario_trabalho ht ON ht.jornada_dia_id = jd.id\n  WHERE jd.funcionario_id = $1\n    AND jd.ativo = true\n    AND UPPER(jd.dia_semana) = CASE EXTRACT(DOW FROM dc.data_iso::date)\n      WHEN 0 THEN 'DOMINGO'\n      WHEN 1 THEN 'SEGUNDA'\n      WHEN 2 THEN 'TERCA'\n      WHEN 3 THEN 'QUARTA'\n      WHEN 4 THEN 'QUINTA'\n      WHEN 5 THEN 'SEXTA'\n      WHEN 6 THEN 'SABADO'\n    END\n),\nbloqueios_org AS (\n  SELECT dc.data_iso\n  FROM datas_consulta dc\n  JOIN app.bloqueio_organizacao bo ON dc.data_iso::date BETWEEN bo.data_inicio AND bo.data_fim\n  WHERE bo.organizacao_id = $2 AND bo.ativo = true\n),\nbloqueios_agenda AS (\n  SELECT\n    dc.data_iso,\n    ba.inicio_bloqueio,\n    ba.fim_bloqueio,\n    ba.tipo_bloqueio\n  FROM datas_consulta dc\n  CROSS JOIN app.bloqueio_agenda ba\n  WHERE ba.funcionario_id = $1\n    AND ba.inicio_bloqueio >= dc.data_iso::date::timestamp\n    AND ba.inicio_bloqueio < (dc.data_iso::date + INTERVAL '1 day')::timestamp\n)\nSELECT\n  j.data_iso,\n  j.dia_semana,\n  j.hora_inicio AS jornada_inicio,\n  j.hora_fim AS jornada_fim,\n  COALESCE(\n    (SELECT json_agg(json_build_object(\n      'inicio', ba.inicio_bloqueio,\n      'fim', ba.fim_bloqueio,\n      'tipo', ba.tipo_bloqueio\n    ) ORDER BY ba.inicio_bloqueio)\n    FROM bloqueios_agenda ba WHERE ba.data_iso = j.data_iso),\n    '[]'::json\n  ) AS bloqueios,\n  CASE WHEN bo.data_iso IS NOT NULL THEN true ELSE false END AS dia_bloqueado\nFROM jornadas j\nLEFT JOIN bloqueios_org bo ON bo.data_iso = j.data_iso\nORDER BY j.data_iso, j.hora_inicio;",
+        "options": {
+          "queryReplacement": "={{ $json.funcionario_id }},={{ $json.organizacao_id }},={{ $json.datas.map(d => d.iso).join(',') }}"
+        }
+      },
+      "id": "g1b2c3d4-1007-4007-a007-000000000007",
+      "name": "Buscar Jornada e Bloqueios",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [400, -64],
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "lq3dPcTNeSRNyXW9",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ════════════════════════════════════════════════════════\n// CALCULAR HORÁRIOS DISPONÍVEIS\n// Algoritmo idêntico ao AgendamentoService.getHorariosDisponiveis()\n// Linhas 880-1063 do back-end Java\n// ════════════════════════════════════════════════════════\n\nconst dadosPrep = $('Preparar Datas').item.json;\nconst duracaoServico = dadosPrep.duracao_servico;\nconst tolerancia = dadosPrep.tolerancia;\nconst duracaoTotal = dadosPrep.duracao_total;\nconst datasInfo = dadosPrep.datas;\n\n// Obter resultados da query\nconst rows = $input.all().map(item => item.json).filter(r => r.data_iso);\n\nconst DIAS_SEMANA_PT = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];\n\n// Função auxiliar: parse time string 'HH:MM:SS' ou 'HH:MM' para minutos desde meia-noite\nfunction timeToMinutes(timeStr) {\n  if (!timeStr) return 0;\n  const parts = String(timeStr).split(':');\n  return parseInt(parts[0]) * 60 + parseInt(parts[1] || 0);\n}\n\n// Função auxiliar: minutos para string 'HH:MM'\nfunction minutesToTime(mins) {\n  const h = Math.floor(mins / 60);\n  const m = mins % 60;\n  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;\n}\n\n// Função auxiliar: parse timestamp para minutos desde meia-noite\nfunction timestampToMinutes(ts) {\n  if (!ts) return 0;\n  const d = new Date(ts);\n  return d.getHours() * 60 + d.getMinutes();\n}\n\n// Agrupar resultados por data\nconst porData = {};\nrows.forEach(row => {\n  if (row.dia_bloqueado) return; // Ignorar dias bloqueados pela organização\n\n  const key = row.data_iso;\n  if (!porData[key]) {\n    porData[key] = {\n      data_iso: key,\n      dia_semana: row.dia_semana,\n      periodos: [],\n      bloqueios: []\n    };\n  }\n\n  // Adicionar período de trabalho\n  porData[key].periodos.push({\n    inicio: timeToMinutes(row.jornada_inicio),\n    fim: timeToMinutes(row.jornada_fim)\n  });\n\n  // Adicionar bloqueios\n  let bloqueios = row.bloqueios || [];\n  if (typeof bloqueios === 'string') {\n    try { bloqueios = JSON.parse(bloqueios); } catch(e) { bloqueios = []; }\n  }\n  bloqueios.forEach(b => {\n    porData[key].bloqueios.push({\n      inicio: timestampToMinutes(b.inicio),\n      fim: timestampToMinutes(b.fim),\n      tipo: b.tipo\n    });\n  });\n});\n\n// Para cada data, calcular slots disponíveis\nconst todosHorarios = [];\n\nObject.entries(porData).forEach(([dataIso, dadosDia]) => {\n  const dataInfo = datasInfo.find(d => d.iso === dataIso) || {};\n  const dataObj = new Date(dataIso + 'T12:00:00');\n  const diaSemanaLabel = DIAS_SEMANA_PT[dataObj.getDay()];\n\n  // Verificar se é o dia atual\n  const agora = new Date();\n  const agoraIso = agora.toISOString().split('T')[0];\n  const isDiaAtual = dataIso === agoraIso;\n  const minutosAgora = isDiaAtual ? (agora.getHours() * 60 + agora.getMinutes()) : 0;\n\n  // Consolidar bloqueios (remover duplicatas)\n  const bloqueiosUnicos = [];\n  const bloqueiosVistos = new Set();\n  dadosDia.bloqueios.forEach(b => {\n    const chave = `${b.inicio}-${b.fim}`;\n    if (!bloqueiosVistos.has(chave)) {\n      bloqueiosVistos.add(chave);\n      bloqueiosUnicos.push(b);\n    }\n  });\n\n  // Para cada período de trabalho, calcular slots\n  dadosDia.periodos.forEach(periodo => {\n    const inicioTrabalho = periodo.inicio;\n    const fimTrabalho = periodo.fim;\n\n    // Montar lista de bloqueios para este período\n    const bloqueiosPeriodo = [];\n\n    // Bloqueio virtual: antes da jornada\n    bloqueiosPeriodo.push({ inicio: 0, fim: inicioTrabalho });\n\n    // Bloqueio virtual: horário passado (se dia atual)\n    if (isDiaAtual && minutosAgora > inicioTrabalho) {\n      bloqueiosPeriodo.push({ inicio: 0, fim: minutosAgora });\n    }\n\n    // Bloqueios reais que interceptam este período\n    bloqueiosUnicos.forEach(b => {\n      const bInicio = Math.max(b.inicio, 0);\n      const bFim = Math.min(b.fim, 24 * 60);\n      if (bInicio < fimTrabalho && bFim > inicioTrabalho) {\n        bloqueiosPeriodo.push({ inicio: bInicio, fim: bFim });\n      }\n    });\n\n    // Bloqueio virtual: após a jornada\n    bloqueiosPeriodo.push({ inicio: fimTrabalho, fim: 24 * 60 });\n\n    // Ordenar bloqueios\n    bloqueiosPeriodo.sort((a, b) => a.inicio - b.inicio);\n\n    // Encontrar slots entre bloqueios\n    let ponteiro = inicioTrabalho;\n\n    for (const bloqueio of bloqueiosPeriodo) {\n      const inicioBloqueio = bloqueio.inicio;\n      const fimBloqueio = bloqueio.fim;\n\n      // Verificar espaço antes do bloqueio\n      if (ponteiro < inicioBloqueio) {\n        let gapMinutos = inicioBloqueio - ponteiro;\n\n        while (gapMinutos >= duracaoTotal) {\n          const slotInicio = ponteiro;\n          const slotFim = ponteiro + duracaoServico;\n\n          if (slotFim > inicioBloqueio || slotFim > fimTrabalho) break;\n\n          todosHorarios.push({\n            data: dataIso,\n            data_formatted: dataIso.split('-').reverse().join('/'),\n            dia_semana: diaSemanaLabel,\n            hora_inicio: minutesToTime(slotInicio),\n            hora_fim: minutesToTime(slotFim),\n            descricao: `${minutesToTime(slotInicio)} - ${minutesToTime(slotFim)}`\n          });\n\n          ponteiro = slotFim + tolerancia;\n          gapMinutos = inicioBloqueio - ponteiro;\n        }\n      }\n\n      // Avançar ponteiro para fim do bloqueio\n      if (fimBloqueio > ponteiro) ponteiro = fimBloqueio;\n    }\n\n    // Verificar espaço após último bloqueio até fim da jornada\n    if (ponteiro < fimTrabalho) {\n      let gapFinal = fimTrabalho - ponteiro;\n\n      while (gapFinal >= duracaoTotal) {\n        const slotInicio = ponteiro;\n        const slotFim = ponteiro + duracaoServico;\n\n        if (slotFim > fimTrabalho) break;\n\n        todosHorarios.push({\n          data: dataIso,\n          data_formatted: dataIso.split('-').reverse().join('/'),\n          dia_semana: diaSemanaLabel,\n          hora_inicio: minutesToTime(slotInicio),\n          hora_fim: minutesToTime(slotFim),\n          descricao: `${minutesToTime(slotInicio)} - ${minutesToTime(slotFim)}`\n        });\n\n        ponteiro = slotFim + tolerancia;\n        gapFinal = fimTrabalho - ponteiro;\n      }\n    }\n  });\n});\n\n// Ordenar por data e hora\ntodosHorarios.sort((a, b) => {\n  if (a.data !== b.data) return a.data.localeCompare(b.data);\n  return a.hora_inicio.localeCompare(b.hora_inicio);\n});\n\n// Remover duplicatas\nconst vistos = new Set();\nconst horariosUnicos = todosHorarios.filter(h => {\n  const key = `${h.data}-${h.hora_inicio}`;\n  if (vistos.has(key)) return false;\n  vistos.add(key);\n  return true;\n});\n\n// Formatar resposta\nif (horariosUnicos.length === 0) {\n  // Verificar se não havia jornada para os dias consultados\n  const datasConsultadas = datasInfo.map(d => d.formatted).join(', ');\n  return [{\n    json: {\n      response: JSON.stringify({\n        horarios: [],\n        mensagem: `Não há horários disponíveis para as datas consultadas (${datasConsultadas}). O profissional pode não trabalhar nesses dias ou todos os horários estão ocupados. Tente outra data.`\n      })\n    }\n  }];\n}\n\nreturn [{\n  json: {\n    response: JSON.stringify({\n      horarios: horariosUnicos,\n      total: horariosUnicos.length,\n      busca_automatica: dadosPrep.buscar_proximos_dias\n    })\n  }\n}];"
+      },
+      "id": "g1b2c3d4-1007-4007-a007-000000000008",
+      "name": "Calcular Horários Disponíveis",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [600, -64]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { response: $input.item.json.message, success: false } }];"
+      },
+      "id": "g1b2c3d4-1007-4007-a007-000000000009",
+      "name": "Retornar Erro",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [-200, 96]
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [[{ "node": "Extrair Parâmetros", "type": "main", "index": 0 }]]
+    },
+    "Extrair Parâmetros": {
+      "main": [[{ "node": "Tem Erro?", "type": "main", "index": 0 }]]
+    },
+    "Tem Erro?": {
+      "main": [
+        [{ "node": "Retornar Erro", "type": "main", "index": 0 }],
+        [{ "node": "Buscar Duração Serviço", "type": "main", "index": 0 }]
+      ]
+    },
+    "Buscar Duração Serviço": {
+      "main": [[{ "node": "Buscar Tolerância", "type": "main", "index": 0 }]]
+    },
+    "Buscar Tolerância": {
+      "main": [[{ "node": "Preparar Datas", "type": "main", "index": 0 }]]
+    },
+    "Preparar Datas": {
+      "main": [[{ "node": "Buscar Jornada e Bloqueios", "type": "main", "index": 0 }]]
+    },
+    "Buscar Jornada e Bloqueios": {
+      "main": [[{ "node": "Calcular Horários Disponíveis", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "meta": {
+    "instanceId": "7cd2192570f690f192d4d8c0d58a905ea183da6f294052109cd14343322150c9"
+  },
+  "tags": [{ "name": "Bellory" }, { "name": "Tool" }]
+}
