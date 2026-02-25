@@ -79,8 +79,8 @@ public class ServicoService {
             throw new IllegalArgumentException("O ID da categoria é obrigatório.");
         }
 
-        // Validação de unicidade do nome do serviço
-        if (servicoRepository.existsByNomeAndOrganizacao_Id(dto.getNome(), dto.getOrganizacaoId())) {
+        // Validação de unicidade do nome do serviço (permite criar se o existente estiver deletado)
+        if (servicoRepository.existsByNomeAndOrganizacao_IdAndIsDeletadoFalse(dto.getNome(), organizacaoId)) {
             throw new IllegalArgumentException("Já existe um serviço com o nome '" + dto.getNome() + "'.");
         }
 
@@ -104,6 +104,9 @@ public class ServicoService {
         novoServico.setPreco(dto.getPreco());
         BigDecimal desconto = dto.getDesconto() != null ? dto.getDesconto() : BigDecimal.ZERO;
         novoServico.setDesconto(desconto);
+
+
+
 
 // Calcula o valor do desconto: preco * (desconto / 100)
         BigDecimal valorDesconto = dto.getPreco()

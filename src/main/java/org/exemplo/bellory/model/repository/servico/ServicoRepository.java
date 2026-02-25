@@ -49,4 +49,6 @@ public interface ServicoRepository extends JpaRepository<Servico, Long> {
     Page<Servico> findByOrganizacao_IdAndAtivoTrueAndIsDeletadoFalse(Long organizacaoId, Pageable pageable);
 
     boolean existsByNomeAndOrganizacao_Id(String nome, Long organizacaoId);
+
+    boolean existsByNomeAndOrganizacao_IdAndIsDeletadoFalse(String nome, Long organizacaoId);
 }
