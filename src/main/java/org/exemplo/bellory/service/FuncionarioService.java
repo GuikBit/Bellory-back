@@ -187,8 +187,38 @@ public class FuncionarioService {
         // Validar organização
         validarOrganizacao(funcionario.getOrganizacao().getId());
 
+        funcionario.setDeletado(true);
+        funcionario.setDtDeletado(LocalDateTime.now());
         funcionario.setAtivo(false);
         funcionarioRepository.save(funcionario);
+    }
+
+    @Transactional
+    public Funcionario toggleStatus(Long id) {
+        Funcionario funcionario = funcionarioRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Funcionário com ID " + id + " não encontrado."));
+
+        validarOrganizacao(funcionario.getOrganizacao().getId());
+
+        if (funcionario.isDeletado()) {
+            throw new IllegalArgumentException("Funcionário deletado não pode ter o status alterado.");
+        }
+
+        funcionario.setAtivo(!funcionario.isAtivo());
+        funcionario.setDataUpdate(LocalDateTime.now());
+        return funcionarioRepository.save(funcionario);
+    }
+
+    @Transactional
+    public Funcionario toggleVisibilidadeExterna(Long id) {
+        Funcionario funcionario = funcionarioRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Funcionário com ID " + id + " não encontrado."));
+
+        validarOrganizacao(funcionario.getOrganizacao().getId());
+
+        funcionario.setVisivelExterno(!funcionario.isVisivelExterno());
+        funcionario.setDataUpdate(LocalDateTime.now());
+        return funcionarioRepository.save(funcionario);
     }
 
     @Transactional
@@ -237,7 +267,7 @@ public class FuncionarioService {
     public List<FuncionarioDTO> getListAllFuncionarios() {
         Long organizacaoId = getOrganizacaoIdFromContext();
 
-        List<Funcionario> funcionarios = funcionarioRepository.findAllByOrganizacao_Id(organizacaoId);
+        List<Funcionario> funcionarios = funcionarioRepository.findAllByOrganizacao_IdAndIsDeletadoFalse(organizacaoId);
 
         return funcionarios.stream()
                 .map(funcionario -> {

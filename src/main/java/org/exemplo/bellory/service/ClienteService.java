@@ -428,15 +428,16 @@ public class ClienteService {
     }
 
     @Transactional
-    public ClienteDTO alterarStatusCliente(Long id, Boolean ativo) {
+    public ClienteDTO toggleStatusCliente(Long id) {
         Cliente cliente = clienteRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Cliente não encontrado."));
+                .orElseThrow(() -> new IllegalArgumentException("Cliente com ID " + id + " não encontrado."));
 
         validarOrganizacao(cliente.getOrganizacao().getId());
 
-        cliente.setAtivo(ativo);
-        Cliente clienteAtualizado = clienteRepository.save(cliente);
-        return convertToDTO(clienteAtualizado);
+        cliente.setAtivo(!cliente.isAtivo());
+        clienteRepository.save(cliente);
+
+        return convertToDTO(cliente);
     }
 
     public EstatisticasClientesDTO getEstatisticas() {

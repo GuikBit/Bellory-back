@@ -137,6 +137,12 @@ public class Funcionario extends User {
     @Column(name= "isPrimeiroAcesso")
     private boolean isPrimeiroAcesso;
 
+    @Column(name = "is_deletado", nullable = false)
+    private boolean isDeletado = false;
+
+    @Column(name = "dt_deletado")
+    private LocalDateTime dtDeletado;
+
     // A comissão pode ser um percentual ou valor fixo, por isso String
     @Column(length = 50)
     private String comissao;

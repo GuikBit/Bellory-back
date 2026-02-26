@@ -183,7 +183,7 @@ public class FuncionarioController {
     }
 
     @DeleteMapping("/{id}")
-    @Operation(summary = "Desativar funcionário")
+    @Operation(summary = "Deletar funcionário (soft delete)")
     public ResponseEntity<ResponseAPI<Void>> deleteFuncionario(@PathVariable Long id) {
         try {
             funcionarioService.deleteFuncionario(id);
@@ -191,7 +191,7 @@ public class FuncionarioController {
                     .status(HttpStatus.OK)
                     .body(ResponseAPI.<Void>builder()
                             .success(true)
-                            .message("Funcionário desativado com sucesso.")
+                            .message("Funcionário removido com sucesso.")
                             .build());
         } catch (IllegalArgumentException e) {
             return ResponseEntity
@@ -206,7 +206,87 @@ public class FuncionarioController {
                     .status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ResponseAPI.<Void>builder()
                             .success(false)
-                            .message("Ocorreu um erro interno ao desativar o funcionário.")
+                            .message("Ocorreu um erro interno ao remover o funcionário.")
+                            .errorCode(500)
+                            .build());
+        }
+    }
+
+    @PutMapping("/{id}/status")
+    @Operation(summary = "Ativar/desativar funcionário")
+    public ResponseEntity<ResponseAPI<Funcionario>> toggleStatus(@PathVariable Long id) {
+        try {
+            Funcionario funcionario = funcionarioService.toggleStatus(id);
+            String statusMsg = funcionario.isAtivo() ? "ativado" : "desativado";
+            return ResponseEntity
+                    .status(HttpStatus.OK)
+                    .body(ResponseAPI.<Funcionario>builder()
+                            .success(true)
+                            .message("Funcionário " + statusMsg + " com sucesso.")
+                            .dados(funcionario)
+                            .build());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity
+                    .status(HttpStatus.BAD_REQUEST)
+                    .body(ResponseAPI.<Funcionario>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(400)
+                            .build());
+        } catch (SecurityException e) {
+            return ResponseEntity
+                    .status(HttpStatus.FORBIDDEN)
+                    .body(ResponseAPI.<Funcionario>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(403)
+                            .build());
+        } catch (Exception e) {
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseAPI.<Funcionario>builder()
+                            .success(false)
+                            .message("Erro interno ao alterar status do funcionário.")
+                            .errorCode(500)
+                            .build());
+        }
+    }
+
+    @PutMapping("/{id}/visibilidade-externa")
+    @Operation(summary = "Alternar visibilidade externa do funcionário")
+    public ResponseEntity<ResponseAPI<Funcionario>> toggleVisibilidadeExterna(@PathVariable Long id) {
+        try {
+            Funcionario funcionario = funcionarioService.toggleVisibilidadeExterna(id);
+            String visMsg = funcionario.isVisivelExterno() ? "visível" : "oculto";
+            return ResponseEntity
+                    .status(HttpStatus.OK)
+                    .body(ResponseAPI.<Funcionario>builder()
+                            .success(true)
+                            .message("Funcionário agora está " + visMsg + " externamente.")
+                            .dados(funcionario)
+                            .build());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity
+                    .status(HttpStatus.BAD_REQUEST)
+                    .body(ResponseAPI.<Funcionario>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(400)
+                            .build());
+        } catch (SecurityException e) {
+            return ResponseEntity
+                    .status(HttpStatus.FORBIDDEN)
+                    .body(ResponseAPI.<Funcionario>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(403)
+                            .build());
+        } catch (Exception e) {
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseAPI.<Funcionario>builder()
+                            .success(false)
+                            .message("Erro interno ao alterar visibilidade do funcionário.")
                             .errorCode(500)
                             .build());
         }

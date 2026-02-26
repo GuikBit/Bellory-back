@@ -1402,9 +1402,11 @@ public class AgendamentoService {
                         .orElseThrow(() -> new IllegalArgumentException("Serviço com ID " + id + " não encontrado.")))
                 .collect(Collectors.toList());
 
-        // Buscar funcionários que prestam TODOS os serviços
+        // Buscar funcionários que prestam TODOS os serviços (excluindo deletados e desabilitados)
         List<Funcionario> funcionarios = funcionarioRepository.findAll().stream()
-                .filter(funcionario -> funcionario.getServicos() != null &&
+                .filter(funcionario -> !funcionario.isDeletado() &&
+                        funcionario.isAtivo() &&
+                        funcionario.getServicos() != null &&
                         funcionario.getServicos().containsAll(servicos))
                 .collect(Collectors.toList());
 
