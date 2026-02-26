@@ -1,0 +1,174 @@
+{
+  "name": "Tool: Salvar Cliente - Bellory",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "id": "b1b2c3d4-1002-4002-a002-000000000001",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [-600, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ════════════════════════════════════════════════════════\n// TOOL: SALVAR CLIENTE (Cadastro Rápido)\n// Cadastra novo cliente via WhatsApp\n// Padrão: clienteRapido = true\n// ════════════════════════════════════════════════════════\n\nconst input = $input.item.json;\nconst query = input.query || '';\nconst organizacaoId = input.organizacao_id || input.organizacaoId;\nconst telefoneLimpo = input.telefone_limpo || input.telefone || '';\nconst remoteJid = input.remote_jid || input.remetente_numero || '';\n\n// Extrair nome do query\nlet nome = input.nome || '';\nif (!nome && query) {\n  // O agente deve passar o nome no query\n  nome = query.trim();\n}\n\n// Extrair telefone\nlet telefone = telefoneLimpo;\nif (!telefone && remoteJid) {\n  telefone = remoteJid.replace('@s.whatsapp.net', '').replace('@c.us', '');\n}\n\nif (!nome) {\n  return [{ json: { error: true, message: 'Nome do cliente não informado.' } }];\n}\nif (!telefone) {\n  return [{ json: { error: true, message: 'Telefone do cliente não informado.' } }];\n}\nif (!organizacaoId) {\n  return [{ json: { error: true, message: 'organizacao_id não informado.' } }];\n}\n\n// Gerar username e password no padrão clienteRapido\nconst codigo6Digitos = String(Math.floor(100000 + Math.random() * 900000));\nconst username = 'cliente_rapido_' + codigo6Digitos;\nconst passwordPlain = 'cliente_rapido';\n\nreturn [{\n  json: {\n    nome: nome,\n    telefone: telefone,\n    organizacao_id: organizacaoId,\n    username: username,\n    password_plain: passwordPlain\n  }\n}];"
+      },
+      "id": "b1b2c3d4-1002-4002-a002-000000000002",
+      "name": "Extrair Parâmetros",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [-400, 0]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.error }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "b1b2c3d4-1002-4002-a002-000000000003",
+      "name": "Tem Erro?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [-200, 0]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT c.id FROM app.cliente c WHERE REGEXP_REPLACE(c.telefone, '[^0-9]', '', 'g') = REGEXP_REPLACE($1, '[^0-9]', '', 'g') AND c.organizacao_id = $2 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ $json.telefone }},={{ $json.organizacao_id }}"
+        }
+      },
+      "id": "b1b2c3d4-1002-4002-a002-000000000004",
+      "name": "Verificar Duplicidade",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [0, -64],
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "lq3dPcTNeSRNyXW9",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Verificar se cliente já existe\nconst resultado = $input.item.json;\nconst dadosCliente = $('Extrair Parâmetros').item.json;\n\nif (resultado && resultado.id) {\n  return [{\n    json: {\n      duplicado: true,\n      cliente_id: resultado.id,\n      ...dadosCliente\n    }\n  }];\n}\n\nreturn [{\n  json: {\n    duplicado: false,\n    ...dadosCliente\n  }\n}];"
+      },
+      "id": "b1b2c3d4-1002-4002-a002-000000000005",
+      "name": "Verificar Resultado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [200, -64]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.duplicado }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "b1b2c3d4-1002-4002-a002-000000000006",
+      "name": "Já Existe?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [400, -64]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Cliente já existe - retornar dados existentes\nconst dados = $input.item.json;\nreturn [{\n  json: {\n    response: JSON.stringify({\n      sucesso: false,\n      mensagem: 'Este telefone já está cadastrado.',\n      cliente_id: dados.cliente_id\n    }),\n    success: false\n  }\n}];"
+      },
+      "id": "b1b2c3d4-1002-4002-a002-000000000007",
+      "name": "Retornar Duplicado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [600, -128]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO app.cliente (organizacao_id, nome_completo, telefone, username, password, email, ativo, is_cadastro_incompleto, role, dt_criacao) VALUES ($1, $2, $3, $4, crypt($5, gen_salt('bf', 10)), NULL, true, true, 'ROLE_CLIENTE', NOW()) RETURNING id AS cliente_id, nome_completo AS nome;",
+        "options": {
+          "queryReplacement": "={{ $json.organizacao_id }},={{ $json.nome }},={{ $json.telefone }},={{ $json.username }},={{ $json.password_plain }}"
+        }
+      },
+      "id": "b1b2c3d4-1002-4002-a002-000000000008",
+      "name": "Inserir Cliente",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [600, 0],
+      "credentials": {
+        "postgres": {
+          "id": "lq3dPcTNeSRNyXW9",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Formatar resposta de sucesso\nconst resultado = $input.item.json;\n\nif (resultado && resultado.cliente_id) {\n  return [{\n    json: {\n      response: JSON.stringify({\n        sucesso: true,\n        cliente_id: resultado.cliente_id,\n        nome: resultado.nome,\n        mensagem: 'Cliente cadastrado com sucesso!'\n      }),\n      success: true\n    }\n  }];\n} else {\n  return [{\n    json: {\n      response: JSON.stringify({\n        sucesso: false,\n        mensagem: 'Erro ao cadastrar cliente. Tente novamente.'\n      }),\n      success: false\n    }\n  }];\n}"
+      },
+      "id": "b1b2c3d4-1002-4002-a002-000000000009",
+      "name": "Formatar Sucesso",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [800, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { response: $input.item.json.message, success: false } }];"
+      },
+      "id": "b1b2c3d4-1002-4002-a002-000000000010",
+      "name": "Retornar Erro",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [0, 96]
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [[{ "node": "Extrair Parâmetros", "type": "main", "index": 0 }]]
+    },
+    "Extrair Parâmetros": {
+      "main": [[{ "node": "Tem Erro?", "type": "main", "index": 0 }]]
+    },
+    "Tem Erro?": {
+      "main": [
+        [{ "node": "Retornar Erro", "type": "main", "index": 0 }],
+        [{ "node": "Verificar Duplicidade", "type": "main", "index": 0 }]
+      ]
+    },
+    "Verificar Duplicidade": {
+      "main": [[{ "node": "Verificar Resultado", "type": "main", "index": 0 }]]
+    },
+    "Verificar Resultado": {
+      "main": [[{ "node": "Já Existe?", "type": "main", "index": 0 }]]
+    },
+    "Já Existe?": {
+      "main": [
+        [{ "node": "Retornar Duplicado", "type": "main", "index": 0 }],
+        [{ "node": "Inserir Cliente", "type": "main", "index": 0 }]
+      ]
+    },
+    "Inserir Cliente": {
+      "main": [[{ "node": "Formatar Sucesso", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "meta": {
+    "instanceId": "7cd2192570f690f192d4d8c0d58a905ea183da6f294052109cd14343322150c9"
+  },
+  "tags": [{ "name": "Bellory" }, { "name": "Tool" }]
+}

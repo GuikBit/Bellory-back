@@ -1,0 +1,105 @@
+{
+  "name": "Tool: Buscar Profissionais por Serviço - Bellory",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "id": "f1b2c3d4-1006-4006-a006-000000000001",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [-400, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ════════════════════════════════════════════════════════\n// TOOL: BUSCAR PROFISSIONAIS POR SERVIÇO\n// Lista funcionários habilitados para um serviço\n// ════════════════════════════════════════════════════════\n\nconst input = $input.item.json;\nconst query = input.query || '';\nconst organizacaoId = input.organizacao_id || input.organizacaoId;\nlet servicoId = input.servico_id || input.servicoId;\n\n// Tentar extrair servico_id do query\nif (!servicoId && query) {\n  const match = query.match(/(\\d+)/);\n  if (match) servicoId = match[1];\n}\n\nif (!servicoId) {\n  return [{ json: { error: true, message: 'servico_id não informado. Primeiro selecione um serviço.' } }];\n}\nif (!organizacaoId) {\n  return [{ json: { error: true, message: 'organizacao_id não informado.' } }];\n}\n\nreturn [{ json: { servico_id: servicoId, organizacao_id: organizacaoId } }];"
+      },
+      "id": "f1b2c3d4-1006-4006-a006-000000000002",
+      "name": "Extrair Parâmetros",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [-200, 0]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.error }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "f1b2c3d4-1006-4006-a006-000000000003",
+      "name": "Tem Erro?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT f.id AS funcionario_id, f.nome_completo AS nome FROM app.funcionario f JOIN app.funcionario_servico fs ON fs.funcionario_id = f.id WHERE fs.servico_id = $1 AND f.organizacao_id = $2 AND f.ativo = true ORDER BY f.nome_completo;",
+        "options": {
+          "queryReplacement": "={{ $json.servico_id }},={{ $json.organizacao_id }}"
+        }
+      },
+      "id": "f1b2c3d4-1006-4006-a006-000000000004",
+      "name": "Buscar Profissionais",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [200, -64],
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "lq3dPcTNeSRNyXW9",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Formatar lista de profissionais\nconst items = $input.all();\nconst profissionais = items\n  .map(item => item.json)\n  .filter(item => item.funcionario_id);\n\nif (profissionais.length === 0) {\n  return [{\n    json: {\n      response: JSON.stringify({\n        profissionais: [],\n        mensagem: 'Nenhum profissional disponível para este serviço no momento.'\n      })\n    }\n  }];\n}\n\nreturn [{\n  json: {\n    response: JSON.stringify({\n      profissionais: profissionais,\n      total: profissionais.length,\n      auto_selecionar: profissionais.length === 1\n    })\n  }\n}];"
+      },
+      "id": "f1b2c3d4-1006-4006-a006-000000000005",
+      "name": "Formatar Resposta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [400, -64]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { response: $input.item.json.message, success: false } }];"
+      },
+      "id": "f1b2c3d4-1006-4006-a006-000000000006",
+      "name": "Retornar Erro",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [200, 96]
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [[{ "node": "Extrair Parâmetros", "type": "main", "index": 0 }]]
+    },
+    "Extrair Parâmetros": {
+      "main": [[{ "node": "Tem Erro?", "type": "main", "index": 0 }]]
+    },
+    "Tem Erro?": {
+      "main": [
+        [{ "node": "Retornar Erro", "type": "main", "index": 0 }],
+        [{ "node": "Buscar Profissionais", "type": "main", "index": 0 }]
+      ]
+    },
+    "Buscar Profissionais": {
+      "main": [[{ "node": "Formatar Resposta", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "meta": {
+    "instanceId": "7cd2192570f690f192d4d8c0d58a905ea183da6f294052109cd14343322150c9"
+  },
+  "tags": [{ "name": "Bellory" }, { "name": "Tool" }]
+}

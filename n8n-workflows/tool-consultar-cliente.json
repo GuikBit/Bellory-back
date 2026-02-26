@@ -1,0 +1,105 @@
+{
+  "name": "Tool: Consultar Cliente - Bellory",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "id": "a1b2c3d4-1001-4001-a001-000000000001",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [-400, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ════════════════════════════════════════════════════════\n// TOOL: CONSULTAR CLIENTE\n// Busca cliente pelo telefone na organização\n// ════════════════════════════════════════════════════════\n\nconst input = $input.item.json;\nconst query = input.query || '';\nconst organizacaoId = input.organizacao_id || input.organizacaoId;\nconst telefoneLimpo = input.telefone_limpo || input.telefone || '';\nconst remoteJid = input.remote_jid || input.remetente_numero || '';\n\n// Extrair telefone do query se não veio direto\nlet telefone = telefoneLimpo;\nif (!telefone && query) {\n  // Tentar extrair números do query\n  const nums = query.replace(/[^0-9]/g, '');\n  if (nums.length >= 10) {\n    telefone = nums;\n  }\n}\n\n// Também tentar extrair do remoteJid\nif (!telefone && remoteJid) {\n  telefone = remoteJid.replace('@s.whatsapp.net', '').replace('@c.us', '');\n}\n\nif (!telefone) {\n  return [{ json: { error: true, message: 'Telefone não informado. Não é possível consultar o cliente.' } }];\n}\n\nif (!organizacaoId) {\n  return [{ json: { error: true, message: 'organizacao_id não informado.' } }];\n}\n\nreturn [{\n  json: {\n    telefone: telefone,\n    organizacao_id: organizacaoId\n  }\n}];"
+      },
+      "id": "a1b2c3d4-1001-4001-a001-000000000002",
+      "name": "Extrair Parâmetros",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [-200, 0]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.error }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "a1b2c3d4-1001-4001-a001-000000000003",
+      "name": "Tem Erro?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT c.id AS cliente_id, c.nome_completo AS nome FROM app.cliente c WHERE REGEXP_REPLACE(c.telefone, '[^0-9]', '', 'g') = REGEXP_REPLACE($1, '[^0-9]', '', 'g') AND c.organizacao_id = $2 AND c.ativo = true LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ $json.telefone }},={{ $json.organizacao_id }}"
+        }
+      },
+      "id": "a1b2c3d4-1001-4001-a001-000000000004",
+      "name": "Buscar Cliente",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [200, -64],
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "lq3dPcTNeSRNyXW9",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Formatar resposta\nconst resultado = $input.item.json;\n\nif (resultado && resultado.cliente_id) {\n  return [{\n    json: {\n      response: JSON.stringify({\n        encontrado: true,\n        cliente_id: resultado.cliente_id,\n        nome: resultado.nome\n      }),\n      success: true\n    }\n  }];\n} else {\n  return [{\n    json: {\n      response: JSON.stringify({\n        encontrado: false,\n        mensagem: 'Cliente não encontrado com este telefone. Pergunte se deseja se cadastrar.'\n      }),\n      success: true\n    }\n  }];\n}"
+      },
+      "id": "a1b2c3d4-1001-4001-a001-000000000005",
+      "name": "Formatar Resposta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [400, -64]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Retorna erro\nreturn [{ json: { response: $input.item.json.message, success: false } }];"
+      },
+      "id": "a1b2c3d4-1001-4001-a001-000000000006",
+      "name": "Retornar Erro",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [200, 96]
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [[{ "node": "Extrair Parâmetros", "type": "main", "index": 0 }]]
+    },
+    "Extrair Parâmetros": {
+      "main": [[{ "node": "Tem Erro?", "type": "main", "index": 0 }]]
+    },
+    "Tem Erro?": {
+      "main": [
+        [{ "node": "Retornar Erro", "type": "main", "index": 0 }],
+        [{ "node": "Buscar Cliente", "type": "main", "index": 0 }]
+      ]
+    },
+    "Buscar Cliente": {
+      "main": [[{ "node": "Formatar Resposta", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "meta": {
+    "instanceId": "7cd2192570f690f192d4d8c0d58a905ea183da6f294052109cd14343322150c9"
+  },
+  "tags": [{ "name": "Bellory" }, { "name": "Tool" }]
+}

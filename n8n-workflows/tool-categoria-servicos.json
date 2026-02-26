@@ -1,0 +1,105 @@
+{
+  "name": "Tool: Categoria Serviços - Bellory",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "id": "c1b2c3d4-1003-4003-a003-000000000001",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [-400, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ════════════════════════════════════════════════════════\n// TOOL: CATEGORIA SERVIÇOS\n// Lista todas as categorias de serviço da organização\n// ════════════════════════════════════════════════════════\n\nconst input = $input.item.json;\nconst organizacaoId = input.organizacao_id || input.organizacaoId;\n\nif (!organizacaoId) {\n  return [{ json: { error: true, message: 'organizacao_id não informado.' } }];\n}\n\nreturn [{ json: { organizacao_id: organizacaoId } }];"
+      },
+      "id": "c1b2c3d4-1003-4003-a003-000000000002",
+      "name": "Extrair Parâmetros",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [-200, 0]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.error }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "c1b2c3d4-1003-4003-a003-000000000003",
+      "name": "Tem Erro?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT c.id AS categoria_id, c.label AS nome FROM app.categoria c WHERE c.organizacao_id = $1 AND c.tipo = 'SERVICO' AND c.ativo = true ORDER BY c.label;",
+        "options": {
+          "queryReplacement": "={{ $json.organizacao_id }}"
+        }
+      },
+      "id": "c1b2c3d4-1003-4003-a003-000000000004",
+      "name": "Buscar Categorias",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [200, -64],
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "lq3dPcTNeSRNyXW9",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Formatar lista de categorias\nconst items = $input.all();\nconst categorias = items\n  .map(item => item.json)\n  .filter(item => item.categoria_id);\n\nif (categorias.length === 0) {\n  return [{\n    json: {\n      response: JSON.stringify({\n        categorias: [],\n        mensagem: 'Nenhuma categoria de serviço encontrada.'\n      })\n    }\n  }];\n}\n\nreturn [{\n  json: {\n    response: JSON.stringify({\n      categorias: categorias,\n      total: categorias.length\n    })\n  }\n}];"
+      },
+      "id": "c1b2c3d4-1003-4003-a003-000000000005",
+      "name": "Formatar Resposta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [400, -64]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { response: $input.item.json.message, success: false } }];"
+      },
+      "id": "c1b2c3d4-1003-4003-a003-000000000006",
+      "name": "Retornar Erro",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [200, 96]
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [[{ "node": "Extrair Parâmetros", "type": "main", "index": 0 }]]
+    },
+    "Extrair Parâmetros": {
+      "main": [[{ "node": "Tem Erro?", "type": "main", "index": 0 }]]
+    },
+    "Tem Erro?": {
+      "main": [
+        [{ "node": "Retornar Erro", "type": "main", "index": 0 }],
+        [{ "node": "Buscar Categorias", "type": "main", "index": 0 }]
+      ]
+    },
+    "Buscar Categorias": {
+      "main": [[{ "node": "Formatar Resposta", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "meta": {
+    "instanceId": "7cd2192570f690f192d4d8c0d58a905ea183da6f294052109cd14343322150c9"
+  },
+  "tags": [{ "name": "Bellory" }, { "name": "Tool" }]
+}
