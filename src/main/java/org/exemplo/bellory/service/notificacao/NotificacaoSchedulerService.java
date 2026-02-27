@@ -8,8 +8,12 @@ import org.exemplo.bellory.model.entity.agendamento.Status;
 import org.exemplo.bellory.model.entity.notificacao.NotificacaoEnviada;
 import org.exemplo.bellory.model.entity.notificacao.StatusEnvio;
 import org.exemplo.bellory.model.entity.notificacao.TipoNotificacao;
+import org.exemplo.bellory.model.entity.template.CategoriaTemplate;
+import org.exemplo.bellory.model.entity.template.TemplateBellory;
+import org.exemplo.bellory.model.entity.template.TipoTemplate;
 import org.exemplo.bellory.model.repository.agendamento.AgendamentoRepository;
 import org.exemplo.bellory.model.repository.notificacao.NotificacaoEnviadaRepository;
+import org.exemplo.bellory.model.repository.template.TemplateBelloryRepository;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -47,6 +51,7 @@ public class NotificacaoSchedulerService {
     private final RestTemplate restTemplate;
     private final NotificacaoTransactionalService transactionalService;
     private final ObjectMapper objectMapper;
+    private final TemplateBelloryRepository templateBelloryRepository;
 
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
@@ -259,6 +264,17 @@ public class NotificacaoSchedulerService {
     }
 
     private String getTemplatePadrao(TipoNotificacao tipo) {
+        CategoriaTemplate cat = tipo == TipoNotificacao.CONFIRMACAO
+                ? CategoriaTemplate.CONFIRMACAO
+                : CategoriaTemplate.LEMBRETE;
+
+        return templateBelloryRepository
+                .findByTipoAndCategoriaAndPadraoTrue(TipoTemplate.WHATSAPP, cat)
+                .map(TemplateBellory::getConteudo)
+                .orElseGet(() -> getFallbackTemplate(tipo));
+    }
+
+    private String getFallbackTemplate(TipoNotificacao tipo) {
         return switch (tipo) {
             case CONFIRMACAO -> """
                 Ola, {{nome_cliente}}!

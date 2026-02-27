@@ -7,6 +7,9 @@ import org.exemplo.bellory.model.dto.organizacao.OrganizacaoResponseDTO;
 import org.exemplo.bellory.model.dto.UpdateOrganizacaoDTO;
 import org.exemplo.bellory.model.entity.config.*;
 import org.exemplo.bellory.model.entity.email.EmailTemplate;
+import org.exemplo.bellory.model.entity.template.CategoriaTemplate;
+import org.exemplo.bellory.model.entity.template.TipoTemplate;
+import org.exemplo.bellory.model.repository.template.TemplateBelloryRepository;
 import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 import org.exemplo.bellory.model.entity.plano.PlanoBellory;
 import org.exemplo.bellory.model.entity.funcionario.Cargo;
@@ -46,13 +49,14 @@ public class OrganizacaoService {
     private FileStorageService fileStorageService;
     private InstanceService instanceService;
     private ApiKeyService apiKeyService;
+    private TemplateBelloryRepository templateBelloryRepository;
 
     private static final int MAX_TENTATIVAS_SLUG = 10;
 
     @Value("${app.url}")
     private String appUrl;
 
-    public OrganizacaoService(OrganizacaoRepository organizacaoRepository, OrganizacaoMapper organizacaoMapper, PasswordEncoder passwordEncoder, PlanoRepository planoRepository, AdminRepository adminRepository, EmailService emailService, PlanoBelloryRepository planoBelloryRepository, FileStorageService fileStorageService, FuncionarioRepository funcionarioRepository, CargoRepository cargoRepository, InstanceService instanceService, ApiKeyService apiKeyService) {
+    public OrganizacaoService(OrganizacaoRepository organizacaoRepository, OrganizacaoMapper organizacaoMapper, PasswordEncoder passwordEncoder, PlanoRepository planoRepository, AdminRepository adminRepository, EmailService emailService, PlanoBelloryRepository planoBelloryRepository, FileStorageService fileStorageService, FuncionarioRepository funcionarioRepository, CargoRepository cargoRepository, InstanceService instanceService, ApiKeyService apiKeyService, TemplateBelloryRepository templateBelloryRepository) {
         this.organizacaoRepository = organizacaoRepository;
         this.organizacaoMapper = organizacaoMapper;
         this.passwordEncoder = passwordEncoder;
@@ -65,6 +69,7 @@ public class OrganizacaoService {
         this.cargoRepository = cargoRepository;
         this.instanceService = instanceService;
         this.apiKeyService = apiKeyService;
+        this.templateBelloryRepository = templateBelloryRepository;
     }
 
     public Organizacao getOrganizacaoPadrao() {
@@ -157,6 +162,12 @@ public class OrganizacaoService {
         ConfigServico configServico = new ConfigServico();
         ConfigColaborador configColaborador= new ConfigColaborador();
         ConfigNotificacao configNotificacao = new ConfigNotificacao();
+
+        // Busca templates WhatsApp padrao do banco para a nova organizacao
+        templateBelloryRepository.findByTipoAndCategoriaAndPadraoTrue(TipoTemplate.WHATSAPP, CategoriaTemplate.CONFIRMACAO)
+                .ifPresent(t -> configNotificacao.setMensagemTemplateConfirmacao(t.getConteudo()));
+        templateBelloryRepository.findByTipoAndCategoriaAndPadraoTrue(TipoTemplate.WHATSAPP, CategoriaTemplate.LEMBRETE)
+                .ifPresent(t -> configNotificacao.setMensagemTemplateLembrete(t.getConteudo()));
 
         ConfigCliente configCliente = new ConfigCliente();
 

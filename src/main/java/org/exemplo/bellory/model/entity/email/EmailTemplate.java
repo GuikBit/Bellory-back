@@ -28,6 +28,16 @@ public enum EmailTemplate {
     LEMBRETE_AGENDAMENTO(
             "lembrete-agendamento",
             "Lembrete: Agendamento Próximo - Bellory"
+    ),
+
+    COBRANCA_AVISO(
+            "cobranca-aviso",
+            "Nova Cobrança - Bellory"
+    ),
+
+    COBRANCA_LEMBRETE(
+            "cobranca-lembrete",
+            "Lembrete de Cobrança - Bellory"
     );
 
     private final String templateName;
