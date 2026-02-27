@@ -3,30 +3,40 @@ package org.exemplo.bellory.service.push;
 import jakarta.transaction.Transactional;
 import org.exemplo.bellory.context.TenantContext;
 import org.exemplo.bellory.model.dto.push.NotificacaoPushDTO;
+import org.exemplo.bellory.model.entity.funcionario.Funcionario;
 import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 import org.exemplo.bellory.model.entity.push.CategoriaNotificacao;
 import org.exemplo.bellory.model.entity.push.NotificacaoPush;
 import org.exemplo.bellory.model.entity.push.PrioridadeNotificacao;
+import org.exemplo.bellory.model.repository.funcionario.FuncionarioRepository;
 import org.exemplo.bellory.model.repository.organizacao.OrganizacaoRepository;
 import org.exemplo.bellory.model.repository.push.NotificacaoPushRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 public class NotificacaoPushService {
 
+    private static final Logger log = LoggerFactory.getLogger(NotificacaoPushService.class);
+
     private final NotificacaoPushRepository notificacaoPushRepository;
     private final OrganizacaoRepository organizacaoRepository;
+    private final FuncionarioRepository funcionarioRepository;
     private final PushNotificationService pushNotificationService;
 
     public NotificacaoPushService(NotificacaoPushRepository notificacaoPushRepository,
                                   OrganizacaoRepository organizacaoRepository,
+                                  FuncionarioRepository funcionarioRepository,
                                   PushNotificationService pushNotificationService) {
         this.notificacaoPushRepository = notificacaoPushRepository;
         this.organizacaoRepository = organizacaoRepository;
+        this.funcionarioRepository = funcionarioRepository;
         this.pushNotificationService = pushNotificationService;
     }
 
@@ -108,23 +118,40 @@ public class NotificacaoPushService {
                                       String titulo, String descricao, String origem,
                                       CategoriaNotificacao categoria, PrioridadeNotificacao prioridade,
                                       String icone, String urlAcao) {
+        try {
+            Organizacao organizacao = organizacaoRepository.findById(organizacaoId)
+                    .orElseThrow(() -> new IllegalArgumentException("Organizacao nao encontrada"));
 
-        Organizacao organizacao = organizacaoRepository.findById(organizacaoId)
-                .orElseThrow(() -> new IllegalArgumentException("Organizacao nao encontrada"));
+            List<Funcionario> funcionarios = funcionarioRepository
+                    .findAllByRoleAndOrganizacao_IdAndAtivoTrueAndIsDeletadoFalse(role, organizacaoId);
 
-        // Cria a notificacao-modelo para o push payload
-        NotificacaoPush notificacaoModelo = new NotificacaoPush();
-        notificacaoModelo.setOrganizacao(organizacao);
-        notificacaoModelo.setTitulo(titulo);
-        notificacaoModelo.setDescricao(descricao);
-        notificacaoModelo.setOrigem(origem);
-        notificacaoModelo.setCategoria(categoria);
-        notificacaoModelo.setPrioridade(prioridade);
-        notificacaoModelo.setIcone(icone);
-        notificacaoModelo.setUrlAcao(urlAcao);
+            if (funcionarios.isEmpty()) {
+                log.debug("Nenhum funcionario ativo com role {} na organizacao {}", role, organizacaoId);
+                return;
+            }
 
-        // Dispara push assincrono para todos com a role
-        pushNotificationService.sendToRole(role, organizacaoId, notificacaoModelo);
+            for (Funcionario funcionario : funcionarios) {
+                NotificacaoPush notificacao = new NotificacaoPush();
+                notificacao.setUserId(funcionario.getId());
+                notificacao.setUserRole(role);
+                notificacao.setOrganizacao(organizacao);
+                notificacao.setTitulo(titulo);
+                notificacao.setDescricao(descricao);
+                notificacao.setOrigem(origem);
+                notificacao.setCategoria(categoria);
+                notificacao.setPrioridade(prioridade);
+                notificacao.setIcone(icone);
+                notificacao.setUrlAcao(urlAcao);
+
+                NotificacaoPush saved = notificacaoPushRepository.save(notificacao);
+
+                pushNotificationService.sendToUser(funcionario.getId(), role, organizacaoId, saved);
+            }
+
+            log.info("Criadas {} notificacoes para role {} na organizacao {}", funcionarios.size(), role, organizacaoId);
+        } catch (Exception e) {
+            log.error("Erro ao criar e enviar notificacoes para role {} na organizacao {}", role, organizacaoId, e);
+        }
     }
 
     private void validarAcesso(NotificacaoPush notificacao) {

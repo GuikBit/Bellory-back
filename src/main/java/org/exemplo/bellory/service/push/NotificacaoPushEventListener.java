@@ -5,9 +5,10 @@ import org.exemplo.bellory.model.entity.push.PrioridadeNotificacao;
 import org.exemplo.bellory.model.event.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 @Component
 public class NotificacaoPushEventListener {
@@ -21,7 +22,7 @@ public class NotificacaoPushEventListener {
     }
 
     @Async
-    @EventListener
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onAgendamentoCriado(AgendamentoCriadoEvent event) {
         log.info("Evento: Agendamento criado #{} para cliente {}", event.getAgendamentoId(), event.getNomeCliente());
 
@@ -40,7 +41,7 @@ public class NotificacaoPushEventListener {
     }
 
     @Async
-    @EventListener
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onAgendamentoCancelado(AgendamentoCanceladoEvent event) {
         log.info("Evento: Agendamento cancelado #{}", event.getAgendamentoId());
 
@@ -67,7 +68,7 @@ public class NotificacaoPushEventListener {
     }
 
     @Async
-    @EventListener
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onAgendamentoConfirmado(AgendamentoConfirmadoEvent event) {
         log.info("Evento: Agendamento confirmado #{}", event.getAgendamentoId());
 
@@ -86,7 +87,7 @@ public class NotificacaoPushEventListener {
     }
 
     @Async
-    @EventListener
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onPagamentoRecebido(PagamentoRecebidoEvent event) {
         log.info("Evento: Pagamento recebido #{} valor {}", event.getPagamentoId(), event.getValor());
 
@@ -104,7 +105,7 @@ public class NotificacaoPushEventListener {
     }
 
     @Async
-    @EventListener
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onClienteCadastrado(ClienteCadastradoEvent event) {
         log.info("Evento: Novo cliente cadastrado #{} - {}", event.getClienteId(), event.getNomeCliente());
 
@@ -120,7 +121,7 @@ public class NotificacaoPushEventListener {
     }
 
     @Async
-    @EventListener
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onEstoqueBaixo(EstoqueBaixoEvent event) {
         log.info("Evento: Estoque baixo - produto #{} ({} unidades)", event.getProdutoId(), event.getQuantidadeAtual());
 

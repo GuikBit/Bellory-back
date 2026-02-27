@@ -57,12 +57,12 @@ public class AgendamentoService {
     // Mapa de transições de status permitidas
     private static final Map<Status, List<Status>> STATUS_TRANSITIONS = Map.ofEntries(
             Map.entry(Status.PENDENTE, List.of(Status.AGENDADO, Status.CANCELADO)),
-            Map.entry(Status.AGENDADO, List.of(Status.AGUARDANDO_CONFIRMACAO, Status.REAGENDADO, Status.CANCELADO)),
+            Map.entry(Status.AGENDADO, List.of(Status.AGUARDANDO_CONFIRMACAO, Status.CONFIRMADO, Status.CONCLUIDO, Status.REAGENDADO, Status.CANCELADO)),
             Map.entry(Status.AGUARDANDO_CONFIRMACAO, List.of(Status.CONFIRMADO, Status.REAGENDADO, Status.CANCELADO, Status.NAO_COMPARECEU)),
-            Map.entry(Status.CONFIRMADO, List.of(Status.EM_ESPERA, Status.REAGENDADO, Status.CANCELADO, Status.NAO_COMPARECEU)),
-            Map.entry(Status.EM_ESPERA, List.of(Status.EM_ANDAMENTO, Status.CANCELADO)),
+            Map.entry(Status.CONFIRMADO, List.of(Status.EM_ESPERA, Status.CONCLUIDO, Status.REAGENDADO, Status.CANCELADO, Status.NAO_COMPARECEU)),
+            Map.entry(Status.EM_ESPERA, List.of(Status.EM_ANDAMENTO,Status.CONCLUIDO, Status.CANCELADO)),
             Map.entry(Status.EM_ANDAMENTO, List.of(Status.CONCLUIDO, Status.CANCELADO)),
-            Map.entry(Status.REAGENDADO, List.of(Status.AGENDADO)),
+            Map.entry(Status.REAGENDADO, List.of(Status.AGUARDANDO_CONFIRMACAO, Status.REAGENDADO, Status.CANCELADO)),
             // Estados finais - sem transições
             Map.entry(Status.CONCLUIDO, List.of()),
             Map.entry(Status.CANCELADO, List.of()),
@@ -613,6 +613,18 @@ public class AgendamentoService {
                             cobrancaRepository.save(c);
                         });
                 }
+
+                // Publicar evento de agendamento cancelado
+                List<Long> cancelFuncIds = agendamento.getFuncionarios().stream()
+                        .map(Funcionario::getId)
+                        .collect(Collectors.toList());
+                eventPublisher.publishEvent(new AgendamentoCanceladoEvent(
+                        this,
+                        agendamento.getId(),
+                        agendamento.getCliente().getNomeCompleto(),
+                        cancelFuncIds,
+                        agendamento.getCliente().getOrganizacao().getId()
+                ));
                 break;
 
             case REAGENDADO:

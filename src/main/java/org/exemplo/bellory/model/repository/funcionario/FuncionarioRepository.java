@@ -58,6 +58,8 @@ public interface FuncionarioRepository extends JpaRepository<Funcionario, Long> 
             "ORDER BY f.nomeCompleto")
     List<Funcionario> findAllForPublicSite(@Param("orgId") Long organizacaoId);
 
+    List<Funcionario> findAllByRoleAndOrganizacao_IdAndAtivoTrueAndIsDeletadoFalse(String role, Long organizacaoId);
+
     @Query("SELECT f FROM Funcionario f WHERE LOWER(f.email) = LOWER(:email)")
     List<Funcionario> findAllByEmailIgnoreCase(@Param("email") String email);
 }
