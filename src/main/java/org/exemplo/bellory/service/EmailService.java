@@ -13,6 +13,8 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
+import org.thymeleaf.templatemode.TemplateMode;
+import org.thymeleaf.templateresolver.StringTemplateResolver;
 
 import java.util.List;
 import java.util.Map;
@@ -129,5 +131,41 @@ public class EmailService {
                 .build();
 
         enviarEmail(request);
+    }
+
+    /**
+     * Envia e-mail com template HTML carregado do banco de dados
+     * Usa StringTemplateResolver do Thymeleaf para processar o HTML inline
+     */
+    @Async
+    public void enviarEmailComTemplateCustomizado(
+            List<String> destinatarios,
+            String assunto,
+            String conteudoHtml,
+            Map<String, Object> variables) {
+
+        try {
+            // Cria um TemplateEngine separado com StringTemplateResolver
+            TemplateEngine stringEngine = new TemplateEngine();
+            StringTemplateResolver resolver = new StringTemplateResolver();
+            resolver.setTemplateMode(TemplateMode.HTML);
+            stringEngine.setTemplateResolver(resolver);
+
+            Context context = new Context();
+            context.setVariables(variables);
+            String htmlProcessado = stringEngine.process(conteudoHtml, context);
+
+            EmailRequest request = EmailRequest.builder()
+                    .to(destinatarios)
+                    .subject(assunto)
+                    .htmlBody(htmlProcessado)
+                    .build();
+
+            enviarEmail(request);
+
+        } catch (Exception e) {
+            log.error("Erro ao enviar e-mail com template customizado para: {}", destinatarios, e);
+            throw new RuntimeException("Falha ao enviar e-mail com template customizado", e);
+        }
     }
 }

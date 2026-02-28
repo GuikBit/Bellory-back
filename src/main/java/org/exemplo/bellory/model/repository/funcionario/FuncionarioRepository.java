@@ -30,6 +30,12 @@ public interface FuncionarioRepository extends JpaRepository<Funcionario, Long> 
 
     List<Funcionario> findAllByOrganizacao_Id(Long organizacaoId);
 
+    // Listagem excluindo deletados (desabilitados aparecem)
+    List<Funcionario> findAllByOrganizacao_IdAndIsDeletadoFalse(Long organizacaoId);
+
+    // Para agendamento: somente ativos E nao deletados
+    List<Funcionario> findAllByOrganizacao_IdAndAtivoTrueAndIsDeletadoFalse(Long organizacaoId);
+
     @Query("SELECT f FROM Funcionario f " +
             "JOIN FETCH f.organizacao " +
             "WHERE f.id = :id")
@@ -47,8 +53,13 @@ public interface FuncionarioRepository extends JpaRepository<Funcionario, Long> 
             "LEFT JOIN FETCH jd.horarios " +
             "WHERE f.organizacao.id = :orgId " +
             "AND f.ativo = true " +
+            "AND f.isDeletado = false " +
             "AND f.isVisivelExterno = true " +
             "ORDER BY f.nomeCompleto")
     List<Funcionario> findAllForPublicSite(@Param("orgId") Long organizacaoId);
 
+    List<Funcionario> findAllByRoleAndOrganizacao_IdAndAtivoTrueAndIsDeletadoFalse(String role, Long organizacaoId);
+
+    @Query("SELECT f FROM Funcionario f WHERE LOWER(f.email) = LOWER(:email)")
+    List<Funcionario> findAllByEmailIgnoreCase(@Param("email") String email);
 }

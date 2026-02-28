@@ -14,4 +14,5 @@ class FuncionarioResumoDTO {
     private String nome;
     private String email;
     private String cargo;
+    private String fotoPerfil;
 }

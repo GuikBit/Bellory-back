@@ -14,6 +14,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
+
 @Repository
 public interface ClienteRepository extends JpaRepository<Cliente, Long> {
 
@@ -141,4 +142,7 @@ public interface ClienteRepository extends JpaRepository<Cliente, Long> {
             @Param("inicio") LocalDateTime inicio,
             @Param("fim") LocalDateTime fim
     );
+
+    @Query("SELECT c FROM Cliente c WHERE LOWER(c.email) = LOWER(:email)")
+    List<Cliente> findAllByEmailIgnoreCase(@Param("email") String email);
 }

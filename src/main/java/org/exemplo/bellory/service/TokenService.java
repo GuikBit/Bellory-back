@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.Date;
 import java.util.stream.Collectors;
@@ -163,7 +164,7 @@ public class TokenService {
      * Retorna a data/hora de expiração do próximo token
      */
     public LocalDateTime getExpirationDateTime() {
-        return LocalDateTime.ofInstant(genExpirationDate(), ZoneOffset.UTC);
+        return LocalDateTime.ofInstant(genExpirationDate(), ZoneId.of("America/Sao_Paulo"));
     }
 
     /**

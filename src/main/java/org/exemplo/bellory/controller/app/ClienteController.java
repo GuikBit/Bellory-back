@@ -650,30 +650,19 @@ public class ClienteController {
     }
 
     /**
-     * Alterar status de ativação do cliente
+     * Alternar status de ativação do cliente (toggle)
      */
-    @Operation(summary = "Alterar status ativo/inativo do cliente")
-    @PatchMapping("/{id}/status")
-    public ResponseEntity<ResponseAPI<ClienteDTO>> alterarStatusCliente(
-            @PathVariable Long id,
-            @RequestBody Map<String, Boolean> request) {
+    @Operation(summary = "Ativar/desativar cliente (toggle)")
+    @PutMapping("/{id}/status")
+    public ResponseEntity<ResponseAPI<ClienteDTO>> toggleStatusCliente(@PathVariable Long id) {
 
         try {
-            Boolean ativo = request.get("ativo");
-            if (ativo == null) {
-                return ResponseEntity.badRequest()
-                        .body(ResponseAPI.<ClienteDTO>builder()
-                                .success(false)
-                                .message("Status 'ativo' é obrigatório.")
-                                .errorCode(400)
-                                .build());
-            }
+            ClienteDTO clienteAtualizado = clienteService.toggleStatusCliente(id);
 
-            ClienteDTO clienteAtualizado = clienteService.alterarStatusCliente(id, ativo);
-
+            String statusMsg = clienteAtualizado.isAtivo() ? "ativado" : "desativado";
             return ResponseEntity.ok(ResponseAPI.<ClienteDTO>builder()
                     .success(true)
-                    .message("Status do cliente alterado com sucesso.")
+                    .message("Cliente " + statusMsg + " com sucesso.")
                     .dados(clienteAtualizado)
                     .build());
 

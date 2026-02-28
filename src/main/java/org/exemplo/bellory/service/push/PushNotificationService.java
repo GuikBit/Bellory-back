@@ -87,11 +87,16 @@ public class PushNotificationService {
     @Async
     public void sendToUsers(List<Long> userIds, String userRole, Long orgId, NotificacaoPush notificacao) {
         for (Long userId : userIds) {
-            sendToUser(userId, userRole, orgId, notificacao);
+            List<PushSubscription> subscriptions = pushSubscriptionRepository
+                    .findAllByUserIdAndUserRoleAndOrganizacao_Id(userId, userRole, orgId);
+            for (PushSubscription sub : subscriptions) {
+                sendPush(sub, notificacao);
+            }
         }
     }
 
     @Async
+    @Transactional
     public void sendToRole(String role, Long orgId, NotificacaoPush notificacao) {
         List<PushSubscription> subscriptions = pushSubscriptionRepository
                 .findAllByUserRoleAndOrganizacao_Id(role, orgId);
@@ -137,7 +142,7 @@ public class PushNotificationService {
             }
 
         } catch (Exception e) {
-            log.error("Erro ao enviar push notification para endpoint {}: {}", sub.getEndpoint(), e.getMessage());
+            log.error("Erro ao enviar push notification para endpoint {}", sub.getEndpoint(), e);
         }
     }
 }
