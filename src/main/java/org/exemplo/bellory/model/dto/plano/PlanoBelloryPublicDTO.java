@@ -30,6 +30,11 @@ public class PlanoBelloryPublicDTO {
     private BigDecimal yearlyPrice;  // precoAnual
     private Double yearlyDiscount;   // descontoPercentualAnual
 
+    // Promo mensal
+    private boolean promoMensalAtiva;
+    private BigDecimal promoMensalPreco;
+    private String promoMensalTexto;
+
     // Features
     private List<PlanoFeatureDTO> features;
 
