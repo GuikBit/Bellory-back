@@ -11,6 +11,8 @@ import org.exemplo.bellory.model.entity.plano.PlanoBellory;
 import org.exemplo.bellory.model.entity.plano.PlanoLimites;
 import org.exemplo.bellory.model.entity.tema.Tema;
 
+import org.exemplo.bellory.model.dto.assinatura.AssinaturaStatusDTO;
+
 import java.time.LocalDateTime;
 @Data
 @Builder
@@ -26,4 +28,5 @@ public class OrganizacaoInfoDTO {
     private boolean ativo;
     private LocalDateTime dtCadastro;
     private PlanoLimites limitesPersonalizados;
+    private AssinaturaStatusDTO assinatura;
 }

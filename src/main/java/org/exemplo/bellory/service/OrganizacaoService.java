@@ -22,6 +22,7 @@ import org.exemplo.bellory.model.repository.organizacao.OrganizacaoRepository;
 import org.exemplo.bellory.model.repository.organizacao.PlanoBelloryRepository;
 import org.exemplo.bellory.model.repository.organizacao.PlanoRepository;
 import org.exemplo.bellory.model.repository.users.AdminRepository;
+import org.exemplo.bellory.service.assinatura.AssinaturaService;
 import org.exemplo.bellory.util.CNPJUtil;
 import org.exemplo.bellory.util.SlugUtil;
 import org.springframework.beans.factory.annotation.Value;
@@ -50,13 +51,14 @@ public class OrganizacaoService {
     private InstanceService instanceService;
     private ApiKeyService apiKeyService;
     private TemplateBelloryRepository templateBelloryRepository;
+    private AssinaturaService assinaturaService;
 
     private static final int MAX_TENTATIVAS_SLUG = 10;
 
     @Value("${app.url}")
     private String appUrl;
 
-    public OrganizacaoService(OrganizacaoRepository organizacaoRepository, OrganizacaoMapper organizacaoMapper, PasswordEncoder passwordEncoder, PlanoRepository planoRepository, AdminRepository adminRepository, EmailService emailService, PlanoBelloryRepository planoBelloryRepository, FileStorageService fileStorageService, FuncionarioRepository funcionarioRepository, CargoRepository cargoRepository, InstanceService instanceService, ApiKeyService apiKeyService, TemplateBelloryRepository templateBelloryRepository) {
+    public OrganizacaoService(OrganizacaoRepository organizacaoRepository, OrganizacaoMapper organizacaoMapper, PasswordEncoder passwordEncoder, PlanoRepository planoRepository, AdminRepository adminRepository, EmailService emailService, PlanoBelloryRepository planoBelloryRepository, FileStorageService fileStorageService, FuncionarioRepository funcionarioRepository, CargoRepository cargoRepository, InstanceService instanceService, ApiKeyService apiKeyService, TemplateBelloryRepository templateBelloryRepository, AssinaturaService assinaturaService) {
         this.organizacaoRepository = organizacaoRepository;
         this.organizacaoMapper = organizacaoMapper;
         this.passwordEncoder = passwordEncoder;
@@ -70,6 +72,7 @@ public class OrganizacaoService {
         this.instanceService = instanceService;
         this.apiKeyService = apiKeyService;
         this.templateBelloryRepository = templateBelloryRepository;
+        this.assinaturaService = assinaturaService;
     }
 
     public Organizacao getOrganizacaoPadrao() {
@@ -183,6 +186,14 @@ public class OrganizacaoService {
 
         // Salva a organização
         Organizacao savedOrganizacao = organizacaoRepository.save(organizacao);
+
+        // Cria assinatura trial para a nova organizacao
+        try {
+            assinaturaService.criarAssinaturaTrial(savedOrganizacao, planos);
+        } catch (Exception e) {
+            // Nao bloqueia criacao da organizacao se falhar ao criar trial
+            System.err.println("Erro ao criar assinatura trial: " + e.getMessage());
+        }
 
         // Cria o cargo "Administrador" na organização
         Cargo cargoAdmin = new Cargo();

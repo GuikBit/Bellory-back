@@ -136,7 +136,10 @@ public class SecurityConfig {
                                 "/api/v1/push/vapid-public-key",
 
                                 // Login admin da plataforma (publico)
-                                "/api/v1/admin/auth/**"
+                                "/api/v1/admin/auth/**",
+
+                                // Webhook Assas (publico, validado por token proprio)
+                                "/api/v1/webhook/assas"
                         ).permitAll()
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/v1/admin/**").hasAnyRole("PLATFORM_ADMIN", "SUPERADMIN", "ADMIN")
