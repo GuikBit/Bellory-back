@@ -41,6 +41,9 @@ public class PlanoBelloryMapper {
                 .precoMensal(entity.getPrecoMensal())
                 .precoAnual(entity.getPrecoAnual())
                 .descontoPercentualAnual(entity.getDescontoPercentualAnual())
+                .promoMensalAtiva(entity.isPromoMensalAtiva())
+                .promoMensalPreco(entity.getPromoMensalPreco())
+                .promoMensalTexto(entity.getPromoMensalTexto())
                 .features(parseFeatures(entity.getFeatures()))
                 .limites(toLimitesDTO(entity.getLimites()))
                 .ordemExibicao(entity.getOrdemExibicao())
@@ -71,6 +74,9 @@ public class PlanoBelloryMapper {
                 .price(entity.getPrecoMensal())
                 .yearlyPrice(entity.getPrecoAnual())
                 .yearlyDiscount(entity.getDescontoPercentualAnual())
+                .promoMensalAtiva(entity.isPromoMensalAtiva())
+                .promoMensalPreco(entity.getPromoMensalPreco())
+                .promoMensalTexto(entity.getPromoMensalTexto())
                 .features(parseFeatures(entity.getFeatures()))
                 .limits(toLimitesDTO(entity.getLimites()))
                 .build();
@@ -95,6 +101,9 @@ public class PlanoBelloryMapper {
         entity.setPrecoMensal(dto.getPrecoMensal());
         entity.setPrecoAnual(dto.getPrecoAnual());
         entity.setDescontoPercentualAnual(dto.getDescontoPercentualAnual());
+        entity.setPromoMensalAtiva(dto.isPromoMensalAtiva());
+        entity.setPromoMensalPreco(dto.getPromoMensalPreco());
+        entity.setPromoMensalTexto(dto.getPromoMensalTexto());
         entity.setFeatures(serializeFeatures(dto.getFeatures()));
         entity.setOrdemExibicao(dto.getOrdemExibicao());
         entity.setAtivo(true);
@@ -126,6 +135,9 @@ public class PlanoBelloryMapper {
         if (dto.getPrecoMensal() != null) entity.setPrecoMensal(dto.getPrecoMensal());
         if (dto.getPrecoAnual() != null) entity.setPrecoAnual(dto.getPrecoAnual());
         if (dto.getDescontoPercentualAnual() != null) entity.setDescontoPercentualAnual(dto.getDescontoPercentualAnual());
+        if (dto.getPromoMensalAtiva() != null) entity.setPromoMensalAtiva(dto.getPromoMensalAtiva());
+        if (dto.getPromoMensalPreco() != null) entity.setPromoMensalPreco(dto.getPromoMensalPreco());
+        if (dto.getPromoMensalTexto() != null) entity.setPromoMensalTexto(dto.getPromoMensalTexto());
         if (dto.getFeatures() != null) entity.setFeatures(serializeFeatures(dto.getFeatures()));
         if (dto.getOrdemExibicao() != null) entity.setOrdemExibicao(dto.getOrdemExibicao());
 

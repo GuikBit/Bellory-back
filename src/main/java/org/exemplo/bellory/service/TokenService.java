@@ -6,6 +6,7 @@ import com.auth0.jwt.exceptions.JWTCreationException;
 import com.auth0.jwt.exceptions.JWTVerificationException;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import org.exemplo.bellory.model.entity.users.User;
+import org.exemplo.bellory.model.entity.users.UsuarioAdmin;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -26,7 +27,7 @@ public class TokenService {
     private Long expirationTime;
 
     /**
-     * Gera token JWT com username, userId, organizacaoId e role
+     * Gera token JWT com username, userId, organizacaoId e role (usuarios do app)
      */
     public String generateToken(User user) {
         try {
@@ -39,6 +40,28 @@ public class TokenService {
                     .withClaim("organizacaoId", user.getOrganizacao().getId())
                     .withClaim("role", user.getRole())
                     .withClaim("nomeCompleto", user.getNomeCompleto())
+                    .withClaim("userType", "APP")
+                    .withExpiresAt(genExpirationDate())
+                    .sign(algorithm);
+        } catch (JWTCreationException exception) {
+            throw new RuntimeException("Erro ao gerar token JWT", exception);
+        }
+    }
+
+    /**
+     * Gera token JWT para usuarios admin da plataforma (sem organizacao)
+     */
+    public String generateToken(UsuarioAdmin admin) {
+        try {
+            Algorithm algorithm = Algorithm.HMAC256(secret);
+
+            return JWT.create()
+                    .withIssuer("bellory-api")
+                    .withSubject(admin.getUsername())
+                    .withClaim("userId", admin.getId())
+                    .withClaim("role", admin.getRole())
+                    .withClaim("nomeCompleto", admin.getNomeCompleto())
+                    .withClaim("userType", "PLATFORM_ADMIN")
                     .withExpiresAt(genExpirationDate())
                     .sign(algorithm);
         } catch (JWTCreationException exception) {
@@ -114,6 +137,25 @@ public class TokenService {
     }
 
     /**
+     * Extrai o tipo de usuario do token (APP ou PLATFORM_ADMIN)
+     * Tokens antigos sem userType sao tratados como APP
+     */
+    public String getUserTypeFromToken(String token) {
+        try {
+            Algorithm algorithm = Algorithm.HMAC256(secret);
+            String userType = JWT.require(algorithm)
+                    .withIssuer("bellory-api")
+                    .build()
+                    .verify(token)
+                    .getClaim("userType")
+                    .asString();
+            return userType != null ? userType : "APP";
+        } catch (JWTVerificationException exception) {
+            return "APP";
+        }
+    }
+
+    /**
      * Verifica se o token está expirado
      */
     public boolean isTokenExpired(String token) {
@@ -145,14 +187,21 @@ public class TokenService {
             Long userId = getUserIdFromToken(token);
             Long organizacaoId = getOrganizacaoIdFromToken(token);
             String role = getRoleFromToken(token);
+            String userType = getUserTypeFromToken(token);
 
             Algorithm algorithm = Algorithm.HMAC256(secret);
-            return JWT.create()
+            var builder = JWT.create()
                     .withIssuer("bellory-api")
                     .withSubject(username)
                     .withClaim("userId", userId)
-                    .withClaim("organizacaoId", organizacaoId)
                     .withClaim("role", role)
+                    .withClaim("userType", userType);
+
+            if (organizacaoId != null) {
+                builder.withClaim("organizacaoId", organizacaoId);
+            }
+
+            return builder
                     .withExpiresAt(genExpirationDate())
                     .sign(algorithm);
         } catch (JWTCreationException exception) {

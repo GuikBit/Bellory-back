@@ -77,6 +77,16 @@ public class PlanoBellory {
     @Column(name = "desconto_percentual_anual")
     private Double descontoPercentualAnual; // Ex: 20.0 (20%)
 
+    // Promocao mensal
+    @Column(name = "promo_mensal_ativa", nullable = false)
+    private boolean promoMensalAtiva = false;
+
+    @Column(name = "promo_mensal_preco", precision = 10, scale = 2)
+    private BigDecimal promoMensalPreco;
+
+    @Column(name = "promo_mensal_texto", length = 100)
+    private String promoMensalTexto; // Ex: "Black Friday"
+
     // Features - OPÇÃO 1: JSONB (mais flexível)
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")

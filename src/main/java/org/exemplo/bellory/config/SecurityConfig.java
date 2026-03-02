@@ -133,10 +133,13 @@ public class SecurityConfig {
                                 "/uploads/**",
 
                                 // Web Push - chave publica VAPID (publico)
-                                "/api/v1/push/vapid-public-key"
+                                "/api/v1/push/vapid-public-key",
+
+                                // Login admin da plataforma (publico)
+                                "/api/v1/admin/auth/**"
                         ).permitAll()
                         .requestMatchers("/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/api/v1/admin/**").hasAnyRole("SUPERADMIN", "ADMIN")
+                        .requestMatchers("/api/v1/admin/**").hasAnyRole("PLATFORM_ADMIN", "SUPERADMIN", "ADMIN")
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)

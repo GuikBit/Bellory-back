@@ -50,6 +50,14 @@ public class PlanoBelloryUpdateDTO {
 
     private Double descontoPercentualAnual;
 
+    private Boolean promoMensalAtiva;
+
+    @DecimalMin(value = "0.00", message = "Preco promocional deve ser maior ou igual a zero")
+    private BigDecimal promoMensalPreco;
+
+    @Size(max = 100, message = "Texto da promocao deve ter no maximo 100 caracteres")
+    private String promoMensalTexto;
+
     private List<PlanoFeatureDTO> features;
 
     private Integer ordemExibicao;

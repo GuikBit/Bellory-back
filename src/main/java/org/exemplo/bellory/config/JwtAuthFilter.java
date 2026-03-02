@@ -6,14 +6,14 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.exemplo.bellory.context.TenantContext;
 import org.exemplo.bellory.model.dto.ApiKeyUserInfo;
-import org.exemplo.bellory.model.entity.config.ConfigSistema;
 import org.exemplo.bellory.model.repository.config.ConfigSistemaRepository;
+import org.exemplo.bellory.model.entity.users.UsuarioAdmin;
+import org.exemplo.bellory.model.repository.users.UsuarioAdminRepository;
 import org.exemplo.bellory.service.ApiKeyService;
 import org.exemplo.bellory.service.CustomUserDetailsService;
 import org.exemplo.bellory.service.TokenService;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -28,13 +28,16 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     private final CustomUserDetailsService userDetailsService;
     private final ApiKeyService apiKeyService;
     private final ConfigSistemaRepository configSistemaRepository;
+    private final UsuarioAdminRepository usuarioAdminRepository;
 
     public JwtAuthFilter(TokenService tokenService, CustomUserDetailsService userDetailsService,
-                         ApiKeyService apiKeyService, ConfigSistemaRepository configSistemaRepository) {
+                         ApiKeyService apiKeyService, ConfigSistemaRepository configSistemaRepository,
+                         UsuarioAdminRepository usuarioAdminRepository) {
         this.tokenService = tokenService;
         this.userDetailsService = userDetailsService;
         this.apiKeyService = apiKeyService;
         this.configSistemaRepository = configSistemaRepository;
+        this.usuarioAdminRepository = usuarioAdminRepository;
     }
 
     @Override
@@ -96,26 +99,42 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 }
             }
 
-            // Autenticação JWT (código original)
+            // Autenticação JWT
             String token = recoverToken(request);
 
             if (token != null) {
                 String subject = tokenService.validateToken(token);
 
                 if (subject != null && !subject.isEmpty()) {
-                    Long organizacaoId = tokenService.getOrganizacaoIdFromToken(token);
+                    String userType = tokenService.getUserTypeFromToken(token);
                     Long userId = tokenService.getUserIdFromToken(token);
                     String role = tokenService.getRoleFromToken(token);
 
-                    TenantContext.setContext(organizacaoId, userId, subject, role);
-                    carregarConfigSistema(organizacaoId);
+                    if ("PLATFORM_ADMIN".equals(userType)) {
+                        // Fluxo admin da plataforma (sem organizacao)
+                        TenantContext.setContext(null, userId, subject, role);
 
-                    UserDetails user = userDetailsService.loadUserByUsername(subject);
-                    if (user != null) {
-                        var authentication = new UsernamePasswordAuthenticationToken(
-                                user, null, user.getAuthorities()
-                        );
-                        SecurityContextHolder.getContext().setAuthentication(authentication);
+                        UsuarioAdmin adminUser = usuarioAdminRepository.findByUsername(subject)
+                                .orElse(null);
+                        if (adminUser != null && adminUser.isEnabled()) {
+                            var authentication = new UsernamePasswordAuthenticationToken(
+                                    adminUser, null, adminUser.getAuthorities()
+                            );
+                            SecurityContextHolder.getContext().setAuthentication(authentication);
+                        }
+                    } else {
+                        // Fluxo app (usuarios com organizacao)
+                        Long organizacaoId = tokenService.getOrganizacaoIdFromToken(token);
+                        TenantContext.setContext(organizacaoId, userId, subject, role);
+                        carregarConfigSistema(organizacaoId);
+
+                        UserDetails user = userDetailsService.loadUserByUsername(subject);
+                        if (user != null) {
+                            var authentication = new UsernamePasswordAuthenticationToken(
+                                    user, null, user.getAuthorities()
+                            );
+                            SecurityContextHolder.getContext().setAuthentication(authentication);
+                        }
                     }
                 }
             }
