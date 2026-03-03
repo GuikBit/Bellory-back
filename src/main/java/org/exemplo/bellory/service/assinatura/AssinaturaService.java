@@ -73,7 +73,7 @@ public class AssinaturaService {
     @Transactional(readOnly = true)
     public AssinaturaStatusDTO getStatusAssinatura(Long organizacaoId) {
         return assinaturaRepository.findByOrganizacaoId(organizacaoId)
-                .map(this::buildStatusDTO)
+                .map(assinatura -> buildStatusDTO(assinatura, organizacaoId))
                 .orElse(AssinaturaStatusDTO.builder()
                         .bloqueado(false)
                         .statusAssinatura("SEM_ASSINATURA")
@@ -81,7 +81,34 @@ public class AssinaturaService {
                         .build());
     }
 
-    private AssinaturaStatusDTO buildStatusDTO(Assinatura assinatura) {
+    @Transactional(readOnly = true)
+    public AcessoDTO verificarAcessoPermitido(Long organizacaoId) {
+        return assinaturaRepository.findByOrganizacaoId(organizacaoId)
+                .map(assinatura -> {
+                    boolean bloqueado = assinatura.isBloqueada() || assinatura.isTrialExpirado();
+                    String mensagem = null;
+                    if (bloqueado) {
+                        mensagem = switch (assinatura.getStatus()) {
+                            case TRIAL -> "Seu periodo de teste expirou. Escolha um plano para continuar.";
+                            case VENCIDA -> "Sua assinatura esta vencida. Regularize o pagamento para continuar.";
+                            case CANCELADA -> "Sua assinatura foi cancelada. Escolha um plano para reativar.";
+                            case SUSPENSA -> "Sua assinatura esta suspensa. Entre em contato com o suporte.";
+                            default -> "Acesso bloqueado.";
+                        };
+                    }
+                    return AcessoDTO.builder()
+                            .bloqueado(bloqueado)
+                            .statusAssinatura(assinatura.getStatus().name())
+                            .mensagem(mensagem)
+                            .build();
+                })
+                .orElse(AcessoDTO.builder()
+                        .bloqueado(false)
+                        .statusAssinatura("SEM_ASSINATURA")
+                        .build());
+    }
+
+    private AssinaturaStatusDTO buildStatusDTO(Assinatura assinatura, Long organizacaoId) {
         AssinaturaStatusDTO.AssinaturaStatusDTOBuilder builder = AssinaturaStatusDTO.builder()
                 .statusAssinatura(assinatura.getStatus().name())
                 .planoCodigo(assinatura.getPlanoBellory() != null ? assinatura.getPlanoBellory().getCodigo() : null)
@@ -116,6 +143,16 @@ public class AssinaturaService {
                 builder.bloqueado(true);
                 builder.mensagem("Sua assinatura esta suspensa. Entre em contato com o suporte.");
             }
+        }
+
+        // Informacoes de cobrancas pendentes
+        BigDecimal valorPendente = cobrancaPlataformaRepository.somarValorPendente(organizacaoId);
+        boolean temPendente = valorPendente != null && valorPendente.compareTo(BigDecimal.ZERO) > 0;
+        builder.temCobrancaPendente(temPendente);
+        if (temPendente) {
+            builder.valorPendente(valorPendente);
+            builder.dtVencimentoProximaCobranca(
+                    cobrancaPlataformaRepository.findProximoVencimentoPendente(organizacaoId));
         }
 
         return builder.build();

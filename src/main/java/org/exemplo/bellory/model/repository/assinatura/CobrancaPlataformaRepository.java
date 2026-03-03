@@ -45,4 +45,12 @@ public interface CobrancaPlataformaRepository extends JpaRepository<CobrancaPlat
     Optional<CobrancaPlataforma> findByAssasPaymentId(String assasPaymentId);
 
     boolean existsByAssinaturaIdAndReferenciaMesAndReferenciaAno(Long assinaturaId, Integer mes, Integer ano);
+
+    @Query("SELECT COALESCE(SUM(c.valor), 0) FROM CobrancaPlataforma c " +
+           "WHERE c.organizacao.id = :organizacaoId AND c.status = 'PENDENTE'")
+    BigDecimal somarValorPendente(@Param("organizacaoId") Long organizacaoId);
+
+    @Query("SELECT MIN(c.dtVencimento) FROM CobrancaPlataforma c " +
+           "WHERE c.organizacao.id = :organizacaoId AND c.status = 'PENDENTE'")
+    LocalDate findProximoVencimentoPendente(@Param("organizacaoId") Long organizacaoId);
 }
