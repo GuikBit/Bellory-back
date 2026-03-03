@@ -32,5 +32,7 @@ public class AssinaturaResponseDTO {
     private BigDecimal valorAnual;
     private String assasCustomerId;
     private String assasSubscriptionId;
+    private String cupomCodigo;
+    private BigDecimal valorDesconto;
     private LocalDateTime dtCriacao;
 }

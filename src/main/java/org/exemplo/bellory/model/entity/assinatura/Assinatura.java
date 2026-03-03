@@ -67,6 +67,17 @@ public class Assinatura {
     @Column(name = "valor_anual", precision = 10, scale = 2)
     private BigDecimal valorAnual;
 
+    // Cupom de desconto
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "cupom_id")
+    private CupomDesconto cupom;
+
+    @Column(name = "valor_desconto", precision = 10, scale = 2)
+    private BigDecimal valorDesconto;
+
+    @Column(name = "cupom_codigo", length = 50)
+    private String cupomCodigo;
+
     // Integracao Assas
     @Column(name = "assas_customer_id", length = 100)
     private String assasCustomerId;

@@ -7,6 +7,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.exemplo.bellory.context.TenantContext;
 import org.exemplo.bellory.model.dto.assinatura.*;
+import org.exemplo.bellory.model.dto.cupom.CupomValidacaoResponseDTO;
+import org.exemplo.bellory.model.dto.cupom.ValidarCupomDTO;
 import org.exemplo.bellory.model.entity.error.ResponseAPI;
 import org.exemplo.bellory.service.assinatura.AssinaturaService;
 import org.springframework.http.HttpStatus;
@@ -68,6 +70,34 @@ public class AssinaturaController {
             log.error("Erro ao buscar cobrancas: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ResponseAPI.<List<CobrancaPlataformaDTO>>builder()
+                            .success(false)
+                            .message("Erro interno: " + e.getMessage())
+                            .errorCode(500)
+                            .build());
+        }
+    }
+
+    @PostMapping("/validar-cupom")
+    @Operation(summary = "Validar cupom de desconto antes de escolher plano")
+    public ResponseEntity<ResponseAPI<CupomValidacaoResponseDTO>> validarCupom(
+            @RequestBody @Valid ValidarCupomDTO dto) {
+        try {
+            CupomValidacaoResponseDTO result = assinaturaService.validarCupomParaOrganizacao(dto);
+            return ResponseEntity.ok(ResponseAPI.<CupomValidacaoResponseDTO>builder()
+                    .success(true)
+                    .dados(result)
+                    .build());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ResponseAPI.<CupomValidacaoResponseDTO>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(400)
+                            .build());
+        } catch (Exception e) {
+            log.error("Erro ao validar cupom: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseAPI.<CupomValidacaoResponseDTO>builder()
                             .success(false)
                             .message("Erro interno: " + e.getMessage())
                             .errorCode(500)

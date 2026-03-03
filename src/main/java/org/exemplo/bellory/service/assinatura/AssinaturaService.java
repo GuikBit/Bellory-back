@@ -4,12 +4,16 @@ import lombok.extern.slf4j.Slf4j;
 import org.exemplo.bellory.context.TenantContext;
 import org.exemplo.bellory.model.dto.assinatura.*;
 import org.exemplo.bellory.model.dto.assinatura.assas.*;
+import org.exemplo.bellory.model.dto.cupom.CupomValidacaoResponseDTO;
+import org.exemplo.bellory.model.dto.cupom.CupomValidacaoResult;
+import org.exemplo.bellory.model.dto.cupom.ValidarCupomDTO;
 import org.exemplo.bellory.model.entity.assinatura.*;
 import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 import org.exemplo.bellory.model.entity.plano.PlanoBellory;
 import org.exemplo.bellory.model.repository.assinatura.AssinaturaRepository;
 import org.exemplo.bellory.model.repository.assinatura.CobrancaPlataformaRepository;
 import org.exemplo.bellory.model.repository.assinatura.PagamentoPlataformaRepository;
+import org.exemplo.bellory.model.repository.organizacao.OrganizacaoRepository;
 import org.exemplo.bellory.model.repository.organizacao.PlanoBelloryRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -30,6 +34,8 @@ public class AssinaturaService {
     private final CobrancaPlataformaRepository cobrancaPlataformaRepository;
     private final PagamentoPlataformaRepository pagamentoPlataformaRepository;
     private final PlanoBelloryRepository planoBelloryRepository;
+    private final OrganizacaoRepository organizacaoRepository;
+    private final CupomDescontoService cupomDescontoService;
     private final AssasClient assasClient;
 
     @Value("${bellory.trial.dias:14}")
@@ -39,11 +45,15 @@ public class AssinaturaService {
                              CobrancaPlataformaRepository cobrancaPlataformaRepository,
                              PagamentoPlataformaRepository pagamentoPlataformaRepository,
                              PlanoBelloryRepository planoBelloryRepository,
+                             OrganizacaoRepository organizacaoRepository,
+                             CupomDescontoService cupomDescontoService,
                              AssasClient assasClient) {
         this.assinaturaRepository = assinaturaRepository;
         this.cobrancaPlataformaRepository = cobrancaPlataformaRepository;
         this.pagamentoPlataformaRepository = pagamentoPlataformaRepository;
         this.planoBelloryRepository = planoBelloryRepository;
+        this.organizacaoRepository = organizacaoRepository;
+        this.cupomDescontoService = cupomDescontoService;
         this.assasClient = assasClient;
     }
 
@@ -180,7 +190,19 @@ public class AssinaturaService {
         CicloCobranca ciclo = CicloCobranca.valueOf(dto.getCicloCobranca());
         FormaPagamentoPlataforma forma = FormaPagamentoPlataforma.valueOf(dto.getFormaPagamento());
 
-        BigDecimal valor = ciclo == CicloCobranca.ANUAL ? plano.getPrecoAnual() : plano.getPrecoMensal();
+        BigDecimal valorOriginal = ciclo == CicloCobranca.ANUAL ? plano.getPrecoAnual() : plano.getPrecoMensal();
+        BigDecimal valor = valorOriginal;
+
+        // Validar e aplicar cupom de desconto
+        CupomValidacaoResult cupomResult = null;
+        if (dto.getCodigoCupom() != null && !dto.getCodigoCupom().isBlank()) {
+            cupomResult = cupomDescontoService.validarCupom(
+                    dto.getCodigoCupom(), assinatura.getOrganizacao(), dto.getPlanoCodigo(), dto.getCicloCobranca(), valorOriginal);
+            if (!cupomResult.isValido()) {
+                throw new IllegalArgumentException("Cupom invalido: " + cupomResult.getMensagem());
+            }
+            valor = cupomResult.getValorComDesconto();
+        }
 
         // Tentar criar no Assas
         if (assinatura.getAssasCustomerId() == null) {
@@ -225,6 +247,13 @@ public class AssinaturaService {
         assinatura.setValorMensal(plano.getPrecoMensal());
         assinatura.setValorAnual(plano.getPrecoAnual());
 
+        // Setar campos de cupom na assinatura
+        if (cupomResult != null && cupomResult.isValido()) {
+            assinatura.setCupom(cupomResult.getCupom());
+            assinatura.setValorDesconto(cupomResult.getValorDesconto());
+            assinatura.setCupomCodigo(cupomResult.getCupom().getCodigo());
+        }
+
         if (ciclo == CicloCobranca.ANUAL) {
             assinatura.setDtProximoVencimento(LocalDateTime.now().plusYears(1));
         } else {
@@ -244,7 +273,31 @@ public class AssinaturaService {
                 .referenciaMes(LocalDate.now().getMonthValue())
                 .referenciaAno(LocalDate.now().getYear())
                 .build();
+
+        // Setar campos de cupom na cobranca
+        if (cupomResult != null && cupomResult.isValido()) {
+            cobranca.setCupom(cupomResult.getCupom());
+            cobranca.setValorOriginal(valorOriginal);
+            cobranca.setValorDescontoAplicado(cupomResult.getValorDesconto());
+            cobranca.setCupomCodigo(cupomResult.getCupom().getCodigo());
+        }
+
         cobrancaPlataformaRepository.save(cobranca);
+
+        // Registrar utilizacao do cupom
+        if (cupomResult != null && cupomResult.isValido()) {
+            cupomDescontoService.registrarUtilizacao(
+                    cupomResult.getCupom(),
+                    organizacaoId,
+                    assinatura.getId(),
+                    cobranca.getId(),
+                    valorOriginal,
+                    cupomResult.getValorDesconto(),
+                    valor,
+                    dto.getPlanoCodigo(),
+                    dto.getCicloCobranca()
+            );
+        }
 
         return toAssinaturaResponseDTO(assinatura);
     }
@@ -255,6 +308,37 @@ public class AssinaturaService {
             case BOLETO -> "BOLETO";
             case CARTAO_CREDITO -> "CREDIT_CARD";
         };
+    }
+
+    // ==================== VALIDAR CUPOM ====================
+
+    @Transactional(readOnly = true)
+    public CupomValidacaoResponseDTO validarCupomParaOrganizacao(ValidarCupomDTO dto) {
+        Long organizacaoId = TenantContext.getCurrentOrganizacaoId();
+        if (organizacaoId == null) {
+            throw new SecurityException("Organizacao nao identificada no token");
+        }
+
+        Organizacao org = organizacaoRepository.findById(organizacaoId)
+                .orElseThrow(() -> new IllegalStateException("Organizacao nao encontrada"));
+
+        PlanoBellory plano = planoBelloryRepository.findByCodigo(dto.getPlanoCodigo())
+                .orElseThrow(() -> new IllegalArgumentException("Plano nao encontrado: " + dto.getPlanoCodigo()));
+
+        CicloCobranca ciclo = CicloCobranca.valueOf(dto.getCicloCobranca());
+        BigDecimal valorOriginal = ciclo == CicloCobranca.ANUAL ? plano.getPrecoAnual() : plano.getPrecoMensal();
+
+        CupomValidacaoResult result = cupomDescontoService.validarCupom(
+                dto.getCodigoCupom(), org, dto.getPlanoCodigo(), dto.getCicloCobranca(), valorOriginal);
+
+        return CupomValidacaoResponseDTO.builder()
+                .valido(result.isValido())
+                .mensagem(result.getMensagem())
+                .tipoDesconto(result.getCupom() != null ? result.getCupom().getTipoDesconto().name() : null)
+                .valorDesconto(result.getValorDesconto())
+                .valorOriginal(result.getValorOriginal())
+                .valorComDesconto(result.getValorComDesconto())
+                .build();
     }
 
     // ==================== COBRANCAS ====================
@@ -424,6 +508,8 @@ public class AssinaturaService {
                 .valorAnual(assinatura.getValorAnual())
                 .assasCustomerId(assinatura.getAssasCustomerId())
                 .assasSubscriptionId(assinatura.getAssasSubscriptionId())
+                .cupomCodigo(assinatura.getCupomCodigo())
+                .valorDesconto(assinatura.getValorDesconto())
                 .dtCriacao(assinatura.getDtCriacao())
                 .build();
     }
@@ -442,6 +528,9 @@ public class AssinaturaService {
                 .assasPixCopiaCola(cobranca.getAssasPixCopiaCola())
                 .referenciaMes(cobranca.getReferenciaMes())
                 .referenciaAno(cobranca.getReferenciaAno())
+                .cupomCodigo(cobranca.getCupomCodigo())
+                .valorOriginal(cobranca.getValorOriginal())
+                .valorDescontoAplicado(cobranca.getValorDescontoAplicado())
                 .dtCriacao(cobranca.getDtCriacao())
                 .build();
     }

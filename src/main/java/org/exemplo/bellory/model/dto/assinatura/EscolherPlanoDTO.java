@@ -20,4 +20,6 @@ public class EscolherPlanoDTO {
 
     @NotNull
     private String formaPagamento;
+
+    private String codigoCupom;
 }

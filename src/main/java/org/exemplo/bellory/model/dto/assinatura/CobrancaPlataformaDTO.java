@@ -28,5 +28,8 @@ public class CobrancaPlataformaDTO {
     private String assasPixCopiaCola;
     private Integer referenciaMes;
     private Integer referenciaAno;
+    private String cupomCodigo;
+    private BigDecimal valorOriginal;
+    private BigDecimal valorDescontoAplicado;
     private LocalDateTime dtCriacao;
 }

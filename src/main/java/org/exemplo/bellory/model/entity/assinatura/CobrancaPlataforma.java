@@ -52,6 +52,20 @@ public class CobrancaPlataforma {
     @Column(name = "forma_pagamento", length = 20)
     private FormaPagamentoPlataforma formaPagamento;
 
+    // Cupom de desconto
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "cupom_id")
+    private CupomDesconto cupom;
+
+    @Column(name = "valor_original", precision = 10, scale = 2)
+    private BigDecimal valorOriginal;
+
+    @Column(name = "valor_desconto_aplicado", precision = 10, scale = 2)
+    private BigDecimal valorDescontoAplicado;
+
+    @Column(name = "cupom_codigo", length = 50)
+    private String cupomCodigo;
+
     // Dados Assas
     @Column(name = "assas_payment_id", length = 100)
     private String assasPaymentId;
