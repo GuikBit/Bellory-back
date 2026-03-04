@@ -149,6 +149,8 @@ public class Organizacao {
     @JoinColumn(name = "limites_personalizados_id")
     private PlanoLimitesBellory limitesPersonalizados;
 
+
+
     @Column(name = "logo_url")
     private String logoUrl;
 

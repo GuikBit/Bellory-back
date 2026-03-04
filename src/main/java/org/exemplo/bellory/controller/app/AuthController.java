@@ -6,11 +6,13 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 
 import org.exemplo.bellory.model.dto.auth.*;
+import org.exemplo.bellory.model.dto.assinatura.AssinaturaStatusDTO;
 import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 import org.exemplo.bellory.model.entity.users.User;
 import org.exemplo.bellory.service.TokenService;
 import org.exemplo.bellory.service.CustomUserDetailsService;
 import org.exemplo.bellory.service.UserInfoService;
+import org.exemplo.bellory.service.assinatura.AssinaturaService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -36,15 +38,18 @@ public class AuthController {
     private final AuthenticationManager authenticationManager;
     private final CustomUserDetailsService userDetailsService;
     private final UserInfoService userInfoService;
+    private final AssinaturaService assinaturaService;
 
     public AuthController(TokenService tokenService,
                           AuthenticationManager authenticationManager,
                           CustomUserDetailsService userDetailsService,
-                          UserInfoService userInfoService) {
+                          UserInfoService userInfoService,
+                          AssinaturaService assinaturaService) {
         this.tokenService = tokenService;
         this.authenticationManager = authenticationManager;
         this.userDetailsService = userDetailsService;
         this.userInfoService = userInfoService;
+        this.assinaturaService = assinaturaService;
     }
 
     @Operation(summary = "Realizar login")
@@ -86,6 +91,15 @@ public class AuthController {
             organizacaoInfo.setTema(org.getTema());
             organizacaoInfo.setAtivo(org.getAtivo());
 //            organizacaoInfo.setLimitesPersonalizados(org.getLimitesPersonalizados());
+
+            // Buscar status da assinatura
+            try {
+                AssinaturaStatusDTO assinaturaStatus = assinaturaService.getStatusAssinatura(org.getId());
+                organizacaoInfo.setAssinatura(assinaturaStatus);
+            } catch (Exception e) {
+                // Nao bloqueia login se falhar ao buscar assinatura
+                System.err.println("Erro ao buscar status da assinatura: " + e.getMessage());
+            }
 
             // Gerar token
             String token = tokenService.generateToken(user);
