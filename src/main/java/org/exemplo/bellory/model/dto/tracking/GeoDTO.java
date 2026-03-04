@@ -10,4 +10,7 @@ public class GeoDTO {
     private String country;
     private String state;
     private String city;
+    private Double latitude;
+    private Double longitude;
+    private String source;
 }

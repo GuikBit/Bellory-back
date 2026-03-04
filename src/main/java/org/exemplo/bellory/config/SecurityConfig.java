@@ -101,7 +101,7 @@ public class SecurityConfig {
                                 "/api/v1/public/planos/**",
 
                                 // Tracking endpoint (publico, dados anonimos com rate limiting)
-                                "/api/v1/tracking",
+                                "/api/v1/tracking/**",
 
                                 "/api/v1/instances/by-name/**",
 

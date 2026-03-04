@@ -3,6 +3,7 @@ package org.exemplo.bellory.model.entity.tracking;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -51,6 +52,15 @@ public class TrackingVisitor {
 
     @Column(length = 100)
     private String city;
+
+    @Column(precision = 10, scale = 7)
+    private BigDecimal latitude;
+
+    @Column(precision = 10, scale = 7)
+    private BigDecimal longitude;
+
+    @Column(name = "geo_source", length = 10)
+    private String geoSource;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;

@@ -92,6 +92,9 @@ public class TrackingProcessingService {
                 if (payload.getGeo().getCountry() != null) existing.setCountry(payload.getGeo().getCountry());
                 if (payload.getGeo().getState() != null) existing.setState(payload.getGeo().getState());
                 if (payload.getGeo().getCity() != null) existing.setCity(payload.getGeo().getCity());
+                if (payload.getGeo().getLatitude() != null) existing.setLatitude(BigDecimal.valueOf(payload.getGeo().getLatitude()));
+                if (payload.getGeo().getLongitude() != null) existing.setLongitude(BigDecimal.valueOf(payload.getGeo().getLongitude()));
+                if (payload.getGeo().getSource() != null) existing.setGeoSource(payload.getGeo().getSource());
             }
             return visitorRepository.save(existing);
         }).orElseGet(() -> {
@@ -107,6 +110,9 @@ public class TrackingProcessingService {
                 builder.country(payload.getGeo().getCountry());
                 builder.state(payload.getGeo().getState());
                 builder.city(payload.getGeo().getCity());
+                builder.latitude(payload.getGeo().getLatitude() != null ? BigDecimal.valueOf(payload.getGeo().getLatitude()) : null);
+                builder.longitude(payload.getGeo().getLongitude() != null ? BigDecimal.valueOf(payload.getGeo().getLongitude()) : null);
+                builder.geoSource(payload.getGeo().getSource());
             }
 
             return visitorRepository.save(builder.build());
@@ -181,6 +187,9 @@ public class TrackingProcessingService {
                 builder.country(payload.getGeo().getCountry());
                 builder.state(payload.getGeo().getState());
                 builder.city(payload.getGeo().getCity());
+                builder.latitude(payload.getGeo().getLatitude() != null ? BigDecimal.valueOf(payload.getGeo().getLatitude()) : null);
+                builder.longitude(payload.getGeo().getLongitude() != null ? BigDecimal.valueOf(payload.getGeo().getLongitude()) : null);
+                builder.geoSource(payload.getGeo().getSource());
             }
 
             // Incrementar sessoes do visitor (se nao for a primeira)
