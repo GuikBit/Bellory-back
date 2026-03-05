@@ -41,4 +41,5 @@ public class CupomDescontoCreateDTO {
     private List<String> segmentosPermitidos;
     private List<Long> organizacoesPermitidas;
     private String cicloCobranca; // MENSAL, ANUAL ou null
+    private String tipoAplicacao; // PRIMEIRA_COBRANCA (default), RECORRENTE
 }

@@ -106,7 +106,7 @@ public class AssinaturaController {
     }
 
     @PostMapping("/escolher-plano")
-    @Operation(summary = "Escolher ou trocar plano")
+    @Operation(summary = "Escolher plano (primeira vez ou pos-trial)")
     public ResponseEntity<ResponseAPI<AssinaturaResponseDTO>> escolherPlano(
             @RequestBody @Valid EscolherPlanoDTO dto) {
         try {
@@ -125,6 +125,92 @@ public class AssinaturaController {
                             .build());
         } catch (Exception e) {
             log.error("Erro ao escolher plano: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseAPI.<AssinaturaResponseDTO>builder()
+                            .success(false)
+                            .message("Erro interno: " + e.getMessage())
+                            .errorCode(500)
+                            .build());
+        }
+    }
+
+    @PostMapping("/trocar-plano")
+    @Operation(summary = "Upgrade ou downgrade de plano com calculo pro-rata")
+    public ResponseEntity<ResponseAPI<AssinaturaResponseDTO>> trocarPlano(
+            @RequestBody @Valid EscolherPlanoDTO dto) {
+        try {
+            AssinaturaResponseDTO result = assinaturaService.trocarPlano(dto);
+            return ResponseEntity.ok(ResponseAPI.<AssinaturaResponseDTO>builder()
+                    .success(true)
+                    .message("Plano alterado com sucesso")
+                    .dados(result)
+                    .build());
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ResponseAPI.<AssinaturaResponseDTO>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(400)
+                            .build());
+        } catch (Exception e) {
+            log.error("Erro ao trocar plano: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseAPI.<AssinaturaResponseDTO>builder()
+                            .success(false)
+                            .message("Erro interno: " + e.getMessage())
+                            .errorCode(500)
+                            .build());
+        }
+    }
+
+    @PostMapping("/cancelar")
+    @Operation(summary = "Cancelar assinatura (acesso mantido ate fim do periodo)")
+    public ResponseEntity<ResponseAPI<AssinaturaResponseDTO>> cancelarAssinatura() {
+        try {
+            AssinaturaResponseDTO result = assinaturaService.cancelarAssinatura();
+            return ResponseEntity.ok(ResponseAPI.<AssinaturaResponseDTO>builder()
+                    .success(true)
+                    .message("Assinatura cancelada. Voce pode continuar usando ate o fim do periodo atual.")
+                    .dados(result)
+                    .build());
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ResponseAPI.<AssinaturaResponseDTO>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(400)
+                            .build());
+        } catch (Exception e) {
+            log.error("Erro ao cancelar assinatura: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseAPI.<AssinaturaResponseDTO>builder()
+                            .success(false)
+                            .message("Erro interno: " + e.getMessage())
+                            .errorCode(500)
+                            .build());
+        }
+    }
+
+    @PostMapping("/reativar")
+    @Operation(summary = "Reativar assinatura cancelada ou vencida")
+    public ResponseEntity<ResponseAPI<AssinaturaResponseDTO>> reativarAssinatura(
+            @RequestBody @Valid EscolherPlanoDTO dto) {
+        try {
+            AssinaturaResponseDTO result = assinaturaService.reativarAssinatura(dto);
+            return ResponseEntity.ok(ResponseAPI.<AssinaturaResponseDTO>builder()
+                    .success(true)
+                    .message("Assinatura reativada com sucesso")
+                    .dados(result)
+                    .build());
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ResponseAPI.<AssinaturaResponseDTO>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(400)
+                            .build());
+        } catch (Exception e) {
+            log.error("Erro ao reativar assinatura: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ResponseAPI.<AssinaturaResponseDTO>builder()
                             .success(false)

@@ -9,6 +9,7 @@ import org.exemplo.bellory.context.TenantContext;
 import org.exemplo.bellory.model.dto.cupom.*;
 import org.exemplo.bellory.model.entity.assinatura.CupomDesconto;
 import org.exemplo.bellory.model.entity.assinatura.CupomUtilizacao;
+import org.exemplo.bellory.model.entity.assinatura.TipoAplicacaoCupom;
 import org.exemplo.bellory.model.entity.assinatura.TipoDesconto;
 import org.exemplo.bellory.model.repository.assinatura.CupomDescontoRepository;
 import org.exemplo.bellory.model.repository.assinatura.CupomUtilizacaoRepository;
@@ -74,6 +75,9 @@ public class AdminCupomDescontoService {
                 .segmentosPermitidos(toJson(dto.getSegmentosPermitidos()))
                 .organizacoesPermitidas(toJson(dto.getOrganizacoesPermitidas()))
                 .cicloCobranca(dto.getCicloCobranca())
+                .tipoAplicacao(dto.getTipoAplicacao() != null
+                        ? TipoAplicacaoCupom.valueOf(dto.getTipoAplicacao())
+                        : TipoAplicacaoCupom.PRIMEIRA_COBRANCA)
                 .userCriacao(TenantContext.getCurrentUserId())
                 .build();
 
@@ -105,6 +109,7 @@ public class AdminCupomDescontoService {
         if (dto.getSegmentosPermitidos() != null) entity.setSegmentosPermitidos(toJson(dto.getSegmentosPermitidos()));
         if (dto.getOrganizacoesPermitidas() != null) entity.setOrganizacoesPermitidas(toJson(dto.getOrganizacoesPermitidas()));
         if (dto.getCicloCobranca() != null) entity.setCicloCobranca(dto.getCicloCobranca());
+        if (dto.getTipoAplicacao() != null) entity.setTipoAplicacao(TipoAplicacaoCupom.valueOf(dto.getTipoAplicacao()));
 
         entity.setUserAtualizacao(TenantContext.getCurrentUserId());
 
@@ -163,6 +168,7 @@ public class AdminCupomDescontoService {
                 .segmentosPermitidos(fromJson(entity.getSegmentosPermitidos(), new TypeReference<List<String>>() {}))
                 .organizacoesPermitidas(fromJson(entity.getOrganizacoesPermitidas(), new TypeReference<List<Long>>() {}))
                 .cicloCobranca(entity.getCicloCobranca())
+                .tipoAplicacao(entity.getTipoAplicacao().name())
                 .ativo(entity.getAtivo())
                 .vigente(entity.isVigente())
                 .dtCriacao(entity.getDtCriacao())

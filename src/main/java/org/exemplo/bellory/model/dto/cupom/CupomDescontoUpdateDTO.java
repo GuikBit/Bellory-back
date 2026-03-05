@@ -36,4 +36,5 @@ public class CupomDescontoUpdateDTO {
     private List<String> segmentosPermitidos;
     private List<Long> organizacoesPermitidas;
     private String cicloCobranca;
+    private String tipoAplicacao;
 }

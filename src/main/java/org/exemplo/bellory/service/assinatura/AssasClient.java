@@ -70,6 +70,25 @@ public class AssasClient {
         }
     }
 
+    public AssasSubscriptionResponse atualizarAssinatura(String assasSubscriptionId, AssasSubscriptionRequest request) {
+        if (!isConfigurado() || assasSubscriptionId == null) {
+            log.warn("Assas API key nao configurada ou subscription ID nulo. Operacao em modo manual.");
+            return null;
+        }
+
+        try {
+            String url = assasApiUrl + "/v3/subscriptions/" + assasSubscriptionId;
+            HttpEntity<AssasSubscriptionRequest> entity = new HttpEntity<>(request, createHeaders());
+            ResponseEntity<AssasSubscriptionResponse> response = restTemplate.exchange(
+                    url, HttpMethod.PUT, entity, AssasSubscriptionResponse.class);
+            log.info("Assinatura Assas atualizada: {}", assasSubscriptionId);
+            return response.getBody();
+        } catch (Exception e) {
+            log.error("Erro ao atualizar assinatura no Assas: {}", e.getMessage());
+            return null;
+        }
+    }
+
     public void cancelarAssinatura(String assasSubscriptionId) {
         if (!isConfigurado() || assasSubscriptionId == null) {
             return;
