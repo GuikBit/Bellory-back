@@ -20,4 +20,7 @@ public class AssasSubscriptionResponse {
     private String nextDueDate;
     private String billingType;
     private String cycle;
+    private String description;
+    private String dateCreated;
+    private boolean deleted;
 }

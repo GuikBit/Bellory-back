@@ -7,6 +7,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import org.exemplo.bellory.model.dto.assinatura.AssinaturaStatusDTO;
+
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -38,4 +40,7 @@ public class UserInfoDTO {
     private FuncionarioInfoDTO funcionarioInfo;
 
     private AdminInfoDTO adminInfo;
+
+    // Status da assinatura (retornado em /auth/me)
+    private AssinaturaStatusDTO assinatura;
 }

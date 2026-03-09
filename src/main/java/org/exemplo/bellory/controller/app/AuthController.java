@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import lombok.extern.slf4j.Slf4j;
 
 import org.exemplo.bellory.model.dto.auth.*;
 import org.exemplo.bellory.model.dto.assinatura.AssinaturaStatusDTO;
@@ -32,6 +33,7 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/v1/auth")
 @CrossOrigin(origins = {"https://bellory.vercel.app", "https://*.vercel.app", "http://localhost:*"})
 @Tag(name = "Autenticação", description = "Endpoints de autenticação, login, validação e renovação de tokens")
+@Slf4j
 public class AuthController {
 
     private final TokenService tokenService;
@@ -97,8 +99,14 @@ public class AuthController {
                 AssinaturaStatusDTO assinaturaStatus = assinaturaService.getStatusAssinatura(org.getId());
                 organizacaoInfo.setAssinatura(assinaturaStatus);
             } catch (Exception e) {
-                // Nao bloqueia login se falhar ao buscar assinatura
-                System.err.println("Erro ao buscar status da assinatura: " + e.getMessage());
+                log.warn("Erro ao buscar status da assinatura no login para org {}: {}", org.getId(), e.getMessage());
+                // Retorna status de fallback para nao bloquear o login
+                organizacaoInfo.setAssinatura(AssinaturaStatusDTO.builder()
+                        .bloqueado(false)
+                        .statusAssinatura("INDISPONIVEL")
+                        .situacao("ATIVA")
+                        .mensagem("Nao foi possivel verificar o status da assinatura. Tente novamente em instantes.")
+                        .build());
             }
 
             // Gerar token
@@ -213,6 +221,16 @@ public class AuthController {
             // Determinar tipo de usuário
             String userType = determineUserType(username);
 
+            // Buscar assinatura se for usuario do app (nao admin)
+            AssinaturaStatusDTO assinaturaStatus = null;
+            if (userDetails instanceof User validUser && validUser.getOrganizacao() != null) {
+                try {
+                    assinaturaStatus = assinaturaService.getStatusAssinatura(validUser.getOrganizacao().getId());
+                } catch (Exception e) {
+                    log.warn("Erro ao buscar assinatura na validacao de token: {}", e.getMessage());
+                }
+            }
+
             TokenValidationResponseDTO response = TokenValidationResponseDTO.builder()
                     .valid(true)
                     .username(username)
@@ -222,6 +240,7 @@ public class AuthController {
                             .map(auth -> auth.getAuthority())
                             .collect(Collectors.toList()))
                     .expiresAt(tokenService.getExpirationDateTime())
+                    .assinatura(assinaturaStatus)
                     .build();
 
             return ResponseEntity.ok(response);
@@ -303,7 +322,7 @@ public class AuthController {
                         ));
             }
 
-            // Buscar usuário e construir informações completas
+            // Buscar usuario e construir informacoes completas
             UserDetails userDetails = userDetailsService.loadUserByUsername(username);
             User user = (User) userDetails;
 
@@ -312,6 +331,16 @@ public class AuthController {
                 userInfo = userInfoService.buildUserInfoWithStatistics(user);
             } else {
                 userInfo = userInfoService.buildUserInfo(user);
+            }
+
+            // Incluir status da assinatura no /me
+            if (user.getOrganizacao() != null) {
+                try {
+                    AssinaturaStatusDTO assinaturaStatus = assinaturaService.getStatusAssinatura(user.getOrganizacao().getId());
+                    userInfo.setAssinatura(assinaturaStatus);
+                } catch (Exception e) {
+                    log.warn("Erro ao buscar assinatura em /me: {}", e.getMessage());
+                }
             }
 
             return ResponseEntity.ok(userInfo);

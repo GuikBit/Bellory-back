@@ -1,7 +1,9 @@
 package org.exemplo.bellory.service.assinatura;
 
 import lombok.extern.slf4j.Slf4j;
+import org.exemplo.bellory.config.CacheConfig;
 import org.exemplo.bellory.context.TenantContext;
+import org.exemplo.bellory.exception.AssasApiException;
 import org.exemplo.bellory.model.dto.assinatura.*;
 import org.exemplo.bellory.model.dto.assinatura.assas.*;
 import org.exemplo.bellory.model.dto.cupom.CupomValidacaoResponseDTO;
@@ -14,10 +16,12 @@ import org.exemplo.bellory.model.entity.plano.PlanoBellory;
 import org.exemplo.bellory.model.repository.assinatura.AssinaturaRepository;
 import org.exemplo.bellory.model.repository.assinatura.CobrancaPlataformaRepository;
 import org.exemplo.bellory.model.repository.assinatura.PagamentoPlataformaRepository;
+import org.exemplo.bellory.model.repository.assinatura.WebhookLogRepository;
 import org.exemplo.bellory.model.repository.organizacao.OrganizacaoRepository;
 import org.exemplo.bellory.model.repository.organizacao.PlanoBelloryRepository;
 import org.exemplo.bellory.service.EmailService;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,6 +41,7 @@ public class AssinaturaService {
     private final AssinaturaRepository assinaturaRepository;
     private final CobrancaPlataformaRepository cobrancaPlataformaRepository;
     private final PagamentoPlataformaRepository pagamentoPlataformaRepository;
+    private final WebhookLogRepository webhookLogRepository;
     private final PlanoBelloryRepository planoBelloryRepository;
     private final OrganizacaoRepository organizacaoRepository;
     private final CupomDescontoService cupomDescontoService;
@@ -54,6 +59,7 @@ public class AssinaturaService {
     public AssinaturaService(AssinaturaRepository assinaturaRepository,
                              CobrancaPlataformaRepository cobrancaPlataformaRepository,
                              PagamentoPlataformaRepository pagamentoPlataformaRepository,
+                             WebhookLogRepository webhookLogRepository,
                              PlanoBelloryRepository planoBelloryRepository,
                              OrganizacaoRepository organizacaoRepository,
                              CupomDescontoService cupomDescontoService,
@@ -62,6 +68,7 @@ public class AssinaturaService {
         this.assinaturaRepository = assinaturaRepository;
         this.cobrancaPlataformaRepository = cobrancaPlataformaRepository;
         this.pagamentoPlataformaRepository = pagamentoPlataformaRepository;
+        this.webhookLogRepository = webhookLogRepository;
         this.planoBelloryRepository = planoBelloryRepository;
         this.organizacaoRepository = organizacaoRepository;
         this.cupomDescontoService = cupomDescontoService;
@@ -73,65 +80,36 @@ public class AssinaturaService {
 
     @Transactional
     public Assinatura criarAssinaturaTrial(Organizacao organizacao, PlanoBellory plano) {
-        log.info("Criando assinatura para organizacao: {}", organizacao.getId());
+        log.info("Criando assinatura trial para organizacao: {}", organizacao.getId());
 
         LocalDateTime agora = LocalDateTime.now();
 
-        // TODO: TESTE - Trial comentado. Criando assinatura ATIVA direto no Assas para validacao.
-        // Para restaurar trial, descomentar bloco original e remover bloco de teste abaixo.
-
-        // --- BLOCO ORIGINAL (TRIAL) ---
-        // Assinatura assinatura = Assinatura.builder()
-        //         .organizacao(organizacao)
-        //         .planoBellory(plano)
-        //         .status(StatusAssinatura.TRIAL)
-        //         .cicloCobranca(CicloCobranca.MENSAL)
-        //         .dtInicioTrial(agora)
-        //         .dtFimTrial(agora.plusDays(diasTrial))
-        //         .valorMensal(plano.getPrecoMensal())
-        //         .valorAnual(plano.getPrecoAnual())
-        //         .build();
-        // return assinaturaRepository.save(assinatura);
-
-        // --- BLOCO DE TESTE (SEM TRIAL - CRIA DIRETO NO ASSAS) ---
         Assinatura assinatura = Assinatura.builder()
                 .organizacao(organizacao)
                 .planoBellory(plano)
-                .status(StatusAssinatura.ATIVA)
+                .status(StatusAssinatura.TRIAL)
                 .cicloCobranca(CicloCobranca.MENSAL)
-                .formaPagamento(FormaPagamentoPlataforma.PIX)
-                .dtInicio(agora)
-                .dtProximoVencimento(agora.plusMonths(1))
+                .dtInicioTrial(agora)
+                .dtFimTrial(agora.plusDays(diasTrial))
                 .valorMensal(plano.getPrecoMensal())
                 .valorAnual(plano.getPrecoAnual())
                 .build();
 
-        // Criar cliente no Assas
-        AssasCustomerResponse customer = assasClient.criarCliente(
-                AssasCustomerRequest.builder()
-                        .name(organizacao.getNomeFantasia())
-                        .cpfCnpj(organizacao.getCnpj())
-                        .email(organizacao.getEmailPrincipal())
-                        .phone(organizacao.getTelefone1())
-                        .build()
-        );
-        if (customer != null) {
-            assinatura.setAssasCustomerId(customer.getId());
-
-            // Criar assinatura no Assas
-            AssasSubscriptionResponse sub = assasClient.criarAssinatura(
-                    AssasSubscriptionRequest.builder()
-                            .customer(customer.getId())
-                            .billingType("PIX")
-                            .value(plano.getPrecoMensal())
-                            .cycle("MONTHLY")
-                            .nextDueDate(LocalDate.now().plusDays(1).toString())
-                            .description("Assinatura Bellory - Plano " + plano.getNome())
+        // Criar cliente no Asaas antecipadamente (para quando escolher plano ja ter o ID)
+        try {
+            AssasCustomerResponse customer = assasClient.criarCliente(
+                    AssasCustomerRequest.builder()
+                            .name(organizacao.getNomeFantasia())
+                            .cpfCnpj(organizacao.getCnpj())
+                            .email(organizacao.getEmailPrincipal())
+                            .phone(organizacao.getTelefone1())
                             .build()
             );
-            if (sub != null) {
-                assinatura.setAssasSubscriptionId(sub.getId());
+            if (customer != null) {
+                assinatura.setAssasCustomerId(customer.getId());
             }
+        } catch (AssasApiException e) {
+            log.warn("Nao foi possivel criar cliente no Asaas durante trial. Sera criado ao escolher plano. Erro: {}", e.getMessage());
         }
 
         return assinaturaRepository.save(assinatura);
@@ -146,6 +124,7 @@ public class AssinaturaService {
                 .orElse(AssinaturaStatusDTO.builder()
                         .bloqueado(false)
                         .statusAssinatura("SEM_ASSINATURA")
+                        .situacao(SituacaoAssinatura.SEM_ASSINATURA.name())
                         .mensagem("Nenhuma assinatura encontrada")
                         .build());
     }
@@ -184,45 +163,64 @@ public class AssinaturaService {
         AssinaturaStatusDTO.AssinaturaStatusDTOBuilder builder = AssinaturaStatusDTO.builder()
                 .statusAssinatura(assinatura.getStatus().name())
                 .planoCodigo(assinatura.getPlanoBellory() != null ? assinatura.getPlanoBellory().getCodigo() : null)
-                .planoNome(assinatura.getPlanoBellory() != null ? assinatura.getPlanoBellory().getNome() : null);
+                .planoNome(assinatura.getPlanoBellory() != null ? assinatura.getPlanoBellory().getNome() : null)
+                .planoGratuito(assinatura.isPlanoGratuito())
+                .cicloCobranca(assinatura.getCicloCobranca() != null ? assinatura.getCicloCobranca().name() : null)
+                .dtProximoVencimento(assinatura.getDtProximoVencimento() != null ? assinatura.getDtProximoVencimento().toLocalDate() : null);
 
-        switch (assinatura.getStatus()) {
-            case TRIAL -> {
-                if (assinatura.isTrialExpirado()) {
-                    builder.bloqueado(true);
-                    builder.mensagem("Seu periodo de teste expirou. Escolha um plano para continuar.");
-                    builder.diasRestantesTrial(0);
-                } else {
-                    long diasRestantes = ChronoUnit.DAYS.between(LocalDateTime.now(), assinatura.getDtFimTrial());
-                    builder.bloqueado(false);
-                    builder.diasRestantesTrial((int) Math.max(diasRestantes, 0));
-                    builder.mensagem("Voce esta no periodo de teste. Restam " + diasRestantes + " dias.");
-                }
+        // Determinar situacao semantica
+        SituacaoAssinatura situacao = determinarSituacao(assinatura, organizacaoId);
+        builder.situacao(situacao.name());
+
+        switch (situacao) {
+            case TRIAL_ATIVO -> {
+                long diasRestantes = ChronoUnit.DAYS.between(LocalDateTime.now(), assinatura.getDtFimTrial());
+                builder.bloqueado(false);
+                builder.diasRestantesTrial((int) Math.max(diasRestantes, 0));
+                builder.dtFimTrial(assinatura.getDtFimTrial().toLocalDate());
+                builder.mensagem("Voce esta no periodo de teste. Restam " + Math.max(diasRestantes, 0) + " dias.");
+            }
+            case TRIAL_EXPIRADO -> {
+                builder.bloqueado(true);
+                builder.diasRestantesTrial(0);
+                builder.dtFimTrial(assinatura.getDtFimTrial() != null ? assinatura.getDtFimTrial().toLocalDate() : null);
+                builder.mensagem("Seu periodo de teste expirou. Escolha um plano para continuar.");
+            }
+            case PLANO_GRATUITO -> {
+                builder.bloqueado(false);
+                builder.mensagem("Voce esta no plano gratuito. Faca upgrade para desbloquear mais recursos.");
             }
             case ATIVA -> {
                 builder.bloqueado(false);
                 builder.mensagem("Assinatura ativa.");
             }
-            case VENCIDA -> {
+            case PAGAMENTO_PENDENTE -> {
+                builder.bloqueado(false);
+                builder.mensagem("Voce tem um pagamento pendente. Regularize para evitar interrupcao do servico.");
+            }
+            case PAGAMENTO_ATRASADO -> {
                 builder.bloqueado(true);
                 builder.mensagem("Sua assinatura esta vencida. Regularize o pagamento para continuar.");
             }
-            case CANCELADA -> {
-                // Cancelada mas ainda pode usar ate o fim do periodo
-                if (assinatura.getDtProximoVencimento() != null
-                        && LocalDateTime.now().isBefore(assinatura.getDtProximoVencimento())) {
-                    builder.bloqueado(false);
-                    builder.mensagem("Sua assinatura foi cancelada. Voce pode usar ate " +
-                            assinatura.getDtProximoVencimento().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) +
-                            ". Apos isso, sera necessario assinar novamente.");
-                } else {
-                    builder.bloqueado(true);
-                    builder.mensagem("Sua assinatura foi cancelada. Escolha um plano para reativar.");
-                }
+            case CANCELADA_COM_ACESSO -> {
+                LocalDate dtAcesso = assinatura.getDtProximoVencimento().toLocalDate();
+                builder.bloqueado(false);
+                builder.dtAcessoAte(dtAcesso);
+                builder.mensagem("Sua assinatura foi cancelada. Voce pode usar ate " +
+                        dtAcesso.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) +
+                        ". Apos isso, sera necessario assinar novamente.");
+            }
+            case CANCELADA_SEM_ACESSO -> {
+                builder.bloqueado(true);
+                builder.mensagem("Sua assinatura foi cancelada. Escolha um plano para reativar.");
             }
             case SUSPENSA -> {
                 builder.bloqueado(true);
                 builder.mensagem("Sua assinatura esta suspensa. Entre em contato com o suporte.");
+            }
+            case SEM_ASSINATURA -> {
+                builder.bloqueado(true);
+                builder.mensagem("Nenhuma assinatura encontrada. Escolha um plano.");
             }
         }
 
@@ -237,6 +235,37 @@ public class AssinaturaService {
         }
 
         return builder.build();
+    }
+
+    private SituacaoAssinatura determinarSituacao(Assinatura assinatura, Long organizacaoId) {
+        return switch (assinatura.getStatus()) {
+            case TRIAL -> {
+                if (assinatura.isTrialExpirado()) {
+                    yield SituacaoAssinatura.TRIAL_EXPIRADO;
+                }
+                yield SituacaoAssinatura.TRIAL_ATIVO;
+            }
+            case ATIVA -> {
+                if (assinatura.isPlanoGratuito()) {
+                    yield SituacaoAssinatura.PLANO_GRATUITO;
+                }
+                // Verificar cobrancas vencidas localmente
+                BigDecimal valorPendente = cobrancaPlataformaRepository.somarValorPendente(organizacaoId);
+                if (valorPendente != null && valorPendente.compareTo(BigDecimal.ZERO) > 0) {
+                    yield SituacaoAssinatura.PAGAMENTO_PENDENTE;
+                }
+                yield SituacaoAssinatura.ATIVA;
+            }
+            case VENCIDA -> SituacaoAssinatura.PAGAMENTO_ATRASADO;
+            case CANCELADA -> {
+                if (assinatura.getDtProximoVencimento() != null
+                        && LocalDateTime.now().isBefore(assinatura.getDtProximoVencimento())) {
+                    yield SituacaoAssinatura.CANCELADA_COM_ACESSO;
+                }
+                yield SituacaoAssinatura.CANCELADA_SEM_ACESSO;
+            }
+            case SUSPENSA -> SituacaoAssinatura.SUSPENSA;
+        };
     }
 
     // ==================== ESCOLHER PLANO ====================
@@ -275,19 +304,10 @@ public class AssinaturaService {
             valor = cupomResult.getValorComDesconto();
         }
 
-        // Determinar valor para Assas (valor cheio se cupom PRIMEIRA_COBRANCA)
-        BigDecimal valorAssas = valorOriginal;
-        if (cupomResult != null && cupomResult.isValido()) {
-            if (cupomResult.getCupom().getTipoAplicacao() == TipoAplicacaoCupom.RECORRENTE) {
-                // Cupom recorrente: Assas cobra o valor com desconto permanentemente
-                valorAssas = valor;
-            } else {
-                // PRIMEIRA_COBRANCA: Assas cobra com desconto, apos pagamento atualiza para valor cheio
-                valorAssas = valor;
-            }
-        }
+        // Determinar valor para o Asaas
+        BigDecimal valorAssas = valor;
 
-        // Criar cliente no Assas
+        // Criar cliente no Asaas se nao existir
         if (assinatura.getAssasCustomerId() == null) {
             Organizacao org = assinatura.getOrganizacao();
             AssasCustomerResponse customer = assasClient.criarCliente(
@@ -303,11 +323,15 @@ public class AssinaturaService {
             }
         }
 
-        // Criar assinatura no Assas
+        // Criar assinatura no Asaas
         if (assinatura.getAssasCustomerId() != null) {
-            // Se ja existe assinatura no Assas (reativacao), cancela a antiga
+            // Se ja existe assinatura no Asaas, cancela a antiga
             if (assinatura.getAssasSubscriptionId() != null) {
-                assasClient.cancelarAssinatura(assinatura.getAssasSubscriptionId());
+                try {
+                    assasClient.cancelarAssinatura(assinatura.getAssasSubscriptionId());
+                } catch (AssasApiException e) {
+                    log.warn("Erro ao cancelar assinatura antiga no Asaas: {}", e.getMessage());
+                }
             }
 
             String billingType = mapFormaPagamento(forma);
@@ -328,13 +352,13 @@ public class AssinaturaService {
             }
         }
 
-        // Atualizar assinatura
+        // Atualizar assinatura local
         assinatura.setPlanoBellory(plano);
         assinatura.setStatus(StatusAssinatura.ATIVA);
         assinatura.setCicloCobranca(ciclo);
         assinatura.setFormaPagamento(forma);
         assinatura.setDtInicio(LocalDateTime.now());
-        assinatura.setDtCancelamento(null); // Limpar cancelamento anterior
+        assinatura.setDtCancelamento(null);
         assinatura.setValorMensal(plano.getPrecoMensal());
         assinatura.setValorAnual(plano.getPrecoAnual());
 
@@ -357,35 +381,13 @@ public class AssinaturaService {
 
         assinaturaRepository.save(assinatura);
 
-        // Criar primeira cobranca
-        CobrancaPlataforma cobranca = CobrancaPlataforma.builder()
-                .assinatura(assinatura)
-                .organizacao(assinatura.getOrganizacao())
-                .valor(valor)
-                .dtVencimento(LocalDate.now().plusDays(1))
-                .status(StatusCobrancaPlataforma.PENDENTE)
-                .formaPagamento(forma)
-                .referenciaMes(LocalDate.now().getMonthValue())
-                .referenciaAno(LocalDate.now().getYear())
-                .build();
-
-        // Setar campos de cupom na cobranca
-        if (cupomResult != null && cupomResult.isValido()) {
-            cobranca.setCupom(cupomResult.getCupom());
-            cobranca.setValorOriginal(valorOriginal);
-            cobranca.setValorDescontoAplicado(cupomResult.getValorDesconto());
-            cobranca.setCupomCodigo(cupomResult.getCupom().getCodigo());
-        }
-
-        cobrancaPlataformaRepository.save(cobranca);
-
         // Registrar utilizacao do cupom
         if (cupomResult != null && cupomResult.isValido()) {
             cupomDescontoService.registrarUtilizacao(
                     cupomResult.getCupom(),
                     organizacaoId,
                     assinatura.getId(),
-                    cobranca.getId(),
+                    null,
                     valorOriginal,
                     cupomResult.getValorDesconto(),
                     valor,
@@ -397,7 +399,7 @@ public class AssinaturaService {
         return toAssinaturaResponseDTO(assinatura);
     }
 
-    // ==================== UPGRADE / DOWNGRADE (9.5) ====================
+    // ==================== UPGRADE / DOWNGRADE ====================
 
     @Transactional
     public AssinaturaResponseDTO trocarPlano(EscolherPlanoDTO dto) {
@@ -431,17 +433,17 @@ public class AssinaturaService {
 
         BigDecimal novoValor = novoCiclo == CicloCobranca.ANUAL ? novoPlano.getPrecoAnual() : novoPlano.getPrecoMensal();
 
-        // Calcular pro-rata do plano atual (credito pelos dias restantes)
+        // Calcular pro-rata do plano atual
         BigDecimal creditoProRata = BigDecimal.ZERO;
         if (assinatura.getDtProximoVencimento() != null && assinatura.getDtInicio() != null) {
             long diasTotais;
             BigDecimal valorAtual;
             if (assinatura.getCicloCobranca() == CicloCobranca.ANUAL) {
                 diasTotais = 365;
-                valorAtual = assinatura.getValorAnual();
+                valorAtual = assinatura.getPlanoBellory().getPrecoAnual();
             } else {
                 diasTotais = 30;
-                valorAtual = assinatura.getValorMensal();
+                valorAtual = assinatura.getPlanoBellory().getPrecoMensal();
             }
 
             long diasRestantes = ChronoUnit.DAYS.between(LocalDateTime.now(), assinatura.getDtProximoVencimento());
@@ -452,13 +454,12 @@ public class AssinaturaService {
             }
         }
 
-        // Valor final da primeira cobranca do novo plano = novo valor - credito pro-rata
         BigDecimal valorPrimeiraCobranca = novoValor.subtract(creditoProRata);
         if (valorPrimeiraCobranca.compareTo(BigDecimal.ZERO) < 0) {
             valorPrimeiraCobranca = BigDecimal.ZERO;
         }
 
-        // Validar e aplicar cupom (se informado)
+        // Validar e aplicar cupom
         CupomValidacaoResult cupomResult = null;
         if (dto.getCodigoCupom() != null && !dto.getCodigoCupom().isBlank()) {
             cupomResult = cupomDescontoService.validarCupom(
@@ -469,18 +470,21 @@ public class AssinaturaService {
             valorPrimeiraCobranca = cupomResult.getValorComDesconto();
         }
 
-        // Cancelar assinatura antiga no Assas
+        // Cancelar assinatura antiga no Asaas
         if (assinatura.getAssasSubscriptionId() != null) {
-            assasClient.cancelarAssinatura(assinatura.getAssasSubscriptionId());
+            try {
+                assasClient.cancelarAssinatura(assinatura.getAssasSubscriptionId());
+            } catch (AssasApiException e) {
+                log.warn("Erro ao cancelar assinatura antiga no Asaas: {}", e.getMessage());
+            }
         }
 
-        // Criar nova assinatura no Assas
+        // Criar nova assinatura no Asaas
         if (assinatura.getAssasCustomerId() != null) {
             BigDecimal valorAssas = novoValor;
             if (cupomResult != null && cupomResult.isValido()
                     && cupomResult.getCupom().getTipoAplicacao() == TipoAplicacaoCupom.RECORRENTE) {
-                valorAssas = cupomDescontoService.calcularDesconto(cupomResult.getCupom(), novoValor);
-                valorAssas = novoValor.subtract(valorAssas);
+                valorAssas = novoValor.subtract(cupomDescontoService.calcularDesconto(cupomResult.getCupom(), novoValor));
             }
 
             String billingType = mapFormaPagamento(forma);
@@ -527,34 +531,13 @@ public class AssinaturaService {
 
         assinaturaRepository.save(assinatura);
 
-        // Gerar cobranca pro-rata
-        CobrancaPlataforma cobranca = CobrancaPlataforma.builder()
-                .assinatura(assinatura)
-                .organizacao(assinatura.getOrganizacao())
-                .valor(valorPrimeiraCobranca)
-                .dtVencimento(LocalDate.now().plusDays(1))
-                .status(StatusCobrancaPlataforma.PENDENTE)
-                .formaPagamento(forma)
-                .referenciaMes(LocalDate.now().getMonthValue())
-                .referenciaAno(LocalDate.now().getYear())
-                .build();
-
-        if (cupomResult != null && cupomResult.isValido()) {
-            cobranca.setCupom(cupomResult.getCupom());
-            cobranca.setValorOriginal(novoValor);
-            cobranca.setValorDescontoAplicado(cupomResult.getValorDesconto());
-            cobranca.setCupomCodigo(cupomResult.getCupom().getCodigo());
-        }
-
-        cobrancaPlataformaRepository.save(cobranca);
-
         log.info("Plano trocado de {} para {} para organizacao ID: {} - credito pro-rata: {} - valor cobranca: {}",
                 planoAtual.getCodigo(), novoPlano.getCodigo(), organizacaoId, creditoProRata, valorPrimeiraCobranca);
 
         return toAssinaturaResponseDTO(assinatura);
     }
 
-    // ==================== CANCELAMENTO (9.6) ====================
+    // ==================== CANCELAMENTO ====================
 
     @Transactional
     public AssinaturaResponseDTO cancelarAssinatura() {
@@ -570,18 +553,20 @@ public class AssinaturaService {
             throw new IllegalStateException("Apenas assinaturas ativas podem ser canceladas");
         }
 
-        // Cancelar renovacao no Assas (bloqueia proximas cobrancas)
+        // Cancelar no Asaas
         if (assinatura.getAssasSubscriptionId() != null) {
-            assasClient.cancelarAssinatura(assinatura.getAssasSubscriptionId());
+            try {
+                assasClient.cancelarAssinatura(assinatura.getAssasSubscriptionId());
+            } catch (AssasApiException e) {
+                log.warn("Erro ao cancelar assinatura no Asaas: {}", e.getMessage());
+            }
         }
 
-        // Marcar como cancelada mas manter acesso ate o fim do periodo
         assinatura.setStatus(StatusAssinatura.CANCELADA);
         assinatura.setDtCancelamento(LocalDateTime.now());
-        // dtProximoVencimento mantem o valor atual - o cliente usa ate essa data
         assinaturaRepository.save(assinatura);
 
-        // Cancelar cobrancas pendentes futuras
+        // Cancelar cobrancas pendentes locais
         List<CobrancaPlataforma> cobrancasPendentes = cobrancaPlataformaRepository
                 .findByOrganizacaoIdAndStatus(organizacaoId, StatusCobrancaPlataforma.PENDENTE);
         for (CobrancaPlataforma cobranca : cobrancasPendentes) {
@@ -634,14 +619,8 @@ public class AssinaturaService {
             valor = cupomResult.getValorComDesconto();
         }
 
-        // Criar nova assinatura no Assas
+        // Criar nova assinatura no Asaas
         if (assinatura.getAssasCustomerId() != null) {
-            BigDecimal valorAssas = valor;
-            if (cupomResult != null && cupomResult.isValido()
-                    && cupomResult.getCupom().getTipoAplicacao() == TipoAplicacaoCupom.PRIMEIRA_COBRANCA) {
-                valorAssas = valor; // primeira cobranca com desconto, depois atualiza
-            }
-
             String billingType = mapFormaPagamento(forma);
             String cycle = ciclo == CicloCobranca.ANUAL ? "YEARLY" : "MONTHLY";
 
@@ -649,7 +628,7 @@ public class AssinaturaService {
                     AssasSubscriptionRequest.builder()
                             .customer(assinatura.getAssasCustomerId())
                             .billingType(billingType)
-                            .value(valorAssas)
+                            .value(valor)
                             .cycle(cycle)
                             .nextDueDate(LocalDate.now().plusDays(1).toString())
                             .description("Assinatura Bellory - Plano " + plano.getNome())
@@ -660,7 +639,6 @@ public class AssinaturaService {
             }
         }
 
-        // Atualizar assinatura - data de inicio = agora, proximo vencimento = +30 dias ou +1 ano
         assinatura.setPlanoBellory(plano);
         assinatura.setStatus(StatusAssinatura.ATIVA);
         assinatura.setCicloCobranca(ciclo);
@@ -688,33 +666,12 @@ public class AssinaturaService {
 
         assinaturaRepository.save(assinatura);
 
-        // Gerar cobranca imediata (D+1)
-        CobrancaPlataforma cobranca = CobrancaPlataforma.builder()
-                .assinatura(assinatura)
-                .organizacao(assinatura.getOrganizacao())
-                .valor(valor)
-                .dtVencimento(LocalDate.now().plusDays(1))
-                .status(StatusCobrancaPlataforma.PENDENTE)
-                .formaPagamento(forma)
-                .referenciaMes(LocalDate.now().getMonthValue())
-                .referenciaAno(LocalDate.now().getYear())
-                .build();
-
-        if (cupomResult != null && cupomResult.isValido()) {
-            cobranca.setCupom(cupomResult.getCupom());
-            cobranca.setValorOriginal(valorOriginal);
-            cobranca.setValorDescontoAplicado(cupomResult.getValorDesconto());
-            cobranca.setCupomCodigo(cupomResult.getCupom().getCodigo());
-        }
-
-        cobrancaPlataformaRepository.save(cobranca);
-
         if (cupomResult != null && cupomResult.isValido()) {
             cupomDescontoService.registrarUtilizacao(
                     cupomResult.getCupom(),
                     organizacaoId,
                     assinatura.getId(),
-                    cobranca.getId(),
+                    null,
                     valorOriginal,
                     cupomResult.getValorDesconto(),
                     valor,
@@ -770,7 +727,7 @@ public class AssinaturaService {
                 .build();
     }
 
-    // ==================== COBRANCAS ====================
+    // ==================== COBRANCAS (consulta Asaas) ====================
 
     @Transactional(readOnly = true)
     public List<CobrancaPlataformaDTO> getMinhasCobrancas(String statusFiltro) {
@@ -779,6 +736,23 @@ public class AssinaturaService {
             throw new SecurityException("Organizacao nao identificada no token");
         }
 
+        // Tentar buscar do Asaas primeiro
+        Assinatura assinatura = assinaturaRepository.findByOrganizacaoId(organizacaoId).orElse(null);
+        if (assinatura != null && assinatura.getAssasSubscriptionId() != null) {
+            try {
+                AssasPaymentListResponse assasPayments = assasClient.buscarPagamentosAssinatura(assinatura.getAssasSubscriptionId());
+                if (assasPayments != null && assasPayments.getData() != null) {
+                    return assasPayments.getData().stream()
+                            .filter(p -> statusFiltro == null || statusFiltro.isBlank() || matchStatus(p.getStatus(), statusFiltro))
+                            .map(this::toCobrancaDTOFromAsaas)
+                            .collect(Collectors.toList());
+                }
+            } catch (AssasApiException e) {
+                log.warn("Erro ao buscar cobrancas do Asaas, usando dados locais: {}", e.getMessage());
+            }
+        }
+
+        // Fallback: dados locais
         List<CobrancaPlataforma> cobrancas;
         if (statusFiltro != null && !statusFiltro.isBlank()) {
             StatusCobrancaPlataforma status = StatusCobrancaPlataforma.valueOf(statusFiltro);
@@ -792,34 +766,169 @@ public class AssinaturaService {
                 .collect(Collectors.toList());
     }
 
-    // ==================== WEBHOOK (9.4 + 9.7) ====================
+    private boolean matchStatus(String assasStatus, String localStatus) {
+        return switch (localStatus.toUpperCase()) {
+            case "PAGA" -> "RECEIVED".equals(assasStatus) || "CONFIRMED".equals(assasStatus) || "RECEIVED_IN_CASH".equals(assasStatus);
+            case "PENDENTE" -> "PENDING".equals(assasStatus);
+            case "VENCIDA" -> "OVERDUE".equals(assasStatus);
+            case "CANCELADA" -> "DELETED".equals(assasStatus) || "REFUNDED".equals(assasStatus);
+            default -> true;
+        };
+    }
+
+    private CobrancaPlataformaDTO toCobrancaDTOFromAsaas(AssasPaymentResponse payment) {
+        String statusLocal = switch (payment.getStatus()) {
+            case "PENDING" -> "PENDENTE";
+            case "RECEIVED", "CONFIRMED", "RECEIVED_IN_CASH" -> "PAGA";
+            case "OVERDUE" -> "VENCIDA";
+            case "DELETED", "REFUNDED" -> "CANCELADA";
+            default -> payment.getStatus();
+        };
+
+        // Mapear billingType do Asaas para FormaPagamentoPlataforma local
+        String formaPagamentoLocal = switch (payment.getBillingType() != null ? payment.getBillingType() : "") {
+            case "PIX" -> "PIX";
+            case "BOLETO" -> "BOLETO";
+            case "CREDIT_CARD" -> "CARTAO_CREDITO";
+            default -> payment.getBillingType();
+        };
+
+        // Extrair mes/ano de referencia do dueDate
+        LocalDate dtVencimento = payment.getDueDate() != null ? LocalDate.parse(payment.getDueDate()) : null;
+        Integer referenciaMes = dtVencimento != null ? dtVencimento.getMonthValue() : null;
+        Integer referenciaAno = dtVencimento != null ? dtVencimento.getYear() : null;
+
+        // Mapear data de pagamento
+        LocalDateTime dtPagamento = null;
+        if (payment.getPaymentDate() != null && !payment.getPaymentDate().isBlank()) {
+            dtPagamento = LocalDate.parse(payment.getPaymentDate()).atStartOfDay();
+        }
+
+        // Mapear data de criacao
+        LocalDateTime dtCriacao = null;
+        if (payment.getDateCreated() != null && !payment.getDateCreated().isBlank()) {
+            dtCriacao = LocalDate.parse(payment.getDateCreated()).atStartOfDay();
+        }
+
+        // Buscar PIX QR Code para pagamentos PIX pendentes/vencidos
+        String pixQrCode = null;
+        String pixCopiaCola = null;
+        String pixExpirationDate = null;
+        if ("PIX".equals(formaPagamentoLocal) && ("PENDING".equals(payment.getStatus()) || "OVERDUE".equals(payment.getStatus()))) {
+            try {
+                var pixData = assasClient.buscarPixQrCode(payment.getId());
+                if (pixData != null) {
+                    pixQrCode = pixData.getEncodedImage();
+                    pixCopiaCola = pixData.getPayload();
+                    pixExpirationDate = pixData.getExpirationDate();
+                }
+            } catch (Exception e) {
+                log.warn("Erro ao buscar PIX QR Code para payment {}: {}", payment.getId(), e.getMessage());
+            }
+        }
+
+        // Enriquecer com dados locais (cupom, valor original, etc.)
+        CobrancaPlataformaDTO.CobrancaPlataformaDTOBuilder builder = CobrancaPlataformaDTO.builder()
+                .valor(payment.getValue())
+                .dtVencimento(dtVencimento)
+                .dtPagamento(dtPagamento)
+                .status(statusLocal)
+                .formaPagamento(formaPagamentoLocal)
+                .assasInvoiceUrl(payment.getInvoiceUrl())
+                .assasBankSlipUrl(payment.getBankSlipUrl())
+                .assasPixQrCode(pixQrCode)
+                .assasPixCopiaCola(pixCopiaCola)
+                .assasPixExpirationDate(pixExpirationDate)
+                .referenciaMes(referenciaMes)
+                .referenciaAno(referenciaAno)
+                .dtCriacao(dtCriacao);
+
+        // Tentar encontrar cobranca local correspondente para pegar id, cupom e valores originais
+        CobrancaPlataforma cobrancaLocal = cobrancaPlataformaRepository.findByAssasPaymentId(payment.getId()).orElse(null);
+        if (cobrancaLocal != null) {
+            builder.id(cobrancaLocal.getId())
+                    .cupomCodigo(cobrancaLocal.getCupomCodigo())
+                    .valorOriginal(cobrancaLocal.getValorOriginal())
+                    .valorDescontoAplicado(cobrancaLocal.getValorDescontoAplicado());
+        }
+
+        return builder.build();
+    }
+
+    // ==================== WEBHOOK ====================
 
     @Transactional
     public void processarWebhookPagamento(AssasWebhookPayload payload) {
         if (payload == null || payload.getPayment() == null) {
-            log.warn("Webhook Assas recebido com payload invalido");
+            log.warn("Webhook Asaas recebido com payload invalido");
             return;
         }
 
         String event = payload.getEvent();
         AssasWebhookPayload.Payment payment = payload.getPayment();
-        log.info("Webhook Assas recebido - evento: {}, paymentId: {}", event, payment.getId());
+        log.info("Webhook Asaas recebido - evento: {}, paymentId: {}, subscription: {}", event, payment.getId(), payment.getSubscription());
 
-        if ("PAYMENT_RECEIVED".equals(event) || "PAYMENT_CONFIRMED".equals(event)) {
-            confirmarPagamento(payment);
-        } else if ("PAYMENT_OVERDUE".equals(event)) {
-            marcarCobrancaVencida(payment);
+        // Idempotencia: verificar se ja processou este evento para este payment
+        if (webhookLogRepository.existsByAssasPaymentIdAndEvento(payment.getId(), event)) {
+            log.info("Webhook ja processado (idempotente): paymentId={}, evento={}", payment.getId(), event);
+            return;
+        }
+
+        // Buscar assinatura pelo subscription ID do Asaas
+        Assinatura assinatura = null;
+        if (payment.getSubscription() != null) {
+            assinatura = assinaturaRepository.findByAssasSubscriptionId(payment.getSubscription()).orElse(null);
+        }
+
+        // Fallback: buscar pela cobranca com assas_payment_id
+        if (assinatura == null) {
+            assinatura = cobrancaPlataformaRepository.findByAssasPaymentId(payment.getId())
+                    .map(CobrancaPlataforma::getAssinatura)
+                    .orElse(null);
+        }
+
+        // Registrar log do webhook
+        WebhookLog webhookLog = WebhookLog.builder()
+                .assinatura(assinatura)
+                .evento(event)
+                .assasPaymentId(payment.getId())
+                .assasSubscriptionId(payment.getSubscription())
+                .valor(payment.getValue())
+                .statusPagamento(payment.getStatus())
+                .payloadResumo(String.format("billingType=%s, dueDate=%s", payment.getBillingType(), payment.getDueDate()))
+                .build();
+        webhookLogRepository.save(webhookLog);
+
+        // Evictar caches do Asaas
+        if (payment.getSubscription() != null) {
+            assasClient.evictSubscriptionCache(payment.getSubscription());
+            assasClient.evictPaymentsCache(payment.getSubscription());
+        }
+
+        // Processar evento
+        switch (event) {
+            case "PAYMENT_RECEIVED", "PAYMENT_CONFIRMED" -> confirmarPagamento(payment, assinatura);
+            case "PAYMENT_OVERDUE" -> marcarPagamentoAtrasado(payment, assinatura);
+            case "PAYMENT_REFUNDED", "PAYMENT_REFUND_IN_PROGRESS" -> processarEstorno(payment, assinatura);
+            case "PAYMENT_DELETED" -> log.info("Pagamento deletado no Asaas: {}", payment.getId());
+            case "PAYMENT_RESTORED" -> restaurarPagamento(payment, assinatura);
+            default -> log.info("Evento Asaas nao tratado: {}", event);
         }
     }
 
-    private void confirmarPagamento(AssasWebhookPayload.Payment payment) {
+    private void confirmarPagamento(AssasWebhookPayload.Payment payment, Assinatura assinatura) {
+        if (assinatura == null) {
+            log.warn("Assinatura nao encontrada para pagamento confirmado: {}", payment.getId());
+            return;
+        }
+
+        // Atualizar cobranca local se existir
         cobrancaPlataformaRepository.findByAssasPaymentId(payment.getId())
                 .ifPresent(cobranca -> {
                     cobranca.setStatus(StatusCobrancaPlataforma.PAGA);
                     cobranca.setDtPagamento(LocalDateTime.now());
                     cobrancaPlataformaRepository.save(cobranca);
 
-                    // Registrar pagamento
                     PagamentoPlataforma pagamento = PagamentoPlataforma.builder()
                             .cobranca(cobranca)
                             .valor(payment.getValue())
@@ -829,63 +938,84 @@ public class AssinaturaService {
                             .dtPagamento(LocalDateTime.now())
                             .build();
                     pagamentoPlataformaRepository.save(pagamento);
-
-                    // Garantir que assinatura esta ativa e renovar vencimento
-                    Assinatura assinatura = cobranca.getAssinatura();
-                    if (assinatura.getStatus() == StatusAssinatura.VENCIDA) {
-                        assinatura.setStatus(StatusAssinatura.ATIVA);
-                    }
-
-                    // Renovar proximo vencimento baseado no ciclo
-                    if (assinatura.getStatus() == StatusAssinatura.ATIVA) {
-                        if (assinatura.getCicloCobranca() == CicloCobranca.ANUAL) {
-                            assinatura.setDtProximoVencimento(LocalDateTime.now().plusYears(1));
-                        } else {
-                            assinatura.setDtProximoVencimento(LocalDateTime.now().plusMonths(1));
-                        }
-                    }
-
-                    assinaturaRepository.save(assinatura);
-
-                    // 9.4: Se cupom era PRIMEIRA_COBRANCA, atualizar assinatura no Assas para valor cheio
-                    if (assinatura.getCupom() != null
-                            && assinatura.getCupom().getTipoAplicacao() == TipoAplicacaoCupom.PRIMEIRA_COBRANCA
-                            && assinatura.getAssasSubscriptionId() != null) {
-                        BigDecimal valorCheio = assinatura.getCicloCobranca() == CicloCobranca.ANUAL
-                                ? assinatura.getValorAnual() : assinatura.getValorMensal();
-                        assasClient.atualizarAssinatura(
-                                assinatura.getAssasSubscriptionId(),
-                                AssasSubscriptionRequest.builder()
-                                        .value(valorCheio)
-                                        .build()
-                        );
-                        // Limpar cupom da assinatura pois ja foi usado
-                        assinatura.setCupom(null);
-                        assinatura.setValorDesconto(null);
-                        assinatura.setCupomCodigo(null);
-                        assinaturaRepository.save(assinatura);
-                        log.info("Cupom PRIMEIRA_COBRANCA removido - assinatura Assas atualizada para valor cheio: {} - org: {}",
-                                valorCheio, assinatura.getOrganizacao().getId());
-                    }
-
-                    log.info("Pagamento confirmado para cobranca ID: {}", cobranca.getId());
                 });
+
+        // Garantir que assinatura esta ativa e renovar vencimento
+        if (assinatura.getStatus() == StatusAssinatura.VENCIDA) {
+            assinatura.setStatus(StatusAssinatura.ATIVA);
+        }
+
+        if (assinatura.getStatus() == StatusAssinatura.ATIVA) {
+            if (assinatura.getCicloCobranca() == CicloCobranca.ANUAL) {
+                assinatura.setDtProximoVencimento(LocalDateTime.now().plusYears(1));
+            } else {
+                assinatura.setDtProximoVencimento(LocalDateTime.now().plusMonths(1));
+            }
+        }
+
+        assinaturaRepository.save(assinatura);
+
+        // Se cupom era PRIMEIRA_COBRANCA, atualizar Asaas para valor cheio
+        if (assinatura.getCupom() != null
+                && assinatura.getCupom().getTipoAplicacao() == TipoAplicacaoCupom.PRIMEIRA_COBRANCA
+                && assinatura.getAssasSubscriptionId() != null) {
+            BigDecimal valorCheio = assinatura.getCicloCobranca() == CicloCobranca.ANUAL
+                    ? assinatura.getPlanoBellory().getPrecoAnual() : assinatura.getPlanoBellory().getPrecoMensal();
+            try {
+                assasClient.atualizarAssinatura(
+                        assinatura.getAssasSubscriptionId(),
+                        AssasSubscriptionRequest.builder()
+                                .value(valorCheio)
+                                .build()
+                );
+            } catch (AssasApiException e) {
+                log.error("Erro ao atualizar assinatura no Asaas para valor cheio: {}", e.getMessage());
+            }
+            assinatura.setCupom(null);
+            assinatura.setValorDesconto(null);
+            assinatura.setCupomCodigo(null);
+            assinaturaRepository.save(assinatura);
+            log.info("Cupom PRIMEIRA_COBRANCA removido - Asaas atualizado para valor cheio: {} - org: {}",
+                    valorCheio, assinatura.getOrganizacao().getId());
+        }
+
+        log.info("Pagamento confirmado - assinatura org: {}", assinatura.getOrganizacao().getId());
     }
 
-    private void marcarCobrancaVencida(AssasWebhookPayload.Payment payment) {
+    private void marcarPagamentoAtrasado(AssasWebhookPayload.Payment payment, Assinatura assinatura) {
+        // Atualizar cobranca local se existir
         cobrancaPlataformaRepository.findByAssasPaymentId(payment.getId())
                 .ifPresent(cobranca -> {
                     cobranca.setStatus(StatusCobrancaPlataforma.VENCIDA);
                     cobrancaPlataformaRepository.save(cobranca);
-                    log.info("Cobranca marcada como vencida - ID: {}", cobranca.getId());
                 });
+
+        if (assinatura != null && assinatura.getStatus() == StatusAssinatura.ATIVA) {
+            assinatura.setStatus(StatusAssinatura.VENCIDA);
+            assinaturaRepository.save(assinatura);
+            log.info("Assinatura marcada como vencida por pagamento atrasado - org: {}", assinatura.getOrganizacao().getId());
+        }
     }
 
-    // ==================== SCHEDULER ====================
+    private void processarEstorno(AssasWebhookPayload.Payment payment, Assinatura assinatura) {
+        cobrancaPlataformaRepository.findByAssasPaymentId(payment.getId())
+                .ifPresent(cobranca -> {
+                    cobranca.setStatus(StatusCobrancaPlataforma.ESTORNADA);
+                    cobrancaPlataformaRepository.save(cobranca);
+                });
+        log.info("Pagamento estornado: {}", payment.getId());
+    }
 
-    /**
-     * 9.1: Trial expirado -> migra para plano gratuito automaticamente
-     */
+    private void restaurarPagamento(AssasWebhookPayload.Payment payment, Assinatura assinatura) {
+        if (assinatura != null && assinatura.getStatus() == StatusAssinatura.VENCIDA) {
+            assinatura.setStatus(StatusAssinatura.ATIVA);
+            assinaturaRepository.save(assinatura);
+            log.info("Pagamento restaurado - assinatura reativada - org: {}", assinatura.getOrganizacao().getId());
+        }
+    }
+
+    // ==================== SCHEDULER (mantidos) ====================
+
     @Transactional
     public void expirarTrials() {
         List<Assinatura> trialsExpirados = assinaturaRepository.findTrialsExpirados(LocalDateTime.now());
@@ -895,7 +1025,6 @@ public class AssinaturaService {
 
         for (Assinatura assinatura : trialsExpirados) {
             if (planoGratuito != null) {
-                // Migra para plano gratuito com os limites do plano gratuito
                 assinatura.setPlanoBellory(planoGratuito);
                 assinatura.setStatus(StatusAssinatura.ATIVA);
                 assinatura.setDtInicio(LocalDateTime.now());
@@ -905,7 +1034,6 @@ public class AssinaturaService {
                 log.info("Trial expirado - migrado para plano gratuito - organizacao ID: {}",
                         assinatura.getOrganizacao().getId());
             } else {
-                // Fallback: se nao existe plano gratuito, bloqueia
                 assinatura.setStatus(StatusAssinatura.VENCIDA);
                 assinaturaRepository.save(assinatura);
                 log.warn("Trial expirado - plano gratuito nao encontrado - organizacao bloqueada ID: {}",
@@ -926,15 +1054,8 @@ public class AssinaturaService {
         int enviados = 0;
 
         for (Assinatura assinatura : trialsExpirando) {
-            // Nao notifica plano gratuito
-            if (assinatura.isPlanoGratuito()) {
-                continue;
-            }
-
-            // Nao envia se ja foi notificado
-            if (assinatura.getDtTrialNotificado() != null) {
-                continue;
-            }
+            if (assinatura.isPlanoGratuito()) continue;
+            if (assinatura.getDtTrialNotificado() != null) continue;
 
             try {
                 enviarEmailTrialExpirando(assinatura);
@@ -993,156 +1114,6 @@ public class AssinaturaService {
     }
 
     @Transactional
-    public void marcarCobrancasVencidas() {
-        List<CobrancaPlataforma> cobrancasVencidas = cobrancaPlataformaRepository.findCobrancasVencidas(LocalDate.now());
-        for (CobrancaPlataforma cobranca : cobrancasVencidas) {
-            cobranca.setStatus(StatusCobrancaPlataforma.VENCIDA);
-            cobrancaPlataformaRepository.save(cobranca);
-
-            // Se todas as cobrancas pendentes estao vencidas, marcar assinatura como vencida
-            Assinatura assinatura = cobranca.getAssinatura();
-            if (assinatura.getStatus() == StatusAssinatura.ATIVA) {
-                assinatura.setStatus(StatusAssinatura.VENCIDA);
-                assinaturaRepository.save(assinatura);
-            }
-        }
-        if (!cobrancasVencidas.isEmpty()) {
-            log.info("Total de cobrancas marcadas como vencidas: {}", cobrancasVencidas.size());
-        }
-    }
-
-    /**
-     * Gera cobrancas mensais para assinaturas MENSAL ativas.
-     * Aplica cupom RECORRENTE se vigente.
-     */
-    @Transactional
-    public void gerarCobrancasMensais() {
-        List<Assinatura> ativas = assinaturaRepository.findMensaisAtivas();
-        int mesAtual = LocalDate.now().getMonthValue();
-        int anoAtual = LocalDate.now().getYear();
-
-        for (Assinatura assinatura : ativas) {
-            boolean jaExiste = cobrancaPlataformaRepository
-                    .existsByAssinaturaIdAndReferenciaMesAndReferenciaAno(assinatura.getId(), mesAtual, anoAtual);
-
-            if (!jaExiste) {
-                BigDecimal valorOriginal = assinatura.getValorMensal();
-
-                if (valorOriginal != null && valorOriginal.compareTo(BigDecimal.ZERO) > 0) {
-                    BigDecimal valor = valorOriginal;
-                    BigDecimal valorDescontoAplicado = null;
-                    CupomDesconto cupomAplicado = null;
-
-                    // Aplicar cupom recorrente se existir e estiver vigente
-                    if (assinatura.getCupom() != null
-                            && assinatura.getCupom().getTipoAplicacao() == TipoAplicacaoCupom.RECORRENTE
-                            && assinatura.getCupom().isVigente()) {
-                        cupomAplicado = assinatura.getCupom();
-                        valorDescontoAplicado = cupomDescontoService.calcularDesconto(cupomAplicado, valorOriginal);
-                        valor = valorOriginal.subtract(valorDescontoAplicado);
-                        if (valor.compareTo(BigDecimal.ZERO) < 0) {
-                            valor = BigDecimal.ZERO;
-                        }
-                    }
-
-                    CobrancaPlataforma cobranca = CobrancaPlataforma.builder()
-                            .assinatura(assinatura)
-                            .organizacao(assinatura.getOrganizacao())
-                            .valor(valor)
-                            .dtVencimento(LocalDate.now().withDayOfMonth(10))
-                            .status(StatusCobrancaPlataforma.PENDENTE)
-                            .referenciaMes(mesAtual)
-                            .referenciaAno(anoAtual)
-                            .build();
-
-                    if (cupomAplicado != null) {
-                        cobranca.setValorOriginal(valorOriginal);
-                        cobranca.setValorDescontoAplicado(valorDescontoAplicado);
-                        cobranca.setCupom(cupomAplicado);
-                        cobranca.setCupomCodigo(cupomAplicado.getCodigo());
-                    }
-
-                    cobrancaPlataformaRepository.save(cobranca);
-                    log.info("Cobranca mensal gerada para assinatura ID: {} - valor: {}{}",
-                            assinatura.getId(), valor,
-                            cupomAplicado != null ? " (cupom " + cupomAplicado.getCodigo() + " aplicado)" : "");
-                }
-            }
-        }
-    }
-
-    /**
-     * 9.2 + 9.3: Gera cobrancas para renovacao de assinaturas anuais.
-     * Gera cobranca 30 dias antes do vencimento.
-     * Aplica cupom RECORRENTE se vigente.
-     */
-    @Transactional
-    public void gerarCobrancasAnuais() {
-        // Busca assinaturas anuais que vencem nos proximos 30 dias
-        LocalDateTime limite = LocalDateTime.now().plusDays(30);
-        List<Assinatura> anuaisParaRenovar = assinaturaRepository.findAnuaisParaRenovacao(limite);
-        int mesAtual = LocalDate.now().getMonthValue();
-        int anoAtual = LocalDate.now().getYear();
-
-        for (Assinatura assinatura : anuaisParaRenovar) {
-            boolean jaExiste = cobrancaPlataformaRepository
-                    .existsByAssinaturaIdAndReferenciaMesAndReferenciaAno(assinatura.getId(), mesAtual, anoAtual);
-
-            if (!jaExiste) {
-                BigDecimal valorOriginal = assinatura.getValorAnual();
-
-                if (valorOriginal != null && valorOriginal.compareTo(BigDecimal.ZERO) > 0) {
-                    BigDecimal valor = valorOriginal;
-                    BigDecimal valorDescontoAplicado = null;
-                    CupomDesconto cupomAplicado = null;
-
-                    // 9.3: Aplicar cupom recorrente em plano anual se vigente
-                    if (assinatura.getCupom() != null
-                            && assinatura.getCupom().getTipoAplicacao() == TipoAplicacaoCupom.RECORRENTE
-                            && assinatura.getCupom().isVigente()) {
-                        cupomAplicado = assinatura.getCupom();
-                        valorDescontoAplicado = cupomDescontoService.calcularDesconto(cupomAplicado, valorOriginal);
-                        valor = valorOriginal.subtract(valorDescontoAplicado);
-                        if (valor.compareTo(BigDecimal.ZERO) < 0) {
-                            valor = BigDecimal.ZERO;
-                        }
-                    }
-
-                    // Vencimento = data do proximo vencimento da assinatura
-                    LocalDate dtVencimento = assinatura.getDtProximoVencimento().toLocalDate();
-
-                    CobrancaPlataforma cobranca = CobrancaPlataforma.builder()
-                            .assinatura(assinatura)
-                            .organizacao(assinatura.getOrganizacao())
-                            .valor(valor)
-                            .dtVencimento(dtVencimento)
-                            .status(StatusCobrancaPlataforma.PENDENTE)
-                            .formaPagamento(assinatura.getFormaPagamento())
-                            .referenciaMes(mesAtual)
-                            .referenciaAno(anoAtual)
-                            .build();
-
-                    if (cupomAplicado != null) {
-                        cobranca.setValorOriginal(valorOriginal);
-                        cobranca.setValorDescontoAplicado(valorDescontoAplicado);
-                        cobranca.setCupom(cupomAplicado);
-                        cobranca.setCupomCodigo(cupomAplicado.getCodigo());
-                    }
-
-                    cobrancaPlataformaRepository.save(cobranca);
-                    log.info("Cobranca anual de renovacao gerada para assinatura ID: {} - valor: {} - vencimento: {}{}",
-                            assinatura.getId(), valor, dtVencimento,
-                            cupomAplicado != null ? " (cupom " + cupomAplicado.getCodigo() + " aplicado)" : "");
-                }
-            }
-        }
-    }
-
-    /**
-     * Verifica assinaturas canceladas cujo periodo de acesso expirou
-     * e bloqueia efetivamente o acesso.
-     */
-    @Transactional
     public void bloquearCancelamentoExpirado() {
         List<Assinatura> canceladas = assinaturaRepository.findByStatus(StatusAssinatura.CANCELADA);
         PlanoBellory planoGratuito = planoBelloryRepository.findByCodigo(PLANO_GRATUITO_CODIGO)
@@ -1152,7 +1123,6 @@ public class AssinaturaService {
             if (assinatura.getDtProximoVencimento() != null
                     && LocalDateTime.now().isAfter(assinatura.getDtProximoVencimento())) {
                 if (planoGratuito != null) {
-                    // Migra para plano gratuito
                     assinatura.setPlanoBellory(planoGratuito);
                     assinatura.setStatus(StatusAssinatura.ATIVA);
                     assinatura.setValorMensal(BigDecimal.ZERO);
@@ -1165,6 +1135,100 @@ public class AssinaturaService {
                     log.info("Cancelamento expirado - migrado para plano gratuito - organizacao ID: {}",
                             assinatura.getOrganizacao().getId());
                 }
+            }
+        }
+    }
+
+    // ==================== SINCRONIZACAO COM ASAAS ====================
+
+    @Transactional
+    public void sincronizarComAsaas() {
+        if (!assasClient.isConfigurado()) {
+            log.debug("Asaas nao configurado - sincronizacao ignorada");
+            return;
+        }
+
+        List<Assinatura> assinaturas = assinaturaRepository.findByAssasSubscriptionIdNotNullAndStatusIn(
+                List.of(StatusAssinatura.ATIVA, StatusAssinatura.VENCIDA)
+        );
+
+        int atualizadas = 0;
+        for (Assinatura assinatura : assinaturas) {
+            try {
+                AssasSubscriptionResponse subAsaas = assasClient.buscarAssinatura(assinatura.getAssasSubscriptionId());
+                if (subAsaas == null) continue;
+
+                boolean atualizado = false;
+
+                // Reconciliar status
+                String statusAsaas = subAsaas.getStatus();
+                if ("INACTIVE".equals(statusAsaas) || "EXPIRED".equals(statusAsaas)) {
+                    if (assinatura.getStatus() == StatusAssinatura.ATIVA) {
+                        assinatura.setStatus(StatusAssinatura.VENCIDA);
+                        atualizado = true;
+                        log.info("Sincronizacao: assinatura {} marcada como VENCIDA (Asaas status: {})",
+                                assinatura.getId(), statusAsaas);
+                    }
+                } else if ("ACTIVE".equals(statusAsaas)) {
+                    if (assinatura.getStatus() == StatusAssinatura.VENCIDA) {
+                        assinatura.setStatus(StatusAssinatura.ATIVA);
+                        atualizado = true;
+                        log.info("Sincronizacao: assinatura {} reativada (Asaas status: ACTIVE)",
+                                assinatura.getId());
+                    }
+                }
+
+                // Atualizar proximo vencimento do Asaas
+                if (subAsaas.getNextDueDate() != null) {
+                    try {
+                        LocalDate nextDue = LocalDate.parse(subAsaas.getNextDueDate());
+                        LocalDateTime nextDueTime = nextDue.atStartOfDay();
+                        if (assinatura.getDtProximoVencimento() == null ||
+                                !assinatura.getDtProximoVencimento().toLocalDate().equals(nextDue)) {
+                            assinatura.setDtProximoVencimento(nextDueTime);
+                            atualizado = true;
+                        }
+                    } catch (Exception e) {
+                        log.warn("Erro ao parsear nextDueDate do Asaas: {}", subAsaas.getNextDueDate());
+                    }
+                }
+
+                if (atualizado) {
+                    assinaturaRepository.save(assinatura);
+                    atualizadas++;
+                }
+            } catch (AssasApiException e) {
+                log.warn("Erro ao sincronizar assinatura ID {}: {}", assinatura.getId(), e.getMessage());
+            }
+        }
+
+        if (atualizadas > 0) {
+            log.info("Sincronizacao com Asaas concluida: {} assinaturas atualizadas de {} verificadas",
+                    atualizadas, assinaturas.size());
+        }
+    }
+
+    @Transactional
+    public void verificarInadimplentes() {
+        if (!assasClient.isConfigurado()) return;
+
+        List<Assinatura> ativas = assinaturaRepository.findByStatus(StatusAssinatura.ATIVA);
+        for (Assinatura assinatura : ativas) {
+            if (assinatura.isPlanoGratuito() || assinatura.getAssasSubscriptionId() == null) continue;
+
+            try {
+                AssasPaymentListResponse payments = assasClient.buscarPagamentosAssinatura(assinatura.getAssasSubscriptionId());
+                if (payments != null && payments.getData() != null) {
+                    boolean temOverdue = payments.getData().stream()
+                            .anyMatch(p -> "OVERDUE".equals(p.getStatus()));
+                    if (temOverdue && assinatura.getStatus() == StatusAssinatura.ATIVA) {
+                        assinatura.setStatus(StatusAssinatura.VENCIDA);
+                        assinaturaRepository.save(assinatura);
+                        log.info("Inadimplente detectado na verificacao - org: {}", assinatura.getOrganizacao().getId());
+                    }
+                }
+            } catch (AssasApiException e) {
+                log.warn("Erro ao verificar inadimplencia para assinatura ID {}: {}", assinatura.getId(), e.getMessage());
             }
         }
     }

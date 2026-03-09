@@ -24,6 +24,7 @@ import org.exemplo.bellory.model.entity.tema.*;
 import org.exemplo.bellory.model.entity.tenant.Page;
 import org.exemplo.bellory.model.entity.tenant.PageComponent;
 import org.exemplo.bellory.model.entity.tenant.Tenant;
+import org.exemplo.bellory.model.entity.assinatura.*;
 import org.exemplo.bellory.model.entity.users.Admin;
 import org.exemplo.bellory.model.entity.users.Cliente;
 import org.exemplo.bellory.model.entity.users.Role;
@@ -40,6 +41,13 @@ import org.exemplo.bellory.model.entity.questionario.enums.TipoQuestionario;
 import org.exemplo.bellory.model.repository.Transacao.CobrancaRepository;
 import org.exemplo.bellory.model.repository.Transacao.CompraRepository;
 import org.exemplo.bellory.model.repository.Transacao.PagamentoRepository;
+import org.exemplo.bellory.model.repository.assinatura.AssinaturaRepository;
+import org.exemplo.bellory.model.repository.assinatura.CobrancaPlataformaRepository;
+import org.exemplo.bellory.model.repository.assinatura.CupomDescontoRepository;
+import org.exemplo.bellory.model.repository.assinatura.WebhookLogRepository;
+import org.exemplo.bellory.model.dto.assinatura.assas.*;
+import org.exemplo.bellory.service.assinatura.AssasClient;
+import org.exemplo.bellory.exception.AssasApiException;
 import org.exemplo.bellory.model.repository.agendamento.AgendamentoRepository;
 import org.exemplo.bellory.model.repository.categoria.CategoriaRepository;
 import org.exemplo.bellory.model.repository.config.ConfigSistemaRepository;
@@ -113,6 +121,13 @@ public class DatabaseSeederService {
     private final ConfigNotificacaoRepository notificacaoConfigRepository;
     private final QuestionarioRepository questionarioRepository;
 
+    // Repositories e serviços de assinatura
+    private final AssinaturaRepository assinaturaRepository;
+    private final CupomDescontoRepository cupomDescontoRepository;
+    private final CobrancaPlataformaRepository cobrancaPlataformaRepository;
+    private final WebhookLogRepository webhookLogRepository;
+    private final AssasClient assasClient;
+
     // Arrays com dados diversos para randomização
     private final String[] nomesFemininos = {"Ana", "Maria", "Julia", "Carla", "Fernanda", "Beatriz", "Camila", "Larissa", "Rafaela", "Amanda", "Gabriela", "Bruna", "Letícia", "Mariana", "Priscila", "Débora", "Tatiane", "Vanessa", "Patrícia", "Luciana"};
     private final String[] nomesMasculinos = {"Carlos", "João", "Pedro", "Lucas", "Rafael", "Bruno", "Diego", "Rodrigo", "Felipe", "Gustavo", "Thiago", "André", "Marcelo", "Vinícius", "Leonardo", "Daniel", "Eduardo", "Gabriel", "Fernando", "Ricardo"};
@@ -151,7 +166,12 @@ public class DatabaseSeederService {
                                  PagamentoRepository pagamentoRepository,
                                  ConfigNotificacaoRepository notificacaoConfigRepository,
                                  QuestionarioRepository questionarioRepository,
-                                 OrganizacaoService organizacaoService) {
+                                 OrganizacaoService organizacaoService,
+                                 AssinaturaRepository assinaturaRepository,
+                                 CupomDescontoRepository cupomDescontoRepository,
+                                 CobrancaPlataformaRepository cobrancaPlataformaRepository,
+                                 WebhookLogRepository webhookLogRepository,
+                                 AssasClient assasClient) {
         this.organizacaoRepository = organizacaoRepository;
         this.roleRepository = roleRepository;
         this.funcionarioRepository = funcionarioRepository;
@@ -184,6 +204,11 @@ public class DatabaseSeederService {
         this.notificacaoConfigRepository = notificacaoConfigRepository;
         this.questionarioRepository = questionarioRepository;
         this.organizacaoService = organizacaoService;
+        this.assinaturaRepository = assinaturaRepository;
+        this.cupomDescontoRepository = cupomDescontoRepository;
+        this.cobrancaPlataformaRepository = cobrancaPlataformaRepository;
+        this.webhookLogRepository = webhookLogRepository;
+        this.assasClient = assasClient;
     }
 
     @Transactional
@@ -243,6 +268,9 @@ public class DatabaseSeederService {
         // 14. QUESTIONÁRIOS
         criarQuestionarios(orgPrincipal);
 
+        // 15. ASSINATURAS, CUPONS, COBRANÇAS E WEBHOOK LOGS
+        criarDadosAssinatura(organizacoes, planos);
+
         // seedTenantData();
 
         System.out.println("✅ Seeding completo finalizado com sucesso!");
@@ -262,6 +290,10 @@ public class DatabaseSeederService {
         System.out.println("   - Pagamentos de Agendamentos: com fluxo completo");
         System.out.println("   - Configurações de Notificação: 4 regras");
         System.out.println("   - Questionários: 3 com perguntas e opções");
+        System.out.println("   - Assinaturas: " + organizacoes.size() + " (diversos estados)");
+        System.out.println("   - Cupons de Desconto: 5 tipos diferentes");
+        System.out.println("   - Cobranças Plataforma: histórico de cobrança por assinatura");
+        System.out.println("   - Webhook Logs: registros de eventos Asaas");
     }
 
     private List<PlanoBellory> criarPlanos() {
@@ -641,6 +673,86 @@ public class DatabaseSeederService {
                         "moderno_admin",
                         "moderno123",
                         "plus"
+                },
+                {
+                        "Beauty Premium Spa",
+                        "Beauty Premium Spa LTDA",
+                        "71.444.156/0001-00",
+                        "(21) 3300-4000",
+                        "(21) 3300-4001",
+                        "(21) 99300-4000",
+                        "contato@beautypremium.com.br",
+                        "110.042.490.117",
+                        "Ana Paula Ribeiro",
+                        "ana@beautypremium.com.br",
+                        "(21) 99999-0004",
+                        "beauty_admin",
+                        "beauty123",
+                        "premium"
+                },
+                {
+                        "Corte e Arte",
+                        "Corte e Arte Cabeleireiros LTDA",
+                        "58.245.412/0001-71",
+                        "(31) 3400-5000",
+                        "(31) 3400-5001",
+                        "(31) 99400-5000",
+                        "contato@corteearte.com.br",
+                        "110.042.490.118",
+                        "Rodrigo Mendes",
+                        "rodrigo@corteearte.com.br",
+                        "(31) 99999-0005",
+                        "corte_admin",
+                        "corte123",
+                        "basico"
+                },
+                {
+                        "Glamour Hair Studio",
+                        "Glamour Hair Studio LTDA",
+                        "84.367.482/0001-02",
+                        "(41) 3500-6000",
+                        "(41) 3500-6001",
+                        "(41) 99500-6000",
+                        "contato@glamourhair.com.br",
+                        "110.042.490.119",
+                        "Fernanda Costa",
+                        "fernanda@glamourhair.com.br",
+                        "(41) 99999-0006",
+                        "glamour_admin",
+                        "glamour123",
+                        "plus"
+                },
+                {
+                        "Barbearia Vintage",
+                        "Barbearia Vintage LTDA",
+                        "31.576.854/0001-44",
+                        "(51) 3600-7000",
+                        "(51) 3600-7001",
+                        "(51) 99600-7000",
+                        "contato@barbeariavintage.com.br",
+                        "110.042.490.120",
+                        "Marcos Oliveira",
+                        "marcos@barbeariavintage.com.br",
+                        "(51) 99999-0007",
+                        "vintage_admin",
+                        "vintage123",
+                        "basico"
+                },
+                {
+                        "Espaco Zen Beauty",
+                        "Espaco Zen Beauty LTDA",
+                        "47.382.915/0001-72",
+                        "(61) 3700-8000",
+                        "(61) 3700-8001",
+                        "(61) 99700-8000",
+                        "contato@espacozen.com.br",
+                        "110.042.490.121",
+                        "Juliana Almeida",
+                        "juliana@espacozen.com.br",
+                        "(61) 99999-0008",
+                        "zen_admin",
+                        "zen123",
+                        "gratuito"
                 }
         };
 
@@ -712,12 +824,12 @@ public class DatabaseSeederService {
             org.setRedesSociais(redesSociais);
             organizacaoRepository.save(org);
 
-            // API Key para o admin suporte (criado pelo OrganizacaoService.create)
-            Admin adminSuporte = adminRepository.findByUsernameAndOrganizacao_Id("bellory_suporte", org.getId()).get();
-            Map<String, Object> apiKey = apiKeyService.generateApiKey(
-                    adminSuporte.getId(), ApiKey.UserType.SISTEMA,
-                    "API_KEY_DEFAULT", "API Key para execução de automações internas do sistema", null);
-            System.out.println("   ✓ API Key criada: " + apiKey);
+            // API Key já é criada pelo OrganizacaoService.create() junto com o admin suporte
+            Admin adminSuporte = adminRepository.findByUsernameAndOrganizacao_Id("bellory_suporte", org.getId())
+                    .orElse(null);
+            if (adminSuporte != null) {
+                System.out.println("   ✓ Admin suporte encontrado: " + adminSuporte.getUsername());
+            }
 
             // Instância WhatsApp
 //            InstanceCreateDTO instance = new InstanceCreateDTO();
@@ -3146,6 +3258,592 @@ public class DatabaseSeederService {
                     .build();
             pergunta.addOpcao(opcao);
         }
+    }
+
+    // ========================================================================================
+    // SEEDING DE ASSINATURAS, CUPONS, COBRANÇAS E WEBHOOK LOGS
+    // ========================================================================================
+
+    private void criarDadosAssinatura(List<Organizacao> organizacoes, List<PlanoBellory> planos) {
+        System.out.println("💳 Criando dados de assinatura (cupons, cobranças, webhooks)...");
+
+        // Verifica se já existem dados de assinatura
+        if (cobrancaPlataformaRepository.count() > 0) {
+            System.out.println("   ✓ Dados de assinatura já existem, pulando...");
+            return;
+        }
+
+        // Mapa de planos por código para fácil acesso
+        Map<String, PlanoBellory> planoMap = new HashMap<>();
+        for (PlanoBellory p : planos) {
+            planoMap.put(p.getCodigo(), p);
+        }
+
+        // 1. Criar cupons de desconto
+        List<CupomDesconto> cupons = criarCuponsDesconto();
+
+        // 2. Configurar assinaturas de cada organização com estados diferentes
+        configurarAssinaturas(organizacoes, planoMap, cupons);
+
+        System.out.println("   ✓ Dados de assinatura criados com sucesso!");
+    }
+
+    private List<CupomDesconto> criarCuponsDesconto() {
+        System.out.println("   🎟️ Criando cupons de desconto...");
+        List<CupomDesconto> cupons = new ArrayList<>();
+
+        // Cupom 1: 20% na primeira cobrança - qualquer plano
+        cupons.add(cupomDescontoRepository.save(CupomDesconto.builder()
+                .codigo("BEMVINDO20")
+                .descricao("20% de desconto na primeira cobrança para novos clientes")
+                .tipoDesconto(TipoDesconto.PERCENTUAL)
+                .valorDesconto(new BigDecimal("20.00"))
+                .tipoAplicacao(TipoAplicacaoCupom.PRIMEIRA_COBRANCA)
+                .maxUtilizacoes(100)
+                .maxUtilizacoesPorOrg(1)
+                .totalUtilizado(3)
+                .dtInicio(LocalDateTime.now().minusDays(30))
+                .dtFim(LocalDateTime.now().plusDays(60))
+                .ativo(true)
+                .build()));
+
+        // Cupom 2: R$30 fixo recorrente - somente plano plus e premium
+        cupons.add(cupomDescontoRepository.save(CupomDesconto.builder()
+                .codigo("FIDELIDADE30")
+                .descricao("R$30 de desconto recorrente para planos Plus e Premium")
+                .tipoDesconto(TipoDesconto.VALOR_FIXO)
+                .valorDesconto(new BigDecimal("30.00"))
+                .tipoAplicacao(TipoAplicacaoCupom.RECORRENTE)
+                .planosPermitidos("[\"plus\", \"premium\"]")
+                .maxUtilizacoes(50)
+                .maxUtilizacoesPorOrg(1)
+                .totalUtilizado(1)
+                .dtInicio(LocalDateTime.now().minusDays(15))
+                .dtFim(LocalDateTime.now().plusDays(90))
+                .ativo(true)
+                .build()));
+
+        // Cupom 3: 50% na primeira cobrança - promoção anual
+        cupons.add(cupomDescontoRepository.save(CupomDesconto.builder()
+                .codigo("ANUAL50")
+                .descricao("50% na primeira cobrança para planos anuais")
+                .tipoDesconto(TipoDesconto.PERCENTUAL)
+                .valorDesconto(new BigDecimal("50.00"))
+                .tipoAplicacao(TipoAplicacaoCupom.PRIMEIRA_COBRANCA)
+                .cicloCobranca("ANUAL")
+                .maxUtilizacoes(20)
+                .maxUtilizacoesPorOrg(1)
+                .totalUtilizado(1)
+                .dtInicio(LocalDateTime.now().minusDays(10))
+                .dtFim(LocalDateTime.now().plusDays(30))
+                .ativo(true)
+                .build()));
+
+        // Cupom 4: R$10 fixo primeira cobrança - expirado
+        cupons.add(cupomDescontoRepository.save(CupomDesconto.builder()
+                .codigo("LANCAMENTO10")
+                .descricao("R$10 de desconto de lançamento (expirado)")
+                .tipoDesconto(TipoDesconto.VALOR_FIXO)
+                .valorDesconto(new BigDecimal("10.00"))
+                .tipoAplicacao(TipoAplicacaoCupom.PRIMEIRA_COBRANCA)
+                .maxUtilizacoes(200)
+                .maxUtilizacoesPorOrg(1)
+                .totalUtilizado(45)
+                .dtInicio(LocalDateTime.now().minusDays(90))
+                .dtFim(LocalDateTime.now().minusDays(30))
+                .ativo(false)
+                .build()));
+
+        // Cupom 5: 100% (grátis) primeira cobrança - uso limitado (parceiro)
+        cupons.add(cupomDescontoRepository.save(CupomDesconto.builder()
+                .codigo("PARCEIRO100")
+                .descricao("100% de desconto primeira cobrança - parceiros estratégicos")
+                .tipoDesconto(TipoDesconto.PERCENTUAL)
+                .valorDesconto(new BigDecimal("100.00"))
+                .tipoAplicacao(TipoAplicacaoCupom.PRIMEIRA_COBRANCA)
+                .maxUtilizacoes(5)
+                .maxUtilizacoesPorOrg(1)
+                .totalUtilizado(2)
+                .dtInicio(LocalDateTime.now().minusDays(60))
+                .dtFim(LocalDateTime.now().plusDays(120))
+                .ativo(true)
+                .build()));
+
+        System.out.println("   ✓ " + cupons.size() + " cupons criados");
+        return cupons;
+    }
+
+    private void configurarAssinaturas(List<Organizacao> organizacoes, Map<String, PlanoBellory> planoMap, List<CupomDesconto> cupons) {
+        System.out.println("   📄 Configurando assinaturas com estados diversos...");
+
+        LocalDateTime agora = LocalDateTime.now();
+
+        for (int i = 0; i < organizacoes.size(); i++) {
+            Organizacao org = organizacoes.get(i);
+
+            // Busca a assinatura criada pelo OrganizacaoService.create() (sempre TRIAL)
+            Optional<Assinatura> optAssinatura = assinaturaRepository.findByOrganizacaoId(org.getId());
+            if (optAssinatura.isEmpty()) {
+                System.out.println("   ⚠ Sem assinatura para org: " + org.getNomeFantasia());
+                continue;
+            }
+
+            Assinatura assinatura = optAssinatura.get();
+
+            switch (i) {
+                case 0 -> configurarTrialAtivo(assinatura, planoMap.get("gratuito"), agora);
+                case 1 -> configurarAtivaMensal(assinatura, planoMap.get("basico"), agora, cupons.get(0));
+                case 2 -> configurarAtivaAnual(assinatura, planoMap.get("plus"), agora, cupons.get(1));
+                case 3 -> configurarPagamentoAtrasado(assinatura, planoMap.get("premium"), agora);
+                case 4 -> configurarTrialExpirado(assinatura, planoMap.get("basico"), agora);
+                case 5 -> configurarCanceladaComAcesso(assinatura, planoMap.get("plus"), agora);
+                case 6 -> configurarVencida(assinatura, planoMap.get("basico"), agora);
+                case 7 -> configurarPlanoGratuito(assinatura, planoMap.get("gratuito"), agora);
+            }
+
+            assinaturaRepository.save(assinatura);
+            System.out.println("   ✓ " + org.getNomeFantasia() + " → " + assinatura.getStatus());
+        }
+    }
+
+    // Org 0 (Bellory Salon): TRIAL ativo - 10 dias restantes
+    private void configurarTrialAtivo(Assinatura a, PlanoBellory plano, LocalDateTime agora) {
+        a.setPlanoBellory(plano);
+        a.setStatus(StatusAssinatura.TRIAL);
+        a.setCicloCobranca(CicloCobranca.MENSAL);
+        a.setDtInicioTrial(agora.minusDays(4));
+        a.setDtFimTrial(agora.plusDays(10));
+        a.setValorMensal(plano.getPrecoMensal());
+        a.setValorAnual(plano.getPrecoAnual());
+        // Sem cobranças - trial puro
+    }
+
+    // Org 1 (Studio Elegance): ATIVA mensal com cupom, 2 cobranças pagas + 1 pendente
+    private void configurarAtivaMensal(Assinatura a, PlanoBellory plano, LocalDateTime agora, CupomDesconto cupom) {
+        a.setPlanoBellory(plano);
+        a.setStatus(StatusAssinatura.ATIVA);
+        a.setCicloCobranca(CicloCobranca.MENSAL);
+        a.setDtInicioTrial(agora.minusDays(60));
+        a.setDtFimTrial(agora.minusDays(46));
+        a.setDtInicio(agora.minusDays(46));
+        a.setDtProximoVencimento(agora.plusDays(14));
+        a.setValorMensal(plano.getPrecoMensal());
+        a.setValorAnual(plano.getPrecoAnual());
+        a.setFormaPagamento(FormaPagamentoPlataforma.PIX);
+        a.setCupom(cupom);
+        a.setCupomCodigo(cupom.getCodigo());
+        a.setValorDesconto(new BigDecimal("15.98")); // 20% de 79.90
+
+        // Criar assinatura no Asaas (sandbox)
+        BigDecimal valorComDesconto = plano.getPrecoMensal().subtract(new BigDecimal("15.98"));
+        String assasSubId = criarAssinaturaNoAsaas(a, plano, CicloCobranca.MENSAL, FormaPagamentoPlataforma.PIX, valorComDesconto);
+        if (assasSubId != null) {
+            a.setAssasSubscriptionId(assasSubId);
+        }
+
+        assinaturaRepository.save(a);
+
+        String subId = a.getAssasSubscriptionId() != null ? a.getAssasSubscriptionId() : "sub_seed_elegance";
+
+        // Cobrança 1: PAGA (2 meses atrás) - com desconto do cupom
+        criarCobrancaPlataforma(a, a.getOrganizacao(),
+                plano.getPrecoMensal().subtract(new BigDecimal("15.98")),
+                agora.minusDays(46).toLocalDate(),
+                StatusCobrancaPlataforma.PAGA,
+                FormaPagamentoPlataforma.PIX,
+                agora.minusDays(46).toLocalDate().getMonthValue(),
+                agora.minusDays(46).toLocalDate().getYear(),
+                "pay_seed_001", agora.minusDays(45),
+                cupom, plano.getPrecoMensal(), new BigDecimal("15.98"));
+
+        // Cobrança 2: PAGA (1 mês atrás) - sem desconto (cupom era PRIMEIRA_COBRANCA)
+        criarCobrancaPlataforma(a, a.getOrganizacao(),
+                plano.getPrecoMensal(),
+                agora.minusDays(16).toLocalDate(),
+                StatusCobrancaPlataforma.PAGA,
+                FormaPagamentoPlataforma.PIX,
+                agora.minusDays(16).toLocalDate().getMonthValue(),
+                agora.minusDays(16).toLocalDate().getYear(),
+                "pay_seed_002", agora.minusDays(15),
+                null, null, null);
+
+        // Cobrança 3: PENDENTE (vence em 14 dias)
+        criarCobrancaPlataforma(a, a.getOrganizacao(),
+                plano.getPrecoMensal(),
+                agora.plusDays(14).toLocalDate(),
+                StatusCobrancaPlataforma.PENDENTE,
+                FormaPagamentoPlataforma.PIX,
+                agora.plusDays(14).toLocalDate().getMonthValue(),
+                agora.plusDays(14).toLocalDate().getYear(),
+                "pay_seed_003", null,
+                null, null, null);
+
+        // Webhook logs para cobranças pagas
+        criarWebhookLog(a, "PAYMENT_CONFIRMED", "pay_seed_001", subId,
+                plano.getPrecoMensal().subtract(new BigDecimal("15.98")), "CONFIRMED", agora.minusDays(45));
+        criarWebhookLog(a, "PAYMENT_CONFIRMED", "pay_seed_002", subId,
+                plano.getPrecoMensal(), "CONFIRMED", agora.minusDays(15));
+        criarWebhookLog(a, "PAYMENT_CREATED", "pay_seed_003", subId,
+                plano.getPrecoMensal(), "PENDING", agora.minusDays(1));
+    }
+
+    // Org 2 (Salon Moderno): ATIVA anual com cupom recorrente, 1 cobrança paga
+    private void configurarAtivaAnual(Assinatura a, PlanoBellory plano, LocalDateTime agora, CupomDesconto cupom) {
+        a.setPlanoBellory(plano);
+        a.setStatus(StatusAssinatura.ATIVA);
+        a.setCicloCobranca(CicloCobranca.ANUAL);
+        a.setDtInicioTrial(agora.minusDays(90));
+        a.setDtFimTrial(agora.minusDays(76));
+        a.setDtInicio(agora.minusDays(76));
+        a.setDtProximoVencimento(agora.plusDays(289));
+        a.setValorMensal(plano.getPrecoMensal());
+        a.setValorAnual(plano.getPrecoAnual());
+        a.setFormaPagamento(FormaPagamentoPlataforma.BOLETO);
+        a.setCupom(cupom);
+        a.setCupomCodigo(cupom.getCodigo());
+        a.setValorDesconto(new BigDecimal("30.00")); // R$30 fixo recorrente
+
+        // Criar assinatura no Asaas (sandbox)
+        BigDecimal valorAnualComDesconto = plano.getPrecoAnual().subtract(new BigDecimal("30.00"));
+        String assasSubId = criarAssinaturaNoAsaas(a, plano, CicloCobranca.ANUAL, FormaPagamentoPlataforma.BOLETO, valorAnualComDesconto);
+        if (assasSubId != null) {
+            a.setAssasSubscriptionId(assasSubId);
+        }
+
+        assinaturaRepository.save(a);
+
+        String subId = a.getAssasSubscriptionId() != null ? a.getAssasSubscriptionId() : "sub_seed_moderno";
+
+        // Cobrança anual: PAGA (76 dias atrás) com desconto
+        criarCobrancaPlataforma(a, a.getOrganizacao(),
+                valorAnualComDesconto,
+                agora.minusDays(76).toLocalDate(),
+                StatusCobrancaPlataforma.PAGA,
+                FormaPagamentoPlataforma.BOLETO,
+                agora.minusDays(76).toLocalDate().getMonthValue(),
+                agora.minusDays(76).toLocalDate().getYear(),
+                "pay_seed_010", agora.minusDays(74),
+                cupom, plano.getPrecoAnual(), new BigDecimal("30.00"));
+
+        criarWebhookLog(a, "PAYMENT_CONFIRMED", "pay_seed_010", subId,
+                valorAnualComDesconto, "CONFIRMED", agora.minusDays(74));
+    }
+
+    // Org 3 (Beauty Premium Spa): ATIVA com pagamento pendente/atrasado (VENCIDA)
+    private void configurarPagamentoAtrasado(Assinatura a, PlanoBellory plano, LocalDateTime agora) {
+        a.setPlanoBellory(plano);
+        a.setStatus(StatusAssinatura.VENCIDA);
+        a.setCicloCobranca(CicloCobranca.MENSAL);
+        a.setDtInicioTrial(agora.minusDays(75));
+        a.setDtFimTrial(agora.minusDays(61));
+        a.setDtInicio(agora.minusDays(61));
+        a.setDtProximoVencimento(agora.minusDays(1));
+        a.setValorMensal(plano.getPrecoMensal());
+        a.setValorAnual(plano.getPrecoAnual());
+        a.setFormaPagamento(FormaPagamentoPlataforma.BOLETO); // Sandbox não aceita CREDIT_CARD sem token
+
+        // Criar assinatura no Asaas (sandbox)
+        String assasSubId = criarAssinaturaNoAsaas(a, plano, CicloCobranca.MENSAL, FormaPagamentoPlataforma.BOLETO, plano.getPrecoMensal());
+        if (assasSubId != null) {
+            a.setAssasSubscriptionId(assasSubId);
+        }
+
+        assinaturaRepository.save(a);
+
+        String subId = a.getAssasSubscriptionId() != null ? a.getAssasSubscriptionId() : "sub_seed_beauty";
+
+        // Cobrança 1: PAGA (2 meses atrás)
+        criarCobrancaPlataforma(a, a.getOrganizacao(),
+                plano.getPrecoMensal(),
+                agora.minusDays(61).toLocalDate(),
+                StatusCobrancaPlataforma.PAGA,
+                FormaPagamentoPlataforma.BOLETO,
+                agora.minusDays(61).toLocalDate().getMonthValue(),
+                agora.minusDays(61).toLocalDate().getYear(),
+                "pay_seed_020", agora.minusDays(61),
+                null, null, null);
+
+        // Cobrança 2: PAGA (1 mês atrás)
+        criarCobrancaPlataforma(a, a.getOrganizacao(),
+                plano.getPrecoMensal(),
+                agora.minusDays(31).toLocalDate(),
+                StatusCobrancaPlataforma.PAGA,
+                FormaPagamentoPlataforma.BOLETO,
+                agora.minusDays(31).toLocalDate().getMonthValue(),
+                agora.minusDays(31).toLocalDate().getYear(),
+                "pay_seed_021", agora.minusDays(30),
+                null, null, null);
+
+        // Cobrança 3: VENCIDA (venceu ontem - não paga)
+        criarCobrancaPlataforma(a, a.getOrganizacao(),
+                plano.getPrecoMensal(),
+                agora.minusDays(1).toLocalDate(),
+                StatusCobrancaPlataforma.VENCIDA,
+                FormaPagamentoPlataforma.BOLETO,
+                agora.minusDays(1).toLocalDate().getMonthValue(),
+                agora.minusDays(1).toLocalDate().getYear(),
+                "pay_seed_022", null,
+                null, null, null);
+
+        criarWebhookLog(a, "PAYMENT_CONFIRMED", "pay_seed_020", subId,
+                plano.getPrecoMensal(), "CONFIRMED", agora.minusDays(61));
+        criarWebhookLog(a, "PAYMENT_CONFIRMED", "pay_seed_021", subId,
+                plano.getPrecoMensal(), "CONFIRMED", agora.minusDays(30));
+        criarWebhookLog(a, "PAYMENT_OVERDUE", "pay_seed_022", subId,
+                plano.getPrecoMensal(), "OVERDUE", agora);
+    }
+
+    // Org 4 (Corte e Arte): TRIAL expirado (expirou há 3 dias)
+    private void configurarTrialExpirado(Assinatura a, PlanoBellory plano, LocalDateTime agora) {
+        a.setPlanoBellory(plano);
+        a.setStatus(StatusAssinatura.TRIAL);
+        a.setCicloCobranca(CicloCobranca.MENSAL);
+        a.setDtInicioTrial(agora.minusDays(17));
+        a.setDtFimTrial(agora.minusDays(3));
+        a.setDtTrialNotificado(agora.minusDays(5)); // Notificado 2 dias antes do fim
+        a.setValorMensal(plano.getPrecoMensal());
+        a.setValorAnual(plano.getPrecoAnual());
+        // Sem cobranças - nunca escolheu plano
+    }
+
+    // Org 5 (Glamour Hair Studio): CANCELADA com acesso (cancelou, mas acesso válido até +15 dias)
+    private void configurarCanceladaComAcesso(Assinatura a, PlanoBellory plano, LocalDateTime agora) {
+        a.setPlanoBellory(plano);
+        a.setStatus(StatusAssinatura.CANCELADA);
+        a.setCicloCobranca(CicloCobranca.MENSAL);
+        a.setDtInicioTrial(agora.minusDays(120));
+        a.setDtFimTrial(agora.minusDays(106));
+        a.setDtInicio(agora.minusDays(106));
+        a.setDtProximoVencimento(agora.plusDays(15)); // Acesso até aqui
+        a.setDtCancelamento(agora.minusDays(5));
+        a.setValorMensal(plano.getPrecoMensal());
+        a.setValorAnual(plano.getPrecoAnual());
+        a.setFormaPagamento(FormaPagamentoPlataforma.PIX);
+
+        // Criar assinatura no Asaas e depois cancelar (simula cenário real)
+        String assasSubId = criarAssinaturaNoAsaas(a, plano, CicloCobranca.MENSAL, FormaPagamentoPlataforma.PIX, plano.getPrecoMensal());
+        if (assasSubId != null) {
+            a.setAssasSubscriptionId(assasSubId);
+            cancelarAssinaturaNoAsaas(assasSubId);
+        }
+
+        assinaturaRepository.save(a);
+
+        String subId = a.getAssasSubscriptionId() != null ? a.getAssasSubscriptionId() : "sub_seed_glamour";
+
+        // 3 cobranças pagas no histórico
+        for (int m = 3; m >= 1; m--) {
+            LocalDateTime dtRef = agora.minusDays(m * 30L + 16);
+            criarCobrancaPlataforma(a, a.getOrganizacao(),
+                    plano.getPrecoMensal(),
+                    dtRef.toLocalDate(),
+                    StatusCobrancaPlataforma.PAGA,
+                    FormaPagamentoPlataforma.PIX,
+                    dtRef.toLocalDate().getMonthValue(),
+                    dtRef.toLocalDate().getYear(),
+                    "pay_seed_glamour_" + m, dtRef.plusDays(1),
+                    null, null, null);
+
+            criarWebhookLog(a, "PAYMENT_CONFIRMED", "pay_seed_glamour_" + m, subId,
+                    plano.getPrecoMensal(), "CONFIRMED", dtRef.plusDays(1));
+        }
+
+        // Webhook de cancelamento
+        criarWebhookLog(a, "PAYMENT_DELETED", null, subId,
+                null, null, agora.minusDays(5));
+    }
+
+    // Org 6 (Barbearia Vintage): VENCIDA (pagamento atrasado há 10 dias)
+    private void configurarVencida(Assinatura a, PlanoBellory plano, LocalDateTime agora) {
+        a.setPlanoBellory(plano);
+        a.setStatus(StatusAssinatura.VENCIDA);
+        a.setCicloCobranca(CicloCobranca.MENSAL);
+        a.setDtInicioTrial(agora.minusDays(50));
+        a.setDtFimTrial(agora.minusDays(36));
+        a.setDtInicio(agora.minusDays(36));
+        a.setDtProximoVencimento(agora.minusDays(10));
+        a.setValorMensal(plano.getPrecoMensal());
+        a.setValorAnual(plano.getPrecoAnual());
+        a.setFormaPagamento(FormaPagamentoPlataforma.BOLETO);
+
+        // Criar assinatura no Asaas (sandbox)
+        String assasSubId = criarAssinaturaNoAsaas(a, plano, CicloCobranca.MENSAL, FormaPagamentoPlataforma.BOLETO, plano.getPrecoMensal());
+        if (assasSubId != null) {
+            a.setAssasSubscriptionId(assasSubId);
+        }
+
+        assinaturaRepository.save(a);
+
+        String subId = a.getAssasSubscriptionId() != null ? a.getAssasSubscriptionId() : "sub_seed_vintage";
+
+        // Cobrança 1: PAGA
+        criarCobrancaPlataforma(a, a.getOrganizacao(),
+                plano.getPrecoMensal(),
+                agora.minusDays(36).toLocalDate(),
+                StatusCobrancaPlataforma.PAGA,
+                FormaPagamentoPlataforma.BOLETO,
+                agora.minusDays(36).toLocalDate().getMonthValue(),
+                agora.minusDays(36).toLocalDate().getYear(),
+                "pay_seed_vintage_1", agora.minusDays(35),
+                null, null, null);
+
+        // Cobrança 2: VENCIDA (10 dias atrás)
+        criarCobrancaPlataforma(a, a.getOrganizacao(),
+                plano.getPrecoMensal(),
+                agora.minusDays(10).toLocalDate(),
+                StatusCobrancaPlataforma.VENCIDA,
+                FormaPagamentoPlataforma.BOLETO,
+                agora.minusDays(10).toLocalDate().getMonthValue(),
+                agora.minusDays(10).toLocalDate().getYear(),
+                "pay_seed_vintage_2", null,
+                null, null, null);
+
+        criarWebhookLog(a, "PAYMENT_CONFIRMED", "pay_seed_vintage_1", subId,
+                plano.getPrecoMensal(), "CONFIRMED", agora.minusDays(35));
+        criarWebhookLog(a, "PAYMENT_OVERDUE", "pay_seed_vintage_2", subId,
+                plano.getPrecoMensal(), "OVERDUE", agora.minusDays(7));
+    }
+
+    // Org 7 (Espaco Zen Beauty): Plano gratuito (migrou do trial expirado)
+    private void configurarPlanoGratuito(Assinatura a, PlanoBellory plano, LocalDateTime agora) {
+        a.setPlanoBellory(plano);
+        a.setStatus(StatusAssinatura.ATIVA);
+        a.setCicloCobranca(CicloCobranca.MENSAL);
+        a.setDtInicioTrial(agora.minusDays(30));
+        a.setDtFimTrial(agora.minusDays(16));
+        a.setDtInicio(agora.minusDays(16)); // Migrou para gratuito quando trial expirou
+        a.setValorMensal(BigDecimal.ZERO);
+        a.setValorAnual(BigDecimal.ZERO);
+        // Sem cobranças - plano gratuito
+    }
+
+    // Helper: criar CobrancaPlataforma
+    private CobrancaPlataforma criarCobrancaPlataforma(Assinatura assinatura, Organizacao org,
+                                                        BigDecimal valor, LocalDate dtVencimento,
+                                                        StatusCobrancaPlataforma status,
+                                                        FormaPagamentoPlataforma formaPagamento,
+                                                        int referenciaMes, int referenciaAno,
+                                                        String assasPaymentId, LocalDateTime dtPagamento,
+                                                        CupomDesconto cupom, BigDecimal valorOriginal, BigDecimal valorDescontoAplicado) {
+        CobrancaPlataforma cobranca = CobrancaPlataforma.builder()
+                .assinatura(assinatura)
+                .organizacao(org)
+                .valor(valor)
+                .dtVencimento(dtVencimento)
+                .status(status)
+                .formaPagamento(formaPagamento)
+                .referenciaMes(referenciaMes)
+                .referenciaAno(referenciaAno)
+                .assasPaymentId(assasPaymentId)
+                .build();
+
+        if (dtPagamento != null) {
+            cobranca.setDtPagamento(dtPagamento);
+        }
+
+        if (cupom != null) {
+            cobranca.setCupom(cupom);
+            cobranca.setCupomCodigo(cupom.getCodigo());
+            cobranca.setValorOriginal(valorOriginal);
+            cobranca.setValorDescontoAplicado(valorDescontoAplicado);
+        }
+
+        // Links de pagamento simulados para cobranças pendentes
+        if (status == StatusCobrancaPlataforma.PENDENTE) {
+            cobranca.setAssasInvoiceUrl("https://sandbox.asaas.com/i/" + assasPaymentId);
+            cobranca.setAssasBankSlipUrl("https://sandbox.asaas.com/b/pdf/" + assasPaymentId);
+            cobranca.setAssasPixCopiaCola("00020126580014br.gov.bcb.pix0136test-" + assasPaymentId + "-pix-key5204000053039865802BR");
+        }
+
+        return cobrancaPlataformaRepository.save(cobranca);
+    }
+
+    // Helper: criar assinatura no Asaas (sandbox)
+    private String criarAssinaturaNoAsaas(Assinatura assinatura, PlanoBellory plano, CicloCobranca ciclo,
+                                           FormaPagamentoPlataforma forma, BigDecimal valor) {
+        if (!assasClient.isConfigurado()) {
+            System.out.println("      ⚠ Asaas não configurado, pulando criação no Asaas");
+            return null;
+        }
+
+        try {
+            // Garantir que tem customer ID
+            if (assinatura.getAssasCustomerId() == null) {
+                Organizacao org = assinatura.getOrganizacao();
+                AssasCustomerResponse customer = assasClient.criarCliente(
+                        AssasCustomerRequest.builder()
+                                .name(org.getNomeFantasia())
+                                .cpfCnpj(org.getCnpj().replaceAll("[^\\d]", ""))
+                                .email(org.getEmailPrincipal())
+                                .phone(org.getTelefone1() != null ? org.getTelefone1().replaceAll("[^\\d]", "") : null)
+                                .build()
+                );
+                if (customer != null) {
+                    assinatura.setAssasCustomerId(customer.getId());
+                    System.out.println("      ✓ Cliente Asaas criado: " + customer.getId());
+                }
+            }
+
+            if (assinatura.getAssasCustomerId() == null) {
+                System.out.println("      ⚠ Sem customer ID, pulando criação de assinatura no Asaas");
+                return null;
+            }
+
+            String billingType = switch (forma) {
+                case PIX -> "PIX";
+                case BOLETO -> "BOLETO";
+                case CARTAO_CREDITO -> "CREDIT_CARD";
+            };
+            String cycle = ciclo == CicloCobranca.ANUAL ? "YEARLY" : "MONTHLY";
+
+            AssasSubscriptionResponse sub = assasClient.criarAssinatura(
+                    AssasSubscriptionRequest.builder()
+                            .customer(assinatura.getAssasCustomerId())
+                            .billingType(billingType)
+                            .value(valor)
+                            .cycle(cycle)
+                            .nextDueDate(LocalDate.now().plusDays(1).toString())
+                            .description("Assinatura Bellory - Plano " + plano.getNome() + " (Seed)")
+                            .build()
+            );
+
+            if (sub != null) {
+                System.out.println("      ✓ Assinatura Asaas criada: " + sub.getId());
+                return sub.getId();
+            }
+        } catch (AssasApiException e) {
+            System.out.println("      ⚠ Erro ao criar assinatura no Asaas: " + e.getMessage());
+        } catch (Exception e) {
+            System.out.println("      ⚠ Erro inesperado ao criar no Asaas: " + e.getMessage());
+        }
+        return null;
+    }
+
+    // Helper: cancelar assinatura no Asaas (para cenários de cancelamento)
+    private void cancelarAssinaturaNoAsaas(String assasSubscriptionId) {
+        if (!assasClient.isConfigurado() || assasSubscriptionId == null) return;
+        try {
+            assasClient.cancelarAssinatura(assasSubscriptionId);
+            System.out.println("      ✓ Assinatura Asaas cancelada: " + assasSubscriptionId);
+        } catch (Exception e) {
+            System.out.println("      ⚠ Erro ao cancelar no Asaas: " + e.getMessage());
+        }
+    }
+
+    // Helper: criar WebhookLog
+    private WebhookLog criarWebhookLog(Assinatura assinatura, String evento, String assasPaymentId,
+                                        String assasSubscriptionId, BigDecimal valor,
+                                        String statusPagamento, LocalDateTime dtRecebimento) {
+        return webhookLogRepository.save(WebhookLog.builder()
+                .assinatura(assinatura)
+                .evento(evento)
+                .assasPaymentId(assasPaymentId)
+                .assasSubscriptionId(assasSubscriptionId)
+                .valor(valor)
+                .statusPagamento(statusPagamento)
+                .payloadResumo("{\"event\":\"" + evento + "\",\"payment\":{\"id\":\"" + assasPaymentId + "\",\"status\":\"" + statusPagamento + "\"}}")
+                .dtRecebimento(dtRecebimento)
+                .build());
     }
 
 }

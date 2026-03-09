@@ -26,6 +26,7 @@ public class CobrancaPlataformaDTO {
     private String assasBankSlipUrl;
     private String assasPixQrCode;
     private String assasPixCopiaCola;
+    private String assasPixExpirationDate;
     private Integer referenciaMes;
     private Integer referenciaAno;
     private String cupomCodigo;
