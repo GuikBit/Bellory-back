@@ -59,7 +59,7 @@ public class OrganizacaoMapper {
 
             Coordenadas cood = new Coordenadas();
             cood.setLatitude(dto.getEndereco().getLatitude().toString());
-            cood.setLatitude(dto.getEndereco().getLongitude().toString());
+            cood.setLongitude(dto.getEndereco().getLongitude().toString());
             endereco.setCoordenadas(cood);
 
             org.setEnderecoPrincipal(endereco);

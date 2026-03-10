@@ -232,6 +232,14 @@ public interface AdminQueryRepository extends JpaRepository<Organizacao, Long> {
     @Query("SELECT COUNT(c) FROM Cobranca c WHERE c.organizacao.id = :orgId AND c.statusCobranca = 'VENCIDA'")
     Long countCobrancasVencidasByOrganizacao(@Param("orgId") Long orgId);
 
+    // === LOCALIZACOES (MAPA) ===
+
+    @Query("SELECT e.cidade, e.uf, e.coordenadas.latitude, e.coordenadas.longitude " +
+            "FROM Organizacao o JOIN o.enderecoPrincipal e " +
+            "WHERE o.ativo = true " +
+            "AND e.coordenadas.latitude IS NOT NULL AND e.coordenadas.longitude IS NOT NULL")
+    List<Object[]> findLocalizacoesOrganizacoes();
+
     // === ORGANIZACOES COM DETALHES ===
 
     @Query("SELECT DISTINCT o FROM Organizacao o " +
