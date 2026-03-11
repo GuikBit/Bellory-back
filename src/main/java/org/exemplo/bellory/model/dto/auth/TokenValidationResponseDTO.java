@@ -6,6 +6,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import org.exemplo.bellory.model.dto.assinatura.AssinaturaStatusDTO;
+
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -21,4 +23,5 @@ public class TokenValidationResponseDTO {
         private List<String> roles;
         @JsonFormat(pattern = "dd/MM/yyyy HH:mm:ss")
         private LocalDateTime expiresAt;
+        private AssinaturaStatusDTO assinatura;
 }

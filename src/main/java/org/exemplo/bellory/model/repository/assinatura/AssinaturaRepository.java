@@ -46,6 +46,38 @@ public interface AssinaturaRepository extends JpaRepository<Assinatura, Long> {
     @Query("SELECT a FROM Assinatura a " +
            "LEFT JOIN FETCH a.organizacao " +
            "LEFT JOIN FETCH a.planoBellory " +
+           "LEFT JOIN FETCH a.cupom " +
            "WHERE a.status = 'ATIVA' AND a.dtProximoVencimento IS NOT NULL")
     List<Assinatura> findAtivasComVencimento();
+
+    @Query("SELECT a FROM Assinatura a " +
+           "LEFT JOIN FETCH a.organizacao " +
+           "LEFT JOIN FETCH a.planoBellory " +
+           "WHERE a.status = 'TRIAL' AND a.dtFimTrial BETWEEN :inicio AND :fim")
+    List<Assinatura> findTrialsExpirandoEntre(@Param("inicio") LocalDateTime inicio, @Param("fim") LocalDateTime fim);
+
+    @Query("SELECT a FROM Assinatura a " +
+           "LEFT JOIN FETCH a.organizacao " +
+           "LEFT JOIN FETCH a.planoBellory " +
+           "LEFT JOIN FETCH a.cupom " +
+           "WHERE a.status = 'ATIVA' AND a.cicloCobranca = 'ANUAL' " +
+           "AND a.dtProximoVencimento IS NOT NULL AND a.dtProximoVencimento <= :limite")
+    List<Assinatura> findAnuaisParaRenovacao(@Param("limite") LocalDateTime limite);
+
+    @Query("SELECT a FROM Assinatura a " +
+           "LEFT JOIN FETCH a.organizacao " +
+           "LEFT JOIN FETCH a.planoBellory " +
+           "LEFT JOIN FETCH a.cupom " +
+           "WHERE a.status = 'ATIVA' AND a.cicloCobranca = 'MENSAL' " +
+           "AND a.dtProximoVencimento IS NOT NULL")
+    List<Assinatura> findMensaisAtivas();
+
+    @Query("SELECT a FROM Assinatura a " +
+           "LEFT JOIN FETCH a.organizacao " +
+           "LEFT JOIN FETCH a.planoBellory " +
+           "WHERE a.assasSubscriptionId IS NOT NULL " +
+           "AND a.status IN :statuses")
+    List<Assinatura> findByAssasSubscriptionIdNotNullAndStatusIn(@Param("statuses") List<StatusAssinatura> statuses);
+
+    Optional<Assinatura> findByAssasSubscriptionId(String assasSubscriptionId);
 }

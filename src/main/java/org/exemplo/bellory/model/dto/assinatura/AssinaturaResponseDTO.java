@@ -23,6 +23,7 @@ public class AssinaturaResponseDTO {
     private String planoCodigo;
     private String status;
     private String cicloCobranca;
+    private String formaPagamento;
     private LocalDateTime dtInicioTrial;
     private LocalDateTime dtFimTrial;
     private LocalDateTime dtInicio;

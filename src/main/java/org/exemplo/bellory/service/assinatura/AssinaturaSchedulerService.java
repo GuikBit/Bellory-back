@@ -15,14 +15,18 @@ public class AssinaturaSchedulerService {
     }
 
     /**
-     * Diario as 2:00 AM - Expira trials vencidos e marca cobrancas vencidas
+     * Diario as 2:00 AM - Expira trials (migra para gratuito),
+     * bloqueia cancelamentos expirados.
+     * REMOVIDO: marcarCobrancasVencidas (Asaas gerencia status de pagamento)
+     * REMOVIDO: gerarCobrancasMensais (Asaas gera automaticamente)
+     * REMOVIDO: gerarCobrancasAnuais (Asaas gera automaticamente)
      */
     @Scheduled(cron = "0 0 2 * * *")
     public void jobDiario() {
         log.info("Iniciando job diario de assinaturas...");
         try {
             assinaturaService.expirarTrials();
-            assinaturaService.marcarCobrancasVencidas();
+            assinaturaService.bloquearCancelamentoExpirado();
             log.info("Job diario de assinaturas finalizado com sucesso.");
         } catch (Exception e) {
             log.error("Erro no job diario de assinaturas: {}", e.getMessage(), e);
@@ -30,16 +34,44 @@ public class AssinaturaSchedulerService {
     }
 
     /**
-     * Mensal no dia 1 as 6:00 AM - Gera cobrancas do mes
+     * Diario as 3:00 AM - Verifica inadimplentes consultando o Asaas
      */
-    @Scheduled(cron = "0 0 6 1 * *")
-    public void jobMensalCobrancas() {
-        log.info("Iniciando job mensal de geracao de cobrancas...");
+    @Scheduled(cron = "0 0 3 * * *")
+    public void jobVerificarInadimplentes() {
+        log.info("Iniciando job de verificacao de inadimplentes...");
         try {
-            assinaturaService.gerarCobrancasMensais();
-            log.info("Job mensal de cobrancas finalizado com sucesso.");
+            assinaturaService.verificarInadimplentes();
+            log.info("Job de verificacao de inadimplentes finalizado com sucesso.");
         } catch (Exception e) {
-            log.error("Erro no job mensal de cobrancas: {}", e.getMessage(), e);
+            log.error("Erro no job de verificacao de inadimplentes: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * A cada 2 horas - Sincroniza status local com o Asaas (backup dos webhooks)
+     */
+    @Scheduled(cron = "0 0 */2 * * *")
+    public void jobSincronizarComAsaas() {
+        log.info("Iniciando sincronizacao com Asaas...");
+        try {
+            assinaturaService.sincronizarComAsaas();
+            log.info("Sincronizacao com Asaas finalizada com sucesso.");
+        } catch (Exception e) {
+            log.error("Erro na sincronizacao com Asaas: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Diario as 9:00 AM - Notifica trials que expiram nos proximos 6 dias
+     */
+    @Scheduled(cron = "0 0 9 * * *")
+    public void jobNotificarTrialsExpirando() {
+        log.info("Iniciando job de notificacao de trials expirando...");
+        try {
+            assinaturaService.notificarTrialsExpirando(6);
+            log.info("Job de notificacao de trials expirando finalizado com sucesso.");
+        } catch (Exception e) {
+            log.error("Erro no job de notificacao de trials expirando: {}", e.getMessage(), e);
         }
     }
 }

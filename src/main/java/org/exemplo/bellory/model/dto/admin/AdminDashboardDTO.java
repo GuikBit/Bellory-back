@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @Builder
@@ -29,6 +30,7 @@ public class AdminDashboardDTO {
     private Long cobrancasPendentes;
     private Long cobrancasPagas;
     private DistribuicaoPlanos distribuicaoPlanos;
+    private List<OrgLocationDTO> localizacoes;
 
     @Data
     @Builder
@@ -39,5 +41,17 @@ public class AdminDashboardDTO {
         private Long basico;
         private Long plus;
         private Long premium;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class OrgLocationDTO {
+        private String cidade;
+        private String estado;
+        private Double latitude;
+        private Double longitude;
+        private Long quantidade;
     }
 }

@@ -30,6 +30,7 @@ public class CupomDescontoResponseDTO {
     private List<String> segmentosPermitidos;
     private List<Long> organizacoesPermitidas;
     private String cicloCobranca;
+    private String tipoAplicacao;
     private Boolean ativo;
     private boolean vigente;
     private LocalDateTime dtCriacao;

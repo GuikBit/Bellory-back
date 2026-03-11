@@ -1,6 +1,7 @@
 package org.exemplo.bellory.service.admin;
 
 import lombok.extern.slf4j.Slf4j;
+import org.exemplo.bellory.exception.AssasApiException;
 import org.exemplo.bellory.model.dto.assinatura.*;
 import org.exemplo.bellory.model.entity.assinatura.*;
 import org.exemplo.bellory.model.repository.assinatura.AssinaturaRepository;
@@ -110,7 +111,11 @@ public class AdminAssinaturaService {
         Assinatura assinatura = assinaturaRepository.findByIdWithDetails(id)
                 .orElseThrow(() -> new IllegalArgumentException("Assinatura nao encontrada com ID: " + id));
 
-        assasClient.cancelarAssinatura(assinatura.getAssasSubscriptionId());
+        try {
+            assasClient.cancelarAssinatura(assinatura.getAssasSubscriptionId());
+        } catch (AssasApiException e) {
+            log.warn("Erro ao cancelar assinatura no Asaas (admin): {}", e.getMessage());
+        }
 
         assinatura.setStatus(StatusAssinatura.CANCELADA);
         assinatura.setDtCancelamento(LocalDateTime.now());

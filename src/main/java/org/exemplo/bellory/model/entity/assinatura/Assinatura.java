@@ -50,6 +50,9 @@ public class Assinatura {
     @Column(name = "dt_fim_trial")
     private LocalDateTime dtFimTrial;
 
+    @Column(name = "dt_trial_notificado")
+    private LocalDateTime dtTrialNotificado;
+
     // Assinatura ativa
     @Column(name = "dt_inicio")
     private LocalDateTime dtInicio;
@@ -66,6 +69,11 @@ public class Assinatura {
 
     @Column(name = "valor_anual", precision = 10, scale = 2)
     private BigDecimal valorAnual;
+
+    // Forma de pagamento preferida (para renovacao automatica)
+    @Enumerated(EnumType.STRING)
+    @Column(name = "forma_pagamento", length = 20)
+    private FormaPagamentoPlataforma formaPagamento;
 
     // Cupom de desconto
     @ManyToOne(fetch = FetchType.LAZY)
@@ -109,8 +117,18 @@ public class Assinatura {
     }
 
     public boolean isBloqueada() {
-        return status == StatusAssinatura.VENCIDA
-                || status == StatusAssinatura.CANCELADA
-                || status == StatusAssinatura.SUSPENSA;
+        if (isTrialExpirado()) return true;
+        if (status == StatusAssinatura.VENCIDA || status == StatusAssinatura.SUSPENSA) return true;
+        // Cancelada: permite acesso ate o fim do periodo pago
+        if (status == StatusAssinatura.CANCELADA) {
+            return dtProximoVencimento == null || LocalDateTime.now().isAfter(dtProximoVencimento);
+        }
+        return false;
+    }
+
+    public boolean isPlanoGratuito() {
+        return planoBellory != null
+                && planoBellory.getPrecoMensal() != null
+                && planoBellory.getPrecoMensal().compareTo(java.math.BigDecimal.ZERO) == 0;
     }
 }

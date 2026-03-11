@@ -6,6 +6,10 @@ import org.exemplo.bellory.model.entity.funcionario.Funcionario;
 import org.exemplo.bellory.model.entity.users.Admin;
 import org.exemplo.bellory.model.entity.users.Cliente;
 import org.exemplo.bellory.model.entity.users.User;
+import org.exemplo.bellory.model.repository.funcionario.FuncionarioRepository;
+import org.exemplo.bellory.model.repository.users.AdminRepository;
+import org.exemplo.bellory.model.repository.users.ClienteRepository;
+import org.hibernate.Hibernate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,6 +19,18 @@ import java.util.stream.Collectors;
 
 @Service
 public class UserInfoService {
+
+    private final FuncionarioRepository funcionarioRepository;
+    private final ClienteRepository clienteRepository;
+    private final AdminRepository adminRepository;
+
+    public UserInfoService(FuncionarioRepository funcionarioRepository,
+                          ClienteRepository clienteRepository,
+                          AdminRepository adminRepository) {
+        this.funcionarioRepository = funcionarioRepository;
+        this.clienteRepository = clienteRepository;
+        this.adminRepository = adminRepository;
+    }
 
     @Transactional(readOnly = true)
     public UserInfoDTO buildUserInfo(User user) {
@@ -36,8 +52,9 @@ public class UserInfoService {
             userInfoBuilder.idOrganizacao(user.getOrganizacao().getId());
         }
 
-        // Verificar o tipo concreto do usuário usando instanceof
-        if (user instanceof Cliente cliente) {
+        // Re-fetch entity within current transaction to avoid LazyInitializationException
+        if (user instanceof Cliente) {
+            Cliente cliente = clienteRepository.findById(user.getId()).orElse((Cliente) user);
             userInfoBuilder
                     .userType("CLIENTE")
                     .dataCriacao(cliente.getDtCriacao())
@@ -45,7 +62,9 @@ public class UserInfoService {
             return userInfoBuilder.build();
         }
 
-        if (user instanceof Funcionario funcionario) {
+        if (user instanceof Funcionario) {
+            Funcionario funcionario = funcionarioRepository.findById(user.getId()).orElse((Funcionario) user);
+            Hibernate.initialize(funcionario.getCargo());
             userInfoBuilder
                     .userType("FUNCIONARIO")
                     .dataCriacao(funcionario.getDataCriacao())
@@ -54,7 +73,8 @@ public class UserInfoService {
             return userInfoBuilder.build();
         }
 
-        if (user instanceof Admin admin) {
+        if (user instanceof Admin) {
+            Admin admin = adminRepository.findById(user.getId()).orElse((Admin) user);
             userInfoBuilder
                     .userType("ADMIN")
                     .dataCriacao(admin.getDtCriacao())

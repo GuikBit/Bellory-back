@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -39,6 +40,10 @@ public class AdminDashboardService {
         List<Object[]> planosDist = adminQueryRepository.contarOrganizacoesPorPlano();
         AdminDashboardDTO.DistribuicaoPlanos distribuicao = buildDistribuicaoPlanos(planosDist);
 
+        // Localizacoes para o mapa
+        List<AdminDashboardDTO.OrgLocationDTO> localizacoes = buildLocalizacoes(
+                adminQueryRepository.findLocalizacoesOrganizacoes());
+
         return AdminDashboardDTO.builder()
                 .totalOrganizacoes(totalOrganizacoes)
                 .organizacoesAtivas(organizacoesAtivas)
@@ -55,7 +60,32 @@ public class AdminDashboardService {
                 .cobrancasPendentes(cobrancasPendentes)
                 .cobrancasPagas(cobrancasPagas)
                 .distribuicaoPlanos(distribuicao)
+                .localizacoes(localizacoes)
                 .build();
+    }
+
+    private List<AdminDashboardDTO.OrgLocationDTO> buildLocalizacoes(List<Object[]> dados) {
+        List<AdminDashboardDTO.OrgLocationDTO> localizacoes = new ArrayList<>();
+
+        for (Object[] row : dados) {
+            String cidade = (String) row[0];
+            String uf = (String) row[1];
+            String latStr = (String) row[2];
+            String lngStr = (String) row[3];
+
+            try {
+                localizacoes.add(AdminDashboardDTO.OrgLocationDTO.builder()
+                        .cidade(cidade != null ? cidade.trim() : null)
+                        .estado(uf != null ? uf.trim().toUpperCase() : null)
+                        .latitude(Double.parseDouble(latStr))
+                        .longitude(Double.parseDouble(lngStr))
+                        .quantidade(1L)
+                        .build());
+            } catch (NumberFormatException ignored) {
+            }
+        }
+
+        return localizacoes;
     }
 
     private AdminDashboardDTO.DistribuicaoPlanos buildDistribuicaoPlanos(List<Object[]> dados) {

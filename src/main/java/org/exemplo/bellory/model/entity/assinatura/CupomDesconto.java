@@ -69,6 +69,11 @@ public class CupomDesconto {
     @Column(name = "ciclo_cobranca", length = 10)
     private String cicloCobranca;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tipo_aplicacao", nullable = false, length = 20)
+    @Builder.Default
+    private TipoAplicacaoCupom tipoAplicacao = TipoAplicacaoCupom.PRIMEIRA_COBRANCA;
+
     @Column(nullable = false)
     @Builder.Default
     private Boolean ativo = true;

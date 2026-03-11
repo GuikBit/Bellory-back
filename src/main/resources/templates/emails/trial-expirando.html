@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Seu periodo de teste esta acabando - Bellory</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Raleway', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            line-height: 1.6;
+            color: #2a2420;
+            background: linear-gradient(135deg, #faf8f6 0%, #f5f2ef 100%);
+            padding: 40px 20px;
+        }
+
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 24px;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(139, 61, 53, 0.08);
+        }
+
+        .header {
+            background: linear-gradient(135deg, #db6f57 0%, #c55a42 100%);
+            padding: 50px 40px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        }
+
+        .header-icon {
+            width: 80px;
+            height: 80px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            z-index: 1;
+            backdrop-filter: blur(10px);
+        }
+
+        .header-icon::before {
+            content: '\23F3';
+            font-size: 40px;
+        }
+
+        .logo {
+            font-size: 42px;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 10px;
+            position: relative;
+            z-index: 1;
+            letter-spacing: 2px;
+        }
+
+        .header-subtitle {
+            color: rgba(255, 255, 255, 0.95);
+            font-size: 16px;
+            font-weight: 400;
+            position: relative;
+            z-index: 1;
+        }
+
+        .content {
+            padding: 50px 40px;
+        }
+
+        .greeting {
+            font-size: 28px;
+            font-weight: 700;
+            color: #2a2420;
+            margin-bottom: 20px;
+            line-height: 1.3;
+        }
+
+        .greeting-name {
+            color: #db6f57;
+        }
+
+        .intro-text {
+            color: #4f6f64;
+            font-size: 16px;
+            margin-bottom: 30px;
+            line-height: 1.8;
+        }
+
+        .countdown-box {
+            background: linear-gradient(135deg, #db6f57 0%, #c55a42 100%);
+            color: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin: 30px 0;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(219, 111, 87, 0.3);
+        }
+
+        .countdown-label {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .countdown-numero {
+            font-size: 48px;
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+
+        .countdown-sub {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-top: 5px;
+        }
+
+        .info-box {
+            background: linear-gradient(135deg, #faf8f6 0%, #f8f5f3 100%);
+            border-left: 4px solid #4f6f64;
+            border-radius: 12px;
+            padding: 25px;
+            margin: 25px 0;
+            box-shadow: 0 2px 8px rgba(79, 111, 100, 0.05);
+        }
+
+        .info-box-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #2a2420;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .info-box-title::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            background: #4f6f64;
+            border-radius: 50%;
+        }
+
+        .info-item {
+            margin: 12px 0;
+            display: flex;
+            flex-wrap: wrap;
+            font-size: 15px;
+        }
+
+        .info-label {
+            font-weight: 600;
+            color: #4f6f64;
+            min-width: 160px;
+            margin-right: 10px;
+        }
+
+        .info-value {
+            color: #2a2420;
+            font-weight: 500;
+            word-break: break-all;
+        }
+
+        .highlight-box {
+            background: linear-gradient(135deg, #4f6f64 0%, #5a7a6e 100%);
+            color: white;
+            border-radius: 12px;
+            padding: 25px;
+            margin: 30px 0;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(79, 111, 100, 0.2);
+        }
+
+        .highlight-text {
+            font-size: 16px;
+            margin-bottom: 20px;
+            opacity: 0.95;
+            line-height: 1.7;
+        }
+
+        .cta-button {
+            display: inline-block;
+            padding: 16px 40px;
+            background: linear-gradient(135deg, #db6f57 0%, #c55a42 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 16px;
+            box-shadow: 0 4px 15px rgba(219, 111, 87, 0.3);
+            letter-spacing: 0.5px;
+        }
+
+        .cancel-section {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .cancel-link {
+            color: #db6f57;
+            text-decoration: underline;
+            font-size: 14px;
+        }
+
+        .divider {
+            height: 1px;
+            background: linear-gradient(90deg, transparent 0%, #d8ccc4 50%, transparent 100%);
+            margin: 40px 0;
+        }
+
+        .warning-box {
+            background: linear-gradient(135deg, #faf8f6 0%, #f8f5f3 100%);
+            border-left: 4px solid #db6f57;
+            border-radius: 12px;
+            padding: 25px;
+            margin: 25px 0;
+        }
+
+        .warning-box p {
+            color: #4f6f64;
+            font-size: 14px;
+            margin: 8px 0;
+            line-height: 1.6;
+        }
+
+        .warning-box strong {
+            color: #2a2420;
+        }
+
+        .support-section {
+            text-align: center;
+            padding: 30px 20px;
+            background: #faf8f6;
+            border-radius: 12px;
+            margin-top: 30px;
+        }
+
+        .support-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #2a2420;
+            margin-bottom: 10px;
+        }
+
+        .support-text {
+            color: #4f6f64;
+            font-size: 15px;
+            margin-bottom: 15px;
+        }
+
+        .support-email {
+            color: #db6f57;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .footer {
+            background: #2a2420;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .footer-logo {
+            font-size: 24px;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 15px;
+            letter-spacing: 1px;
+        }
+
+        .footer-text {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 13px;
+            margin: 8px 0;
+        }
+
+        .footer-links {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .footer-link {
+            color: #db6f57;
+            text-decoration: none;
+            margin: 0 15px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        @media only screen and (max-width: 600px) {
+            .email-container { border-radius: 16px; }
+            .header { padding: 40px 30px; }
+            .logo { font-size: 36px; }
+            .content { padding: 40px 30px; }
+            .greeting { font-size: 24px; }
+            .info-item { flex-direction: column; }
+            .info-label { margin-bottom: 4px; }
+            .countdown-numero { font-size: 36px; }
+            .footer { padding: 30px 20px; }
+            .footer-link { display: block; margin: 10px 0; }
+        }
+    </style>
+</head>
+<body>
+<div class="email-container">
+    <!-- Header -->
+    <div class="header">
+        <div class="header-icon"></div>
+        <div class="logo">Bellory</div>
+        <div class="header-subtitle">Seu periodo de teste esta acabando</div>
+    </div>
+
+    <!-- Content -->
+    <div class="content">
+        <h1 class="greeting">
+            Ola, <span class="greeting-name" th:text="${nomeOrganizacao}">Organizacao</span>!
+        </h1>
+
+        <p class="intro-text">
+            Esperamos que esteja aproveitando a Bellory! Gostaríamos de informar que seu
+            <strong>periodo de teste gratuito</strong> esta chegando ao fim.
+        </p>
+
+        <!-- Countdown -->
+        <div class="countdown-box">
+            <div class="countdown-label">Dias restantes do teste</div>
+            <div class="countdown-numero" th:text="${diasRestantes}">5</div>
+            <div class="countdown-sub">O teste expira em <strong th:text="${dataExpiracao}">00/00/0000</strong></div>
+        </div>
+
+        <!-- Detalhes do plano -->
+        <div class="info-box">
+            <h3 class="info-box-title">Detalhes da sua assinatura</h3>
+            <div class="info-item">
+                <span class="info-label">Plano selecionado:</span>
+                <span class="info-value" th:text="${planoNome}">Basico</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Ciclo de cobranca:</span>
+                <span class="info-value" th:text="${cicloCobranca}">Mensal</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Valor:</span>
+                <span class="info-value" th:text="${valorPlano}">R$ 0,00</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Forma de pagamento:</span>
+                <span class="info-value" th:text="${formaPagamento}">PIX</span>
+            </div>
+        </div>
+
+        <!-- Aviso de renovacao automatica -->
+        <div class="highlight-box">
+            <p class="highlight-text">
+                Ao final do periodo de teste, sua assinatura sera <strong>ativada automaticamente</strong>
+                no plano <strong th:text="${planoNome}">Basico</strong> e a primeira cobranca sera gerada.
+            </p>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- Aviso de cancelamento -->
+        <div class="warning-box">
+            <p><strong>Nao deseja continuar?</strong></p>
+            <p>
+                Se voce nao deseja que a assinatura seja ativada automaticamente, voce pode cancelar
+                antes do fim do periodo de teste acessando o painel da sua conta.
+            </p>
+            <p>
+                Apos o cancelamento, sua conta sera desativada e voce podera reativar a qualquer momento
+                escolhendo um novo plano.
+            </p>
+        </div>
+
+        <!-- CTA -->
+        <div style="text-align: center; margin: 30px 0;">
+            <a th:href="${urlSistema}" class="cta-button">Acessar Meu Painel</a>
+        </div>
+
+        <!-- Suporte -->
+        <div class="support-section">
+            <h3 class="support-title">Precisa de ajuda?</h3>
+            <p class="support-text">
+                Nossa equipe esta sempre pronta para auxiliar voce!
+            </p>
+            <a href="mailto:suporte@bellory.com.br" class="support-email">suporte@bellory.com.br</a>
+            <p style="color: #4f6f64; font-size: 13px; margin-top: 10px;">
+                Respondemos em ate 24 horas uteis
+            </p>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        <div class="footer-logo">Bellory</div>
+        <p class="footer-text">Transformando a gestao da beleza com tecnologia e elegancia</p>
+        <p class="footer-text">&copy; 2026 Bellory - Todos os direitos reservados</p>
+
+        <div class="footer-links">
+            <a href="#" class="footer-link">Central de Ajuda</a>
+            <a href="#" class="footer-link">Politica de Privacidade</a>
+            <a href="#" class="footer-link">Termos de Uso</a>
+        </div>
+
+        <p class="footer-text" style="margin-top: 20px; font-size: 12px;">
+            Este e um e-mail automatico, por favor nao responda diretamente.<br>
+            Para suporte, utilize o e-mail <a href="mailto:suporte@bellory.com.br" style="color: #db6f57;">suporte@bellory.com.br</a>
+        </p>
+    </div>
+</div>
+</body>
+</html>

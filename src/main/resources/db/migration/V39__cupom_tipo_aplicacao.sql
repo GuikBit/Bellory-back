@@ -1,0 +1,2 @@
+ALTER TABLE admin.cupom_desconto
+    ADD COLUMN tipo_aplicacao VARCHAR(20) NOT NULL DEFAULT 'PRIMEIRA_COBRANCA';

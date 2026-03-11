@@ -17,6 +17,8 @@ public class CupomValidacaoResponseDTO {
     private boolean valido;
     private String mensagem;
     private String tipoDesconto;
+    private String tipoAplicacao;
+    private BigDecimal percentualDesconto;
     private BigDecimal valorDesconto;
     private BigDecimal valorOriginal;
     private BigDecimal valorComDesconto;

@@ -38,6 +38,11 @@ public enum EmailTemplate {
     COBRANCA_LEMBRETE(
             "cobranca-lembrete",
             "Lembrete de Cobrança - Bellory"
+    ),
+
+    TRIAL_EXPIRANDO(
+            "trial-expirando",
+            "Seu período de teste está acabando - Bellory"
     );
 
     private final String templateName;

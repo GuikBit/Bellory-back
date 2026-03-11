@@ -124,6 +124,64 @@ public class CupomDescontoService {
                 .build();
     }
 
+    @Transactional(readOnly = true)
+    public CupomValidacaoResult validarCupomPublico(String codigo, String planoCodigo, String cicloCobranca, BigDecimal valorOriginal) {
+        CupomDesconto cupom = cupomDescontoRepository.findByCodigoAtivo(codigo.toUpperCase().trim())
+                .orElse(null);
+
+        if (cupom == null) {
+            return CupomValidacaoResult.builder()
+                    .valido(false)
+                    .mensagem("Cupom nao encontrado ou inativo")
+                    .build();
+        }
+
+        if (!cupom.isVigente()) {
+            return CupomValidacaoResult.builder()
+                    .valido(false)
+                    .mensagem("Cupom fora do periodo de validade")
+                    .build();
+        }
+
+        if (cupom.atingiuLimiteGlobal()) {
+            return CupomValidacaoResult.builder()
+                    .valido(false)
+                    .mensagem("Cupom atingiu o limite maximo de utilizacoes")
+                    .build();
+        }
+
+        List<String> planos = parseJsonList(cupom.getPlanosPermitidos(), new TypeReference<List<String>>() {});
+        if (planos != null && !planos.isEmpty() && !planos.contains(planoCodigo)) {
+            return CupomValidacaoResult.builder()
+                    .valido(false)
+                    .mensagem("Cupom nao e valido para o plano selecionado")
+                    .build();
+        }
+
+        if (cupom.getCicloCobranca() != null && !cupom.getCicloCobranca().isEmpty()
+                && !cupom.getCicloCobranca().equalsIgnoreCase(cicloCobranca)) {
+            return CupomValidacaoResult.builder()
+                    .valido(false)
+                    .mensagem("Cupom nao e valido para o ciclo de cobranca selecionado")
+                    .build();
+        }
+
+        BigDecimal desconto = calcularDesconto(cupom, valorOriginal);
+        BigDecimal valorComDesconto = valorOriginal.subtract(desconto);
+        if (valorComDesconto.compareTo(BigDecimal.ZERO) < 0) {
+            valorComDesconto = BigDecimal.ZERO;
+        }
+
+        return CupomValidacaoResult.builder()
+                .valido(true)
+                .mensagem("Cupom valido")
+                .cupom(cupom)
+                .valorOriginal(valorOriginal)
+                .valorDesconto(desconto)
+                .valorComDesconto(valorComDesconto)
+                .build();
+    }
+
     public BigDecimal calcularDesconto(CupomDesconto cupom, BigDecimal valorOriginal) {
         if (cupom.getTipoDesconto() == TipoDesconto.PERCENTUAL) {
             return valorOriginal.multiply(cupom.getValorDesconto())
