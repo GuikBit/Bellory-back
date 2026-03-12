@@ -22,6 +22,7 @@ public class OrganizacaoInfoDTO {
     private Long id;
     private String nome;
     private String nomeFantasia;
+    private String emailPrincipal;
     private PlanoBellory plano;
     private ConfigSistema configSistema;
     private Tema tema;

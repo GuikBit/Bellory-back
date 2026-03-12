@@ -88,6 +88,7 @@ public class AuthController {
             organizacaoInfo.setNome(org.getNomeFantasia());
             organizacaoInfo.setDtCadastro(org.getDtCadastro());
             organizacaoInfo.setNomeFantasia(org.getNomeFantasia());
+            organizacaoInfo.setEmailPrincipal(org.getEmailPrincipal());
             organizacaoInfo.setPlano(org.getPlano());
             organizacaoInfo.setConfigSistema(org.getConfigSistema());
             organizacaoInfo.setTema(org.getTema());
@@ -95,18 +96,35 @@ public class AuthController {
 //            organizacaoInfo.setLimitesPersonalizados(org.getLimitesPersonalizados());
 
             // Buscar status da assinatura
+            AssinaturaStatusDTO assinaturaStatus;
             try {
-                AssinaturaStatusDTO assinaturaStatus = assinaturaService.getStatusAssinatura(org.getId());
+                assinaturaStatus = assinaturaService.getStatusAssinatura(org.getId());
                 organizacaoInfo.setAssinatura(assinaturaStatus);
             } catch (Exception e) {
                 log.warn("Erro ao buscar status da assinatura no login para org {}: {}", org.getId(), e.getMessage());
                 // Retorna status de fallback para nao bloquear o login
-                organizacaoInfo.setAssinatura(AssinaturaStatusDTO.builder()
+                assinaturaStatus = AssinaturaStatusDTO.builder()
                         .bloqueado(false)
                         .statusAssinatura("INDISPONIVEL")
                         .situacao("ATIVA")
                         .mensagem("Nao foi possivel verificar o status da assinatura. Tente novamente em instantes.")
-                        .build());
+                        .build();
+                organizacaoInfo.setAssinatura(assinaturaStatus);
+            }
+
+            // Se assinatura bloqueada e usuario NAO e admin -> bloquear login
+            if (assinaturaStatus.isBloqueado()) {
+                String role = user.getRole();
+                boolean isAdmin = "ROLE_ADMIN".equals(role) || "ROLE_SUPERADMIN".equals(role);
+
+                if (!isAdmin) {
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                            .body(createErrorResponse(
+                                    "Acesso bloqueado. Peça ao administrador da sua organização para acessar a plataforma e regularizar a situação.",
+                                    "SUBSCRIPTION_BLOCKED",
+                                    httpRequest.getRequestURI()
+                            ));
+                }
             }
 
             // Gerar token
