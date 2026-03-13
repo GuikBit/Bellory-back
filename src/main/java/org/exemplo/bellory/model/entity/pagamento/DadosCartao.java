@@ -10,8 +10,8 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Embeddable
 public class DadosCartao {
-    private String numero;
+    // Apenas dados seguros para exibicao
     private String nome;
-    private String validade;
-    private String cvv;
+    private String ultimosQuatroDigitos;
+    private String bandeira;
 }

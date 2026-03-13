@@ -238,6 +238,24 @@ public class AssasClient {
         }
     }
 
+    // ==================== COBRANCA AVULSA ====================
+
+    @Retryable(retryFor = {HttpServerErrorException.class, RestClientException.class},
+               maxAttempts = 3, backoff = @Backoff(delay = 1000, multiplier = 2))
+    public AssasPaymentResponse criarCobrancaAvulsa(AssasPaymentRequest request) {
+        verificarConfiguracao();
+        try {
+            String url = assasApiUrl + "/v3/payments";
+            HttpEntity<AssasPaymentRequest> entity = new HttpEntity<>(request, createHeaders());
+            ResponseEntity<AssasPaymentResponse> response = restTemplate.postForEntity(url, entity, AssasPaymentResponse.class);
+            log.info("Cobranca avulsa criada no Asaas: {}", response.getBody() != null ? response.getBody().getId() : "null");
+            return response.getBody();
+        } catch (HttpClientErrorException e) {
+            log.error("Erro ao criar cobranca avulsa no Asaas [{}]: {}", e.getStatusCode(), e.getResponseBodyAsString());
+            throw new AssasApiException("Falha ao criar cobranca avulsa", e.getStatusCode().value(), e.getResponseBodyAsString(), e);
+        }
+    }
+
     // ==================== PIX QR CODE ====================
 
     @Retryable(retryFor = {HttpServerErrorException.class, RestClientException.class},

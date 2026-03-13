@@ -8,8 +8,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class DadosCartaoDTO {
-    private String numero;
     private String nome;
-    private String validade;
-    private String cvv;
+    private String ultimosQuatroDigitos;
+    private String bandeira;
 }

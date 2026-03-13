@@ -337,16 +337,21 @@ public class AssinaturaService {
             String billingType = mapFormaPagamento(forma);
             String cycle = ciclo == CicloCobranca.ANUAL ? "YEARLY" : "MONTHLY";
 
-            AssasSubscriptionResponse sub = assasClient.criarAssinatura(
-                    AssasSubscriptionRequest.builder()
-                            .customer(assinatura.getAssasCustomerId())
-                            .billingType(billingType)
-                            .value(valorAssas)
-                            .cycle(cycle)
-                            .nextDueDate(LocalDate.now().plusDays(1).toString())
-                            .description("Assinatura Bellory - Plano " + plano.getNome())
-                            .build()
-            );
+            // Validar que dados do cartao foram informados quando necessario
+            if ("CREDIT_CARD".equals(billingType)) {
+                if ((dto.getCreditCard() == null || dto.getCreditCard().getNumber() == null)
+                        && (dto.getCreditCardToken() == null || dto.getCreditCardToken().isBlank())) {
+                    throw new IllegalArgumentException(
+                            "Dados do cartao de credito ou token sao obrigatorios para pagamento com cartao");
+                }
+            }
+
+            AssasSubscriptionRequest assasRequest = buildAssasSubscriptionRequest(
+                    assinatura.getAssasCustomerId(), billingType, valorAssas,
+                    cycle, "Assinatura Bellory - Plano " + plano.getNome(),
+                    dto, assinatura.getOrganizacao());
+
+            AssasSubscriptionResponse sub = assasClient.criarAssinatura(assasRequest);
             if (sub != null) {
                 assinatura.setAssasSubscriptionId(sub.getId());
             }
@@ -432,42 +437,17 @@ public class AssinaturaService {
         FormaPagamentoPlataforma forma = FormaPagamentoPlataforma.valueOf(dto.getFormaPagamento());
 
         BigDecimal novoValor = novoCiclo == CicloCobranca.ANUAL ? novoPlano.getPrecoAnual() : novoPlano.getPrecoMensal();
-
-        // Calcular pro-rata do plano atual
-        BigDecimal creditoProRata = BigDecimal.ZERO;
-        if (assinatura.getDtProximoVencimento() != null && assinatura.getDtInicio() != null) {
-            long diasTotais;
-            BigDecimal valorAtual;
-            if (assinatura.getCicloCobranca() == CicloCobranca.ANUAL) {
-                diasTotais = 365;
-                valorAtual = assinatura.getPlanoBellory().getPrecoAnual();
-            } else {
-                diasTotais = 30;
-                valorAtual = assinatura.getPlanoBellory().getPrecoMensal();
-            }
-
-            long diasRestantes = ChronoUnit.DAYS.between(LocalDateTime.now(), assinatura.getDtProximoVencimento());
-            if (diasRestantes > 0 && valorAtual != null && valorAtual.compareTo(BigDecimal.ZERO) > 0) {
-                creditoProRata = valorAtual
-                        .multiply(BigDecimal.valueOf(diasRestantes))
-                        .divide(BigDecimal.valueOf(diasTotais), 2, java.math.RoundingMode.HALF_UP);
-            }
-        }
-
-        BigDecimal valorPrimeiraCobranca = novoValor.subtract(creditoProRata);
-        if (valorPrimeiraCobranca.compareTo(BigDecimal.ZERO) < 0) {
-            valorPrimeiraCobranca = BigDecimal.ZERO;
-        }
+        BigDecimal valorAssas = novoValor;
 
         // Validar e aplicar cupom
         CupomValidacaoResult cupomResult = null;
         if (dto.getCodigoCupom() != null && !dto.getCodigoCupom().isBlank()) {
             cupomResult = cupomDescontoService.validarCupom(
-                    dto.getCodigoCupom(), assinatura.getOrganizacao(), dto.getPlanoCodigo(), dto.getCicloCobranca(), valorPrimeiraCobranca);
+                    dto.getCodigoCupom(), assinatura.getOrganizacao(), dto.getPlanoCodigo(), dto.getCicloCobranca(), novoValor);
             if (!cupomResult.isValido()) {
                 throw new IllegalArgumentException("Cupom invalido: " + cupomResult.getMensagem());
             }
-            valorPrimeiraCobranca = cupomResult.getValorComDesconto();
+            valorAssas = cupomResult.getValorComDesconto();
         }
 
         // Cancelar assinatura antiga no Asaas
@@ -475,37 +455,45 @@ public class AssinaturaService {
             try {
                 assasClient.cancelarAssinatura(assinatura.getAssasSubscriptionId());
             } catch (AssasApiException e) {
-                log.warn("Erro ao cancelar assinatura antiga no Asaas: {}", e.getMessage());
+                log.error("Falha ao cancelar assinatura antiga no Asaas [{}]: {}", assinatura.getAssasSubscriptionId(), e.getMessage());
+                throw new IllegalStateException(
+                        "Nao foi possivel cancelar a assinatura atual no gateway. Tente novamente em alguns minutos.", e);
             }
         }
 
-        // Criar nova assinatura no Asaas
+        // Criar nova assinatura no Asaas (mesmo padrao do escolherPlano)
         if (assinatura.getAssasCustomerId() != null) {
-            BigDecimal valorAssas = novoValor;
-            if (cupomResult != null && cupomResult.isValido()
-                    && cupomResult.getCupom().getTipoAplicacao() == TipoAplicacaoCupom.RECORRENTE) {
-                valorAssas = novoValor.subtract(cupomDescontoService.calcularDesconto(cupomResult.getCupom(), novoValor));
-            }
-
             String billingType = mapFormaPagamento(forma);
             String cycle = novoCiclo == CicloCobranca.ANUAL ? "YEARLY" : "MONTHLY";
 
-            AssasSubscriptionResponse sub = assasClient.criarAssinatura(
-                    AssasSubscriptionRequest.builder()
-                            .customer(assinatura.getAssasCustomerId())
-                            .billingType(billingType)
-                            .value(valorAssas)
-                            .cycle(cycle)
-                            .nextDueDate(LocalDate.now().plusDays(1).toString())
-                            .description("Assinatura Bellory - Plano " + novoPlano.getNome())
-                            .build()
-            );
+            // Validar que dados do cartao foram informados quando necessario
+            if ("CREDIT_CARD".equals(billingType)) {
+                if ((dto.getCreditCard() == null || dto.getCreditCard().getNumber() == null)
+                        && (dto.getCreditCardToken() == null || dto.getCreditCardToken().isBlank())) {
+                    throw new IllegalArgumentException(
+                            "Dados do cartao de credito ou token sao obrigatorios para pagamento com cartao");
+                }
+            }
+
+            // Valor recorrente para o Asaas (com desconto se cupom RECORRENTE)
+            BigDecimal valorRecorrente = novoValor;
+            if (cupomResult != null && cupomResult.isValido()
+                    && cupomResult.getCupom().getTipoAplicacao() == TipoAplicacaoCupom.RECORRENTE) {
+                valorRecorrente = novoValor.subtract(cupomDescontoService.calcularDesconto(cupomResult.getCupom(), novoValor));
+            }
+
+            AssasSubscriptionRequest assasRequest = buildAssasSubscriptionRequest(
+                    assinatura.getAssasCustomerId(), billingType, valorRecorrente,
+                    cycle, "Assinatura Bellory - Plano " + novoPlano.getNome(),
+                    dto, assinatura.getOrganizacao());
+
+            AssasSubscriptionResponse sub = assasClient.criarAssinatura(assasRequest);
             if (sub != null) {
                 assinatura.setAssasSubscriptionId(sub.getId());
             }
         }
 
-        // Atualizar assinatura
+        // Atualizar assinatura local
         assinatura.setPlanoBellory(novoPlano);
         assinatura.setCicloCobranca(novoCiclo);
         assinatura.setFormaPagamento(forma);
@@ -531,8 +519,23 @@ public class AssinaturaService {
 
         assinaturaRepository.save(assinatura);
 
-        log.info("Plano trocado de {} para {} para organizacao ID: {} - credito pro-rata: {} - valor cobranca: {}",
-                planoAtual.getCodigo(), novoPlano.getCodigo(), organizacaoId, creditoProRata, valorPrimeiraCobranca);
+        // Registrar utilizacao do cupom
+        if (cupomResult != null && cupomResult.isValido()) {
+            cupomDescontoService.registrarUtilizacao(
+                    cupomResult.getCupom(),
+                    organizacaoId,
+                    assinatura.getId(),
+                    null,
+                    novoValor,
+                    cupomResult.getValorDesconto(),
+                    valorAssas,
+                    dto.getPlanoCodigo(),
+                    dto.getCicloCobranca()
+            );
+        }
+
+        log.info("Plano trocado de {} para {} para organizacao ID: {}",
+                planoAtual.getCodigo(), novoPlano.getCodigo(), organizacaoId);
 
         return toAssinaturaResponseDTO(assinatura);
     }
@@ -624,16 +627,21 @@ public class AssinaturaService {
             String billingType = mapFormaPagamento(forma);
             String cycle = ciclo == CicloCobranca.ANUAL ? "YEARLY" : "MONTHLY";
 
-            AssasSubscriptionResponse sub = assasClient.criarAssinatura(
-                    AssasSubscriptionRequest.builder()
-                            .customer(assinatura.getAssasCustomerId())
-                            .billingType(billingType)
-                            .value(valor)
-                            .cycle(cycle)
-                            .nextDueDate(LocalDate.now().plusDays(1).toString())
-                            .description("Assinatura Bellory - Plano " + plano.getNome())
-                            .build()
-            );
+            // Validar que dados do cartao foram informados quando necessario
+            if ("CREDIT_CARD".equals(billingType)) {
+                if ((dto.getCreditCard() == null || dto.getCreditCard().getNumber() == null)
+                        && (dto.getCreditCardToken() == null || dto.getCreditCardToken().isBlank())) {
+                    throw new IllegalArgumentException(
+                            "Dados do cartao de credito ou token sao obrigatorios para pagamento com cartao");
+                }
+            }
+
+            AssasSubscriptionRequest assasRequest = buildAssasSubscriptionRequest(
+                    assinatura.getAssasCustomerId(), billingType, valor,
+                    cycle, "Assinatura Bellory - Plano " + plano.getNome(),
+                    dto, assinatura.getOrganizacao());
+
+            AssasSubscriptionResponse sub = assasClient.criarAssinatura(assasRequest);
             if (sub != null) {
                 assinatura.setAssasSubscriptionId(sub.getId());
             }
@@ -692,6 +700,113 @@ public class AssinaturaService {
             case BOLETO -> "BOLETO";
             case CARTAO_CREDITO -> "CREDIT_CARD";
         };
+    }
+
+    /**
+     * Constroi o request para o Asaas incluindo dados do cartao de credito quando necessario.
+     * Os dados do cartao sao enviados diretamente ao Asaas e NUNCA armazenados localmente.
+     */
+    private AssasSubscriptionRequest buildAssasSubscriptionRequest(
+            String customerId, String billingType, BigDecimal valor,
+            String cycle, String description, EscolherPlanoDTO dto,
+            Organizacao org) {
+
+        AssasSubscriptionRequest.AssasSubscriptionRequestBuilder builder = AssasSubscriptionRequest.builder()
+                .customer(customerId)
+                .billingType(billingType)
+                .value(valor)
+                .cycle(cycle)
+                .nextDueDate(LocalDate.now().plusDays(1).toString())
+                .description(description);
+
+        // Adicionar dados do cartao apenas para CREDIT_CARD
+        if ("CREDIT_CARD".equals(billingType) && dto != null) {
+            if (dto.getCreditCardToken() != null && !dto.getCreditCardToken().isBlank()) {
+                // Usar token (gerado via Asaas.js no frontend)
+                builder.creditCardToken(dto.getCreditCardToken());
+            } else if (dto.getCreditCard() != null) {
+                // Enviar dados do cartao diretamente ao Asaas (nunca armazenados)
+                CreditCardDTO card = dto.getCreditCard();
+                builder.creditCard(AssasCreditCardDTO.builder()
+                        .holderName(card.getHolderName())
+                        .number(card.getNumber())
+                        .expiryMonth(card.getExpiryMonth())
+                        .expiryYear(card.getExpiryYear())
+                        .ccv(card.getCcv())
+                        .build());
+
+                // Dados do portador (obrigatorios pelo Asaas para cartao)
+                if (org != null) {
+                    AssasCreditCardHolderInfoDTO.AssasCreditCardHolderInfoDTOBuilder holderBuilder =
+                            AssasCreditCardHolderInfoDTO.builder()
+                                    .name(card.getHolderName())
+                                    .email(org.getEmailPrincipal())
+                                    .cpfCnpj(org.getCnpj())
+                                    .phone(org.getTelefone1());
+
+                    if (org.getEnderecoPrincipal() != null) {
+                        holderBuilder
+                                .postalCode(org.getEnderecoPrincipal().getCep())
+                                .addressNumber(org.getEnderecoPrincipal().getNumero());
+                    }
+
+                    builder.creditCardHolderInfo(holderBuilder.build());
+                }
+            }
+        }
+
+        return builder.build();
+    }
+
+    /**
+     * Constroi request de cobranca avulsa para o Asaas incluindo dados de cartao quando necessario.
+     */
+    private AssasPaymentRequest buildAssasPaymentRequest(
+            String customerId, String billingType, BigDecimal valor,
+            String dueDate, String description, EscolherPlanoDTO dto,
+            Organizacao org) {
+
+        AssasPaymentRequest.AssasPaymentRequestBuilder builder = AssasPaymentRequest.builder()
+                .customer(customerId)
+                .billingType(billingType)
+                .value(valor)
+                .dueDate(dueDate)
+                .description(description);
+
+        // Adicionar dados do cartao apenas para CREDIT_CARD
+        if ("CREDIT_CARD".equals(billingType) && dto != null) {
+            if (dto.getCreditCardToken() != null && !dto.getCreditCardToken().isBlank()) {
+                builder.creditCardToken(dto.getCreditCardToken());
+            } else if (dto.getCreditCard() != null) {
+                CreditCardDTO card = dto.getCreditCard();
+                builder.creditCard(AssasCreditCardDTO.builder()
+                        .holderName(card.getHolderName())
+                        .number(card.getNumber())
+                        .expiryMonth(card.getExpiryMonth())
+                        .expiryYear(card.getExpiryYear())
+                        .ccv(card.getCcv())
+                        .build());
+
+                if (org != null) {
+                    AssasCreditCardHolderInfoDTO.AssasCreditCardHolderInfoDTOBuilder holderBuilder =
+                            AssasCreditCardHolderInfoDTO.builder()
+                                    .name(card.getHolderName())
+                                    .email(org.getEmailPrincipal())
+                                    .cpfCnpj(org.getCnpj())
+                                    .phone(org.getTelefone1());
+
+                    if (org.getEnderecoPrincipal() != null) {
+                        holderBuilder
+                                .postalCode(org.getEnderecoPrincipal().getCep())
+                                .addressNumber(org.getEnderecoPrincipal().getNumero());
+                    }
+
+                    builder.creditCardHolderInfo(holderBuilder.build());
+                }
+            }
+        }
+
+        return builder.build();
     }
 
     // ==================== VALIDAR CUPOM ====================

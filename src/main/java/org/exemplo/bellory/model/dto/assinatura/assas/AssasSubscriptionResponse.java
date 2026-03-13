@@ -23,4 +23,9 @@ public class AssasSubscriptionResponse {
     private String description;
     private String dateCreated;
     private boolean deleted;
+
+    // Token do cartao retornado pelo Asaas (para cobranças futuras sem reenviar dados)
+    private String creditCardToken;
+    private String creditCardNumber;   // Ultimos digitos mascarados pelo Asaas
+    private String creditCardBrand;    // Bandeira do cartao
 }
