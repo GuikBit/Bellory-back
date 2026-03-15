@@ -39,12 +39,20 @@ public class AssasWebhookController {
             }
         }
 
+        String event = payload.getEvent();
+        log.info("Webhook Asaas recebido: event={}", event);
+
         try {
-            assinaturaService.processarWebhookPagamento(payload);
+            if (event != null && event.startsWith("SUBSCRIPTION_")) {
+                assinaturaService.processarWebhookAssinatura(payload);
+            } else {
+                assinaturaService.processarWebhookPagamento(payload);
+            }
             return ResponseEntity.ok().build();
         } catch (Exception e) {
-            log.error("Erro ao processar webhook Assas: {}", e.getMessage(), e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            log.error("Erro ao processar webhook Assas (event={}): {}", event, e.getMessage(), e);
+            // Return 200 to avoid Asaas retrying on business logic errors
+            return ResponseEntity.ok().build();
         }
     }
 }

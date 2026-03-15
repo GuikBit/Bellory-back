@@ -6,4 +6,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface WebhookLogRepository extends JpaRepository<WebhookLog, Long> {
 
     boolean existsByAssasPaymentIdAndEvento(String assasPaymentId, String evento);
+
+    boolean existsByAssasSubscriptionIdAndEvento(String assasSubscriptionId, String evento);
 }

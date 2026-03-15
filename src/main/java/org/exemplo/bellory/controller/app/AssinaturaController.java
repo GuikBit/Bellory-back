@@ -56,6 +56,26 @@ public class AssinaturaController {
         }
     }
 
+    @GetMapping("/forma-pagamento")
+    @Operation(summary = "Retorna a forma de pagamento atual da assinatura")
+    public ResponseEntity<ResponseAPI<FormaPagamentoResponseDTO>> getFormaPagamento() {
+        try {
+FormaPagamentoResponseDTO result = assinaturaService.getFormaPagamento();
+            return ResponseEntity.ok(ResponseAPI.<FormaPagamentoResponseDTO>builder()
+                    .success(true)
+                    .dados(result)
+                    .build());
+        } catch (Exception e) {
+            log.error("Erro ao buscar forma de pagamento: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseAPI.<FormaPagamentoResponseDTO>builder()
+                            .success(false)
+                            .message("Erro interno: " + e.getMessage())
+                            .errorCode(500)
+                            .build());
+        }
+    }
+
     @GetMapping("/cobrancas")
     @Operation(summary = "Minhas cobrancas")
     public ResponseEntity<ResponseAPI<List<CobrancaPlataformaDTO>>> getCobrancas(
@@ -156,6 +176,34 @@ public class AssinaturaController {
             log.error("Erro ao trocar plano: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ResponseAPI.<AssinaturaResponseDTO>builder()
+                            .success(false)
+                            .message("Erro interno: " + e.getMessage())
+                            .errorCode(500)
+                            .build());
+        }
+    }
+
+    @PostMapping("/preview-troca-plano")
+    @Operation(summary = "Preview do custo de troca de plano (pro-rata)")
+    public ResponseEntity<ResponseAPI<ProRataPreviewDTO>> previewTrocaPlano(
+            @RequestBody @Valid EscolherPlanoDTO dto) {
+        try {
+            ProRataPreviewDTO preview = assinaturaService.previewTrocaPlano(dto);
+            return ResponseEntity.ok(ResponseAPI.<ProRataPreviewDTO>builder()
+                    .success(true)
+                    .dados(preview)
+                    .build());
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ResponseAPI.<ProRataPreviewDTO>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(400)
+                            .build());
+        } catch (Exception e) {
+            log.error("Erro ao calcular preview de troca de plano: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseAPI.<ProRataPreviewDTO>builder()
                             .success(false)
                             .message("Erro interno: " + e.getMessage())
                             .errorCode(500)

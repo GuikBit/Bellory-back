@@ -34,7 +34,7 @@ public class Assinatura {
     private PlanoBellory planoBellory;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
+    @Column(nullable = false, length = 30)
     @Builder.Default
     private StatusAssinatura status = StatusAssinatura.TRIAL;
 
@@ -63,13 +63,6 @@ public class Assinatura {
     @Column(name = "dt_cancelamento")
     private LocalDateTime dtCancelamento;
 
-    // Valores
-    @Column(name = "valor_mensal", precision = 10, scale = 2)
-    private BigDecimal valorMensal;
-
-    @Column(name = "valor_anual", precision = 10, scale = 2)
-    private BigDecimal valorAnual;
-
     // Forma de pagamento preferida (para renovacao automatica)
     @Enumerated(EnumType.STRING)
     @Column(name = "forma_pagamento", length = 20)
@@ -92,6 +85,16 @@ public class Assinatura {
 
     @Column(name = "assas_subscription_id", length = 100)
     private String assasSubscriptionId;
+
+    // Upgrade/Downgrade
+    @Column(name = "credito_pro_rata", precision = 10, scale = 2)
+    private BigDecimal creditoProRata;
+
+    @Column(name = "cobranca_upgrade_assas_id", length = 100)
+    private String cobrancaUpgradeAssasId;
+
+    @Column(name = "plano_anterior_codigo", length = 50)
+    private String planoAnteriorCodigo;
 
     // Auditoria
     @Column(name = "dt_criacao", nullable = false, updatable = false)
@@ -117,13 +120,15 @@ public class Assinatura {
     }
 
     public boolean isBloqueada() {
-        if (isTrialExpirado()) return true;
-        if (status == StatusAssinatura.VENCIDA || status == StatusAssinatura.SUSPENSA) return true;
-        // Cancelada: permite acesso ate o fim do periodo pago
-        if (status == StatusAssinatura.CANCELADA) {
-            return dtProximoVencimento == null || LocalDateTime.now().isAfter(dtProximoVencimento);
-        }
-        return false;
+        return switch (status) {
+            case TRIAL -> isTrialExpirado();
+            case AGUARDANDO_PAGAMENTO -> true;
+            case UPGRADE_PENDENTE -> false;
+            case DOWNGRADE_AGENDADO -> false;
+            case ATIVA -> false;
+            case VENCIDA, SUSPENSA -> true;
+            case CANCELADA -> dtProximoVencimento == null || LocalDateTime.now().isAfter(dtProximoVencimento);
+        };
     }
 
     public boolean isPlanoGratuito() {
