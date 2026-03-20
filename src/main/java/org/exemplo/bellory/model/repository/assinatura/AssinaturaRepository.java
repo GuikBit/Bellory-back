@@ -83,4 +83,11 @@ public interface AssinaturaRepository extends JpaRepository<Assinatura, Long> {
     Optional<Assinatura> findByAssasSubscriptionId(String assasSubscriptionId);
 
     List<Assinatura> findByAssasSubscriptionIdInAndStatus(Collection<String> subscriptionIds, StatusAssinatura status);
+
+    @Query("SELECT a FROM Assinatura a " +
+           "LEFT JOIN FETCH a.organizacao " +
+           "LEFT JOIN FETCH a.planoBellory " +
+           "LEFT JOIN FETCH a.planoAgendado " +
+           "WHERE a.planoAgendado IS NOT NULL")
+    List<Assinatura> findByPlanoAgendadoNotNull();
 }

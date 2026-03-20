@@ -47,6 +47,21 @@ public class AssinaturaSchedulerService {
     }
 
     /**
+     * A cada 2 horas - Efetiva trocas de plano agendadas cujo ciclo ja virou
+     * (backup caso o webhook nao dispare)
+     */
+    @Scheduled(cron = "0 30 */2 * * *")
+    public void jobEfetivarTrocasAgendadas() {
+        log.info("Iniciando job de efetivacao de trocas de plano agendadas...");
+        try {
+            assinaturaService.efetivarTrocasAgendadasVencidas();
+            log.info("Job de efetivacao de trocas agendadas finalizado com sucesso.");
+        } catch (Exception e) {
+            log.error("Erro no job de efetivacao de trocas agendadas: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
      * A cada 2 horas - Sincroniza status local com o Asaas (backup dos webhooks)
      */
     @Scheduled(cron = "0 0 */2 * * *")

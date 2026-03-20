@@ -36,4 +36,9 @@ public class AssinaturaResponseDTO {
     private String cupomCodigo;
     private BigDecimal valorDesconto;
     private LocalDateTime dtCriacao;
+
+    // Troca de plano agendada
+    private String planoAgendadoCodigo;
+    private String planoAgendadoNome;
+    private String cicloAgendado;
 }

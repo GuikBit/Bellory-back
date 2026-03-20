@@ -197,6 +197,14 @@ public class AssinaturaService {
                 builder.bloqueado(false);
                 builder.mensagem("Downgrade agendado para o proximo ciclo de cobranca.");
             }
+            case TROCA_PLANO_AGENDADA -> {
+                builder.bloqueado(false);
+                String dtEfetivacao = assinatura.getDtProximoVencimento() != null
+                        ? assinatura.getDtProximoVencimento().toLocalDate().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+                        : "proximo ciclo";
+                String nomeAgendado = assinatura.getPlanoAgendado() != null ? assinatura.getPlanoAgendado().getNome() : "";
+                builder.mensagem(String.format("Troca para o plano %s agendada para %s.", nomeAgendado, dtEfetivacao));
+            }
             case PAGAMENTO_ATRASADO -> {
                 builder.bloqueado(true);
                 builder.mensagem("Sua assinatura esta vencida. Regularize o pagamento para continuar.");
@@ -221,6 +229,13 @@ public class AssinaturaService {
                 builder.bloqueado(true);
                 builder.mensagem("Nenhuma assinatura encontrada. Escolha um plano.");
             }
+        }
+
+        // Informacoes de troca de plano agendada
+        if (assinatura.temTrocaAgendada()) {
+            builder.planoAgendadoCodigo(assinatura.getPlanoAgendado().getCodigo());
+            builder.planoAgendadoNome(assinatura.getPlanoAgendado().getNome());
+            builder.cicloAgendado(assinatura.getCicloAgendado() != null ? assinatura.getCicloAgendado().name() : null);
         }
 
         // Informacoes de cobrancas pendentes
@@ -252,6 +267,10 @@ public class AssinaturaService {
                 BigDecimal valorPendente = cobrancaPlataformaRepository.somarValorPendente(organizacaoId);
                 if (valorPendente != null && valorPendente.compareTo(BigDecimal.ZERO) > 0) {
                     yield SituacaoAssinatura.PAGAMENTO_PENDENTE;
+                }
+                // Troca de plano agendada
+                if (assinatura.temTrocaAgendada()) {
+                    yield SituacaoAssinatura.TROCA_PLANO_AGENDADA;
                 }
                 yield SituacaoAssinatura.ATIVA;
             }
@@ -448,8 +467,14 @@ public class AssinaturaService {
         return toAssinaturaResponseDTO(assinatura);
     }
 
-    // ==================== UPGRADE / DOWNGRADE ====================
+    // ==================== TROCA DE PLANO (AGENDADA) ====================
 
+    /**
+     * Agenda a troca de plano para o proximo ciclo de cobranca.
+     * O cliente continua usando o plano atual ate o fim do ciclo.
+     * Na virada do ciclo (webhook ou scheduler), o plano eh alterado localmente
+     * e o valor da assinatura eh atualizado no Asaas.
+     */
     @Transactional
     public AssinaturaResponseDTO trocarPlano(EscolherPlanoDTO dto) {
         Long organizacaoId = TenantContext.getCurrentOrganizacaoId();
@@ -471,289 +496,118 @@ public class AssinaturaService {
             throw new IllegalArgumentException("Plano indisponivel");
         }
 
+        CicloCobranca novoCiclo = CicloCobranca.valueOf(dto.getCicloCobranca());
+
         PlanoBellory planoAtual = assinatura.getPlanoBellory();
         if (planoAtual.getCodigo().equals(novoPlano.getCodigo())
-                && assinatura.getCicloCobranca().name().equals(dto.getCicloCobranca())) {
+                && assinatura.getCicloCobranca() == novoCiclo) {
             throw new IllegalArgumentException("Voce ja esta neste plano com este ciclo de cobranca");
         }
 
-        CicloCobranca novoCiclo = CicloCobranca.valueOf(dto.getCicloCobranca());
-        FormaPagamentoPlataforma forma = FormaPagamentoPlataforma.valueOf(dto.getFormaPagamento());
-
-        // Calculate pro-rata difference
-        BigDecimal proRata = calcularProRata(assinatura, novoPlano, novoCiclo);
-
-        int comparison = proRata.compareTo(BigDecimal.ZERO);
-
-        if (comparison > 0) {
-            // UPGRADE: pro-rata charge required before plan change
-            return processarUpgrade(assinatura, novoPlano, novoCiclo, forma, proRata, dto, organizacaoId);
-        } else if (comparison < 0) {
-            // DOWNGRADE: credit the difference
-            return processarDowngrade(assinatura, novoPlano, novoCiclo, forma, proRata.abs(), dto, organizacaoId);
-        } else {
-            // SAME PRICE: e.g. just changing cycle
-            return processarTrocaMesmoValor(assinatura, novoPlano, novoCiclo, forma, dto, organizacaoId);
-        }
-    }
-
-    private AssinaturaResponseDTO processarUpgrade(Assinatura assinatura, PlanoBellory novoPlano,
-                                                    CicloCobranca novoCiclo, FormaPagamentoPlataforma forma,
-                                                    BigDecimal proRata, EscolherPlanoDTO dto, Long organizacaoId) {
-        PlanoBellory planoAtual = assinatura.getPlanoBellory();
-        String planoAtualCodigo = planoAtual.getCodigo();
-
-        // Generate avulsa charge in Asaas for the pro-rata amount
-        if (assinatura.getAssasCustomerId() != null) {
-            try {
-                AssasPaymentResponse cobrancaAvulsa = assasClient.criarCobrancaAvulsa(
-                        assinatura.getAssasCustomerId(),
-                        proRata,
-                        mapFormaPagamento(forma),
-                        "Upgrade de plano Bellory - " + planoAtual.getNome() + " para " + novoPlano.getNome()
-                );
-                if (cobrancaAvulsa != null) {
-                    assinatura.setCobrancaUpgradeAssasId(cobrancaAvulsa.getId());
-                }
-            } catch (AssasApiException e) {
-                log.error("Erro ao criar cobranca avulsa para upgrade: {}", e.getMessage());
-                throw new IllegalStateException("Erro ao processar upgrade. Tente novamente.");
-            }
+        // Verificar se ja tem troca agendada para o mesmo plano/ciclo
+        if (assinatura.getPlanoAgendado() != null
+                && assinatura.getPlanoAgendado().getCodigo().equals(novoPlano.getCodigo())
+                && assinatura.getCicloAgendado() == novoCiclo) {
+            throw new IllegalArgumentException("Troca para este plano ja esta agendada");
         }
 
-        // Save current plan code for rollback, set planoBellory to target (optimistic)
-        assinatura.setPlanoAnteriorCodigo(planoAtualCodigo);
-        assinatura.setPlanoBellory(novoPlano);
-        assinatura.setCicloCobranca(novoCiclo);
-        assinatura.setFormaPagamento(forma);
-        assinatura.setStatus(StatusAssinatura.UPGRADE_PENDENTE);
+        // Agendar a troca - o plano atual continua ate o fim do ciclo
+        assinatura.setPlanoAgendado(novoPlano);
+        assinatura.setCicloAgendado(novoCiclo);
 
         assinaturaRepository.save(assinatura);
 
-        log.info("Upgrade pendente de pagamento - org: {} - de {} para {} - pro-rata: {}",
-                organizacaoId, planoAtualCodigo, novoPlano.getCodigo(), proRata);
-
-        return toAssinaturaResponseDTO(assinatura);
-    }
-
-    private AssinaturaResponseDTO processarDowngrade(Assinatura assinatura, PlanoBellory novoPlano,
-                                                      CicloCobranca novoCiclo, FormaPagamentoPlataforma forma,
-                                                      BigDecimal credito, EscolherPlanoDTO dto, Long organizacaoId) {
-        PlanoBellory planoAtual = assinatura.getPlanoBellory();
-        String planoAtualCodigo = planoAtual.getCodigo();
-        String oldSubscriptionId = assinatura.getAssasSubscriptionId();
-
-        // Save credit for future use
-        assinatura.setCreditoProRata(credito);
-
-        // Calculate new subscription value with credit applied to first charge
-        BigDecimal novoValor = novoCiclo == CicloCobranca.ANUAL ? novoPlano.getPrecoAnual() : novoPlano.getPrecoMensal();
-        BigDecimal valorPrimeiraCobranca = novoValor.subtract(credito);
-        if (valorPrimeiraCobranca.compareTo(BigDecimal.ZERO) < 0) {
-            valorPrimeiraCobranca = BigDecimal.ZERO;
-        }
-
-        // Validar e aplicar cupom
-        CupomValidacaoResult cupomResult = null;
-        if (dto.getCodigoCupom() != null && !dto.getCodigoCupom().isBlank()) {
-            cupomResult = cupomDescontoService.validarCupom(
-                    dto.getCodigoCupom(), assinatura.getOrganizacao(), dto.getPlanoCodigo(), dto.getCicloCobranca(), valorPrimeiraCobranca);
-            if (!cupomResult.isValido()) {
-                throw new IllegalArgumentException("Cupom invalido: " + cupomResult.getMensagem());
-            }
-            valorPrimeiraCobranca = cupomResult.getValorComDesconto();
-        }
-
-        // Section 3.2: Create new subscription FIRST, then cancel old
-        if (assinatura.getAssasCustomerId() != null) {
-            BigDecimal valorAssas = novoValor;
-            if (cupomResult != null && cupomResult.isValido()
-                    && cupomResult.getCupom().getTipoAplicacao() == TipoAplicacaoCupom.RECORRENTE) {
-                valorAssas = novoValor.subtract(cupomDescontoService.calcularDesconto(cupomResult.getCupom(), novoValor));
-            }
-
-            String billingType = mapFormaPagamento(forma);
-            String cycle = novoCiclo == CicloCobranca.ANUAL ? "YEARLY" : "MONTHLY";
-
-            AssasSubscriptionResponse sub = assasClient.criarAssinatura(
-                    AssasSubscriptionRequest.builder()
-                            .customer(assinatura.getAssasCustomerId())
-                            .billingType(billingType)
-                            .value(valorAssas)
-                            .cycle(cycle)
-                            .nextDueDate(LocalDate.now().plusDays(1).toString())
-                            .description("Assinatura Bellory - Plano " + novoPlano.getNome())
-                            .build()
-            );
-            if (sub != null) {
-                assinatura.setAssasSubscriptionId(sub.getId());
-            }
-
-            // Only THEN cancel old subscription (Section 3.2 - create before cancel)
-            if (oldSubscriptionId != null) {
-                try {
-                    assasClient.cancelarAssinatura(oldSubscriptionId);
-                } catch (AssasApiException e) {
-                    log.warn("Erro ao cancelar assinatura antiga no Asaas: {}", e.getMessage());
-                }
-            }
-        }
-
-        // Update local subscription
-        assinatura.setPlanoBellory(novoPlano);
-        assinatura.setCicloCobranca(novoCiclo);
-        assinatura.setFormaPagamento(forma);
-        assinatura.setDtInicio(LocalDateTime.now());
-        assinatura.setPlanoAnteriorCodigo(planoAtualCodigo);
-        // Status stays ATIVA for downgrade
-
-        if (cupomResult != null && cupomResult.isValido()) {
-            assinatura.setCupom(cupomResult.getCupom());
-            assinatura.setValorDesconto(cupomResult.getValorDesconto());
-            assinatura.setCupomCodigo(cupomResult.getCupom().getCodigo());
-        } else {
-            assinatura.setCupom(null);
-            assinatura.setValorDesconto(null);
-            assinatura.setCupomCodigo(null);
-        }
-
-        if (novoCiclo == CicloCobranca.ANUAL) {
-            assinatura.setDtProximoVencimento(LocalDateTime.now().plusYears(1));
-        } else {
-            assinatura.setDtProximoVencimento(LocalDateTime.now().plusMonths(1));
-        }
-
-        assinaturaRepository.save(assinatura);
-
-        log.info("Downgrade realizado - org: {} - de {} para {} - credito pro-rata: {}",
-                organizacaoId, planoAtualCodigo, novoPlano.getCodigo(), credito);
-
-        return toAssinaturaResponseDTO(assinatura);
-    }
-
-    private AssinaturaResponseDTO processarTrocaMesmoValor(Assinatura assinatura, PlanoBellory novoPlano,
-                                                            CicloCobranca novoCiclo, FormaPagamentoPlataforma forma,
-                                                            EscolherPlanoDTO dto, Long organizacaoId) {
-        PlanoBellory planoAtual = assinatura.getPlanoBellory();
-        String planoAtualCodigo = planoAtual.getCodigo();
-        String oldSubscriptionId = assinatura.getAssasSubscriptionId();
-
-        BigDecimal novoValor = novoCiclo == CicloCobranca.ANUAL ? novoPlano.getPrecoAnual() : novoPlano.getPrecoMensal();
-
-        // Validar e aplicar cupom
-        CupomValidacaoResult cupomResult = null;
-        if (dto.getCodigoCupom() != null && !dto.getCodigoCupom().isBlank()) {
-            cupomResult = cupomDescontoService.validarCupom(
-                    dto.getCodigoCupom(), assinatura.getOrganizacao(), dto.getPlanoCodigo(), dto.getCicloCobranca(), novoValor);
-            if (!cupomResult.isValido()) {
-                throw new IllegalArgumentException("Cupom invalido: " + cupomResult.getMensagem());
-            }
-        }
-
-        // Create new subscription first, then cancel old (Section 3.2)
-        if (assinatura.getAssasCustomerId() != null) {
-            BigDecimal valorAssas = novoValor;
-            if (cupomResult != null && cupomResult.isValido()
-                    && cupomResult.getCupom().getTipoAplicacao() == TipoAplicacaoCupom.RECORRENTE) {
-                valorAssas = novoValor.subtract(cupomDescontoService.calcularDesconto(cupomResult.getCupom(), novoValor));
-            }
-
-            String billingType = mapFormaPagamento(forma);
-            String cycle = novoCiclo == CicloCobranca.ANUAL ? "YEARLY" : "MONTHLY";
-
-            AssasSubscriptionResponse sub = assasClient.criarAssinatura(
-                    AssasSubscriptionRequest.builder()
-                            .customer(assinatura.getAssasCustomerId())
-                            .billingType(billingType)
-                            .value(valorAssas)
-                            .cycle(cycle)
-                            .nextDueDate(LocalDate.now().plusDays(1).toString())
-                            .description("Assinatura Bellory - Plano " + novoPlano.getNome())
-                            .build()
-            );
-            if (sub != null) {
-                assinatura.setAssasSubscriptionId(sub.getId());
-            }
-
-            // Cancel old subscription after creating new one
-            if (oldSubscriptionId != null) {
-                try {
-                    assasClient.cancelarAssinatura(oldSubscriptionId);
-                } catch (AssasApiException e) {
-                    log.warn("Erro ao cancelar assinatura antiga no Asaas: {}", e.getMessage());
-                }
-            }
-        }
-
-        // Update local
-        assinatura.setPlanoBellory(novoPlano);
-        assinatura.setCicloCobranca(novoCiclo);
-        assinatura.setFormaPagamento(forma);
-        assinatura.setDtInicio(LocalDateTime.now());
-        assinatura.setPlanoAnteriorCodigo(planoAtualCodigo);
-
-        if (cupomResult != null && cupomResult.isValido()) {
-            assinatura.setCupom(cupomResult.getCupom());
-            assinatura.setValorDesconto(cupomResult.getValorDesconto());
-            assinatura.setCupomCodigo(cupomResult.getCupom().getCodigo());
-        } else {
-            assinatura.setCupom(null);
-            assinatura.setValorDesconto(null);
-            assinatura.setCupomCodigo(null);
-        }
-
-        if (novoCiclo == CicloCobranca.ANUAL) {
-            assinatura.setDtProximoVencimento(LocalDateTime.now().plusYears(1));
-        } else {
-            assinatura.setDtProximoVencimento(LocalDateTime.now().plusMonths(1));
-        }
-
-        assinaturaRepository.save(assinatura);
-
-        log.info("Plano trocado (mesmo valor) - org: {} - de {} para {}",
-                organizacaoId, planoAtualCodigo, novoPlano.getCodigo());
+        log.info("Troca de plano agendada - org: {} - de {} ({}) para {} ({}) - efetivacao em: {}",
+                organizacaoId, planoAtual.getCodigo(), assinatura.getCicloCobranca(),
+                novoPlano.getCodigo(), novoCiclo,
+                assinatura.getDtProximoVencimento());
 
         return toAssinaturaResponseDTO(assinatura);
     }
 
     /**
-     * Calculates the pro-rata difference when switching plans.
-     * Positive = upgrade (customer owes money), Negative = downgrade (customer gets credit).
+     * Cancela uma troca de plano agendada.
      */
-    public BigDecimal calcularProRata(Assinatura assinatura, PlanoBellory novoPlano, CicloCobranca novoCiclo) {
-        if (assinatura.getAssasSubscriptionId() == null) {
-            return BigDecimal.ZERO;
+    @Transactional
+    public AssinaturaResponseDTO cancelarTrocaAgendada() {
+        Long organizacaoId = TenantContext.getCurrentOrganizacaoId();
+        if (organizacaoId == null) {
+            throw new SecurityException("Organizacao nao identificada no token");
         }
 
-        AssasSubscriptionResponse sub = assasClient.buscarAssinatura(assinatura.getAssasSubscriptionId());
-        if (sub == null || sub.getNextDueDate() == null) {
-            return BigDecimal.ZERO;
+        Assinatura assinatura = assinaturaRepository.findByOrganizacaoId(organizacaoId)
+                .orElseThrow(() -> new IllegalStateException("Assinatura nao encontrada"));
+
+        if (assinatura.getPlanoAgendado() == null) {
+            throw new IllegalStateException("Nao ha troca de plano agendada para cancelar");
         }
 
-        LocalDate fimCiclo = LocalDate.parse(sub.getNextDueDate());
-        LocalDate hoje = LocalDate.now();
+        log.info("Troca agendada cancelada - org: {} - plano agendado era: {} ({})",
+                organizacaoId, assinatura.getPlanoAgendado().getCodigo(), assinatura.getCicloAgendado());
 
-        long diasRestantes = ChronoUnit.DAYS.between(hoje, fimCiclo);
-        if (diasRestantes <= 0) {
-            return BigDecimal.ZERO;
+        assinatura.setPlanoAgendado(null);
+        assinatura.setCicloAgendado(null);
+
+        assinaturaRepository.save(assinatura);
+
+        return toAssinaturaResponseDTO(assinatura);
+    }
+
+    /**
+     * Efetiva a troca de plano agendada na virada do ciclo.
+     * Chamado via webhook (PAYMENT_CONFIRMED, SUBSCRIPTION_RENEWED) ou scheduler.
+     * Altera o plano localmente e atualiza o valor da assinatura no Asaas.
+     */
+    @Transactional
+    public void efetivarTrocaAgendada(Assinatura assinatura) {
+        if (assinatura.getPlanoAgendado() == null) {
+            return;
         }
 
-        long diasTotalCiclo = assinatura.getCicloCobranca() == CicloCobranca.ANUAL ? 365 : fimCiclo.lengthOfMonth();
+        PlanoBellory planoAnterior = assinatura.getPlanoBellory();
+        PlanoBellory novoPlano = assinatura.getPlanoAgendado();
+        CicloCobranca novoCiclo = assinatura.getCicloAgendado();
 
-        BigDecimal valorAtual = assinatura.getCicloCobranca() == CicloCobranca.ANUAL
-                ? assinatura.getPlanoBellory().getPrecoAnual()
-                : assinatura.getPlanoBellory().getPrecoMensal();
-        BigDecimal valorNovo = novoCiclo == CicloCobranca.ANUAL
-                ? novoPlano.getPrecoAnual()
-                : novoPlano.getPrecoMensal();
+        log.info("Efetivando troca de plano agendada - org: {} - de {} para {}",
+                assinatura.getOrganizacao().getId(), planoAnterior.getCodigo(), novoPlano.getCodigo());
 
-        BigDecimal fatorProporcional = BigDecimal.valueOf(diasRestantes)
-                .divide(BigDecimal.valueOf(diasTotalCiclo), 4, RoundingMode.HALF_UP);
+        // Calcular novo valor
+        BigDecimal novoValor = novoCiclo == CicloCobranca.ANUAL ? novoPlano.getPrecoAnual() : novoPlano.getPrecoMensal();
 
-        BigDecimal creditoAtual = valorAtual.multiply(fatorProporcional).setScale(2, RoundingMode.HALF_UP);
-        BigDecimal custoNovo = valorNovo.multiply(fatorProporcional).setScale(2, RoundingMode.HALF_UP);
+        // Atualizar valor da assinatura no Asaas
+        if (assinatura.getAssasSubscriptionId() != null) {
+            try {
+                String cycle = novoCiclo == CicloCobranca.ANUAL ? "YEARLY" : "MONTHLY";
+                assasClient.atualizarAssinatura(
+                        assinatura.getAssasSubscriptionId(),
+                        AssasSubscriptionRequest.builder()
+                                .value(novoValor)
+                                .cycle(cycle)
+                                .description("Assinatura Bellory - Plano " + novoPlano.getNome())
+                                .build()
+                );
+                assasClient.evictSubscriptionCache(assinatura.getAssasSubscriptionId());
+            } catch (AssasApiException e) {
+                log.error("Erro ao atualizar valor da assinatura no Asaas - org: {} - erro: {}",
+                        assinatura.getOrganizacao().getId(), e.getMessage());
+                // Nao falha silenciosamente - tenta novamente no proximo scheduler
+                return;
+            }
+        }
 
-        return custoNovo.subtract(creditoAtual);
+        // Atualizar localmente
+        assinatura.setPlanoAnteriorCodigo(planoAnterior.getCodigo());
+        assinatura.setPlanoBellory(novoPlano);
+        assinatura.setCicloCobranca(novoCiclo);
+
+        // Limpar agendamento
+        assinatura.setPlanoAgendado(null);
+        assinatura.setCicloAgendado(null);
+
+        assinaturaRepository.save(assinatura);
+
+        log.info("Troca de plano efetivada - org: {} - novo plano: {} ({}) - valor: {}",
+                assinatura.getOrganizacao().getId(), novoPlano.getCodigo(), novoCiclo, novoValor);
     }
 
     // ==================== PREVIEW TROCA PLANO ====================
@@ -776,45 +630,38 @@ public class AssinaturaService {
                 .orElseThrow(() -> new IllegalArgumentException("Plano nao encontrado: " + dto.getPlanoCodigo()));
 
         CicloCobranca novoCiclo = CicloCobranca.valueOf(dto.getCicloCobranca());
-        BigDecimal proRata = calcularProRata(assinatura, novoPlano, novoCiclo);
 
-        // Calculate proportional values for display
+        BigDecimal valorAtual = assinatura.getCicloCobranca() == CicloCobranca.ANUAL
+                ? assinatura.getPlanoBellory().getPrecoAnual()
+                : assinatura.getPlanoBellory().getPrecoMensal();
+        BigDecimal valorNovo = novoCiclo == CicloCobranca.ANUAL
+                ? novoPlano.getPrecoAnual() : novoPlano.getPrecoMensal();
+
         long diasRestantes = 0;
-        long diasTotalCiclo = 0;
-        BigDecimal valorAtualProporcional = BigDecimal.ZERO;
-        BigDecimal valorNovoProporcional = BigDecimal.ZERO;
+        LocalDate dtEfetivacao = null;
 
-        if (assinatura.getAssasSubscriptionId() != null) {
-            try {
-                AssasSubscriptionResponse sub = assasClient.buscarAssinatura(assinatura.getAssasSubscriptionId());
-                if (sub != null && sub.getNextDueDate() != null) {
-                    LocalDate fimCiclo = LocalDate.parse(sub.getNextDueDate());
-                    diasRestantes = ChronoUnit.DAYS.between(LocalDate.now(), fimCiclo);
-                    diasTotalCiclo = assinatura.getCicloCobranca() == CicloCobranca.ANUAL ? 365 : fimCiclo.lengthOfMonth();
-
-                    if (diasRestantes > 0 && diasTotalCiclo > 0) {
-                        BigDecimal fator = BigDecimal.valueOf(diasRestantes)
-                                .divide(BigDecimal.valueOf(diasTotalCiclo), 4, RoundingMode.HALF_UP);
-                        BigDecimal valorAtual = assinatura.getCicloCobranca() == CicloCobranca.ANUAL
-                                ? assinatura.getPlanoBellory().getPrecoAnual()
-                                : assinatura.getPlanoBellory().getPrecoMensal();
-                        BigDecimal valorNovo = novoCiclo == CicloCobranca.ANUAL
-                                ? novoPlano.getPrecoAnual() : novoPlano.getPrecoMensal();
-                        valorAtualProporcional = valorAtual.multiply(fator).setScale(2, RoundingMode.HALF_UP);
-                        valorNovoProporcional = valorNovo.multiply(fator).setScale(2, RoundingMode.HALF_UP);
-                    }
-                }
-            } catch (AssasApiException e) {
-                log.warn("Erro ao buscar dados do Asaas para preview: {}", e.getMessage());
-            }
+        if (assinatura.getDtProximoVencimento() != null) {
+            diasRestantes = ChronoUnit.DAYS.between(LocalDate.now(), assinatura.getDtProximoVencimento().toLocalDate());
+            if (diasRestantes < 0) diasRestantes = 0;
+            dtEfetivacao = assinatura.getDtProximoVencimento().toLocalDate();
         }
 
-        boolean isUpgrade = proRata.compareTo(BigDecimal.ZERO) > 0;
-        String mensagem = isUpgrade
-                ? String.format("Upgrade: sera cobrado R$ %.2f proporcional ao periodo restante.", proRata)
-                : proRata.compareTo(BigDecimal.ZERO) < 0
-                        ? String.format("Downgrade: voce recebera R$ %.2f de credito na proxima cobranca.", proRata.abs())
-                        : "Troca sem diferenca de valor.";
+        boolean isUpgrade = valorNovo.compareTo(valorAtual) > 0;
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        String dataEfetivacao = dtEfetivacao != null ? dtEfetivacao.format(fmt) : "proximo ciclo";
+
+        String mensagem;
+        if (valorNovo.compareTo(valorAtual) > 0) {
+            mensagem = String.format("Upgrade agendado: voce continuara no plano atual ate %s. " +
+                    "A partir do proximo ciclo, o valor passara de R$ %.2f para R$ %.2f.",
+                    dataEfetivacao, valorAtual, valorNovo);
+        } else if (valorNovo.compareTo(valorAtual) < 0) {
+            mensagem = String.format("Downgrade agendado: voce continuara no plano atual ate %s. " +
+                    "A partir do proximo ciclo, o valor passara de R$ %.2f para R$ %.2f.",
+                    dataEfetivacao, valorAtual, valorNovo);
+        } else {
+            mensagem = String.format("Troca agendada: a alteracao sera efetivada em %s.", dataEfetivacao);
+        }
 
         return ProRataPreviewDTO.builder()
                 .planoAtualCodigo(assinatura.getPlanoBellory().getCodigo())
@@ -822,11 +669,11 @@ public class AssinaturaService {
                 .novoPlanoCodigo(novoPlano.getCodigo())
                 .novoPlanoNome(novoPlano.getNome())
                 .cicloCobranca(novoCiclo.name())
-                .valorAtualProporcional(valorAtualProporcional)
-                .valorNovoProporcional(valorNovoProporcional)
-                .valorProRata(proRata)
+                .valorAtualProporcional(valorAtual)
+                .valorNovoProporcional(valorNovo)
+                .valorProRata(valorNovo.subtract(valorAtual))
                 .diasRestantesCiclo(diasRestantes)
-                .diasTotalCiclo(diasTotalCiclo)
+                .diasTotalCiclo(0)
                 .isUpgrade(isUpgrade)
                 .mensagem(mensagem)
                 .build();
@@ -859,6 +706,13 @@ public class AssinaturaService {
 
         assinatura.setStatus(StatusAssinatura.CANCELADA);
         assinatura.setDtCancelamento(LocalDateTime.now());
+
+        // Limpar troca de plano agendada se houver
+        if (assinatura.temTrocaAgendada()) {
+            assinatura.setPlanoAgendado(null);
+            assinatura.setCicloAgendado(null);
+        }
+
         assinaturaRepository.save(assinatura);
 
         // Cancelar cobrancas pendentes locais
@@ -1279,6 +1133,11 @@ public class AssinaturaService {
                 } catch (AssasApiException e) {
                     log.warn("Erro ao buscar assinatura renovada no Asaas: {}", e.getMessage());
                 }
+
+                // Efetivar troca de plano agendada na virada do ciclo
+                if (assinatura.temTrocaAgendada()) {
+                    efetivarTrocaAgendada(assinatura);
+                }
             }
             case "SUBSCRIPTION_EXPIRED" -> {
                 if (assinatura.getStatus() == StatusAssinatura.ATIVA) {
@@ -1319,14 +1178,6 @@ public class AssinaturaService {
         if (assinatura == null) {
             log.warn("Assinatura nao encontrada para pagamento confirmado: {}", payment.getId());
             return;
-        }
-
-        // Check if this is a pro-rata upgrade charge
-        if (assinatura.getCobrancaUpgradeAssasId() != null
-                && assinatura.getCobrancaUpgradeAssasId().equals(payment.getId())) {
-            // Pro-rata paid - now execute the plan change
-            efetivarUpgrade(assinatura);
-            return; // Don't process as regular payment
         }
 
         // Atualizar cobranca local se existir
@@ -1428,69 +1279,12 @@ public class AssinaturaService {
             }
         }
 
+        // Efetivar troca de plano agendada na virada do ciclo
+        if (assinatura.temTrocaAgendada()) {
+            efetivarTrocaAgendada(assinatura);
+        }
+
         log.info("Pagamento confirmado - assinatura org: {}", assinatura.getOrganizacao().getId());
-    }
-
-    /**
-     * Executes the upgrade after the pro-rata charge is confirmed.
-     * At this point, planoBellory is already set to the new plan (optimistic set during trocarPlano).
-     * We need to create the new Asaas subscription and cancel the old one.
-     */
-    private void efetivarUpgrade(Assinatura assinatura) {
-        log.info("Efetivando upgrade para org: {} - plano: {}",
-                assinatura.getOrganizacao().getId(), assinatura.getPlanoBellory().getCodigo());
-
-        String oldSubscriptionId = assinatura.getAssasSubscriptionId();
-        PlanoBellory novoPlano = assinatura.getPlanoBellory();
-        CicloCobranca ciclo = assinatura.getCicloCobranca();
-        FormaPagamentoPlataforma forma = assinatura.getFormaPagamento();
-
-        BigDecimal novoValor = ciclo == CicloCobranca.ANUAL ? novoPlano.getPrecoAnual() : novoPlano.getPrecoMensal();
-
-        // Create new subscription in Asaas FIRST (Section 3.2)
-        if (assinatura.getAssasCustomerId() != null) {
-            String billingType = mapFormaPagamento(forma);
-            String cycle = ciclo == CicloCobranca.ANUAL ? "YEARLY" : "MONTHLY";
-
-            AssasSubscriptionResponse sub = assasClient.criarAssinatura(
-                    AssasSubscriptionRequest.builder()
-                            .customer(assinatura.getAssasCustomerId())
-                            .billingType(billingType)
-                            .value(novoValor)
-                            .cycle(cycle)
-                            .nextDueDate(LocalDate.now().plusDays(1).toString())
-                            .description("Assinatura Bellory - Plano " + novoPlano.getNome())
-                            .build()
-            );
-            if (sub != null) {
-                assinatura.setAssasSubscriptionId(sub.getId());
-            }
-
-            // Then cancel old subscription
-            if (oldSubscriptionId != null) {
-                try {
-                    assasClient.cancelarAssinatura(oldSubscriptionId);
-                } catch (AssasApiException e) {
-                    log.warn("Erro ao cancelar assinatura antiga no Asaas durante upgrade: {}", e.getMessage());
-                }
-            }
-        }
-
-        // Update local state
-        assinatura.setStatus(StatusAssinatura.ATIVA);
-        assinatura.setCobrancaUpgradeAssasId(null);
-        assinatura.setDtInicio(LocalDateTime.now());
-
-        if (ciclo == CicloCobranca.ANUAL) {
-            assinatura.setDtProximoVencimento(LocalDateTime.now().plusYears(1));
-        } else {
-            assinatura.setDtProximoVencimento(LocalDateTime.now().plusMonths(1));
-        }
-
-        assinaturaRepository.save(assinatura);
-
-        log.info("Upgrade efetivado - org: {} - novo plano: {}",
-                assinatura.getOrganizacao().getId(), novoPlano.getCodigo());
     }
 
     private void marcarPagamentoAtrasado(AssasWebhookPayload.Payment payment, Assinatura assinatura) {
@@ -1502,24 +1296,6 @@ public class AssinaturaService {
                 });
 
         if (assinatura != null) {
-            // Handle UPGRADE_PENDENTE: if the pro-rata charge is overdue, rollback
-            if (assinatura.getStatus() == StatusAssinatura.UPGRADE_PENDENTE
-                    && assinatura.getCobrancaUpgradeAssasId() != null
-                    && assinatura.getCobrancaUpgradeAssasId().equals(payment.getId())) {
-                // Rollback to previous plan
-                if (assinatura.getPlanoAnteriorCodigo() != null) {
-                    planoBelloryRepository.findByCodigo(assinatura.getPlanoAnteriorCodigo())
-                            .ifPresent(assinatura::setPlanoBellory);
-                }
-                assinatura.setStatus(StatusAssinatura.ATIVA);
-                assinatura.setCobrancaUpgradeAssasId(null);
-                assinatura.setPlanoAnteriorCodigo(null);
-                assinaturaRepository.save(assinatura);
-                log.info("Upgrade cancelado por pagamento atrasado - rollback para plano anterior - org: {}",
-                        assinatura.getOrganizacao().getId());
-                return;
-            }
-
             if (assinatura.getStatus() == StatusAssinatura.ATIVA) {
                 assinatura.setStatus(StatusAssinatura.VENCIDA);
                 assinaturaRepository.save(assinatura);
@@ -1663,6 +1439,36 @@ public class AssinaturaService {
                             assinatura.getOrganizacao().getId());
                 }
             }
+        }
+    }
+
+    // ==================== EFETIVAR TROCAS AGENDADAS (SCHEDULER) ====================
+
+    /**
+     * Verifica e efetiva trocas de plano agendadas cujo ciclo ja virou.
+     * Backup para garantir que a troca aconteca mesmo se o webhook nao disparar.
+     */
+    @Transactional
+    public void efetivarTrocasAgendadasVencidas() {
+        List<Assinatura> comTrocaAgendada = assinaturaRepository.findByPlanoAgendadoNotNull();
+
+        int efetivadas = 0;
+        for (Assinatura assinatura : comTrocaAgendada) {
+            // Efetivar se o proximo vencimento ja passou (ciclo virou)
+            if (assinatura.getDtProximoVencimento() != null
+                    && LocalDateTime.now().isAfter(assinatura.getDtProximoVencimento())) {
+                try {
+                    efetivarTrocaAgendada(assinatura);
+                    efetivadas++;
+                } catch (Exception e) {
+                    log.error("Erro ao efetivar troca agendada para assinatura ID {}: {}",
+                            assinatura.getId(), e.getMessage());
+                }
+            }
+        }
+
+        if (efetivadas > 0) {
+            log.info("Trocas de plano agendadas efetivadas pelo scheduler: {}", efetivadas);
         }
     }
 
@@ -1815,6 +1621,9 @@ public class AssinaturaService {
                 .cupomCodigo(assinatura.getCupomCodigo())
                 .valorDesconto(assinatura.getValorDesconto())
                 .creditoProRata(assinatura.getCreditoProRata())
+                .planoAgendadoCodigo(assinatura.getPlanoAgendado() != null ? assinatura.getPlanoAgendado().getCodigo() : null)
+                .planoAgendadoNome(assinatura.getPlanoAgendado() != null ? assinatura.getPlanoAgendado().getNome() : null)
+                .cicloAgendado(assinatura.getCicloAgendado() != null ? assinatura.getCicloAgendado().name() : null)
                 .dtCriacao(assinatura.getDtCriacao())
                 .build();
     }

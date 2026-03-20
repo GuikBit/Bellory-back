@@ -28,8 +28,11 @@ public enum SituacaoAssinatura {
     /** Upgrade pendente - cobrança pro-rata gerada */
     UPGRADE_PENDENTE,
 
-    /** Downgrade agendado - efetivação no próximo ciclo */
+    /** Downgrade agendado - efetivação no próximo ciclo (legado) */
     DOWNGRADE_AGENDADO,
+
+    /** Troca de plano agendada para o proximo ciclo */
+    TROCA_PLANO_AGENDADA,
 
     /** Pagamento atrasado - tela de regularizacao (bloqueado) */
     PAGAMENTO_ATRASADO,

@@ -86,7 +86,7 @@ public class Assinatura {
     @Column(name = "assas_subscription_id", length = 100)
     private String assasSubscriptionId;
 
-    // Upgrade/Downgrade
+    // Upgrade/Downgrade (legado - pro-rata)
     @Column(name = "credito_pro_rata", precision = 10, scale = 2)
     private BigDecimal creditoProRata;
 
@@ -95,6 +95,15 @@ public class Assinatura {
 
     @Column(name = "plano_anterior_codigo", length = 50)
     private String planoAnteriorCodigo;
+
+    // Troca de plano agendada (efetivada na virada do ciclo)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "plano_agendado_id")
+    private PlanoBellory planoAgendado;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "ciclo_agendado", length = 10)
+    private CicloCobranca cicloAgendado;
 
     // Auditoria
     @Column(name = "dt_criacao", nullable = false, updatable = false)
@@ -129,6 +138,10 @@ public class Assinatura {
             case VENCIDA, SUSPENSA -> true;
             case CANCELADA -> dtProximoVencimento == null || LocalDateTime.now().isAfter(dtProximoVencimento);
         };
+    }
+
+    public boolean temTrocaAgendada() {
+        return planoAgendado != null;
     }
 
     public boolean isPlanoGratuito() {

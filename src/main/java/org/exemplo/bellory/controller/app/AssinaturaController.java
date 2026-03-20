@@ -155,14 +155,14 @@ FormaPagamentoResponseDTO result = assinaturaService.getFormaPagamento();
     }
 
     @PostMapping("/trocar-plano")
-    @Operation(summary = "Upgrade ou downgrade de plano com calculo pro-rata")
+    @Operation(summary = "Agendar troca de plano para o proximo ciclo de cobranca")
     public ResponseEntity<ResponseAPI<AssinaturaResponseDTO>> trocarPlano(
             @RequestBody @Valid EscolherPlanoDTO dto) {
         try {
             AssinaturaResponseDTO result = assinaturaService.trocarPlano(dto);
             return ResponseEntity.ok(ResponseAPI.<AssinaturaResponseDTO>builder()
                     .success(true)
-                    .message("Plano alterado com sucesso")
+                    .message("Troca de plano agendada para o proximo ciclo de cobranca")
                     .dados(result)
                     .build());
         } catch (IllegalArgumentException | IllegalStateException e) {
@@ -183,8 +183,36 @@ FormaPagamentoResponseDTO result = assinaturaService.getFormaPagamento();
         }
     }
 
+    @PostMapping("/cancelar-troca-agendada")
+    @Operation(summary = "Cancelar troca de plano agendada")
+    public ResponseEntity<ResponseAPI<AssinaturaResponseDTO>> cancelarTrocaAgendada() {
+        try {
+            AssinaturaResponseDTO result = assinaturaService.cancelarTrocaAgendada();
+            return ResponseEntity.ok(ResponseAPI.<AssinaturaResponseDTO>builder()
+                    .success(true)
+                    .message("Troca de plano agendada cancelada")
+                    .dados(result)
+                    .build());
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ResponseAPI.<AssinaturaResponseDTO>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(400)
+                            .build());
+        } catch (Exception e) {
+            log.error("Erro ao cancelar troca agendada: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseAPI.<AssinaturaResponseDTO>builder()
+                            .success(false)
+                            .message("Erro interno: " + e.getMessage())
+                            .errorCode(500)
+                            .build());
+        }
+    }
+
     @PostMapping("/preview-troca-plano")
-    @Operation(summary = "Preview do custo de troca de plano (pro-rata)")
+    @Operation(summary = "Preview da troca de plano agendada")
     public ResponseEntity<ResponseAPI<ProRataPreviewDTO>> previewTrocaPlano(
             @RequestBody @Valid EscolherPlanoDTO dto) {
         try {
