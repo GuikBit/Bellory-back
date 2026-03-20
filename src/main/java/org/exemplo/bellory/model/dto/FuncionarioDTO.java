@@ -132,6 +132,6 @@ public class FuncionarioDTO {
         this.jornadaDia = jornadaDTO;
 
         this.bloqueiosAgenda = bloqueiosDTO;
-        this.servicosId = servicos.stream().map(servico -> servico.getId().intValue()).collect(Collectors.toList());
+        this.servicosId = servicos.stream().filter(servico -> !servico.isDeletado()).map(servico -> servico.getId().intValue()).collect(Collectors.toList());
     }
 }
