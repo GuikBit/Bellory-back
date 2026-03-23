@@ -34,14 +34,24 @@ public class AdminSuporteImagemService {
     /**
      * Upload de imagem para a pasta de suporte
      */
-    public SuporteImagemDTO uploadImagem(MultipartFile file, String pasta) {
+    public SuporteImagemDTO uploadImagem(MultipartFile file, String pasta, String nomePersonalizado) {
         try {
             validarArquivo(file);
 
             String originalFilename = file.getOriginalFilename();
             String extension = getFileExtension(originalFilename);
 
-            String filename = String.format("%d_%s", System.currentTimeMillis(), sanitizeFilename(originalFilename));
+            String filename;
+            if (nomePersonalizado != null && !nomePersonalizado.isBlank()) {
+                String nomeSanitizado = sanitizeFilename(nomePersonalizado);
+                // Remove extensão se o usuário incluiu uma
+                if (nomeSanitizado.contains(".")) {
+                    nomeSanitizado = nomeSanitizado.substring(0, nomeSanitizado.lastIndexOf("."));
+                }
+                filename = String.format("%s_%d.%s", nomeSanitizado, System.currentTimeMillis(), extension);
+            } else {
+                filename = String.format("%d_%s", System.currentTimeMillis(), sanitizeFilename(originalFilename));
+            }
 
             Path targetDirectory = resolveSuportePath(pasta);
             Files.createDirectories(targetDirectory);
