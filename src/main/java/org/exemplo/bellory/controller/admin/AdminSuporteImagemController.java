@@ -32,9 +32,11 @@ public class AdminSuporteImagemController {
     public ResponseEntity<ResponseAPI<SuporteImagemDTO>> uploadImagem(
             @RequestParam("file") MultipartFile file,
             @Parameter(description = "Nome da pasta (opcional). Se nao informado, salva na raiz do diretorio de suporte.")
-            @RequestParam(value = "pasta", required = false) String pasta) {
+            @RequestParam(value = "pasta", required = false) String pasta,
+            @Parameter(description = "Nome personalizado para a imagem (opcional). Se nao informado, usa o nome original do arquivo.")
+            @RequestParam(value = "nome", required = false) String nome) {
         try {
-            SuporteImagemDTO resultado = adminSuporteImagemService.uploadImagem(file, pasta);
+            SuporteImagemDTO resultado = adminSuporteImagemService.uploadImagem(file, pasta, nome);
             return ResponseEntity
                     .status(HttpStatus.CREATED)
                     .body(ResponseAPI.<SuporteImagemDTO>builder()
