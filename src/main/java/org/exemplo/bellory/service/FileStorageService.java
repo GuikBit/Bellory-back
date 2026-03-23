@@ -32,7 +32,8 @@ public class FileStorageService {
         FOTO_SERVICO("servicos"),
         FOTO_PRODUTO("produtos"),
         LOGO_ORGANIZACAO("organizacao/logo"),
-        BANNER_ORGANIZACAO("organizacao/banner");
+        BANNER_ORGANIZACAO("organizacao/banner"),
+        IMAGEM_SUPORTE("suporte");
 
         private final String pasta;
 
