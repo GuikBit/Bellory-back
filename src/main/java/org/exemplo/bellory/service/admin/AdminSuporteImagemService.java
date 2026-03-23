@@ -48,9 +48,9 @@ public class AdminSuporteImagemService {
                 if (nomeSanitizado.contains(".")) {
                     nomeSanitizado = nomeSanitizado.substring(0, nomeSanitizado.lastIndexOf("."));
                 }
-                filename = String.format("%s_%d.%s", nomeSanitizado, System.currentTimeMillis(), extension);
+                filename = String.format("%s.%s", nomeSanitizado, extension);
             } else {
-                filename = String.format("%d_%s", System.currentTimeMillis(), sanitizeFilename(originalFilename));
+                filename = sanitizeFilename(originalFilename);
             }
 
             Path targetDirectory = resolveSuportePath(pasta);
