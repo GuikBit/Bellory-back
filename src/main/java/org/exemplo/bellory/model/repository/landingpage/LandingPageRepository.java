@@ -84,4 +84,39 @@ public interface LandingPageRepository extends JpaRepository<LandingPage, Long> 
     @Query("SELECT lp FROM LandingPage lp " +
            "WHERE lp.organizacao.id = :orgId AND lp.status = 'PUBLISHED' AND lp.ativo = true")
     List<LandingPage> findPublishedByOrganizacao(@Param("orgId") Long organizacaoId);
+
+    // ==================== PUBLIC ACCESS (by org slug) ====================
+
+    /**
+     * Lista páginas publicadas pelo slug da organização.
+     */
+    @Query("SELECT lp FROM LandingPage lp " +
+           "JOIN lp.organizacao o " +
+           "WHERE o.slug = :slug AND o.ativo = true " +
+           "AND lp.status = 'PUBLISHED' AND lp.ativo = true " +
+           "ORDER BY lp.isHome DESC, lp.dtCriacao DESC")
+    List<LandingPage> findPublishedByOrganizacaoSlug(@Param("slug") String slug);
+
+    /**
+     * Busca página publicada pelo slug da org + slug da página (com seções).
+     */
+    @Query("SELECT DISTINCT lp FROM LandingPage lp " +
+           "LEFT JOIN FETCH lp.sections s " +
+           "JOIN lp.organizacao o " +
+           "WHERE o.slug = :orgSlug AND lp.slug = :pageSlug " +
+           "AND lp.status = 'PUBLISHED' AND lp.ativo = true " +
+           "AND (s IS NULL OR s.ativo = true)")
+    Optional<LandingPage> findPublishedByOrgSlugAndPageSlug(
+            @Param("orgSlug") String orgSlug, @Param("pageSlug") String pageSlug);
+
+    /**
+     * Busca home page publicada pelo slug da org (com seções).
+     */
+    @Query("SELECT DISTINCT lp FROM LandingPage lp " +
+           "LEFT JOIN FETCH lp.sections s " +
+           "JOIN lp.organizacao o " +
+           "WHERE o.slug = :slug AND lp.isHome = true " +
+           "AND lp.status = 'PUBLISHED' AND lp.ativo = true " +
+           "AND (s IS NULL OR s.ativo = true)")
+    Optional<LandingPage> findPublishedHomeByOrgSlug(@Param("slug") String slug);
 }

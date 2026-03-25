@@ -14,9 +14,12 @@ import org.exemplo.bellory.model.entity.organizacao.RedesSociais;
 import org.exemplo.bellory.model.entity.produto.Produto;
 import org.exemplo.bellory.model.entity.servico.Categoria;
 import org.exemplo.bellory.model.entity.servico.Servico;
+import org.exemplo.bellory.model.entity.landingpage.LandingPage;
+import org.exemplo.bellory.model.entity.landingpage.LandingPageSection;
 import org.exemplo.bellory.model.entity.site.SitePublicoConfig;
 import org.exemplo.bellory.model.repository.categoria.CategoriaRepository;
 import org.exemplo.bellory.model.repository.funcionario.FuncionarioRepository;
+import org.exemplo.bellory.model.repository.landingpage.LandingPageRepository;
 import org.exemplo.bellory.model.repository.organizacao.OrganizacaoRepository;
 import org.exemplo.bellory.model.repository.produtos.ProdutoRepository;
 import org.exemplo.bellory.model.repository.servico.ServicoRepository;
@@ -47,6 +50,7 @@ public class PublicSitePageService {
     private final CategoriaRepository categoriaRepository;
     private final ProdutoRepository produtoRepository;
     private final SitePublicoConfigRepository siteConfigRepository;
+    private final LandingPageRepository landingPageRepository;
     private final ObjectMapper objectMapper;
 
     public PublicSitePageService(
@@ -56,6 +60,7 @@ public class PublicSitePageService {
             CategoriaRepository categoriaRepository,
             ProdutoRepository produtoRepository,
             SitePublicoConfigRepository siteConfigRepository,
+            LandingPageRepository landingPageRepository,
             ObjectMapper objectMapper) {
         this.organizacaoRepository = organizacaoRepository;
         this.funcionarioRepository = funcionarioRepository;
@@ -63,6 +68,7 @@ public class PublicSitePageService {
         this.categoriaRepository = categoriaRepository;
         this.produtoRepository = produtoRepository;
         this.siteConfigRepository = siteConfigRepository;
+        this.landingPageRepository = landingPageRepository;
         this.objectMapper = objectMapper;
     }
 
@@ -70,6 +76,7 @@ public class PublicSitePageService {
 
     /**
      * Retorna todos os dados necessários para renderizar a home page.
+     * Prioriza LandingPage publicada (is_home=true), senão usa SitePublicoConfig.
      */
     public Optional<HomePageDTO> getHomePage(String slug) {
         Optional<Organizacao> orgOpt = organizacaoRepository.findBySlugAndAtivoTrue(slug);
@@ -80,10 +87,21 @@ public class PublicSitePageService {
         Organizacao org = orgOpt.get();
         Long orgId = org.getId();
 
-        // Buscar configuração do site (ou usar defaults)
+        // Prioridade: LandingPage publicada com is_home=true
+        // Se existir, usa os settings das seções da LandingPage como SitePublicoConfig
         SitePublicoConfig siteConfig = siteConfigRepository
                 .findByOrganizacaoSlugAndActive(slug)
-                .orElse(buildDefaultSiteConfig(org));
+                .orElse(null);
+
+        Optional<LandingPage> publishedHome = landingPageRepository.findPublishedHomeByOrgSlug(slug);
+        if (publishedHome.isPresent() && siteConfig != null) {
+            // Merge: settings da LandingPage sobrescrevem o SitePublicoConfig
+            mergeLandingPageSettingsIntoConfig(publishedHome.get(), siteConfig);
+        }
+
+        if (siteConfig == null) {
+            siteConfig = buildDefaultSiteConfig(org);
+        }
 
         // Buscar dados relacionados
         List<Funcionario> funcionarios = funcionarioRepository
@@ -388,6 +406,132 @@ public class PublicSitePageService {
                 .findAllByOrganizacao_IdAndAtivoTrueAndIsVisivelExternoTrue(orgId);
 
         return Optional.of(buildFooterConfig(org, siteConfig, funcionarios));
+    }
+
+    // ==================== LANDING PAGE INTEGRATION ====================
+
+    /**
+     * Aplica os settings das seções de uma LandingPage publicada sobre o SitePublicoConfig.
+     * Isso permite que edições feitas no editor de landing pages reflitam no site público.
+     */
+    private void mergeLandingPageSettingsIntoConfig(LandingPage landingPage, SitePublicoConfig config) {
+        if (landingPage.getSections() == null) return;
+
+        for (LandingPageSection section : landingPage.getSections()) {
+            if (!Boolean.TRUE.equals(section.getAtivo()) || !Boolean.TRUE.equals(section.getVisivel())) {
+                continue;
+            }
+            if (section.getSettings() == null || section.getSettings().isBlank()) {
+                continue;
+            }
+
+            try {
+                Map<String, Object> settings = objectMapper.readValue(
+                        section.getSettings(), new TypeReference<Map<String, Object>>() {});
+
+                switch (section.getTipo()) {
+                    case "HERO":
+                        applyIfPresent(settings, "title", v -> config.setHeroTitle((String) v));
+                        applyIfPresent(settings, "subtitle", v -> config.setHeroSubtitle((String) v));
+                        applyIfPresent(settings, "backgroundUrl", v -> config.setHeroBackgroundUrl((String) v));
+                        applyIfPresent(settings, "backgroundOverlay", v -> config.setHeroBackgroundOverlay(((Number) v).doubleValue()));
+                        applyIfPresent(settings, "type", v -> config.setHeroType((String) v));
+                        applyIfPresent(settings, "customHtml", v -> config.setHeroCustomHtml((String) v));
+                        applyIfPresent(settings, "showBookingForm", v -> config.setHeroShowBookingForm((Boolean) v));
+                        if (settings.containsKey("buttons")) {
+                            config.setHeroButtons(objectMapper.writeValueAsString(settings.get("buttons")));
+                        }
+                        break;
+                    case "HEADER":
+                        applyIfPresent(settings, "logoUrl", v -> config.setHeaderLogoUrl((String) v));
+                        applyIfPresent(settings, "logoAlt", v -> config.setHeaderLogoAlt((String) v));
+                        applyIfPresent(settings, "showPhone", v -> config.setHeaderShowPhone((Boolean) v));
+                        applyIfPresent(settings, "showSocial", v -> config.setHeaderShowSocial((Boolean) v));
+                        applyIfPresent(settings, "sticky", v -> config.setHeaderSticky((Boolean) v));
+                        if (settings.containsKey("menuItems")) {
+                            config.setHeaderMenuItems(objectMapper.writeValueAsString(settings.get("menuItems")));
+                        }
+                        if (settings.containsKey("actionButtons")) {
+                            config.setHeaderActionButtons(objectMapper.writeValueAsString(settings.get("actionButtons")));
+                        }
+                        break;
+                    case "ABOUT":
+                        applyIfPresent(settings, "title", v -> config.setAboutTitle((String) v));
+                        applyIfPresent(settings, "subtitle", v -> config.setAboutSubtitle((String) v));
+                        applyIfPresent(settings, "description", v -> config.setAboutDescription((String) v));
+                        applyIfPresent(settings, "fullDescription", v -> config.setAboutFullDescription((String) v));
+                        applyIfPresent(settings, "imageUrl", v -> config.setAboutImageUrl((String) v));
+                        applyIfPresent(settings, "videoUrl", v -> config.setAboutVideoUrl((String) v));
+                        applyIfPresent(settings, "mission", v -> config.setAboutMission((String) v));
+                        applyIfPresent(settings, "vision", v -> config.setAboutVision((String) v));
+                        applyIfPresent(settings, "values", v -> config.setAboutValues((String) v));
+                        if (settings.containsKey("galleryImages")) {
+                            config.setAboutGalleryImages(objectMapper.writeValueAsString(settings.get("galleryImages")));
+                        }
+                        if (settings.containsKey("highlights")) {
+                            config.setAboutHighlights(objectMapper.writeValueAsString(settings.get("highlights")));
+                        }
+                        break;
+                    case "SERVICES":
+                        applyIfPresent(settings, "sectionTitle", v -> config.setServicesSectionTitle((String) v));
+                        applyIfPresent(settings, "sectionSubtitle", v -> config.setServicesSectionSubtitle((String) v));
+                        applyIfPresent(settings, "showPrices", v -> config.setServicesShowPrices((Boolean) v));
+                        applyIfPresent(settings, "showDuration", v -> config.setServicesShowDuration((Boolean) v));
+                        applyIfPresent(settings, "featuredLimit", v -> config.setServicesFeaturedLimit(((Number) v).intValue()));
+                        break;
+                    case "PRODUCTS":
+                        applyIfPresent(settings, "sectionTitle", v -> config.setProductsSectionTitle((String) v));
+                        applyIfPresent(settings, "sectionSubtitle", v -> config.setProductsSectionSubtitle((String) v));
+                        applyIfPresent(settings, "showPrices", v -> config.setProductsShowPrices((Boolean) v));
+                        applyIfPresent(settings, "featuredLimit", v -> config.setProductsFeaturedLimit(((Number) v).intValue()));
+                        break;
+                    case "TEAM":
+                        applyIfPresent(settings, "sectionTitle", v -> config.setTeamSectionTitle((String) v));
+                        applyIfPresent(settings, "sectionSubtitle", v -> config.setTeamSectionSubtitle((String) v));
+                        applyIfPresent(settings, "showSection", v -> config.setTeamShowSection((Boolean) v));
+                        break;
+                    case "BOOKING":
+                        applyIfPresent(settings, "sectionTitle", v -> config.setBookingSectionTitle((String) v));
+                        applyIfPresent(settings, "sectionSubtitle", v -> config.setBookingSectionSubtitle((String) v));
+                        applyIfPresent(settings, "enabled", v -> config.setBookingEnabled((Boolean) v));
+                        break;
+                    case "FOOTER":
+                        applyIfPresent(settings, "description", v -> config.setFooterDescription((String) v));
+                        applyIfPresent(settings, "logoUrl", v -> config.setFooterLogoUrl((String) v));
+                        applyIfPresent(settings, "copyrightText", v -> config.setFooterCopyrightText((String) v));
+                        applyIfPresent(settings, "showMap", v -> config.setFooterShowMap((Boolean) v));
+                        applyIfPresent(settings, "showHours", v -> config.setFooterShowHours((Boolean) v));
+                        applyIfPresent(settings, "showSocial", v -> config.setFooterShowSocial((Boolean) v));
+                        applyIfPresent(settings, "showNewsletter", v -> config.setFooterShowNewsletter((Boolean) v));
+                        if (settings.containsKey("linkSections")) {
+                            config.setFooterLinkSections(objectMapper.writeValueAsString(settings.get("linkSections")));
+                        }
+                        break;
+                }
+            } catch (Exception e) {
+                // Log e continua - não quebra a renderização por um settings inválido
+            }
+        }
+
+        // Atualizar sectionsOrder baseado na ordem das seções visíveis da LandingPage
+        List<String> sectionsOrder = landingPage.getSections().stream()
+                .filter(s -> Boolean.TRUE.equals(s.getAtivo()) && Boolean.TRUE.equals(s.getVisivel()))
+                .sorted(Comparator.comparingInt(LandingPageSection::getOrdem))
+                .map(LandingPageSection::getTipo)
+                .collect(Collectors.toList());
+        if (!sectionsOrder.isEmpty()) {
+            try {
+                config.setHomeSectionsOrder(objectMapper.writeValueAsString(sectionsOrder));
+            } catch (Exception ignored) {}
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void applyIfPresent(Map<String, Object> settings, String key, java.util.function.Consumer<Object> setter) {
+        Object value = settings.get(key);
+        if (value != null) {
+            setter.accept(value);
+        }
     }
 
     // ==================== PRIVATE BUILD METHODS ====================

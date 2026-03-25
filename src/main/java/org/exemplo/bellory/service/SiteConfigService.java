@@ -1,0 +1,577 @@
+package org.exemplo.bellory.service;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.exemplo.bellory.context.TenantContext;
+import org.exemplo.bellory.model.dto.site.AboutSectionDTO;
+import org.exemplo.bellory.model.dto.site.FooterConfigDTO;
+import org.exemplo.bellory.model.dto.site.HeaderConfigDTO;
+import org.exemplo.bellory.model.dto.site.HeroSectionDTO;
+import org.exemplo.bellory.model.dto.site.HomePageDTO;
+import org.exemplo.bellory.model.dto.site.SitePublicoConfigDTO;
+import org.exemplo.bellory.model.dto.site.request.*;
+import org.exemplo.bellory.model.entity.landingpage.LandingPage;
+import org.exemplo.bellory.model.entity.landingpage.LandingPageSection;
+import org.exemplo.bellory.model.entity.organizacao.Organizacao;
+import org.exemplo.bellory.model.entity.site.SitePublicoConfig;
+import org.exemplo.bellory.model.repository.landingpage.LandingPageRepository;
+import org.exemplo.bellory.model.repository.landingpage.LandingPageSectionRepository;
+import org.exemplo.bellory.model.repository.organizacao.OrganizacaoRepository;
+import org.exemplo.bellory.model.repository.site.SitePublicoConfigRepository;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class SiteConfigService {
+
+    private final SitePublicoConfigRepository siteConfigRepository;
+    private final OrganizacaoRepository organizacaoRepository;
+    private final LandingPageRepository landingPageRepository;
+    private final LandingPageSectionRepository sectionRepository;
+    private final ObjectMapper objectMapper;
+
+    // ==================== GET ====================
+
+    @Transactional(readOnly = true)
+    public SitePublicoConfigDTO buscarConfig() {
+        Long orgId = getOrganizacaoId();
+        SitePublicoConfig config = siteConfigRepository.findByOrganizacaoId(orgId)
+                .orElse(null);
+
+        if (config == null) {
+            return SitePublicoConfigDTO.builder()
+                    .organizacaoId(orgId)
+                    .active(false)
+                    .build();
+        }
+
+        return convertToDTO(config);
+    }
+
+    // ==================== SAVE FULL ====================
+
+    @Transactional
+    public SitePublicoConfigDTO salvarConfigCompleta(SitePublicoConfigRequest dto) {
+        Long orgId = getOrganizacaoId();
+        SitePublicoConfig config = findOrCreate(orgId);
+
+        if (dto.getHero() != null) {
+            aplicarHero(config, dto.getHero());
+            syncSectionToLandingPage(orgId, "HERO", dto.getHero());
+        }
+        if (dto.getHeader() != null) {
+            aplicarHeader(config, dto.getHeader());
+            syncSectionToLandingPage(orgId, "HEADER", dto.getHeader());
+        }
+        if (dto.getAbout() != null) {
+            aplicarAbout(config, dto.getAbout());
+            syncSectionToLandingPage(orgId, "ABOUT", dto.getAbout());
+        }
+        if (dto.getFooter() != null) {
+            aplicarFooter(config, dto.getFooter());
+            syncSectionToLandingPage(orgId, "FOOTER", dto.getFooter());
+        }
+        if (dto.getServices() != null) {
+            aplicarServices(config, dto.getServices());
+            syncSectionToLandingPage(orgId, "SERVICES", dto.getServices());
+        }
+        if (dto.getProducts() != null) {
+            aplicarProducts(config, dto.getProducts());
+            syncSectionToLandingPage(orgId, "PRODUCTS", dto.getProducts());
+        }
+        if (dto.getTeam() != null) {
+            aplicarTeam(config, dto.getTeam());
+            syncSectionToLandingPage(orgId, "TEAM", dto.getTeam());
+        }
+        if (dto.getBooking() != null) {
+            aplicarBooking(config, dto.getBooking());
+            syncSectionToLandingPage(orgId, "BOOKING", dto.getBooking());
+        }
+        if (dto.getGeneral() != null) {
+            aplicarGeneral(config, dto.getGeneral());
+        }
+
+        SitePublicoConfig saved = siteConfigRepository.save(config);
+        return convertToDTO(saved);
+    }
+
+    // ==================== PATCH PER SECTION ====================
+
+    @Transactional
+    public HeroSectionRequest atualizarHero(HeroSectionRequest dto) {
+        Long orgId = getOrganizacaoId();
+        SitePublicoConfig config = findOrCreate(orgId);
+        aplicarHero(config, dto);
+        siteConfigRepository.save(config);
+        syncSectionToLandingPage(orgId, "HERO", dto);
+        return extrairHero(config);
+    }
+
+    @Transactional
+    public HeaderConfigRequest atualizarHeader(HeaderConfigRequest dto) {
+        Long orgId = getOrganizacaoId();
+        SitePublicoConfig config = findOrCreate(orgId);
+        aplicarHeader(config, dto);
+        siteConfigRepository.save(config);
+        syncSectionToLandingPage(orgId, "HEADER", dto);
+        return extrairHeader(config);
+    }
+
+    @Transactional
+    public AboutSectionRequest atualizarAbout(AboutSectionRequest dto) {
+        Long orgId = getOrganizacaoId();
+        SitePublicoConfig config = findOrCreate(orgId);
+        aplicarAbout(config, dto);
+        siteConfigRepository.save(config);
+        syncSectionToLandingPage(orgId, "ABOUT", dto);
+        return extrairAbout(config);
+    }
+
+    @Transactional
+    public FooterConfigRequest atualizarFooter(FooterConfigRequest dto) {
+        Long orgId = getOrganizacaoId();
+        SitePublicoConfig config = findOrCreate(orgId);
+        aplicarFooter(config, dto);
+        siteConfigRepository.save(config);
+        syncSectionToLandingPage(orgId, "FOOTER", dto);
+        return extrairFooter(config);
+    }
+
+    @Transactional
+    public ServicesSectionRequest atualizarServices(ServicesSectionRequest dto) {
+        Long orgId = getOrganizacaoId();
+        SitePublicoConfig config = findOrCreate(orgId);
+        aplicarServices(config, dto);
+        siteConfigRepository.save(config);
+        syncSectionToLandingPage(orgId, "SERVICES", dto);
+        return extrairServices(config);
+    }
+
+    @Transactional
+    public ProductsSectionRequest atualizarProducts(ProductsSectionRequest dto) {
+        Long orgId = getOrganizacaoId();
+        SitePublicoConfig config = findOrCreate(orgId);
+        aplicarProducts(config, dto);
+        siteConfigRepository.save(config);
+        syncSectionToLandingPage(orgId, "PRODUCTS", dto);
+        return extrairProducts(config);
+    }
+
+    @Transactional
+    public TeamSectionRequest atualizarTeam(TeamSectionRequest dto) {
+        Long orgId = getOrganizacaoId();
+        SitePublicoConfig config = findOrCreate(orgId);
+        aplicarTeam(config, dto);
+        siteConfigRepository.save(config);
+        syncSectionToLandingPage(orgId, "TEAM", dto);
+        return extrairTeam(config);
+    }
+
+    @Transactional
+    public BookingSectionRequest atualizarBooking(BookingSectionRequest dto) {
+        Long orgId = getOrganizacaoId();
+        SitePublicoConfig config = findOrCreate(orgId);
+        aplicarBooking(config, dto);
+        siteConfigRepository.save(config);
+        syncSectionToLandingPage(orgId, "BOOKING", dto);
+        return extrairBooking(config);
+    }
+
+    @Transactional
+    public GeneralSettingsRequest atualizarGeneral(GeneralSettingsRequest dto) {
+        Long orgId = getOrganizacaoId();
+        SitePublicoConfig config = findOrCreate(orgId);
+        aplicarGeneral(config, dto);
+        siteConfigRepository.save(config);
+        // General settings sync: update sectionsOrder on the LandingPage level
+        syncGeneralToLandingPage(orgId, dto);
+        return extrairGeneral(config);
+    }
+
+    // ==================== APLICAR (DTO -> Entity) ====================
+
+    private void aplicarHero(SitePublicoConfig config, HeroSectionRequest dto) {
+        if (dto.getType() != null) config.setHeroType(dto.getType());
+        if (dto.getTitle() != null) config.setHeroTitle(dto.getTitle());
+        if (dto.getSubtitle() != null) config.setHeroSubtitle(dto.getSubtitle());
+        if (dto.getBackgroundUrl() != null) config.setHeroBackgroundUrl(dto.getBackgroundUrl());
+        if (dto.getBackgroundOverlay() != null) config.setHeroBackgroundOverlay(dto.getBackgroundOverlay());
+        if (dto.getCustomHtml() != null) config.setHeroCustomHtml(dto.getCustomHtml());
+        if (dto.getButtons() != null) config.setHeroButtons(toJson(dto.getButtons()));
+        if (dto.getShowBookingForm() != null) config.setHeroShowBookingForm(dto.getShowBookingForm());
+    }
+
+    private void aplicarHeader(SitePublicoConfig config, HeaderConfigRequest dto) {
+        if (dto.getLogoUrl() != null) config.setHeaderLogoUrl(dto.getLogoUrl());
+        if (dto.getLogoAlt() != null) config.setHeaderLogoAlt(dto.getLogoAlt());
+        if (dto.getMenuItems() != null) config.setHeaderMenuItems(toJson(dto.getMenuItems()));
+        if (dto.getActionButtons() != null) config.setHeaderActionButtons(toJson(dto.getActionButtons()));
+        if (dto.getShowPhone() != null) config.setHeaderShowPhone(dto.getShowPhone());
+        if (dto.getShowSocial() != null) config.setHeaderShowSocial(dto.getShowSocial());
+        if (dto.getSticky() != null) config.setHeaderSticky(dto.getSticky());
+    }
+
+    private void aplicarAbout(SitePublicoConfig config, AboutSectionRequest dto) {
+        if (dto.getTitle() != null) config.setAboutTitle(dto.getTitle());
+        if (dto.getSubtitle() != null) config.setAboutSubtitle(dto.getSubtitle());
+        if (dto.getDescription() != null) config.setAboutDescription(dto.getDescription());
+        if (dto.getFullDescription() != null) config.setAboutFullDescription(dto.getFullDescription());
+        if (dto.getImageUrl() != null) config.setAboutImageUrl(dto.getImageUrl());
+        if (dto.getGalleryImages() != null) config.setAboutGalleryImages(toJson(dto.getGalleryImages()));
+        if (dto.getVideoUrl() != null) config.setAboutVideoUrl(dto.getVideoUrl());
+        if (dto.getHighlights() != null) config.setAboutHighlights(toJson(dto.getHighlights()));
+        if (dto.getMission() != null) config.setAboutMission(dto.getMission());
+        if (dto.getVision() != null) config.setAboutVision(dto.getVision());
+        if (dto.getValues() != null) config.setAboutValues(dto.getValues());
+    }
+
+    private void aplicarFooter(SitePublicoConfig config, FooterConfigRequest dto) {
+        if (dto.getDescription() != null) config.setFooterDescription(dto.getDescription());
+        if (dto.getLogoUrl() != null) config.setFooterLogoUrl(dto.getLogoUrl());
+        if (dto.getLinkSections() != null) config.setFooterLinkSections(toJson(dto.getLinkSections()));
+        if (dto.getCopyrightText() != null) config.setFooterCopyrightText(dto.getCopyrightText());
+        if (dto.getShowMap() != null) config.setFooterShowMap(dto.getShowMap());
+        if (dto.getShowHours() != null) config.setFooterShowHours(dto.getShowHours());
+        if (dto.getShowSocial() != null) config.setFooterShowSocial(dto.getShowSocial());
+        if (dto.getShowNewsletter() != null) config.setFooterShowNewsletter(dto.getShowNewsletter());
+    }
+
+    private void aplicarServices(SitePublicoConfig config, ServicesSectionRequest dto) {
+        if (dto.getSectionTitle() != null) config.setServicesSectionTitle(dto.getSectionTitle());
+        if (dto.getSectionSubtitle() != null) config.setServicesSectionSubtitle(dto.getSectionSubtitle());
+        if (dto.getShowPrices() != null) config.setServicesShowPrices(dto.getShowPrices());
+        if (dto.getShowDuration() != null) config.setServicesShowDuration(dto.getShowDuration());
+        if (dto.getFeaturedLimit() != null) config.setServicesFeaturedLimit(dto.getFeaturedLimit());
+    }
+
+    private void aplicarProducts(SitePublicoConfig config, ProductsSectionRequest dto) {
+        if (dto.getSectionTitle() != null) config.setProductsSectionTitle(dto.getSectionTitle());
+        if (dto.getSectionSubtitle() != null) config.setProductsSectionSubtitle(dto.getSectionSubtitle());
+        if (dto.getShowPrices() != null) config.setProductsShowPrices(dto.getShowPrices());
+        if (dto.getFeaturedLimit() != null) config.setProductsFeaturedLimit(dto.getFeaturedLimit());
+    }
+
+    private void aplicarTeam(SitePublicoConfig config, TeamSectionRequest dto) {
+        if (dto.getSectionTitle() != null) config.setTeamSectionTitle(dto.getSectionTitle());
+        if (dto.getSectionSubtitle() != null) config.setTeamSectionSubtitle(dto.getSectionSubtitle());
+        if (dto.getShowSection() != null) config.setTeamShowSection(dto.getShowSection());
+    }
+
+    private void aplicarBooking(SitePublicoConfig config, BookingSectionRequest dto) {
+        if (dto.getSectionTitle() != null) config.setBookingSectionTitle(dto.getSectionTitle());
+        if (dto.getSectionSubtitle() != null) config.setBookingSectionSubtitle(dto.getSectionSubtitle());
+        if (dto.getEnabled() != null) config.setBookingEnabled(dto.getEnabled());
+    }
+
+    private void aplicarGeneral(SitePublicoConfig config, GeneralSettingsRequest dto) {
+        if (dto.getHomeSectionsOrder() != null) config.setHomeSectionsOrder(toJson(dto.getHomeSectionsOrder()));
+        if (dto.getCustomCss() != null) config.setCustomCss(dto.getCustomCss());
+        if (dto.getCustomJs() != null) config.setCustomJs(dto.getCustomJs());
+        if (dto.getExternalScripts() != null) config.setExternalScripts(toJson(dto.getExternalScripts()));
+        if (dto.getActive() != null) config.setActive(dto.getActive());
+    }
+
+    // ==================== EXTRAIR (Entity -> Section DTO) ====================
+
+    private HeroSectionRequest extrairHero(SitePublicoConfig config) {
+        return HeroSectionRequest.builder()
+                .type(config.getHeroType())
+                .title(config.getHeroTitle())
+                .subtitle(config.getHeroSubtitle())
+                .backgroundUrl(config.getHeroBackgroundUrl())
+                .backgroundOverlay(config.getHeroBackgroundOverlay())
+                .customHtml(config.getHeroCustomHtml())
+                .buttons(fromJson(config.getHeroButtons(), new TypeReference<>() {}))
+                .showBookingForm(config.getHeroShowBookingForm())
+                .build();
+    }
+
+    private HeaderConfigRequest extrairHeader(SitePublicoConfig config) {
+        return HeaderConfigRequest.builder()
+                .logoUrl(config.getHeaderLogoUrl())
+                .logoAlt(config.getHeaderLogoAlt())
+                .menuItems(fromJson(config.getHeaderMenuItems(), new TypeReference<>() {}))
+                .actionButtons(fromJson(config.getHeaderActionButtons(), new TypeReference<>() {}))
+                .showPhone(config.getHeaderShowPhone())
+                .showSocial(config.getHeaderShowSocial())
+                .sticky(config.getHeaderSticky())
+                .build();
+    }
+
+    private AboutSectionRequest extrairAbout(SitePublicoConfig config) {
+        return AboutSectionRequest.builder()
+                .title(config.getAboutTitle())
+                .subtitle(config.getAboutSubtitle())
+                .description(config.getAboutDescription())
+                .fullDescription(config.getAboutFullDescription())
+                .imageUrl(config.getAboutImageUrl())
+                .galleryImages(fromJson(config.getAboutGalleryImages(), new TypeReference<>() {}))
+                .videoUrl(config.getAboutVideoUrl())
+                .highlights(fromJson(config.getAboutHighlights(), new TypeReference<>() {}))
+                .mission(config.getAboutMission())
+                .vision(config.getAboutVision())
+                .values(config.getAboutValues())
+                .build();
+    }
+
+    private FooterConfigRequest extrairFooter(SitePublicoConfig config) {
+        return FooterConfigRequest.builder()
+                .description(config.getFooterDescription())
+                .logoUrl(config.getFooterLogoUrl())
+                .linkSections(fromJson(config.getFooterLinkSections(), new TypeReference<>() {}))
+                .copyrightText(config.getFooterCopyrightText())
+                .showMap(config.getFooterShowMap())
+                .showHours(config.getFooterShowHours())
+                .showSocial(config.getFooterShowSocial())
+                .showNewsletter(config.getFooterShowNewsletter())
+                .build();
+    }
+
+    private ServicesSectionRequest extrairServices(SitePublicoConfig config) {
+        return ServicesSectionRequest.builder()
+                .sectionTitle(config.getServicesSectionTitle())
+                .sectionSubtitle(config.getServicesSectionSubtitle())
+                .showPrices(config.getServicesShowPrices())
+                .showDuration(config.getServicesShowDuration())
+                .featuredLimit(config.getServicesFeaturedLimit())
+                .build();
+    }
+
+    private ProductsSectionRequest extrairProducts(SitePublicoConfig config) {
+        return ProductsSectionRequest.builder()
+                .sectionTitle(config.getProductsSectionTitle())
+                .sectionSubtitle(config.getProductsSectionSubtitle())
+                .showPrices(config.getProductsShowPrices())
+                .featuredLimit(config.getProductsFeaturedLimit())
+                .build();
+    }
+
+    private TeamSectionRequest extrairTeam(SitePublicoConfig config) {
+        return TeamSectionRequest.builder()
+                .sectionTitle(config.getTeamSectionTitle())
+                .sectionSubtitle(config.getTeamSectionSubtitle())
+                .showSection(config.getTeamShowSection())
+                .build();
+    }
+
+    private BookingSectionRequest extrairBooking(SitePublicoConfig config) {
+        return BookingSectionRequest.builder()
+                .sectionTitle(config.getBookingSectionTitle())
+                .sectionSubtitle(config.getBookingSectionSubtitle())
+                .enabled(config.getBookingEnabled())
+                .build();
+    }
+
+    private GeneralSettingsRequest extrairGeneral(SitePublicoConfig config) {
+        return GeneralSettingsRequest.builder()
+                .homeSectionsOrder(fromJson(config.getHomeSectionsOrder(), new TypeReference<>() {}))
+                .customCss(config.getCustomCss())
+                .customJs(config.getCustomJs())
+                .externalScripts(fromJson(config.getExternalScripts(), new TypeReference<>() {}))
+                .active(config.getActive())
+                .build();
+    }
+
+    // ==================== CONVERT FULL DTO ====================
+
+    private SitePublicoConfigDTO convertToDTO(SitePublicoConfig config) {
+        return SitePublicoConfigDTO.builder()
+                .id(config.getId())
+                .organizacaoId(config.getOrganizacao().getId())
+                .hero(extrairHero(config))
+                .header(extrairHeader(config))
+                .about(extrairAbout(config))
+                .footer(extrairFooter(config))
+                .services(extrairServices(config))
+                .products(extrairProducts(config))
+                .team(extrairTeam(config))
+                .booking(extrairBooking(config))
+                .general(extrairGeneral(config))
+                .active(config.getActive())
+                .dtCriacao(config.getDtCriacao())
+                .dtAtualizacao(config.getDtAtualizacao())
+                .build();
+    }
+
+    // ==================== HELPERS ====================
+
+    private Long getOrganizacaoId() {
+        Long orgId = TenantContext.getCurrentOrganizacaoId();
+        if (orgId == null) {
+            throw new IllegalArgumentException("Contexto de organização não encontrado");
+        }
+        return orgId;
+    }
+
+    private SitePublicoConfig findOrCreate(Long orgId) {
+        return siteConfigRepository.findByOrganizacaoId(orgId)
+                .orElseGet(() -> criarNovaConfig(orgId));
+    }
+
+    private SitePublicoConfig criarNovaConfig(Long orgId) {
+        Organizacao org = organizacaoRepository.findById(orgId)
+                .orElseThrow(() -> new IllegalArgumentException("Organização não encontrada: " + orgId));
+
+        return SitePublicoConfig.builder()
+                .organizacao(org)
+                .active(true)
+                .build();
+    }
+
+    private String toJson(Object obj) {
+        if (obj == null) return null;
+        try {
+            return objectMapper.writeValueAsString(obj);
+        } catch (JsonProcessingException e) {
+            log.error("Erro ao serializar JSON: {}", e.getMessage());
+            throw new RuntimeException("Erro ao processar dados JSON", e);
+        }
+    }
+
+    private <T> T fromJson(String json, TypeReference<T> typeRef) {
+        if (json == null || json.isBlank()) return null;
+        try {
+            return objectMapper.readValue(json, typeRef);
+        } catch (JsonProcessingException e) {
+            log.warn("Erro ao desserializar JSON: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    // ==================== LANDING PAGE SYNC (Dual-Write) ====================
+
+    private static final Map<String, String> SECTION_DEFAULT_NAMES = Map.of(
+            "HEADER", "Menu de Navegação",
+            "HERO", "Banner Principal",
+            "ABOUT", "Sobre Nós",
+            "SERVICES", "Nossos Serviços",
+            "PRODUCTS", "Produtos em Destaque",
+            "TEAM", "Nossa Equipe",
+            "BOOKING", "Agendamento",
+            "FOOTER", "Rodapé"
+    );
+
+    private static final List<String> DEFAULT_SECTIONS_ORDER = List.of(
+            "HEADER", "HERO", "ABOUT", "SERVICES", "PRODUCTS", "TEAM", "BOOKING", "FOOTER"
+    );
+
+    /**
+     * Sincroniza a edição de uma seção do site-config para a LandingPage home.
+     * Cria a LandingPage e a seção se não existirem.
+     */
+    private void syncSectionToLandingPage(Long orgId, String sectionType, Object settingsDto) {
+        try {
+            LandingPage homePage = findOrCreateHomeLandingPage(orgId);
+            LandingPageSection section = findOrCreateSection(homePage, sectionType);
+            section.setSettings(toJson(settingsDto));
+            sectionRepository.save(section);
+        } catch (Exception e) {
+            log.warn("Erro ao sincronizar seção {} com LandingPage: {}", sectionType, e.getMessage());
+            // Não propaga o erro - o SitePublicoConfig já foi salvo com sucesso
+        }
+    }
+
+    /**
+     * Sincroniza configurações gerais para a LandingPage home.
+     */
+    private void syncGeneralToLandingPage(Long orgId, GeneralSettingsRequest dto) {
+        try {
+            LandingPage homePage = findOrCreateHomeLandingPage(orgId);
+
+            if (dto.getCustomCss() != null) homePage.setCustomCss(dto.getCustomCss());
+            if (dto.getCustomJs() != null) homePage.setCustomJs(dto.getCustomJs());
+
+            // Reordenar seções da landing page baseado no homeSectionsOrder
+            if (dto.getHomeSectionsOrder() != null) {
+                List<String> order = dto.getHomeSectionsOrder();
+                for (int i = 0; i < order.size(); i++) {
+                    String tipo = order.get(i);
+                    LandingPageSection section = findOrCreateSection(homePage, tipo);
+                    section.setOrdem(i);
+                    section.setVisivel(true);
+                }
+                // Seções não listadas ficam ocultas
+                for (LandingPageSection s : homePage.getSections()) {
+                    if (Boolean.TRUE.equals(s.getAtivo()) && !order.contains(s.getTipo())) {
+                        s.setVisivel(false);
+                    }
+                }
+            }
+
+            landingPageRepository.save(homePage);
+        } catch (Exception e) {
+            log.warn("Erro ao sincronizar general com LandingPage: {}", e.getMessage());
+        }
+    }
+
+    private LandingPage findOrCreateHomeLandingPage(Long orgId) {
+        return landingPageRepository.findHomeWithSections(orgId)
+                .orElseGet(() -> {
+                    Organizacao org = organizacaoRepository.findById(orgId)
+                            .orElseThrow(() -> new IllegalArgumentException("Organização não encontrada: " + orgId));
+
+                    LandingPage lp = LandingPage.builder()
+                            .organizacao(org)
+                            .slug("home")
+                            .nome("Página Inicial")
+                            .tipo("HOME")
+                            .isHome(true)
+                            .status("DRAFT")
+                            .versao(1)
+                            .ativo(true)
+                            .sections(new ArrayList<>())
+                            .build();
+
+                    // Criar seções padrão
+                    for (int i = 0; i < DEFAULT_SECTIONS_ORDER.size(); i++) {
+                        String tipo = DEFAULT_SECTIONS_ORDER.get(i);
+                        LandingPageSection section = LandingPageSection.builder()
+                                .sectionId(UUID.randomUUID().toString())
+                                .tipo(tipo)
+                                .nome(SECTION_DEFAULT_NAMES.getOrDefault(tipo, tipo))
+                                .ordem(i)
+                                .visivel(true)
+                                .locked(false)
+                                .ativo(true)
+                                .build();
+                        lp.addSection(section);
+                    }
+
+                    return landingPageRepository.save(lp);
+                });
+    }
+
+    private LandingPageSection findOrCreateSection(LandingPage lp, String sectionType) {
+        return lp.getSections().stream()
+                .filter(s -> sectionType.equals(s.getTipo()) && Boolean.TRUE.equals(s.getAtivo()))
+                .findFirst()
+                .orElseGet(() -> {
+                    int maxOrdem = lp.getSections().stream()
+                            .filter(s -> Boolean.TRUE.equals(s.getAtivo()))
+                            .mapToInt(LandingPageSection::getOrdem)
+                            .max().orElse(-1);
+
+                    LandingPageSection section = LandingPageSection.builder()
+                            .sectionId(UUID.randomUUID().toString())
+                            .tipo(sectionType)
+                            .nome(SECTION_DEFAULT_NAMES.getOrDefault(sectionType, sectionType))
+                            .ordem(maxOrdem + 1)
+                            .visivel(true)
+                            .locked(false)
+                            .ativo(true)
+                            .build();
+                    lp.addSection(section);
+                    return section;
+                });
+    }
+}
