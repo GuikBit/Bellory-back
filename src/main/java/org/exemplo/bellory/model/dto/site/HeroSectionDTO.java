@@ -35,9 +35,19 @@ public class HeroSectionDTO {
 
     private List<HeroButtonDTO> buttons;
     private Boolean showBookingForm;
+    private String contentLayout;
+    private String titleSize;
+    private String heroHeight;
+    private String overlayStyle;
+    private String badgeText;
+    private String titleHighlight;
+    private Boolean showParticles;
+    private String videoUrl;
+    private String sideImageUrl;
+    private StatsConfigDTO statsConfig;
 
     /**
-     * Dados adicionais para o hero template
+     * Dados adicionais para o hero template (calculados automaticamente)
      */
     private HeroStatsDTO stats;
 
@@ -61,5 +71,19 @@ public class HeroSectionDTO {
         private Integer happyClients;
         private Integer servicesCount;
         private Integer teamSize;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class StatsConfigDTO {
+        private Boolean show;
+        private Integer yearsExperienceManual;
+        private Integer happyClientsManual;
+        private String yearsExperienceLabel;
+        private String happyClientsLabel;
+        private String servicesCountLabel;
+        private String teamSizeLabel;
     }
 }

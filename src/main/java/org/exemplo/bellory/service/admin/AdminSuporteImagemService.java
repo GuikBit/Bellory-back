@@ -28,7 +28,7 @@ public class AdminSuporteImagemService {
     private String baseUrl;
 
     private static final String SUPORTE_DIR = "admin/suporte";
-    private static final List<String> ALLOWED_EXTENSIONS = Arrays.asList("jpg", "jpeg", "png", "gif", "webp");
+    private static final List<String> ALLOWED_EXTENSIONS = Arrays.asList("jpg", "jpeg", "png", "gif", "webp", "svg");
     private static final long MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
     /**

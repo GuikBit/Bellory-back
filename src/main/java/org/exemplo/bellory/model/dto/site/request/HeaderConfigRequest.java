@@ -21,4 +21,9 @@ public class HeaderConfigRequest {
     private Boolean showPhone;
     private Boolean showSocial;
     private Boolean sticky;
+    private String headerLayout;
+    private String menuStyle;
+    private Boolean transparentOnHero;
+    private Boolean showCart;
+    private Integer logoHeight;
 }

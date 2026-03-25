@@ -22,4 +22,14 @@ public class HeroSectionRequest {
     private String customHtml;
     private List<HeroSectionDTO.HeroButtonDTO> buttons;
     private Boolean showBookingForm;
+    private String contentLayout;
+    private String titleSize;
+    private String heroHeight;
+    private String overlayStyle;
+    private String badgeText;
+    private String titleHighlight;
+    private Boolean showParticles;
+    private String videoUrl;
+    private String sideImageUrl;
+    private HeroSectionDTO.StatsConfigDTO statsConfig;
 }

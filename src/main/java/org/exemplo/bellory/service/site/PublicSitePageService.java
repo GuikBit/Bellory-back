@@ -597,6 +597,11 @@ public class PublicSitePageService {
                 .phoneNumber(org.getTelefone1())
                 .showSocial(config.getHeaderShowSocial())
                 .sticky(config.getHeaderSticky())
+                .headerLayout(config.getHeaderLayout())
+                .menuStyle(config.getHeaderMenuStyle())
+                .transparentOnHero(config.getHeaderTransparentOnHero())
+                .showCart(config.getHeaderShowCart())
+                .logoHeight(config.getHeaderLogoHeight())
                 .socialLinks(socialLinks)
                 .build();
     }
@@ -633,6 +638,16 @@ public class PublicSitePageService {
                 .customHtml(config.getHeroCustomHtml())
                 .buttons(buttons)
                 .showBookingForm(config.getHeroShowBookingForm())
+                .contentLayout(config.getHeroContentLayout())
+                .titleSize(config.getHeroTitleSize())
+                .heroHeight(config.getHeroHeight())
+                .overlayStyle(config.getHeroOverlayStyle())
+                .badgeText(config.getHeroBadgeText())
+                .titleHighlight(config.getHeroTitleHighlight())
+                .showParticles(config.getHeroShowParticles())
+                .videoUrl(config.getHeroVideoUrl())
+                .sideImageUrl(config.getHeroSideImageUrl())
+                .statsConfig(parseStatsConfig(config.getHeroStatsConfig()))
                 .stats(stats)
                 .build();
     }
@@ -1153,6 +1168,15 @@ public class PublicSitePageService {
         if (json == null || json.isEmpty()) return null;
         try {
             return objectMapper.readValue(json, new TypeReference<List<HeroSectionDTO.HeroButtonDTO>>() {});
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private HeroSectionDTO.StatsConfigDTO parseStatsConfig(String json) {
+        if (json == null || json.isEmpty()) return null;
+        try {
+            return objectMapper.readValue(json, new TypeReference<HeroSectionDTO.StatsConfigDTO>() {});
         } catch (Exception e) {
             return null;
         }

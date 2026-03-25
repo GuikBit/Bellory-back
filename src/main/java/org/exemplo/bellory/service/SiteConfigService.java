@@ -200,46 +200,71 @@ public class SiteConfigService {
 
     // ==================== APLICAR (DTO -> Entity) ====================
 
+    /**
+     * Para campos String nullable no PATCH parcial:
+     * - null  → não enviou, não altera
+     * - ""    → quer limpar, seta null no banco
+     * - "abc" → valor normal
+     */
+    private String blankToNull(String value) {
+        return (value != null && value.isBlank()) ? null : value;
+    }
+
     private void aplicarHero(SitePublicoConfig config, HeroSectionRequest dto) {
-        if (dto.getType() != null) config.setHeroType(dto.getType());
-        if (dto.getTitle() != null) config.setHeroTitle(dto.getTitle());
-        if (dto.getSubtitle() != null) config.setHeroSubtitle(dto.getSubtitle());
-        if (dto.getBackgroundUrl() != null) config.setHeroBackgroundUrl(dto.getBackgroundUrl());
+        if (dto.getType() != null) config.setHeroType(blankToNull(dto.getType()));
+        if (dto.getTitle() != null) config.setHeroTitle(blankToNull(dto.getTitle()));
+        if (dto.getSubtitle() != null) config.setHeroSubtitle(blankToNull(dto.getSubtitle()));
+        if (dto.getBackgroundUrl() != null) config.setHeroBackgroundUrl(blankToNull(dto.getBackgroundUrl()));
         if (dto.getBackgroundOverlay() != null) config.setHeroBackgroundOverlay(dto.getBackgroundOverlay());
-        if (dto.getCustomHtml() != null) config.setHeroCustomHtml(dto.getCustomHtml());
+        if (dto.getCustomHtml() != null) config.setHeroCustomHtml(blankToNull(dto.getCustomHtml()));
         if (dto.getButtons() != null) config.setHeroButtons(toJson(dto.getButtons()));
         if (dto.getShowBookingForm() != null) config.setHeroShowBookingForm(dto.getShowBookingForm());
+        if (dto.getContentLayout() != null) config.setHeroContentLayout(blankToNull(dto.getContentLayout()));
+        if (dto.getTitleSize() != null) config.setHeroTitleSize(blankToNull(dto.getTitleSize()));
+        if (dto.getHeroHeight() != null) config.setHeroHeight(blankToNull(dto.getHeroHeight()));
+        if (dto.getOverlayStyle() != null) config.setHeroOverlayStyle(blankToNull(dto.getOverlayStyle()));
+        if (dto.getBadgeText() != null) config.setHeroBadgeText(blankToNull(dto.getBadgeText()));
+        if (dto.getTitleHighlight() != null) config.setHeroTitleHighlight(blankToNull(dto.getTitleHighlight()));
+        if (dto.getShowParticles() != null) config.setHeroShowParticles(dto.getShowParticles());
+        if (dto.getVideoUrl() != null) config.setHeroVideoUrl(blankToNull(dto.getVideoUrl()));
+        if (dto.getSideImageUrl() != null) config.setHeroSideImageUrl(blankToNull(dto.getSideImageUrl()));
+        if (dto.getStatsConfig() != null) config.setHeroStatsConfig(toJson(dto.getStatsConfig()));
     }
 
     private void aplicarHeader(SitePublicoConfig config, HeaderConfigRequest dto) {
-        if (dto.getLogoUrl() != null) config.setHeaderLogoUrl(dto.getLogoUrl());
-        if (dto.getLogoAlt() != null) config.setHeaderLogoAlt(dto.getLogoAlt());
+        if (dto.getLogoUrl() != null) config.setHeaderLogoUrl(blankToNull(dto.getLogoUrl()));
+        if (dto.getLogoAlt() != null) config.setHeaderLogoAlt(blankToNull(dto.getLogoAlt()));
         if (dto.getMenuItems() != null) config.setHeaderMenuItems(toJson(dto.getMenuItems()));
         if (dto.getActionButtons() != null) config.setHeaderActionButtons(toJson(dto.getActionButtons()));
         if (dto.getShowPhone() != null) config.setHeaderShowPhone(dto.getShowPhone());
         if (dto.getShowSocial() != null) config.setHeaderShowSocial(dto.getShowSocial());
         if (dto.getSticky() != null) config.setHeaderSticky(dto.getSticky());
+        if (dto.getHeaderLayout() != null) config.setHeaderLayout(blankToNull(dto.getHeaderLayout()));
+        if (dto.getMenuStyle() != null) config.setHeaderMenuStyle(blankToNull(dto.getMenuStyle()));
+        if (dto.getTransparentOnHero() != null) config.setHeaderTransparentOnHero(dto.getTransparentOnHero());
+        if (dto.getShowCart() != null) config.setHeaderShowCart(dto.getShowCart());
+        if (dto.getLogoHeight() != null) config.setHeaderLogoHeight(dto.getLogoHeight());
     }
 
     private void aplicarAbout(SitePublicoConfig config, AboutSectionRequest dto) {
-        if (dto.getTitle() != null) config.setAboutTitle(dto.getTitle());
-        if (dto.getSubtitle() != null) config.setAboutSubtitle(dto.getSubtitle());
-        if (dto.getDescription() != null) config.setAboutDescription(dto.getDescription());
-        if (dto.getFullDescription() != null) config.setAboutFullDescription(dto.getFullDescription());
-        if (dto.getImageUrl() != null) config.setAboutImageUrl(dto.getImageUrl());
+        if (dto.getTitle() != null) config.setAboutTitle(blankToNull(dto.getTitle()));
+        if (dto.getSubtitle() != null) config.setAboutSubtitle(blankToNull(dto.getSubtitle()));
+        if (dto.getDescription() != null) config.setAboutDescription(blankToNull(dto.getDescription()));
+        if (dto.getFullDescription() != null) config.setAboutFullDescription(blankToNull(dto.getFullDescription()));
+        if (dto.getImageUrl() != null) config.setAboutImageUrl(blankToNull(dto.getImageUrl()));
         if (dto.getGalleryImages() != null) config.setAboutGalleryImages(toJson(dto.getGalleryImages()));
-        if (dto.getVideoUrl() != null) config.setAboutVideoUrl(dto.getVideoUrl());
+        if (dto.getVideoUrl() != null) config.setAboutVideoUrl(blankToNull(dto.getVideoUrl()));
         if (dto.getHighlights() != null) config.setAboutHighlights(toJson(dto.getHighlights()));
-        if (dto.getMission() != null) config.setAboutMission(dto.getMission());
-        if (dto.getVision() != null) config.setAboutVision(dto.getVision());
-        if (dto.getValues() != null) config.setAboutValues(dto.getValues());
+        if (dto.getMission() != null) config.setAboutMission(blankToNull(dto.getMission()));
+        if (dto.getVision() != null) config.setAboutVision(blankToNull(dto.getVision()));
+        if (dto.getValues() != null) config.setAboutValues(blankToNull(dto.getValues()));
     }
 
     private void aplicarFooter(SitePublicoConfig config, FooterConfigRequest dto) {
-        if (dto.getDescription() != null) config.setFooterDescription(dto.getDescription());
-        if (dto.getLogoUrl() != null) config.setFooterLogoUrl(dto.getLogoUrl());
+        if (dto.getDescription() != null) config.setFooterDescription(blankToNull(dto.getDescription()));
+        if (dto.getLogoUrl() != null) config.setFooterLogoUrl(blankToNull(dto.getLogoUrl()));
         if (dto.getLinkSections() != null) config.setFooterLinkSections(toJson(dto.getLinkSections()));
-        if (dto.getCopyrightText() != null) config.setFooterCopyrightText(dto.getCopyrightText());
+        if (dto.getCopyrightText() != null) config.setFooterCopyrightText(blankToNull(dto.getCopyrightText()));
         if (dto.getShowMap() != null) config.setFooterShowMap(dto.getShowMap());
         if (dto.getShowHours() != null) config.setFooterShowHours(dto.getShowHours());
         if (dto.getShowSocial() != null) config.setFooterShowSocial(dto.getShowSocial());
@@ -247,36 +272,36 @@ public class SiteConfigService {
     }
 
     private void aplicarServices(SitePublicoConfig config, ServicesSectionRequest dto) {
-        if (dto.getSectionTitle() != null) config.setServicesSectionTitle(dto.getSectionTitle());
-        if (dto.getSectionSubtitle() != null) config.setServicesSectionSubtitle(dto.getSectionSubtitle());
+        if (dto.getSectionTitle() != null) config.setServicesSectionTitle(blankToNull(dto.getSectionTitle()));
+        if (dto.getSectionSubtitle() != null) config.setServicesSectionSubtitle(blankToNull(dto.getSectionSubtitle()));
         if (dto.getShowPrices() != null) config.setServicesShowPrices(dto.getShowPrices());
         if (dto.getShowDuration() != null) config.setServicesShowDuration(dto.getShowDuration());
         if (dto.getFeaturedLimit() != null) config.setServicesFeaturedLimit(dto.getFeaturedLimit());
     }
 
     private void aplicarProducts(SitePublicoConfig config, ProductsSectionRequest dto) {
-        if (dto.getSectionTitle() != null) config.setProductsSectionTitle(dto.getSectionTitle());
-        if (dto.getSectionSubtitle() != null) config.setProductsSectionSubtitle(dto.getSectionSubtitle());
+        if (dto.getSectionTitle() != null) config.setProductsSectionTitle(blankToNull(dto.getSectionTitle()));
+        if (dto.getSectionSubtitle() != null) config.setProductsSectionSubtitle(blankToNull(dto.getSectionSubtitle()));
         if (dto.getShowPrices() != null) config.setProductsShowPrices(dto.getShowPrices());
         if (dto.getFeaturedLimit() != null) config.setProductsFeaturedLimit(dto.getFeaturedLimit());
     }
 
     private void aplicarTeam(SitePublicoConfig config, TeamSectionRequest dto) {
-        if (dto.getSectionTitle() != null) config.setTeamSectionTitle(dto.getSectionTitle());
-        if (dto.getSectionSubtitle() != null) config.setTeamSectionSubtitle(dto.getSectionSubtitle());
+        if (dto.getSectionTitle() != null) config.setTeamSectionTitle(blankToNull(dto.getSectionTitle()));
+        if (dto.getSectionSubtitle() != null) config.setTeamSectionSubtitle(blankToNull(dto.getSectionSubtitle()));
         if (dto.getShowSection() != null) config.setTeamShowSection(dto.getShowSection());
     }
 
     private void aplicarBooking(SitePublicoConfig config, BookingSectionRequest dto) {
-        if (dto.getSectionTitle() != null) config.setBookingSectionTitle(dto.getSectionTitle());
-        if (dto.getSectionSubtitle() != null) config.setBookingSectionSubtitle(dto.getSectionSubtitle());
+        if (dto.getSectionTitle() != null) config.setBookingSectionTitle(blankToNull(dto.getSectionTitle()));
+        if (dto.getSectionSubtitle() != null) config.setBookingSectionSubtitle(blankToNull(dto.getSectionSubtitle()));
         if (dto.getEnabled() != null) config.setBookingEnabled(dto.getEnabled());
     }
 
     private void aplicarGeneral(SitePublicoConfig config, GeneralSettingsRequest dto) {
         if (dto.getHomeSectionsOrder() != null) config.setHomeSectionsOrder(toJson(dto.getHomeSectionsOrder()));
-        if (dto.getCustomCss() != null) config.setCustomCss(dto.getCustomCss());
-        if (dto.getCustomJs() != null) config.setCustomJs(dto.getCustomJs());
+        if (dto.getCustomCss() != null) config.setCustomCss(blankToNull(dto.getCustomCss()));
+        if (dto.getCustomJs() != null) config.setCustomJs(blankToNull(dto.getCustomJs()));
         if (dto.getExternalScripts() != null) config.setExternalScripts(toJson(dto.getExternalScripts()));
         if (dto.getActive() != null) config.setActive(dto.getActive());
     }
@@ -293,6 +318,16 @@ public class SiteConfigService {
                 .customHtml(config.getHeroCustomHtml())
                 .buttons(fromJson(config.getHeroButtons(), new TypeReference<>() {}))
                 .showBookingForm(config.getHeroShowBookingForm())
+                .contentLayout(config.getHeroContentLayout())
+                .titleSize(config.getHeroTitleSize())
+                .heroHeight(config.getHeroHeight())
+                .overlayStyle(config.getHeroOverlayStyle())
+                .badgeText(config.getHeroBadgeText())
+                .titleHighlight(config.getHeroTitleHighlight())
+                .showParticles(config.getHeroShowParticles())
+                .videoUrl(config.getHeroVideoUrl())
+                .sideImageUrl(config.getHeroSideImageUrl())
+                .statsConfig(fromJson(config.getHeroStatsConfig(), new TypeReference<>() {}))
                 .build();
     }
 
@@ -305,6 +340,11 @@ public class SiteConfigService {
                 .showPhone(config.getHeaderShowPhone())
                 .showSocial(config.getHeaderShowSocial())
                 .sticky(config.getHeaderSticky())
+                .headerLayout(config.getHeaderLayout())
+                .menuStyle(config.getHeaderMenuStyle())
+                .transparentOnHero(config.getHeaderTransparentOnHero())
+                .showCart(config.getHeaderShowCart())
+                .logoHeight(config.getHeaderLogoHeight())
                 .build();
     }
 

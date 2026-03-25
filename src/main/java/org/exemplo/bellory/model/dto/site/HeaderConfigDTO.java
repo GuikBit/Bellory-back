@@ -26,6 +26,11 @@ public class HeaderConfigDTO {
     private String phoneNumber;
     private Boolean showSocial;
     private Boolean sticky;
+    private String headerLayout;
+    private String menuStyle;
+    private Boolean transparentOnHero;
+    private Boolean showCart;
+    private Integer logoHeight;
     private SocialLinksDTO socialLinks;
 
     @Data

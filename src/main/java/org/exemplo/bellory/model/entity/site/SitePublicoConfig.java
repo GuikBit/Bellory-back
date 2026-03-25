@@ -65,6 +65,26 @@ public class SitePublicoConfig {
     @Builder.Default
     private Boolean headerSticky = true;
 
+    @Column(name = "header_layout", length = 20)
+    @Builder.Default
+    private String headerLayout = "default";
+
+    @Column(name = "header_menu_style", length = 20)
+    @Builder.Default
+    private String headerMenuStyle = "default";
+
+    @Column(name = "header_transparent_on_hero")
+    @Builder.Default
+    private Boolean headerTransparentOnHero = false;
+
+    @Column(name = "header_show_cart")
+    @Builder.Default
+    private Boolean headerShowCart = true;
+
+    @Column(name = "header_logo_height")
+    @Builder.Default
+    private Integer headerLogoHeight = 40;
+
     // ==================== HERO CONFIG ====================
 
     /**
@@ -103,6 +123,45 @@ public class SitePublicoConfig {
     @Column(name = "hero_show_booking_form")
     @Builder.Default
     private Boolean heroShowBookingForm = false;
+
+    @Column(name = "hero_content_layout", length = 30)
+    @Builder.Default
+    private String heroContentLayout = "text-left";
+
+    @Column(name = "hero_title_size", length = 10)
+    @Builder.Default
+    private String heroTitleSize = "lg";
+
+    @Column(name = "hero_height", length = 10)
+    @Builder.Default
+    private String heroHeight = "85vh";
+
+    @Column(name = "hero_overlay_style", length = 30)
+    @Builder.Default
+    private String heroOverlayStyle = "gradient-bottom";
+
+    @Column(name = "hero_badge_text", length = 255)
+    private String heroBadgeText;
+
+    @Column(name = "hero_title_highlight", length = 255)
+    private String heroTitleHighlight;
+
+    @Column(name = "hero_show_particles")
+    @Builder.Default
+    private Boolean heroShowParticles = true;
+
+    @Column(name = "hero_video_url", length = 500)
+    private String heroVideoUrl;
+
+    @Column(name = "hero_side_image_url", length = 500)
+    private String heroSideImageUrl;
+
+    /**
+     * JSON com configuração de stats do hero.
+     * Estrutura: {"show": true, "yearsExperienceManual": 10, ...}
+     */
+    @Column(name = "hero_stats_config", columnDefinition = "TEXT")
+    private String heroStatsConfig;
 
     // ==================== ABOUT SECTION ====================
 
