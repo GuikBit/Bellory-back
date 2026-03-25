@@ -258,6 +258,12 @@ public class SiteConfigService {
         if (dto.getMission() != null) config.setAboutMission(blankToNull(dto.getMission()));
         if (dto.getVision() != null) config.setAboutVision(blankToNull(dto.getVision()));
         if (dto.getValues() != null) config.setAboutValues(blankToNull(dto.getValues()));
+        if (dto.getShowGallery() != null) config.setAboutShowGallery(dto.getShowGallery());
+        if (dto.getShowHighlights() != null) config.setAboutShowHighlights(dto.getShowHighlights());
+        if (dto.getShowMVV() != null) config.setAboutShowMVV(dto.getShowMVV());
+        if (dto.getLayoutStyle() != null) config.setAboutLayoutStyle(blankToNull(dto.getLayoutStyle()));
+        if (dto.getYearFounded() != null) config.setAboutYearFounded(dto.getYearFounded());
+        if (dto.getTeamPhotoUrl() != null) config.setAboutTeamPhotoUrl(blankToNull(dto.getTeamPhotoUrl()));
     }
 
     private void aplicarFooter(SitePublicoConfig config, FooterConfigRequest dto) {
@@ -277,6 +283,14 @@ public class SiteConfigService {
         if (dto.getShowPrices() != null) config.setServicesShowPrices(dto.getShowPrices());
         if (dto.getShowDuration() != null) config.setServicesShowDuration(dto.getShowDuration());
         if (dto.getFeaturedLimit() != null) config.setServicesFeaturedLimit(dto.getFeaturedLimit());
+        if (dto.getCardStyle() != null) config.setServicesCardStyle(blankToNull(dto.getCardStyle()));
+        if (dto.getShowCategory() != null) config.setServicesShowCategory(dto.getShowCategory());
+        if (dto.getShowDescription() != null) config.setServicesShowDescription(dto.getShowDescription());
+        if (dto.getShowImage() != null) config.setServicesShowImage(dto.getShowImage());
+        if (dto.getShowDiscount() != null) config.setServicesShowDiscount(dto.getShowDiscount());
+        if (dto.getCardImageHeight() != null) config.setServicesCardImageHeight(dto.getCardImageHeight());
+        if (dto.getShowCategoryFilter() != null) config.setServicesShowCategoryFilter(dto.getShowCategoryFilter());
+        if (dto.getColumns() != null) config.setServicesColumns(dto.getColumns());
     }
 
     private void aplicarProducts(SitePublicoConfig config, ProductsSectionRequest dto) {
@@ -290,6 +304,15 @@ public class SiteConfigService {
         if (dto.getSectionTitle() != null) config.setTeamSectionTitle(blankToNull(dto.getSectionTitle()));
         if (dto.getSectionSubtitle() != null) config.setTeamSectionSubtitle(blankToNull(dto.getSectionSubtitle()));
         if (dto.getShowSection() != null) config.setTeamShowSection(dto.getShowSection());
+        if (dto.getLayout() != null) config.setTeamLayout(blankToNull(dto.getLayout()));
+        if (dto.getCardStyle() != null) config.setTeamCardStyle(blankToNull(dto.getCardStyle()));
+        if (dto.getPhotoShape() != null) config.setTeamPhotoShape(blankToNull(dto.getPhotoShape()));
+        if (dto.getPhotoHeight() != null) config.setTeamPhotoHeight(dto.getPhotoHeight());
+        if (dto.getShowBio() != null) config.setTeamShowBio(dto.getShowBio());
+        if (dto.getShowServices() != null) config.setTeamShowServices(dto.getShowServices());
+        if (dto.getShowSchedule() != null) config.setTeamShowSchedule(dto.getShowSchedule());
+        if (dto.getCarouselAutoPlay() != null) config.setTeamCarouselAutoPlay(dto.getCarouselAutoPlay());
+        if (dto.getCarouselSpeed() != null) config.setTeamCarouselSpeed(dto.getCarouselSpeed());
     }
 
     private void aplicarBooking(SitePublicoConfig config, BookingSectionRequest dto) {
@@ -361,6 +384,12 @@ public class SiteConfigService {
                 .mission(config.getAboutMission())
                 .vision(config.getAboutVision())
                 .values(config.getAboutValues())
+                .showGallery(config.getAboutShowGallery())
+                .showHighlights(config.getAboutShowHighlights())
+                .showMVV(config.getAboutShowMVV())
+                .layoutStyle(config.getAboutLayoutStyle())
+                .yearFounded(config.getAboutYearFounded())
+                .teamPhotoUrl(config.getAboutTeamPhotoUrl())
                 .build();
     }
 
@@ -384,6 +413,14 @@ public class SiteConfigService {
                 .showPrices(config.getServicesShowPrices())
                 .showDuration(config.getServicesShowDuration())
                 .featuredLimit(config.getServicesFeaturedLimit())
+                .cardStyle(config.getServicesCardStyle())
+                .showCategory(config.getServicesShowCategory())
+                .showDescription(config.getServicesShowDescription())
+                .showImage(config.getServicesShowImage())
+                .showDiscount(config.getServicesShowDiscount())
+                .cardImageHeight(config.getServicesCardImageHeight())
+                .showCategoryFilter(config.getServicesShowCategoryFilter())
+                .columns(config.getServicesColumns())
                 .build();
     }
 
@@ -401,6 +438,15 @@ public class SiteConfigService {
                 .sectionTitle(config.getTeamSectionTitle())
                 .sectionSubtitle(config.getTeamSectionSubtitle())
                 .showSection(config.getTeamShowSection())
+                .layout(config.getTeamLayout())
+                .cardStyle(config.getTeamCardStyle())
+                .photoShape(config.getTeamPhotoShape())
+                .photoHeight(config.getTeamPhotoHeight())
+                .showBio(config.getTeamShowBio())
+                .showServices(config.getTeamShowServices())
+                .showSchedule(config.getTeamShowSchedule())
+                .carouselAutoPlay(config.getTeamCarouselAutoPlay())
+                .carouselSpeed(config.getTeamCarouselSpeed())
                 .build();
     }
 

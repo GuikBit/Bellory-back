@@ -16,4 +16,12 @@ public class ServicesSectionRequest {
     private Boolean showPrices;
     private Boolean showDuration;
     private Integer featuredLimit;
+    private String cardStyle;
+    private Boolean showCategory;
+    private Boolean showDescription;
+    private Boolean showImage;
+    private Boolean showDiscount;
+    private Integer cardImageHeight;
+    private Boolean showCategoryFilter;
+    private Integer columns;
 }

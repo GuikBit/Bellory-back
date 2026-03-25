@@ -33,6 +33,12 @@ public class AboutSectionDTO {
     private String mission;
     private String vision;
     private String values;
+    private Boolean showGallery;
+    private Boolean showHighlights;
+    private Boolean showMVV;
+    private String layoutStyle;
+    private Integer yearFounded;
+    private String teamPhotoUrl;
 
     /**
      * Informações da organização

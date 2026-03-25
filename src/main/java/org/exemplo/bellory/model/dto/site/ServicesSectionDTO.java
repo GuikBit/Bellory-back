@@ -24,6 +24,14 @@ public class ServicesSectionDTO {
     private String subtitle;
     private Boolean showPrices;
     private Boolean showDuration;
+    private String cardStyle;
+    private Boolean showCategory;
+    private Boolean showDescription;
+    private Boolean showImage;
+    private Boolean showDiscount;
+    private Integer cardImageHeight;
+    private Boolean showCategoryFilter;
+    private Integer columns;
 
     private List<ServicoPublicDTO> servicos;
     private List<CategoriaPublicDTO> categorias;

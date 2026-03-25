@@ -209,6 +209,28 @@ public class SitePublicoConfig {
     @Column(name = "about_values", columnDefinition = "TEXT")
     private String aboutValues;
 
+    @Column(name = "about_show_gallery")
+    @Builder.Default
+    private Boolean aboutShowGallery = true;
+
+    @Column(name = "about_show_highlights")
+    @Builder.Default
+    private Boolean aboutShowHighlights = true;
+
+    @Column(name = "about_show_mvv")
+    @Builder.Default
+    private Boolean aboutShowMVV = true;
+
+    @Column(name = "about_layout_style", length = 30)
+    @Builder.Default
+    private String aboutLayoutStyle = "default";
+
+    @Column(name = "about_year_founded")
+    private Integer aboutYearFounded;
+
+    @Column(name = "about_team_photo_url", length = 500)
+    private String aboutTeamPhotoUrl;
+
     // ==================== SERVICES SECTION ====================
 
     @Column(name = "services_section_title", length = 255)
@@ -229,6 +251,38 @@ public class SitePublicoConfig {
     @Column(name = "services_featured_limit")
     @Builder.Default
     private Integer servicesFeaturedLimit = 6;
+
+    @Column(name = "services_card_style", length = 20)
+    @Builder.Default
+    private String servicesCardStyle = "default";
+
+    @Column(name = "services_show_category")
+    @Builder.Default
+    private Boolean servicesShowCategory = true;
+
+    @Column(name = "services_show_description")
+    @Builder.Default
+    private Boolean servicesShowDescription = true;
+
+    @Column(name = "services_show_image")
+    @Builder.Default
+    private Boolean servicesShowImage = true;
+
+    @Column(name = "services_show_discount")
+    @Builder.Default
+    private Boolean servicesShowDiscount = true;
+
+    @Column(name = "services_card_image_height")
+    @Builder.Default
+    private Integer servicesCardImageHeight = 200;
+
+    @Column(name = "services_show_category_filter")
+    @Builder.Default
+    private Boolean servicesShowCategoryFilter = true;
+
+    @Column(name = "services_columns")
+    @Builder.Default
+    private Integer servicesColumns = 3;
 
     // ==================== PRODUCTS SECTION ====================
 
@@ -259,6 +313,42 @@ public class SitePublicoConfig {
     @Column(name = "team_show_section")
     @Builder.Default
     private Boolean teamShowSection = true;
+
+    @Column(name = "team_layout", length = 20)
+    @Builder.Default
+    private String teamLayout = "grid";
+
+    @Column(name = "team_card_style", length = 20)
+    @Builder.Default
+    private String teamCardStyle = "default";
+
+    @Column(name = "team_photo_shape", length = 20)
+    @Builder.Default
+    private String teamPhotoShape = "square";
+
+    @Column(name = "team_photo_height")
+    @Builder.Default
+    private Integer teamPhotoHeight = 280;
+
+    @Column(name = "team_show_bio")
+    @Builder.Default
+    private Boolean teamShowBio = true;
+
+    @Column(name = "team_show_services")
+    @Builder.Default
+    private Boolean teamShowServices = true;
+
+    @Column(name = "team_show_schedule")
+    @Builder.Default
+    private Boolean teamShowSchedule = true;
+
+    @Column(name = "team_carousel_auto_play")
+    @Builder.Default
+    private Boolean teamCarouselAutoPlay = true;
+
+    @Column(name = "team_carousel_speed")
+    @Builder.Default
+    private Integer teamCarouselSpeed = 4000;
 
     // ==================== BOOKING SECTION ====================
 
