@@ -65,4 +65,7 @@ public class PlanoLimitesBellory {
 
     @Column(name = "suporte_24x7")
     private boolean suporte24x7 = false;
+
+    @Column(name = "max_storage_mb")
+    private Integer maxStorageMb; // null = ilimitado, valor em MB
 }
