@@ -26,4 +26,7 @@ public class HeaderConfigRequest {
     private Boolean transparentOnHero;
     private Boolean showCart;
     private Integer logoHeight;
+    private String backgroundColor;
+    private String backgroundPattern;
+    private Double patternOpacity;
 }

@@ -5,11 +5,14 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.exemplo.bellory.model.dto.site.SitePublicoConfigDTO;
 import org.exemplo.bellory.model.dto.site.request.*;
+import org.exemplo.bellory.model.dto.site.request.TransitionConfigRequest;
 import org.exemplo.bellory.model.entity.error.ResponseAPI;
 import org.exemplo.bellory.service.SiteConfigService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 /**
  * Controller para gerenciamento das configurações do site público da organização.
@@ -179,6 +182,20 @@ public class SiteConfigController {
             return notFound(e.getMessage());
         } catch (Exception e) {
             return serverError("Erro ao atualizar configurações gerais: " + e.getMessage());
+        }
+    }
+
+    @Operation(summary = "Atualizar configuração de transições entre seções")
+    @PatchMapping("/transitions")
+    public ResponseEntity<ResponseAPI<Map<String, TransitionConfigRequest>>> updateTransitions(
+            @RequestBody Map<String, TransitionConfigRequest> request) {
+        try {
+            Map<String, TransitionConfigRequest> updated = siteConfigService.atualizarTransitions(request);
+            return success("Transições atualizadas com sucesso", updated);
+        } catch (IllegalArgumentException e) {
+            return notFound(e.getMessage());
+        } catch (Exception e) {
+            return serverError("Erro ao atualizar transições: " + e.getMessage());
         }
     }
 

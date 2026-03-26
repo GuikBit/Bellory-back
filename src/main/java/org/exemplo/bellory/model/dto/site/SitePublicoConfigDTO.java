@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 import org.exemplo.bellory.model.dto.site.request.*;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 /**
  * DTO de resposta com todas as configurações editáveis do site público.
@@ -31,6 +32,7 @@ public class SitePublicoConfigDTO {
     private TeamSectionRequest team;
     private BookingSectionRequest booking;
     private GeneralSettingsRequest general;
+    private Map<String, TransitionConfigRequest> transitions;
 
     private Boolean active;
     private LocalDateTime dtCriacao;

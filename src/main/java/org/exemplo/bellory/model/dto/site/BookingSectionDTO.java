@@ -23,6 +23,9 @@ public class BookingSectionDTO {
     private String title;
     private String subtitle;
     private Boolean enabled;
+    private String backgroundColor;
+    private String backgroundPattern;
+    private Double patternOpacity;
 
     /**
      * Serviços disponíveis para agendamento

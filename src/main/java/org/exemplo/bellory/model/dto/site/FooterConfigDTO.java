@@ -36,6 +36,20 @@ public class FooterConfigDTO {
 
     private List<HorarioFuncionamentoDTO> horariosFuncionamento;
     private EnderecoPublicDTO endereco;
+    private String layout;
+    private Integer logoHeight;
+    private Boolean showLogo;
+    private String socialStyle;
+    private String dividerStyle;
+    private Boolean showContact;
+    private Boolean showBackToTop;
+    private String newsletterTitle;
+    private String newsletterPlaceholder;
+    private Integer columns;
+    private Boolean compactHours;
+    private String backgroundColor;
+    private String backgroundPattern;
+    private Double patternOpacity;
 
     @Data
     @Builder

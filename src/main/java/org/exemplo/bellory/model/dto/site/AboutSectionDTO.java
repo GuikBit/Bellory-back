@@ -40,6 +40,10 @@ public class AboutSectionDTO {
     private Integer yearFounded;
     private String teamPhotoUrl;
 
+    private String backgroundColor;
+    private String backgroundPattern;
+    private Double patternOpacity;
+
     /**
      * Informações da organização
      */

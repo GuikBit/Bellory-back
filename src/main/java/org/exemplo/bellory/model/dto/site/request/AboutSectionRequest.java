@@ -31,4 +31,7 @@ public class AboutSectionRequest {
     private String layoutStyle;
     private Integer yearFounded;
     private String teamPhotoUrl;
+    private String backgroundColor;
+    private String backgroundPattern;
+    private Double patternOpacity;
 }

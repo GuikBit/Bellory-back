@@ -33,6 +33,10 @@ public class ServicesSectionDTO {
     private Boolean showCategoryFilter;
     private Integer columns;
 
+    private String backgroundColor;
+    private String backgroundPattern;
+    private Double patternOpacity;
+
     private List<ServicoPublicDTO> servicos;
     private List<CategoriaPublicDTO> categorias;
 

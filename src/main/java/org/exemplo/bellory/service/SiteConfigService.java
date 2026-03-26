@@ -13,6 +13,7 @@ import org.exemplo.bellory.model.dto.site.HeroSectionDTO;
 import org.exemplo.bellory.model.dto.site.HomePageDTO;
 import org.exemplo.bellory.model.dto.site.SitePublicoConfigDTO;
 import org.exemplo.bellory.model.dto.site.request.*;
+import org.exemplo.bellory.model.dto.site.request.TransitionConfigRequest;
 import org.exemplo.bellory.model.entity.landingpage.LandingPage;
 import org.exemplo.bellory.model.entity.landingpage.LandingPageSection;
 import org.exemplo.bellory.model.entity.organizacao.Organizacao;
@@ -25,6 +26,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.Optional;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -198,6 +200,23 @@ public class SiteConfigService {
         return extrairGeneral(config);
     }
 
+    @Transactional
+    public Map<String, TransitionConfigRequest> atualizarTransitions(Map<String, TransitionConfigRequest> dto) {
+        Long orgId = getOrganizacaoId();
+        SitePublicoConfig config = findOrCreate(orgId);
+
+        // Merge: carrega o mapa existente e sobrescreve apenas as chaves enviadas
+        Map<String, TransitionConfigRequest> existing = extrairTransitions(config);
+        if (existing == null) {
+            existing = new java.util.HashMap<>();
+        }
+        existing.putAll(dto);
+
+        config.setTransitions(toJson(existing));
+        siteConfigRepository.save(config);
+        return existing;
+    }
+
     // ==================== APLICAR (DTO -> Entity) ====================
 
     /**
@@ -229,6 +248,9 @@ public class SiteConfigService {
         if (dto.getVideoUrl() != null) config.setHeroVideoUrl(blankToNull(dto.getVideoUrl()));
         if (dto.getSideImageUrl() != null) config.setHeroSideImageUrl(blankToNull(dto.getSideImageUrl()));
         if (dto.getStatsConfig() != null) config.setHeroStatsConfig(toJson(dto.getStatsConfig()));
+        if (dto.getBackgroundColor() != null) config.setHeroBackgroundColor(blankToNull(dto.getBackgroundColor()));
+        if (dto.getBackgroundPattern() != null) config.setHeroBackgroundPattern(blankToNull(dto.getBackgroundPattern()));
+        if (dto.getPatternOpacity() != null) config.setHeroPatternOpacity(dto.getPatternOpacity());
     }
 
     private void aplicarHeader(SitePublicoConfig config, HeaderConfigRequest dto) {
@@ -244,6 +266,9 @@ public class SiteConfigService {
         if (dto.getTransparentOnHero() != null) config.setHeaderTransparentOnHero(dto.getTransparentOnHero());
         if (dto.getShowCart() != null) config.setHeaderShowCart(dto.getShowCart());
         if (dto.getLogoHeight() != null) config.setHeaderLogoHeight(dto.getLogoHeight());
+        if (dto.getBackgroundColor() != null) config.setHeaderBackgroundColor(blankToNull(dto.getBackgroundColor()));
+        if (dto.getBackgroundPattern() != null) config.setHeaderBackgroundPattern(blankToNull(dto.getBackgroundPattern()));
+        if (dto.getPatternOpacity() != null) config.setHeaderPatternOpacity(dto.getPatternOpacity());
     }
 
     private void aplicarAbout(SitePublicoConfig config, AboutSectionRequest dto) {
@@ -264,6 +289,9 @@ public class SiteConfigService {
         if (dto.getLayoutStyle() != null) config.setAboutLayoutStyle(blankToNull(dto.getLayoutStyle()));
         if (dto.getYearFounded() != null) config.setAboutYearFounded(dto.getYearFounded());
         if (dto.getTeamPhotoUrl() != null) config.setAboutTeamPhotoUrl(blankToNull(dto.getTeamPhotoUrl()));
+        if (dto.getBackgroundColor() != null) config.setAboutBackgroundColor(blankToNull(dto.getBackgroundColor()));
+        if (dto.getBackgroundPattern() != null) config.setAboutBackgroundPattern(blankToNull(dto.getBackgroundPattern()));
+        if (dto.getPatternOpacity() != null) config.setAboutPatternOpacity(dto.getPatternOpacity());
     }
 
     private void aplicarFooter(SitePublicoConfig config, FooterConfigRequest dto) {
@@ -275,6 +303,20 @@ public class SiteConfigService {
         if (dto.getShowHours() != null) config.setFooterShowHours(dto.getShowHours());
         if (dto.getShowSocial() != null) config.setFooterShowSocial(dto.getShowSocial());
         if (dto.getShowNewsletter() != null) config.setFooterShowNewsletter(dto.getShowNewsletter());
+        if (dto.getLayout() != null) config.setFooterLayout(blankToNull(dto.getLayout()));
+        if (dto.getLogoHeight() != null) config.setFooterLogoHeight(dto.getLogoHeight());
+        if (dto.getShowLogo() != null) config.setFooterShowLogo(dto.getShowLogo());
+        if (dto.getSocialStyle() != null) config.setFooterSocialStyle(blankToNull(dto.getSocialStyle()));
+        if (dto.getDividerStyle() != null) config.setFooterDividerStyle(blankToNull(dto.getDividerStyle()));
+        if (dto.getShowContact() != null) config.setFooterShowContact(dto.getShowContact());
+        if (dto.getShowBackToTop() != null) config.setFooterShowBackToTop(dto.getShowBackToTop());
+        if (dto.getNewsletterTitle() != null) config.setFooterNewsletterTitle(blankToNull(dto.getNewsletterTitle()));
+        if (dto.getNewsletterPlaceholder() != null) config.setFooterNewsletterPlaceholder(blankToNull(dto.getNewsletterPlaceholder()));
+        if (dto.getColumns() != null) config.setFooterColumns(dto.getColumns());
+        if (dto.getCompactHours() != null) config.setFooterCompactHours(dto.getCompactHours());
+        if (dto.getBackgroundColor() != null) config.setFooterBackgroundColor(blankToNull(dto.getBackgroundColor()));
+        if (dto.getBackgroundPattern() != null) config.setFooterBackgroundPattern(blankToNull(dto.getBackgroundPattern()));
+        if (dto.getPatternOpacity() != null) config.setFooterPatternOpacity(dto.getPatternOpacity());
     }
 
     private void aplicarServices(SitePublicoConfig config, ServicesSectionRequest dto) {
@@ -291,6 +333,9 @@ public class SiteConfigService {
         if (dto.getCardImageHeight() != null) config.setServicesCardImageHeight(dto.getCardImageHeight());
         if (dto.getShowCategoryFilter() != null) config.setServicesShowCategoryFilter(dto.getShowCategoryFilter());
         if (dto.getColumns() != null) config.setServicesColumns(dto.getColumns());
+        if (dto.getBackgroundColor() != null) config.setServicesBackgroundColor(blankToNull(dto.getBackgroundColor()));
+        if (dto.getBackgroundPattern() != null) config.setServicesBackgroundPattern(blankToNull(dto.getBackgroundPattern()));
+        if (dto.getPatternOpacity() != null) config.setServicesPatternOpacity(dto.getPatternOpacity());
     }
 
     private void aplicarProducts(SitePublicoConfig config, ProductsSectionRequest dto) {
@@ -298,6 +343,23 @@ public class SiteConfigService {
         if (dto.getSectionSubtitle() != null) config.setProductsSectionSubtitle(blankToNull(dto.getSectionSubtitle()));
         if (dto.getShowPrices() != null) config.setProductsShowPrices(dto.getShowPrices());
         if (dto.getFeaturedLimit() != null) config.setProductsFeaturedLimit(dto.getFeaturedLimit());
+        if (dto.getLayout() != null) config.setProductsLayout(blankToNull(dto.getLayout()));
+        if (dto.getCardStyle() != null) config.setProductsCardStyle(blankToNull(dto.getCardStyle()));
+        if (dto.getColumns() != null) config.setProductsColumns(dto.getColumns());
+        if (dto.getCardImageHeight() != null) config.setProductsCardImageHeight(dto.getCardImageHeight());
+        if (dto.getShowRating() != null) config.setProductsShowRating(dto.getShowRating());
+        if (dto.getShowCategory() != null) config.setProductsShowCategory(dto.getShowCategory());
+        if (dto.getShowDescription() != null) config.setProductsShowDescription(dto.getShowDescription());
+        if (dto.getShowDiscount() != null) config.setProductsShowDiscount(dto.getShowDiscount());
+        if (dto.getShowStock() != null) config.setProductsShowStock(dto.getShowStock());
+        if (dto.getShowAddToCart() != null) config.setProductsShowAddToCart(dto.getShowAddToCart());
+        if (dto.getHoverEffect() != null) config.setProductsHoverEffect(blankToNull(dto.getHoverEffect()));
+        if (dto.getBadgeStyle() != null) config.setProductsBadgeStyle(blankToNull(dto.getBadgeStyle()));
+        if (dto.getAutoPlay() != null) config.setProductsAutoPlay(dto.getAutoPlay());
+        if (dto.getAutoPlaySpeed() != null) config.setProductsAutoPlaySpeed(dto.getAutoPlaySpeed());
+        if (dto.getBackgroundColor() != null) config.setProductsBackgroundColor(blankToNull(dto.getBackgroundColor()));
+        if (dto.getBackgroundPattern() != null) config.setProductsBackgroundPattern(blankToNull(dto.getBackgroundPattern()));
+        if (dto.getPatternOpacity() != null) config.setProductsPatternOpacity(dto.getPatternOpacity());
     }
 
     private void aplicarTeam(SitePublicoConfig config, TeamSectionRequest dto) {
@@ -313,12 +375,18 @@ public class SiteConfigService {
         if (dto.getShowSchedule() != null) config.setTeamShowSchedule(dto.getShowSchedule());
         if (dto.getCarouselAutoPlay() != null) config.setTeamCarouselAutoPlay(dto.getCarouselAutoPlay());
         if (dto.getCarouselSpeed() != null) config.setTeamCarouselSpeed(dto.getCarouselSpeed());
+        if (dto.getBackgroundColor() != null) config.setTeamBackgroundColor(blankToNull(dto.getBackgroundColor()));
+        if (dto.getBackgroundPattern() != null) config.setTeamBackgroundPattern(blankToNull(dto.getBackgroundPattern()));
+        if (dto.getPatternOpacity() != null) config.setTeamPatternOpacity(dto.getPatternOpacity());
     }
 
     private void aplicarBooking(SitePublicoConfig config, BookingSectionRequest dto) {
         if (dto.getSectionTitle() != null) config.setBookingSectionTitle(blankToNull(dto.getSectionTitle()));
         if (dto.getSectionSubtitle() != null) config.setBookingSectionSubtitle(blankToNull(dto.getSectionSubtitle()));
         if (dto.getEnabled() != null) config.setBookingEnabled(dto.getEnabled());
+        if (dto.getBackgroundColor() != null) config.setBookingBackgroundColor(blankToNull(dto.getBackgroundColor()));
+        if (dto.getBackgroundPattern() != null) config.setBookingBackgroundPattern(blankToNull(dto.getBackgroundPattern()));
+        if (dto.getPatternOpacity() != null) config.setBookingPatternOpacity(dto.getPatternOpacity());
     }
 
     private void aplicarGeneral(SitePublicoConfig config, GeneralSettingsRequest dto) {
@@ -351,6 +419,9 @@ public class SiteConfigService {
                 .videoUrl(config.getHeroVideoUrl())
                 .sideImageUrl(config.getHeroSideImageUrl())
                 .statsConfig(fromJson(config.getHeroStatsConfig(), new TypeReference<>() {}))
+                .backgroundColor(config.getHeroBackgroundColor())
+                .backgroundPattern(config.getHeroBackgroundPattern())
+                .patternOpacity(config.getHeroPatternOpacity())
                 .build();
     }
 
@@ -368,6 +439,9 @@ public class SiteConfigService {
                 .transparentOnHero(config.getHeaderTransparentOnHero())
                 .showCart(config.getHeaderShowCart())
                 .logoHeight(config.getHeaderLogoHeight())
+                .backgroundColor(config.getHeaderBackgroundColor())
+                .backgroundPattern(config.getHeaderBackgroundPattern())
+                .patternOpacity(config.getHeaderPatternOpacity())
                 .build();
     }
 
@@ -390,6 +464,9 @@ public class SiteConfigService {
                 .layoutStyle(config.getAboutLayoutStyle())
                 .yearFounded(config.getAboutYearFounded())
                 .teamPhotoUrl(config.getAboutTeamPhotoUrl())
+                .backgroundColor(config.getAboutBackgroundColor())
+                .backgroundPattern(config.getAboutBackgroundPattern())
+                .patternOpacity(config.getAboutPatternOpacity())
                 .build();
     }
 
@@ -403,6 +480,20 @@ public class SiteConfigService {
                 .showHours(config.getFooterShowHours())
                 .showSocial(config.getFooterShowSocial())
                 .showNewsletter(config.getFooterShowNewsletter())
+                .layout(config.getFooterLayout())
+                .logoHeight(config.getFooterLogoHeight())
+                .showLogo(config.getFooterShowLogo())
+                .socialStyle(config.getFooterSocialStyle())
+                .dividerStyle(config.getFooterDividerStyle())
+                .showContact(config.getFooterShowContact())
+                .showBackToTop(config.getFooterShowBackToTop())
+                .newsletterTitle(config.getFooterNewsletterTitle())
+                .newsletterPlaceholder(config.getFooterNewsletterPlaceholder())
+                .columns(config.getFooterColumns())
+                .compactHours(config.getFooterCompactHours())
+                .backgroundColor(config.getFooterBackgroundColor())
+                .backgroundPattern(config.getFooterBackgroundPattern())
+                .patternOpacity(config.getFooterPatternOpacity())
                 .build();
     }
 
@@ -421,6 +512,9 @@ public class SiteConfigService {
                 .cardImageHeight(config.getServicesCardImageHeight())
                 .showCategoryFilter(config.getServicesShowCategoryFilter())
                 .columns(config.getServicesColumns())
+                .backgroundColor(config.getServicesBackgroundColor())
+                .backgroundPattern(config.getServicesBackgroundPattern())
+                .patternOpacity(config.getServicesPatternOpacity())
                 .build();
     }
 
@@ -430,6 +524,23 @@ public class SiteConfigService {
                 .sectionSubtitle(config.getProductsSectionSubtitle())
                 .showPrices(config.getProductsShowPrices())
                 .featuredLimit(config.getProductsFeaturedLimit())
+                .layout(config.getProductsLayout())
+                .cardStyle(config.getProductsCardStyle())
+                .columns(config.getProductsColumns())
+                .cardImageHeight(config.getProductsCardImageHeight())
+                .showRating(config.getProductsShowRating())
+                .showCategory(config.getProductsShowCategory())
+                .showDescription(config.getProductsShowDescription())
+                .showDiscount(config.getProductsShowDiscount())
+                .showStock(config.getProductsShowStock())
+                .showAddToCart(config.getProductsShowAddToCart())
+                .hoverEffect(config.getProductsHoverEffect())
+                .badgeStyle(config.getProductsBadgeStyle())
+                .autoPlay(config.getProductsAutoPlay())
+                .autoPlaySpeed(config.getProductsAutoPlaySpeed())
+                .backgroundColor(config.getProductsBackgroundColor())
+                .backgroundPattern(config.getProductsBackgroundPattern())
+                .patternOpacity(config.getProductsPatternOpacity())
                 .build();
     }
 
@@ -447,6 +558,9 @@ public class SiteConfigService {
                 .showSchedule(config.getTeamShowSchedule())
                 .carouselAutoPlay(config.getTeamCarouselAutoPlay())
                 .carouselSpeed(config.getTeamCarouselSpeed())
+                .backgroundColor(config.getTeamBackgroundColor())
+                .backgroundPattern(config.getTeamBackgroundPattern())
+                .patternOpacity(config.getTeamPatternOpacity())
                 .build();
     }
 
@@ -455,6 +569,9 @@ public class SiteConfigService {
                 .sectionTitle(config.getBookingSectionTitle())
                 .sectionSubtitle(config.getBookingSectionSubtitle())
                 .enabled(config.getBookingEnabled())
+                .backgroundColor(config.getBookingBackgroundColor())
+                .backgroundPattern(config.getBookingBackgroundPattern())
+                .patternOpacity(config.getBookingPatternOpacity())
                 .build();
     }
 
@@ -466,6 +583,10 @@ public class SiteConfigService {
                 .externalScripts(fromJson(config.getExternalScripts(), new TypeReference<>() {}))
                 .active(config.getActive())
                 .build();
+    }
+
+    public Map<String, TransitionConfigRequest> extrairTransitions(SitePublicoConfig config) {
+        return fromJson(config.getTransitions(), new TypeReference<>() {});
     }
 
     // ==================== CONVERT FULL DTO ====================
@@ -483,6 +604,7 @@ public class SiteConfigService {
                 .team(extrairTeam(config))
                 .booking(extrairBooking(config))
                 .general(extrairGeneral(config))
+                .transitions(extrairTransitions(config))
                 .active(config.getActive())
                 .dtCriacao(config.getDtCriacao())
                 .dtAtualizacao(config.getDtAtualizacao())
@@ -601,40 +723,53 @@ public class SiteConfigService {
     }
 
     private LandingPage findOrCreateHomeLandingPage(Long orgId) {
-        return landingPageRepository.findHomeWithSections(orgId)
-                .orElseGet(() -> {
-                    Organizacao org = organizacaoRepository.findById(orgId)
-                            .orElseThrow(() -> new IllegalArgumentException("Organização não encontrada: " + orgId));
+        // 1) Busca home ativa com seções
+        Optional<LandingPage> home = landingPageRepository.findHomeWithSections(orgId);
+        if (home.isPresent()) {
+            return home.get();
+        }
 
-                    LandingPage lp = LandingPage.builder()
-                            .organizacao(org)
-                            .slug("home")
-                            .nome("Página Inicial")
-                            .tipo("HOME")
-                            .isHome(true)
-                            .status("DRAFT")
-                            .versao(1)
-                            .ativo(true)
-                            .sections(new ArrayList<>())
-                            .build();
+        // 2) Fallback: busca pelo slug "home" (pode estar com isHome=false ou ativo=false)
+        Optional<LandingPage> bySlug = landingPageRepository.findByOrganizacaoIdAndSlug(orgId, "home");
+        if (bySlug.isPresent()) {
+            LandingPage lp = bySlug.get();
+            lp.setIsHome(true);
+            lp.setAtivo(true);
+            return landingPageRepository.save(lp);
+        }
 
-                    // Criar seções padrão
-                    for (int i = 0; i < DEFAULT_SECTIONS_ORDER.size(); i++) {
-                        String tipo = DEFAULT_SECTIONS_ORDER.get(i);
-                        LandingPageSection section = LandingPageSection.builder()
-                                .sectionId(UUID.randomUUID().toString())
-                                .tipo(tipo)
-                                .nome(SECTION_DEFAULT_NAMES.getOrDefault(tipo, tipo))
-                                .ordem(i)
-                                .visivel(true)
-                                .locked(false)
-                                .ativo(true)
-                                .build();
-                        lp.addSection(section);
-                    }
+        // 3) Não existe — cria nova
+        Organizacao org = organizacaoRepository.findById(orgId)
+                .orElseThrow(() -> new IllegalArgumentException("Organização não encontrada: " + orgId));
 
-                    return landingPageRepository.save(lp);
-                });
+        LandingPage lp = LandingPage.builder()
+                .organizacao(org)
+                .slug("home")
+                .nome("Página Inicial")
+                .tipo("HOME")
+                .isHome(true)
+                .status("DRAFT")
+                .versao(1)
+                .ativo(true)
+                .sections(new ArrayList<>())
+                .build();
+
+        // Criar seções padrão
+        for (int i = 0; i < DEFAULT_SECTIONS_ORDER.size(); i++) {
+            String tipo = DEFAULT_SECTIONS_ORDER.get(i);
+            LandingPageSection section = LandingPageSection.builder()
+                    .sectionId(UUID.randomUUID().toString())
+                    .tipo(tipo)
+                    .nome(SECTION_DEFAULT_NAMES.getOrDefault(tipo, tipo))
+                    .ordem(i)
+                    .visivel(true)
+                    .locked(false)
+                    .ativo(true)
+                    .build();
+            lp.addSection(section);
+        }
+
+        return landingPageRepository.save(lp);
     }
 
     private LandingPageSection findOrCreateSection(LandingPage lp, String sectionType) {

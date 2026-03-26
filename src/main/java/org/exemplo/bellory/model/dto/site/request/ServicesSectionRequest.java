@@ -24,4 +24,7 @@ public class ServicesSectionRequest {
     private Integer cardImageHeight;
     private Boolean showCategoryFilter;
     private Integer columns;
+    private String backgroundColor;
+    private String backgroundPattern;
+    private Double patternOpacity;
 }

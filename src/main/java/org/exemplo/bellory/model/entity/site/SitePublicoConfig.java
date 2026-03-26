@@ -85,6 +85,15 @@ public class SitePublicoConfig {
     @Builder.Default
     private Integer headerLogoHeight = 40;
 
+    @Column(name = "header_background_color", length = 20)
+    private String headerBackgroundColor;
+
+    @Column(name = "header_background_pattern", length = 30)
+    private String headerBackgroundPattern;
+
+    @Column(name = "header_pattern_opacity")
+    private Double headerPatternOpacity;
+
     // ==================== HERO CONFIG ====================
 
     /**
@@ -163,6 +172,15 @@ public class SitePublicoConfig {
     @Column(name = "hero_stats_config", columnDefinition = "TEXT")
     private String heroStatsConfig;
 
+    @Column(name = "hero_background_color", length = 20)
+    private String heroBackgroundColor;
+
+    @Column(name = "hero_background_pattern", length = 30)
+    private String heroBackgroundPattern;
+
+    @Column(name = "hero_pattern_opacity")
+    private Double heroPatternOpacity;
+
     // ==================== ABOUT SECTION ====================
 
     @Column(name = "about_title", length = 255)
@@ -231,6 +249,15 @@ public class SitePublicoConfig {
     @Column(name = "about_team_photo_url", length = 500)
     private String aboutTeamPhotoUrl;
 
+    @Column(name = "about_background_color", length = 20)
+    private String aboutBackgroundColor;
+
+    @Column(name = "about_background_pattern", length = 30)
+    private String aboutBackgroundPattern;
+
+    @Column(name = "about_pattern_opacity")
+    private Double aboutPatternOpacity;
+
     // ==================== SERVICES SECTION ====================
 
     @Column(name = "services_section_title", length = 255)
@@ -284,6 +311,15 @@ public class SitePublicoConfig {
     @Builder.Default
     private Integer servicesColumns = 3;
 
+    @Column(name = "services_background_color", length = 20)
+    private String servicesBackgroundColor;
+
+    @Column(name = "services_background_pattern", length = 30)
+    private String servicesBackgroundPattern;
+
+    @Column(name = "services_pattern_opacity")
+    private Double servicesPatternOpacity;
+
     // ==================== PRODUCTS SECTION ====================
 
     @Column(name = "products_section_title", length = 255)
@@ -300,6 +336,71 @@ public class SitePublicoConfig {
     @Column(name = "products_featured_limit")
     @Builder.Default
     private Integer productsFeaturedLimit = 8;
+
+    @Column(name = "products_layout", length = 20)
+    @Builder.Default
+    private String productsLayout = "grid";
+
+    @Column(name = "products_card_style", length = 20)
+    @Builder.Default
+    private String productsCardStyle = "default";
+
+    @Column(name = "products_columns")
+    @Builder.Default
+    private Integer productsColumns = 4;
+
+    @Column(name = "products_card_image_height")
+    @Builder.Default
+    private Integer productsCardImageHeight = 220;
+
+    @Column(name = "products_show_rating")
+    @Builder.Default
+    private Boolean productsShowRating = true;
+
+    @Column(name = "products_show_category")
+    @Builder.Default
+    private Boolean productsShowCategory = true;
+
+    @Column(name = "products_show_description")
+    @Builder.Default
+    private Boolean productsShowDescription = false;
+
+    @Column(name = "products_show_discount")
+    @Builder.Default
+    private Boolean productsShowDiscount = true;
+
+    @Column(name = "products_show_stock")
+    @Builder.Default
+    private Boolean productsShowStock = false;
+
+    @Column(name = "products_show_add_to_cart")
+    @Builder.Default
+    private Boolean productsShowAddToCart = true;
+
+    @Column(name = "products_hover_effect", length = 20)
+    @Builder.Default
+    private String productsHoverEffect = "zoom";
+
+    @Column(name = "products_badge_style", length = 20)
+    @Builder.Default
+    private String productsBadgeStyle = "pill";
+
+    @Column(name = "products_auto_play")
+    @Builder.Default
+    private Boolean productsAutoPlay = true;
+
+    @Column(name = "products_auto_play_speed")
+    @Builder.Default
+    private Integer productsAutoPlaySpeed = 4000;
+
+    @Column(name = "products_background_color", length = 20)
+    private String productsBackgroundColor;
+
+    @Column(name = "products_background_pattern", length = 30)
+    private String productsBackgroundPattern;
+
+    @Column(name = "products_pattern_opacity")
+    private Double productsPatternOpacity;
 
     // ==================== TEAM SECTION ====================
 
@@ -350,6 +451,15 @@ public class SitePublicoConfig {
     @Builder.Default
     private Integer teamCarouselSpeed = 4000;
 
+    @Column(name = "team_background_color", length = 20)
+    private String teamBackgroundColor;
+
+    @Column(name = "team_background_pattern", length = 30)
+    private String teamBackgroundPattern;
+
+    @Column(name = "team_pattern_opacity")
+    private Double teamPatternOpacity;
+
     // ==================== BOOKING SECTION ====================
 
     @Column(name = "booking_section_title", length = 255)
@@ -362,6 +472,15 @@ public class SitePublicoConfig {
     @Column(name = "booking_enabled")
     @Builder.Default
     private Boolean bookingEnabled = true;
+
+    @Column(name = "booking_background_color", length = 20)
+    private String bookingBackgroundColor;
+
+    @Column(name = "booking_background_pattern", length = 30)
+    private String bookingBackgroundPattern;
+
+    @Column(name = "booking_pattern_opacity")
+    private Double bookingPatternOpacity;
 
     // ==================== FOOTER CONFIG ====================
 
@@ -397,6 +516,57 @@ public class SitePublicoConfig {
     @Builder.Default
     private Boolean footerShowNewsletter = false;
 
+    @Column(name = "footer_layout", length = 20)
+    @Builder.Default
+    private String footerLayout = "columns";
+
+    @Column(name = "footer_logo_height")
+    @Builder.Default
+    private Integer footerLogoHeight = 40;
+
+    @Column(name = "footer_show_logo")
+    @Builder.Default
+    private Boolean footerShowLogo = true;
+
+    @Column(name = "footer_social_style", length = 30)
+    @Builder.Default
+    private String footerSocialStyle = "icon-rounded";
+
+    @Column(name = "footer_divider_style", length = 20)
+    @Builder.Default
+    private String footerDividerStyle = "line";
+
+    @Column(name = "footer_show_contact")
+    @Builder.Default
+    private Boolean footerShowContact = true;
+
+    @Column(name = "footer_show_back_to_top")
+    @Builder.Default
+    private Boolean footerShowBackToTop = false;
+
+    @Column(name = "footer_newsletter_title", length = 255)
+    private String footerNewsletterTitle;
+
+    @Column(name = "footer_newsletter_placeholder", length = 255)
+    private String footerNewsletterPlaceholder;
+
+    @Column(name = "footer_columns")
+    @Builder.Default
+    private Integer footerColumns = 4;
+
+    @Column(name = "footer_compact_hours")
+    @Builder.Default
+    private Boolean footerCompactHours = false;
+
+    @Column(name = "footer_background_color", length = 20)
+    private String footerBackgroundColor;
+
+    @Column(name = "footer_background_pattern", length = 30)
+    private String footerBackgroundPattern;
+
+    @Column(name = "footer_pattern_opacity")
+    private Double footerPatternOpacity;
+
     // ==================== GENERAL SETTINGS ====================
 
     /**
@@ -419,6 +589,15 @@ public class SitePublicoConfig {
      */
     @Column(name = "external_scripts", columnDefinition = "TEXT")
     private String externalScripts;
+
+    // ==================== TRANSITIONS ====================
+
+    /**
+     * JSON com configurações de transições entre seções.
+     * Estrutura: {"HERO": {"enabled": true, "variant": "waves", ...}, "ABOUT": {...}}
+     */
+    @Column(name = "transitions", columnDefinition = "TEXT")
+    private String transitions;
 
     @Column(name = "active")
     @Builder.Default

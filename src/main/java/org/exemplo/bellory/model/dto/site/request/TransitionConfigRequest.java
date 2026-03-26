@@ -9,12 +9,14 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class BookingSectionRequest {
+public class TransitionConfigRequest {
 
-    private String sectionTitle;
-    private String sectionSubtitle;
     private Boolean enabled;
-    private String backgroundColor;
+    private String variant;
+    private String colorFrom;
+    private String colorTo;
+    private String accentColor;
+    private Boolean flip;
     private String backgroundPattern;
     private Double patternOpacity;
 }

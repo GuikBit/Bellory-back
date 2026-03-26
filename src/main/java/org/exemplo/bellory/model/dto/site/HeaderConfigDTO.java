@@ -32,6 +32,9 @@ public class HeaderConfigDTO {
     private Boolean showCart;
     private Integer logoHeight;
     private SocialLinksDTO socialLinks;
+    private String backgroundColor;
+    private String backgroundPattern;
+    private Double patternOpacity;
 
     @Data
     @Builder

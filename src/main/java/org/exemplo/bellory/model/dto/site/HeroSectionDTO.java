@@ -46,6 +46,10 @@ public class HeroSectionDTO {
     private String sideImageUrl;
     private StatsConfigDTO statsConfig;
 
+    private String backgroundColor;
+    private String backgroundPattern;
+    private Double patternOpacity;
+
     /**
      * Dados adicionais para o hero template (calculados automaticamente)
      */

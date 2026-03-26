@@ -3,6 +3,7 @@ package org.exemplo.bellory.service.site;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.exemplo.bellory.model.dto.site.*;
+import org.exemplo.bellory.model.dto.site.request.TransitionConfigRequest;
 import org.exemplo.bellory.model.dto.tenent.*;
 import org.exemplo.bellory.model.entity.config.ConfigSistema;
 import org.exemplo.bellory.model.entity.endereco.Endereco;
@@ -138,6 +139,7 @@ public class PublicSitePageService {
                 .booking(buildBookingSection(org, siteConfig, todosServicos, funcionarios))
                 .footer(buildFooterConfig(org, siteConfig, funcionarios))
                 .sectionsOrder(parseSectionsOrder(siteConfig.getHomeSectionsOrder()))
+                .transitions(parseTransitions(siteConfig.getTransitions()))
                 .seo(buildSeoMetadata(org))
                 .features(buildFeatures(org))
                 .customAssets(buildCustomAssets(siteConfig))
@@ -603,6 +605,9 @@ public class PublicSitePageService {
                 .showCart(config.getHeaderShowCart())
                 .logoHeight(config.getHeaderLogoHeight())
                 .socialLinks(socialLinks)
+                .backgroundColor(config.getHeaderBackgroundColor())
+                .backgroundPattern(config.getHeaderBackgroundPattern())
+                .patternOpacity(config.getHeaderPatternOpacity())
                 .build();
     }
 
@@ -649,6 +654,9 @@ public class PublicSitePageService {
                 .sideImageUrl(config.getHeroSideImageUrl())
                 .statsConfig(parseStatsConfig(config.getHeroStatsConfig()))
                 .stats(stats)
+                .backgroundColor(config.getHeroBackgroundColor())
+                .backgroundPattern(config.getHeroBackgroundPattern())
+                .patternOpacity(config.getHeroPatternOpacity())
                 .build();
     }
 
@@ -677,6 +685,9 @@ public class PublicSitePageService {
                 .layoutStyle(config.getAboutLayoutStyle())
                 .yearFounded(config.getAboutYearFounded())
                 .teamPhotoUrl(config.getAboutTeamPhotoUrl())
+                .backgroundColor(config.getAboutBackgroundColor())
+                .backgroundPattern(config.getAboutBackgroundPattern())
+                .patternOpacity(config.getAboutPatternOpacity())
                 .organizationInfo(orgInfo);
 
         if (fullVersion) {
@@ -704,6 +715,9 @@ public class PublicSitePageService {
                 .cardImageHeight(config.getServicesCardImageHeight())
                 .showCategoryFilter(config.getServicesShowCategoryFilter())
                 .columns(config.getServicesColumns())
+                .backgroundColor(config.getServicesBackgroundColor())
+                .backgroundPattern(config.getServicesBackgroundPattern())
+                .patternOpacity(config.getServicesPatternOpacity())
                 .servicos(servicos.stream().map(this::convertServico).collect(Collectors.toList()))
                 .categorias(convertCategoriasServicos(categorias, servicos))
                 .totalServicos(totalServicos)
@@ -715,6 +729,23 @@ public class PublicSitePageService {
                 .title(config.getProductsSectionTitle())
                 .subtitle(config.getProductsSectionSubtitle())
                 .showPrices(config.getProductsShowPrices())
+                .layout(config.getProductsLayout())
+                .cardStyle(config.getProductsCardStyle())
+                .columns(config.getProductsColumns())
+                .cardImageHeight(config.getProductsCardImageHeight())
+                .showRating(config.getProductsShowRating())
+                .showCategory(config.getProductsShowCategory())
+                .showDescription(config.getProductsShowDescription())
+                .showDiscount(config.getProductsShowDiscount())
+                .showStock(config.getProductsShowStock())
+                .showAddToCart(config.getProductsShowAddToCart())
+                .hoverEffect(config.getProductsHoverEffect())
+                .badgeStyle(config.getProductsBadgeStyle())
+                .autoPlay(config.getProductsAutoPlay())
+                .autoPlaySpeed(config.getProductsAutoPlaySpeed())
+                .backgroundColor(config.getProductsBackgroundColor())
+                .backgroundPattern(config.getProductsBackgroundPattern())
+                .patternOpacity(config.getProductsPatternOpacity())
                 .produtos(produtos.stream().map(this::convertProduto).collect(Collectors.toList()))
                 .totalProdutos(produtos.size())
                 .build();
@@ -734,6 +765,9 @@ public class PublicSitePageService {
                 .showSchedule(config.getTeamShowSchedule())
                 .carouselAutoPlay(config.getTeamCarouselAutoPlay())
                 .carouselSpeed(config.getTeamCarouselSpeed())
+                .backgroundColor(config.getTeamBackgroundColor())
+                .backgroundPattern(config.getTeamBackgroundPattern())
+                .patternOpacity(config.getTeamPatternOpacity())
                 .membros(funcionarios.stream().map(this::convertFuncionario).collect(Collectors.toList()))
                 .totalMembros(funcionarios.size())
                 .build();
@@ -755,6 +789,9 @@ public class PublicSitePageService {
                 .title(config.getBookingSectionTitle())
                 .subtitle(config.getBookingSectionSubtitle())
                 .enabled(config.getBookingEnabled())
+                .backgroundColor(config.getBookingBackgroundColor())
+                .backgroundPattern(config.getBookingBackgroundPattern())
+                .patternOpacity(config.getBookingPatternOpacity())
                 .servicosDisponiveis(servicos.stream().map(this::convertServico).collect(Collectors.toList()))
                 .profissionaisDisponiveis(funcionarios.stream().map(this::convertFuncionario).collect(Collectors.toList()))
                 .config(bookingConfig)
@@ -806,6 +843,20 @@ public class PublicSitePageService {
                 .showNewsletter(config.getFooterShowNewsletter())
                 .horariosFuncionamento(buildHorariosFuncionamento(funcionarios))
                 .endereco(convertEndereco(org.getEnderecoPrincipal()))
+                .layout(config.getFooterLayout())
+                .logoHeight(config.getFooterLogoHeight())
+                .showLogo(config.getFooterShowLogo())
+                .socialStyle(config.getFooterSocialStyle())
+                .dividerStyle(config.getFooterDividerStyle())
+                .showContact(config.getFooterShowContact())
+                .showBackToTop(config.getFooterShowBackToTop())
+                .newsletterTitle(config.getFooterNewsletterTitle())
+                .newsletterPlaceholder(config.getFooterNewsletterPlaceholder())
+                .columns(config.getFooterColumns())
+                .compactHours(config.getFooterCompactHours())
+                .backgroundColor(config.getFooterBackgroundColor())
+                .backgroundPattern(config.getFooterBackgroundPattern())
+                .patternOpacity(config.getFooterPatternOpacity())
                 .build();
     }
 
@@ -1240,6 +1291,15 @@ public class PublicSitePageService {
             return objectMapper.readValue(json, new TypeReference<List<String>>() {});
         } catch (Exception e) {
             return List.of("HERO", "ABOUT", "SERVICES", "PRODUCTS", "TEAM", "BOOKING");
+        }
+    }
+
+    private Map<String, TransitionConfigRequest> parseTransitions(String json) {
+        if (json == null || json.isEmpty()) return null;
+        try {
+            return objectMapper.readValue(json, new TypeReference<Map<String, TransitionConfigRequest>>() {});
+        } catch (Exception e) {
+            return null;
         }
     }
 

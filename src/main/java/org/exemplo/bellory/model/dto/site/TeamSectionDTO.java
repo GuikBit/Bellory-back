@@ -31,6 +31,9 @@ public class TeamSectionDTO {
     private Boolean showSchedule;
     private Boolean carouselAutoPlay;
     private Integer carouselSpeed;
+    private String backgroundColor;
+    private String backgroundPattern;
+    private Double patternOpacity;
 
     private List<FuncionarioPublicDTO> membros;
 

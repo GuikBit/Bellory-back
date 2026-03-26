@@ -32,4 +32,7 @@ public class HeroSectionRequest {
     private String videoUrl;
     private String sideImageUrl;
     private HeroSectionDTO.StatsConfigDTO statsConfig;
+    private String backgroundColor;
+    private String backgroundPattern;
+    private Double patternOpacity;
 }
