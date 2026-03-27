@@ -34,4 +34,29 @@ public interface BloqueioAgendaRepository extends JpaRepository<BloqueioAgenda, 
             @Param("funcionarioId") Long funcionarioId,
             @Param("inicio") LocalDateTime inicio,
             @Param("fim") LocalDateTime fim);
+
+    /**
+     * Busca bloqueios que se sobrepõem a um período (para checagem de disponibilidade no booking público).
+     * Usa lógica de overlap: bloqueio.inicio < fim AND bloqueio.fim > inicio
+     */
+    @Query("SELECT b FROM BloqueioAgenda b WHERE b.funcionario.id = :funcionarioId " +
+            "AND b.inicioBloqueio < :fim AND b.fimBloqueio > :inicio " +
+            "ORDER BY b.inicioBloqueio ASC")
+    List<BloqueioAgenda> findBloqueiosSobrepostos(
+            @Param("funcionarioId") Long funcionarioId,
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim);
+
+    /**
+     * Verifica se há bloqueio do tipo FERIAS ou FOLGA que cobre o dia inteiro.
+     */
+    @Query("SELECT CASE WHEN COUNT(b) > 0 THEN true ELSE false END FROM BloqueioAgenda b " +
+            "WHERE b.funcionario.id = :funcionarioId " +
+            "AND b.tipoBloqueio IN (org.exemplo.bellory.model.entity.funcionario.TipoBloqueio.FERIAS, " +
+            "org.exemplo.bellory.model.entity.funcionario.TipoBloqueio.FOLGA) " +
+            "AND b.inicioBloqueio <= :inicioDia AND b.fimBloqueio >= :fimDia")
+    boolean existsBloqueioIntegral(
+            @Param("funcionarioId") Long funcionarioId,
+            @Param("inicioDia") LocalDateTime inicioDia,
+            @Param("fimDia") LocalDateTime fimDia);
 }

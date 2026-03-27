@@ -232,6 +232,25 @@ public interface AgendamentoRepository extends JpaRepository<Agendamento, Long> 
 
     List<Agendamento> findByOrganizacaoIdAndStatus(Long organizacaoId, Status status);
 
+    /**
+     * Busca agendamentos ativos (não cancelados/concluídos) de um funcionário em um período,
+     * filtrado por organização. Usado para verificar conflitos de horário no booking público.
+     */
+    @Query("SELECT a FROM Agendamento a " +
+            "JOIN a.funcionarios f " +
+            "WHERE f.id = :funcionarioId " +
+            "AND a.organizacao.id = :organizacaoId " +
+            "AND a.dtAgendamento BETWEEN :inicio AND :fim " +
+            "AND a.status NOT IN (org.exemplo.bellory.model.entity.agendamento.Status.CANCELADO, " +
+            "org.exemplo.bellory.model.entity.agendamento.Status.CONCLUIDO, " +
+            "org.exemplo.bellory.model.entity.agendamento.Status.NAO_COMPARECEU)")
+    List<Agendamento> findAtivosByFuncionarioAndOrganizacaoAndPeriodo(
+            @Param("funcionarioId") Long funcionarioId,
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim
+    );
+
     // ==================== QUERIES OTIMIZADAS PARA DASHBOARD ====================
 
     /**
