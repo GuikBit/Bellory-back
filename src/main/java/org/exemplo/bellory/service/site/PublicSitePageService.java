@@ -367,6 +367,9 @@ public class PublicSitePageService {
 
     // ==================== BOOKING ====================
 
+    // aqui precisa passar mais informacoes, como: dias bloqueados (feriados - bloqueio), se um dia da semana nao tiver horario na organizacao, esse dia da semana deve ser bloqueado,
+    // o dia minimo e o dia maximo para agendamento
+
     public Optional<BookingSectionDTO> getBookingInfo(String slug) {
         Optional<Organizacao> orgOpt = organizacaoRepository.findBySlugAndAtivoTrue(slug);
         if (orgOpt.isEmpty()) {
