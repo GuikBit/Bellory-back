@@ -88,7 +88,8 @@ public class NotificacaoPushService {
     public NotificacaoPush criarEEnviar(Long userId, String userRole, Long organizacaoId,
                                          String titulo, String descricao, String origem,
                                          CategoriaNotificacao categoria, PrioridadeNotificacao prioridade,
-                                         String icone, String urlAcao) {
+                                         String icone, String urlAcao,
+                                         String detalhe, String metadata) {
 
         Organizacao organizacao = organizacaoRepository.findById(organizacaoId)
                 .orElseThrow(() -> new IllegalArgumentException("Organizacao nao encontrada"));
@@ -104,6 +105,8 @@ public class NotificacaoPushService {
         notificacao.setPrioridade(prioridade);
         notificacao.setIcone(icone);
         notificacao.setUrlAcao(urlAcao);
+        notificacao.setDetalhe(detalhe);
+        notificacao.setMetadata(metadata);
 
         NotificacaoPush saved = notificacaoPushRepository.save(notificacao);
 
@@ -117,7 +120,8 @@ public class NotificacaoPushService {
     public void criarEEnviarParaRole(String role, Long organizacaoId,
                                       String titulo, String descricao, String origem,
                                       CategoriaNotificacao categoria, PrioridadeNotificacao prioridade,
-                                      String icone, String urlAcao) {
+                                      String icone, String urlAcao,
+                                      String detalhe, String metadata) {
         try {
             Organizacao organizacao = organizacaoRepository.findById(organizacaoId)
                     .orElseThrow(() -> new IllegalArgumentException("Organizacao nao encontrada"));
@@ -142,6 +146,8 @@ public class NotificacaoPushService {
                 notificacao.setPrioridade(prioridade);
                 notificacao.setIcone(icone);
                 notificacao.setUrlAcao(urlAcao);
+                notificacao.setDetalhe(detalhe);
+                notificacao.setMetadata(metadata);
 
                 NotificacaoPush saved = notificacaoPushRepository.save(notificacao);
 

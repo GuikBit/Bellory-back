@@ -190,6 +190,48 @@ public class AgendamentoService {
         return organizacaoId;
     }
 
+    /**
+     * Método central para processar um agendamento completo.
+     * Valida, salva, cria bloqueios, gera cobrança, vincula ao financeiro e publica evento de notificação.
+     * Usado tanto pelo endpoint interno quanto pelo endpoint público (booking externo).
+     */
+    @Transactional
+    public Agendamento processarAgendamento(Agendamento agendamento) {
+        // 1. Validar e salvar agendamento + criar bloqueios de agenda
+        Agendamento agendamentoSalvo = criarAgendamento(agendamento);
+
+        // 2. Criar cobrança através do TransactionService
+        Cobranca cobranca = transacaoService.criarCobrancaParaAgendamento(agendamentoSalvo);
+
+        // 3. Estabelecer relacionamento bidirecional
+        agendamentoSalvo.adicionarCobranca(cobranca);
+        agendamentoRepository.save(agendamentoSalvo);
+
+        // 4. Publicar evento de agendamento criado
+        String nomeServicos = agendamentoSalvo.getServicos().stream()
+                .map(Servico::getNome).collect(Collectors.joining(", "));
+        String nomeProfissional = agendamentoSalvo.getFuncionarios().stream()
+                .map(Funcionario::getNomeCompleto).collect(Collectors.joining(", "));
+        BigDecimal valorTotal = agendamentoSalvo.getServicos().stream()
+                .map(s -> s.getPrecoFinal() != null && s.getPrecoFinal().compareTo(BigDecimal.ZERO) > 0
+                        ? s.getPrecoFinal() : s.getPreco())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        eventPublisher.publishEvent(new AgendamentoCriadoEvent(
+                this,
+                agendamentoSalvo.getId(),
+                agendamentoSalvo.getCliente().getId(),
+                agendamentoSalvo.getCliente().getNomeCompleto(),
+                agendamentoSalvo.getOrganizacao().getId(),
+                agendamentoSalvo.getDtAgendamento(),
+                nomeServicos,
+                nomeProfissional,
+                valorTotal
+        ));
+
+        return agendamentoSalvo;
+    }
+
     @Transactional
     public AgendamentoDTO createAgendamentoCompleto(AgendamentoCreateDTO dto) {
         // 1. Buscar entidades relacionadas
@@ -199,11 +241,8 @@ public class AgendamentoService {
                 .orElseThrow(() -> new IllegalArgumentException("Organização não encontrada."));
         validarOrganizacao(organizacao.getId());
 
-
-
         Cliente cliente = clienteRepository.findById(dto.getClienteId())
                 .orElseThrow(() -> new IllegalArgumentException("Cliente não encontrado."));
-
         validarOrganizacao(cliente.getOrganizacao().getId());
 
         List<Servico> servicos = dto.getServicoIds().stream()
@@ -218,7 +257,7 @@ public class AgendamentoService {
                 .collect(Collectors.toList());
         funcionarios.forEach(f -> validarOrganizacao(f.getOrganizacao().getId()));
 
-        // 2. Criar agendamento
+        // 2. Montar agendamento
         Agendamento agendamento = new Agendamento();
         agendamento.setOrganizacao(organizacao);
         agendamento.setCliente(cliente);
@@ -229,25 +268,8 @@ public class AgendamentoService {
         agendamento.setStatus(Status.PENDENTE);
         agendamento.setDtCriacao(LocalDateTime.now());
 
-        // 3. Validar e salvar agendamento
-        Agendamento agendamentoSalvo = criarAgendamento(agendamento);
-
-        // 4. Criar cobrança através do TransactionService
-        Cobranca cobranca = transacaoService.criarCobrancaParaAgendamento(agendamentoSalvo);
-
-        // 5. Estabelecer relacionamento bidirecional
-        agendamentoSalvo.adicionarCobranca(cobranca);
-
-        agendamentoRepository.save(agendamentoSalvo);
-
-        // Publicar evento de agendamento criado
-        eventPublisher.publishEvent(new AgendamentoCriadoEvent(
-                this,
-                agendamentoSalvo.getId(),
-                cliente.getId(),
-                cliente.getNomeCompleto(),
-                organizacaoId
-        ));
+        // 3. Processar agendamento completo (validação, cobrança, evento)
+        Agendamento agendamentoSalvo = processarAgendamento(agendamento);
 
         return new AgendamentoDTO(agendamentoSalvo);
     }
@@ -401,12 +423,20 @@ public class AgendamentoService {
         List<Long> funcionarioIds = agendamento.getFuncionarios().stream()
                 .map(Funcionario::getId)
                 .collect(Collectors.toList());
+        String nomeServicosCancelado = agendamento.getServicos().stream()
+                .map(Servico::getNome).collect(Collectors.joining(", "));
+        String nomeProfCancelado = agendamento.getFuncionarios().stream()
+                .map(Funcionario::getNomeCompleto).collect(Collectors.joining(", "));
         eventPublisher.publishEvent(new AgendamentoCanceladoEvent(
                 this,
                 agendamento.getId(),
+                agendamento.getCliente().getId(),
                 agendamento.getCliente().getNomeCompleto(),
                 funcionarioIds,
-                agendamento.getCliente().getOrganizacao().getId()
+                agendamento.getCliente().getOrganizacao().getId(),
+                agendamento.getDtAgendamento(),
+                nomeServicosCancelado,
+                nomeProfCancelado
         ));
     }
 
@@ -572,12 +602,20 @@ public class AgendamentoService {
                 List<Long> funcIds = agendamento.getFuncionarios().stream()
                         .map(Funcionario::getId)
                         .collect(Collectors.toList());
+                String nomeServicosConf = agendamento.getServicos().stream()
+                        .map(Servico::getNome).collect(Collectors.joining(", "));
+                String nomeProfConf = agendamento.getFuncionarios().stream()
+                        .map(Funcionario::getNomeCompleto).collect(Collectors.joining(", "));
                 eventPublisher.publishEvent(new AgendamentoConfirmadoEvent(
                         this,
                         agendamento.getId(),
+                        agendamento.getCliente().getId(),
                         agendamento.getCliente().getNomeCompleto(),
                         funcIds,
-                        agendamento.getCliente().getOrganizacao().getId()
+                        agendamento.getCliente().getOrganizacao().getId(),
+                        agendamento.getDtAgendamento(),
+                        nomeServicosConf,
+                        nomeProfConf
                 ));
                 break;
 
@@ -618,12 +656,20 @@ public class AgendamentoService {
                 List<Long> cancelFuncIds = agendamento.getFuncionarios().stream()
                         .map(Funcionario::getId)
                         .collect(Collectors.toList());
+                String nomeServicosCancel2 = agendamento.getServicos().stream()
+                        .map(Servico::getNome).collect(Collectors.joining(", "));
+                String nomeProfCancel2 = agendamento.getFuncionarios().stream()
+                        .map(Funcionario::getNomeCompleto).collect(Collectors.joining(", "));
                 eventPublisher.publishEvent(new AgendamentoCanceladoEvent(
                         this,
                         agendamento.getId(),
+                        agendamento.getCliente().getId(),
                         agendamento.getCliente().getNomeCompleto(),
                         cancelFuncIds,
-                        agendamento.getCliente().getOrganizacao().getId()
+                        agendamento.getCliente().getOrganizacao().getId(),
+                        agendamento.getDtAgendamento(),
+                        nomeServicosCancel2,
+                        nomeProfCancel2
                 ));
                 break;
 
@@ -864,23 +910,48 @@ public class AgendamentoService {
             );
         }
 
-        // 3. Verificar Conflitos de Bloqueio (EXCLUINDO AGENDAMENTOS)
+        // 3. Verificar conflitos com agendamentos existentes
+        LocalDateTime inicioDia = inicioAgendamento.toLocalDate().atStartOfDay();
+        LocalDateTime fimDia = inicioAgendamento.toLocalDate().atTime(23, 59, 59);
+
+        List<Agendamento> agendamentosAtivos = agendamentoRepository
+                .findAtivosByFuncionarioAndOrganizacaoAndPeriodo(
+                        funcionario.getId(),
+                        funcionario.getOrganizacao().getId(),
+                        inicioDia, fimDia);
+
+        boolean conflitoAgendamento = agendamentosAtivos.stream().anyMatch(ag -> {
+            LocalDateTime agInicio = ag.getDtAgendamento();
+            int agDuracao = ag.getServicos() != null
+                    ? ag.getServicos().stream().mapToInt(Servico::getTempoEstimadoMinutos).sum()
+                    : 30;
+            LocalDateTime agFim = agInicio.plusMinutes(agDuracao);
+            return inicioAgendamento.isBefore(agFim) && fimAgendamento.isAfter(agInicio);
+        });
+
+        if (conflitoAgendamento) {
+            throw new IllegalArgumentException(
+                    "Funcionário " + funcionario.getNomeCompleto() +
+                            " já possui um agendamento neste horário."
+            );
+        }
+
+        // 4. Verificar conflitos com bloqueios manuais (férias, intervalos, etc.)
         List<BloqueioAgenda> bloqueiosConflitantes = disponibilidadeRepository
                 .findByFuncionarioAndInicioBloqueioBetween(
                         funcionario,
-                        inicioAgendamento.toLocalDate().atStartOfDay(),
+                        inicioDia,
                         inicioAgendamento.toLocalDate().plusDays(1).atStartOfDay()
                 );
 
-        // Filtrar apenas bloqueios que NÃO são do tipo AGENDAMENTO
-        boolean temConflito = bloqueiosConflitantes.stream()
+        boolean temBloqueioManual = bloqueiosConflitantes.stream()
                 .filter(bloqueio -> !bloqueio.getTipoBloqueio().equals(TipoBloqueio.AGENDAMENTO))
                 .anyMatch(bloqueio ->
                         (inicioAgendamento.isBefore(bloqueio.getFimBloqueio()) &&
                                 fimAgendamento.isAfter(bloqueio.getInicioBloqueio()))
                 );
 
-        if (temConflito) {
+        if (temBloqueioManual) {
             throw new IllegalArgumentException(
                     "Funcionário " + funcionario.getNomeCompleto() +
                             " já possui um bloqueio na agenda neste período."

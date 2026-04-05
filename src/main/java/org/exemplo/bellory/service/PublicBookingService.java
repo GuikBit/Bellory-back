@@ -43,6 +43,7 @@ public class PublicBookingService {
     private final BloqueioOrganizacaoRepository bloqueioOrganizacaoRepository;
     private final HorarioFuncionamentoRepository horarioFuncionamentoRepository;
     private final EntityManager entityManager;
+    private final AgendamentoService agendamentoService;
 
     public PublicBookingService(OrganizacaoRepository organizacaoRepository,
                                 ClienteRepository clienteRepository,
@@ -53,7 +54,8 @@ public class PublicBookingService {
                                 BloqueioAgendaRepository bloqueioAgendaRepository,
                                 BloqueioOrganizacaoRepository bloqueioOrganizacaoRepository,
                                 HorarioFuncionamentoRepository horarioFuncionamentoRepository,
-                                EntityManager entityManager) {
+                                EntityManager entityManager,
+                                AgendamentoService agendamentoService) {
         this.organizacaoRepository = organizacaoRepository;
         this.clienteRepository = clienteRepository;
         this.funcionarioRepository = funcionarioRepository;
@@ -64,6 +66,7 @@ public class PublicBookingService {
         this.bloqueioOrganizacaoRepository = bloqueioOrganizacaoRepository;
         this.horarioFuncionamentoRepository = horarioFuncionamentoRepository;
         this.entityManager = entityManager;
+        this.agendamentoService = agendamentoService;
     }
 
     // ==================== 1. BUSCAR CLIENTE ====================
@@ -544,53 +547,14 @@ public class PublicBookingService {
             throw new IllegalArgumentException("Horário é obrigatório.");
         }
 
-        // Re-validar disponibilidade com lock pessimista para evitar race conditions
         LocalDateTime dtAgendamento = LocalDateTime.of(data, horario);
-        int duracaoTotal = servicos.stream().mapToInt(Servico::getTempoEstimadoMinutos).sum();
 
-        // Buscar agendamentos ativos do funcionário no dia com lock
-        LocalDateTime inicioDia = data.atStartOfDay();
-        LocalDateTime fimDia = data.atTime(23, 59, 59);
-
-        List<Agendamento> agendamentos = agendamentoRepository
-                .findAtivosByFuncionarioAndOrganizacaoAndPeriodo(
-                        dto.getFuncionarioId(), org.getId(), inicioDia, fimDia);
-
-        // Verificar conflito
-        LocalDateTime slotFim = dtAgendamento.plusMinutes(duracaoTotal);
-        boolean conflito = agendamentos.stream().anyMatch(ag -> {
-            LocalDateTime agInicio = ag.getDtAgendamento();
-            int agDuracao = ag.getServicos() != null
-                    ? ag.getServicos().stream().mapToInt(Servico::getTempoEstimadoMinutos).sum()
-                    : 30;
-            LocalDateTime agFim = agInicio.plusMinutes(agDuracao);
-            return dtAgendamento.isBefore(agFim) && slotFim.isAfter(agInicio);
-        });
-
-        if (conflito) {
-            throw new HorarioIndisponivelException("Horário não está mais disponível");
-        }
-
-        // Verificar bloqueios
-        boolean temBloqueio = bloqueioAgendaRepository.existsBloqueioSobreposto(
-                dto.getFuncionarioId(), dtAgendamento, slotFim);
-        if (temBloqueio) {
-            throw new HorarioIndisponivelException("Horário não está mais disponível");
-        }
-
-        // Calcular valor total
-        BigDecimal valorTotal = servicos.stream()
-                .map(s -> s.getPrecoFinal() != null && s.getPrecoFinal().compareTo(BigDecimal.ZERO) > 0
-                        ? s.getPrecoFinal()
-                        : s.getPreco())
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        // Criar agendamento
+        // Montar entidade Agendamento
         Agendamento agendamento = new Agendamento();
         agendamento.setOrganizacao(org);
         agendamento.setCliente(cliente);
         agendamento.setServicos(servicos);
-        agendamento.setFuncionarios(List.of(funcionario));
+        agendamento.setFuncionarios(new ArrayList<>(List.of(funcionario)));
         agendamento.setDtAgendamento(dtAgendamento);
         agendamento.setObservacao(dto.getObservacao() != null ? dto.getObservacao().trim() : "");
         agendamento.setStatus(Status.PENDENTE);
@@ -603,22 +567,19 @@ public class PublicBookingService {
             agendamento.setPercentualSinal(BigDecimal.valueOf(config.getPorcentSinal()));
         }
 
-        agendamentoRepository.save(agendamento);
+        // Delegar para o AgendamentoService (validação, save, bloqueios, cobrança, evento)
+        Agendamento agendamentoSalvo = agendamentoService.processarAgendamento(agendamento);
 
-        // Criar bloqueio de agenda para o funcionário
-        BloqueioAgenda bloqueio = new BloqueioAgenda(
-                funcionario,
-                dtAgendamento,
-                slotFim,
-                "Agendamento #" + agendamento.getId(),
-                TipoBloqueio.AGENDAMENTO,
-                agendamento
-        );
-        bloqueioAgendaRepository.save(bloqueio);
+        // Calcular valor total para o response
+        BigDecimal valorTotal = servicos.stream()
+                .map(s -> s.getPrecoFinal() != null && s.getPrecoFinal().compareTo(BigDecimal.ZERO) > 0
+                        ? s.getPrecoFinal()
+                        : s.getPreco())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         return BookingResponseDTO.builder()
-                .id(agendamento.getId())
-                .status(agendamento.getStatus().name())
+                .id(agendamentoSalvo.getId())
+                .status(agendamentoSalvo.getStatus().name())
                 .dtAgendamento(dtAgendamento)
                 .valorTotal(valorTotal)
                 .profissional(funcionario.getNomeCompleto())

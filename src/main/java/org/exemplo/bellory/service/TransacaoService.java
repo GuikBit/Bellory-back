@@ -390,12 +390,17 @@ public class TransacaoService {
 
         // Publicar evento de pagamento recebido
         String nomeCliente = cobranca.getCliente() != null ? cobranca.getCliente().getNomeCompleto() : "Cliente";
+        Long clienteIdPag = cobranca.getCliente() != null ? cobranca.getCliente().getId() : null;
         Long orgId = cobranca.getOrganizacao() != null ? cobranca.getOrganizacao().getId() : null;
+        String formaPag = pagamentoSalvo.getFormaPagamento() != null
+                ? pagamentoSalvo.getFormaPagamento().name() : null;
         eventPublisher.publishEvent(new PagamentoRecebidoEvent(
                 this,
                 pagamentoSalvo.getId(),
                 valorPagamento,
+                clienteIdPag,
                 nomeCliente,
+                formaPag,
                 orgId
         ));
 
