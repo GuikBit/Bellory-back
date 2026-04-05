@@ -84,7 +84,7 @@ public class ProdutoController {
                     .status(HttpStatus.NO_CONTENT)
                     .body(ResponseAPI.<List<ProdutoResponseDTO>>builder()
                             .success(true)
-                            .message("Nenhum produtos encontrado.")
+                            .message("Nenhum produto encontrado.")
                             .dados(produtoResponseDTOS)
                             .build());
         }

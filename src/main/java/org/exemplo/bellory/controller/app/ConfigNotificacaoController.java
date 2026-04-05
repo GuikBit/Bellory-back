@@ -27,7 +27,7 @@ public class ConfigNotificacaoController {
         try {
             return ResponseEntity.ok(ResponseAPI.<List<ConfigNotificacaoDTO>>builder()
                 .success(true)
-                .message("Configuracoes recuperadas")
+                .message("Configurações recuperadas")
                 .dados(service.listarConfiguracoes())
                 .build());
         } catch (Exception e) {
@@ -46,7 +46,7 @@ public class ConfigNotificacaoController {
         try {
             return ResponseEntity.ok(ResponseAPI.<List<ConfigNotificacaoDTO>>builder()
                 .success(true)
-                .message("Todas configuracoes recuperadas")
+                .message("Todas as configurações recuperadas")
                 .dados(service.listarTodasConfiguracoes())
                 .build());
         } catch (Exception e) {
@@ -67,7 +67,7 @@ public class ConfigNotificacaoController {
             return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ResponseAPI.<ConfigNotificacaoDTO>builder()
                     .success(true)
-                    .message("Configuracao criada")
+                    .message("Configuração criada")
                     .dados(service.criarConfiguracao(dto))
                     .build());
         } catch (IllegalArgumentException e) {
@@ -91,7 +91,7 @@ public class ConfigNotificacaoController {
         try {
             return ResponseEntity.ok(ResponseAPI.<ConfigNotificacaoDTO>builder()
                 .success(true)
-                .message("Configuracao salva com sucesso")
+                .message("Configuração salva com sucesso")
                 .dados(service.salvarOuAtualizar(dto))
                 .build());
         } catch (IllegalArgumentException e) {
@@ -105,7 +105,7 @@ public class ConfigNotificacaoController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ResponseAPI.<ConfigNotificacaoDTO>builder()
                     .success(false)
-                    .message("Erro ao salvar configuracao: " + e.getMessage())
+                    .message("Erro ao salvar configuração: " + e.getMessage())
                     .errorCode(500)
                     .build());
         }
@@ -118,7 +118,7 @@ public class ConfigNotificacaoController {
         try {
             return ResponseEntity.ok(ResponseAPI.<ConfigNotificacaoDTO>builder()
                 .success(true)
-                .message("Configuracao atualizada")
+                .message("Configuração atualizada")
                 .dados(service.atualizarConfiguracao(id, dto))
                 .build());
         } catch (IllegalArgumentException e) {
@@ -138,7 +138,7 @@ public class ConfigNotificacaoController {
             service.deletarConfiguracao(id);
             return ResponseEntity.ok(ResponseAPI.<Void>builder()
                 .success(true)
-                .message("Configuracao removida")
+                .message("Configuração removida")
                 .build());
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)

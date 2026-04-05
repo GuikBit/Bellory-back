@@ -35,7 +35,7 @@ public class AssinaturaController {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                         .body(ResponseAPI.<AssinaturaStatusDTO>builder()
                                 .success(false)
-                                .message("Organizacao nao identificada no token")
+                                .message("Organização não identificada no token")
                                 .errorCode(401)
                                 .build());
             }

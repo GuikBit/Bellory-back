@@ -55,7 +55,7 @@ public class AdminTemplateBelloryService {
     @Transactional(readOnly = true)
     public TemplateBelloryResponseDTO buscarPorId(Long id) {
         TemplateBellory entity = templateRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Template nao encontrado: " + id));
+                .orElseThrow(() -> new RuntimeException("Template não encontrado: " + id));
         return toResponseComConteudoResolvido(entity);
     }
 
@@ -81,7 +81,7 @@ public class AdminTemplateBelloryService {
     @Transactional
     public TemplateBelloryResponseDTO atualizar(Long id, TemplateBelloryUpdateDTO dto) {
         TemplateBellory entity = templateRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Template nao encontrado: " + id));
+                .orElseThrow(() -> new RuntimeException("Template não encontrado: " + id));
 
         if (dto.getCodigo() != null && !dto.getCodigo().equals(entity.getCodigo())) {
             if (templateRepository.existsByCodigoAndIdNot(dto.getCodigo(), id)) {
@@ -103,7 +103,7 @@ public class AdminTemplateBelloryService {
     @Transactional
     public void desativar(Long id) {
         TemplateBellory entity = templateRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Template nao encontrado: " + id));
+                .orElseThrow(() -> new RuntimeException("Template não encontrado: " + id));
 
         entity.setAtivo(false);
         entity.setUserAtualizacao(TenantContext.getCurrentUserId());
@@ -116,7 +116,7 @@ public class AdminTemplateBelloryService {
     @Transactional
     public TemplateBelloryResponseDTO ativar(Long id) {
         TemplateBellory entity = templateRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Template nao encontrado: " + id));
+                .orElseThrow(() -> new RuntimeException("Template não encontrado: " + id));
 
         entity.setAtivo(true);
         entity.setUserAtualizacao(TenantContext.getCurrentUserId());
@@ -131,10 +131,10 @@ public class AdminTemplateBelloryService {
     @Transactional
     public TemplateBelloryResponseDTO marcarComoPadrao(Long id) {
         TemplateBellory entity = templateRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Template nao encontrado: " + id));
+                .orElseThrow(() -> new RuntimeException("Template não encontrado: " + id));
 
         if (!entity.isAtivo()) {
-            throw new RuntimeException("Nao e possivel marcar um template inativo como padrao");
+            throw new RuntimeException("Não é possível marcar um template inativo como padrão");
         }
 
         // Desmarca o padrao anterior do mesmo tipo+categoria
@@ -154,7 +154,7 @@ public class AdminTemplateBelloryService {
     @Transactional(readOnly = true)
     public String preview(Long id, TemplatePreviewRequestDTO request) {
         TemplateBellory entity = templateRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Template nao encontrado: " + id));
+                .orElseThrow(() -> new RuntimeException("Template não encontrado: " + id));
 
         String conteudo = resolverConteudoEmail(entity);
 

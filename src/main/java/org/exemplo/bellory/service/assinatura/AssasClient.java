@@ -48,7 +48,7 @@ public class AssasClient {
 
     private void verificarConfiguracao() {
         if (!isConfigurado()) {
-            throw new AssasApiException("Asaas API key nao configurada");
+            throw new AssasApiException("Asaas API key não configurada");
         }
     }
 

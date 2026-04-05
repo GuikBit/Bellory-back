@@ -55,7 +55,7 @@ public class PushNotificationService {
                 .orElse(new PushSubscription());
 
         Organizacao organizacao = organizacaoRepository.findById(organizacaoId)
-                .orElseThrow(() -> new IllegalArgumentException("Organizacao nao encontrada"));
+                .orElseThrow(() -> new IllegalArgumentException("Organização não encontrada"));
 
         subscription.setUserId(userId);
         subscription.setUserRole(userRole);

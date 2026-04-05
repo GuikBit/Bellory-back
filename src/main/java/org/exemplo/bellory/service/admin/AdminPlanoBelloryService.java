@@ -91,7 +91,7 @@ public class AdminPlanoBelloryService {
         Long orgsUsando = planoBelloryRepository.countOrganizacoesByPlanoId(id);
         if (orgsUsando > 0) {
             throw new RuntimeException(
-                    "Nao e possivel desativar o plano '" + entity.getNome() +
+                    "Não é possível desativar o plano '" + entity.getNome() +
                     "'. Existem " + orgsUsando + " organizacao(oes) usando este plano.");
         }
 
@@ -143,7 +143,7 @@ public class AdminPlanoBelloryService {
         Long organizacaoId = getOrganizacaoIdFromContext();
 
         Organizacao org = organizacaoRepository.findById(organizacaoId)
-                .orElseThrow(() -> new RuntimeException("Organizacao nao encontrada: " + organizacaoId));
+                .orElseThrow(() -> new RuntimeException("Organização não encontrada: " + organizacaoId));
 
         PlanoBellory planoAtual = org.getPlano();
 
@@ -163,7 +163,7 @@ public class AdminPlanoBelloryService {
     private Long getOrganizacaoIdFromContext() {
         Long organizacaoId = TenantContext.getCurrentOrganizacaoId();
         if (organizacaoId == null) {
-            throw new SecurityException("Organizacao nao identificada. Token invalido ou expirado");
+            throw new SecurityException("Organização não identificada. Token inválido ou expirado");
         }
         return organizacaoId;
     }

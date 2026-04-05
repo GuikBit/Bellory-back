@@ -123,12 +123,12 @@ public class AssinaturaService {
                     String mensagem = null;
                     if (bloqueado) {
                         if (assinatura.isTrialExpirado()) {
-                            mensagem = "Seu periodo de teste expirou. Escolha um plano para continuar.";
+                            mensagem = "Seu período de teste expirou. Escolha um plano para continuar.";
                         } else {
                             mensagem = switch (assinatura.getStatus()) {
-                                case VENCIDA -> "Sua assinatura esta vencida. Regularize o pagamento para continuar.";
+                                case VENCIDA -> "Sua assinatura está vencida. Regularize o pagamento para continuar.";
                                 case CANCELADA -> "Sua assinatura foi cancelada. Escolha um plano para reativar.";
-                                case SUSPENSA -> "Sua assinatura esta suspensa. Entre em contato com o suporte.";
+                                case SUSPENSA -> "Sua assinatura está suspensa. Entre em contato com o suporte.";
                                 case AGUARDANDO_PAGAMENTO -> "Aguardando confirmacao do pagamento.";
                                 default -> "Acesso bloqueado.";
                             };
@@ -165,17 +165,17 @@ public class AssinaturaService {
                 builder.bloqueado(false);
                 builder.diasRestantesTrial((int) Math.max(diasRestantes, 0));
                 builder.dtFimTrial(assinatura.getDtFimTrial().toLocalDate());
-                builder.mensagem("Voce esta no periodo de teste. Restam " + Math.max(diasRestantes, 0) + " dias.");
+                builder.mensagem("Você está no período de teste. Restam " + Math.max(diasRestantes, 0) + " dias.");
             }
             case TRIAL_EXPIRADO -> {
                 builder.bloqueado(true);
                 builder.diasRestantesTrial(0);
                 builder.dtFimTrial(assinatura.getDtFimTrial() != null ? assinatura.getDtFimTrial().toLocalDate() : null);
-                builder.mensagem("Seu periodo de teste expirou. Escolha um plano para continuar.");
+                builder.mensagem("Seu período de teste expirou. Escolha um plano para continuar.");
             }
             case PLANO_GRATUITO -> {
                 builder.bloqueado(false);
-                builder.mensagem("Voce esta no plano gratuito. Faca upgrade para desbloquear mais recursos.");
+                builder.mensagem("Você está no plano gratuito. Faça upgrade para desbloquear mais recursos.");
             }
             case ATIVA -> {
                 builder.bloqueado(false);
@@ -183,7 +183,7 @@ public class AssinaturaService {
             }
             case PAGAMENTO_PENDENTE -> {
                 builder.bloqueado(false);
-                builder.mensagem("Voce tem um pagamento pendente. Regularize para evitar interrupcao do servico.");
+                builder.mensagem("Você tem um pagamento pendente. Regularize para evitar interrupção do serviço.");
             }
             case AGUARDANDO_PAGAMENTO -> {
                 builder.bloqueado(false);
@@ -195,7 +195,7 @@ public class AssinaturaService {
             }
             case DOWNGRADE_AGENDADO -> {
                 builder.bloqueado(false);
-                builder.mensagem("Downgrade agendado para o proximo ciclo de cobranca.");
+                builder.mensagem("Downgrade agendado para o próximo ciclo de cobrança.");
             }
             case TROCA_PLANO_AGENDADA -> {
                 builder.bloqueado(false);
@@ -207,13 +207,13 @@ public class AssinaturaService {
             }
             case PAGAMENTO_ATRASADO -> {
                 builder.bloqueado(true);
-                builder.mensagem("Sua assinatura esta vencida. Regularize o pagamento para continuar.");
+                builder.mensagem("Sua assinatura está vencida. Regularize o pagamento para continuar.");
             }
             case CANCELADA_COM_ACESSO -> {
                 LocalDate dtAcesso = assinatura.getDtProximoVencimento().toLocalDate();
                 builder.bloqueado(false);
                 builder.dtAcessoAte(dtAcesso);
-                builder.mensagem("Sua assinatura foi cancelada. Voce pode usar ate " +
+                builder.mensagem("Sua assinatura foi cancelada. Você pode usar até " +
                         dtAcesso.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) +
                         ". Apos isso, sera necessario assinar novamente.");
             }
@@ -223,7 +223,7 @@ public class AssinaturaService {
             }
             case SUSPENSA -> {
                 builder.bloqueado(true);
-                builder.mensagem("Sua assinatura esta suspensa. Entre em contato com o suporte.");
+                builder.mensagem("Sua assinatura está suspensa. Entre em contato com o suporte.");
             }
             case SEM_ASSINATURA -> {
                 builder.bloqueado(true);
@@ -295,7 +295,7 @@ public class AssinaturaService {
     public FormaPagamentoResponseDTO getFormaPagamento() {
         Long organizacaoId = TenantContext.getCurrentOrganizacaoId();
         if (organizacaoId == null) {
-            throw new SecurityException("Organizacao nao identificada no token");
+            throw new SecurityException("Organização não identificada no token");
         }
 
         Assinatura assinatura = assinaturaRepository.findByOrganizacaoId(organizacaoId)
@@ -337,7 +337,7 @@ public class AssinaturaService {
     public AssinaturaResponseDTO escolherPlano(EscolherPlanoDTO dto) {
         Long organizacaoId = TenantContext.getCurrentOrganizacaoId();
         if (organizacaoId == null) {
-            throw new SecurityException("Organizacao nao identificada no token");
+            throw new SecurityException("Organização não identificada no token");
         }
 
         Assinatura assinatura = assinaturaRepository.findByOrganizacaoId(organizacaoId)
@@ -362,7 +362,7 @@ public class AssinaturaService {
             cupomResult = cupomDescontoService.validarCupom(
                     dto.getCodigoCupom(), assinatura.getOrganizacao(), dto.getPlanoCodigo(), dto.getCicloCobranca(), valorOriginal);
             if (!cupomResult.isValido()) {
-                throw new IllegalArgumentException("Cupom invalido: " + cupomResult.getMensagem());
+                throw new IllegalArgumentException("Cupom inválido: " + cupomResult.getMensagem());
             }
             valor = cupomResult.getValorComDesconto();
         }
@@ -479,7 +479,7 @@ public class AssinaturaService {
     public AssinaturaResponseDTO trocarPlano(EscolherPlanoDTO dto) {
         Long organizacaoId = TenantContext.getCurrentOrganizacaoId();
         if (organizacaoId == null) {
-            throw new SecurityException("Organizacao nao identificada no token");
+            throw new SecurityException("Organização não identificada no token");
         }
 
         Assinatura assinatura = assinaturaRepository.findByOrganizacaoId(organizacaoId)
@@ -501,14 +501,14 @@ public class AssinaturaService {
         PlanoBellory planoAtual = assinatura.getPlanoBellory();
         if (planoAtual.getCodigo().equals(novoPlano.getCodigo())
                 && assinatura.getCicloCobranca() == novoCiclo) {
-            throw new IllegalArgumentException("Voce ja esta neste plano com este ciclo de cobranca");
+            throw new IllegalArgumentException("Você já está neste plano com este ciclo de cobrança");
         }
 
         // Verificar se ja tem troca agendada para o mesmo plano/ciclo
         if (assinatura.getPlanoAgendado() != null
                 && assinatura.getPlanoAgendado().getCodigo().equals(novoPlano.getCodigo())
                 && assinatura.getCicloAgendado() == novoCiclo) {
-            throw new IllegalArgumentException("Troca para este plano ja esta agendada");
+            throw new IllegalArgumentException("Troca para este plano já está agendada");
         }
 
         // Agendar a troca - o plano atual continua ate o fim do ciclo
@@ -532,7 +532,7 @@ public class AssinaturaService {
     public AssinaturaResponseDTO cancelarTrocaAgendada() {
         Long organizacaoId = TenantContext.getCurrentOrganizacaoId();
         if (organizacaoId == null) {
-            throw new SecurityException("Organizacao nao identificada no token");
+            throw new SecurityException("Organização não identificada no token");
         }
 
         Assinatura assinatura = assinaturaRepository.findByOrganizacaoId(organizacaoId)
@@ -616,7 +616,7 @@ public class AssinaturaService {
     public ProRataPreviewDTO previewTrocaPlano(EscolherPlanoDTO dto) {
         Long organizacaoId = TenantContext.getCurrentOrganizacaoId();
         if (organizacaoId == null) {
-            throw new SecurityException("Organizacao nao identificada no token");
+            throw new SecurityException("Organização não identificada no token");
         }
 
         Assinatura assinatura = assinaturaRepository.findByOrganizacaoId(organizacaoId)
@@ -685,7 +685,7 @@ public class AssinaturaService {
     public AssinaturaResponseDTO cancelarAssinatura() {
         Long organizacaoId = TenantContext.getCurrentOrganizacaoId();
         if (organizacaoId == null) {
-            throw new SecurityException("Organizacao nao identificada no token");
+            throw new SecurityException("Organização não identificada no token");
         }
 
         Assinatura assinatura = assinaturaRepository.findByOrganizacaoId(organizacaoId)
@@ -733,7 +733,7 @@ public class AssinaturaService {
     public AssinaturaResponseDTO reativarAssinatura(EscolherPlanoDTO dto) {
         Long organizacaoId = TenantContext.getCurrentOrganizacaoId();
         if (organizacaoId == null) {
-            throw new SecurityException("Organizacao nao identificada no token");
+            throw new SecurityException("Organização não identificada no token");
         }
 
         Assinatura assinatura = assinaturaRepository.findByOrganizacaoId(organizacaoId)
@@ -763,7 +763,7 @@ public class AssinaturaService {
             cupomResult = cupomDescontoService.validarCupom(
                     dto.getCodigoCupom(), assinatura.getOrganizacao(), dto.getPlanoCodigo(), dto.getCicloCobranca(), valorOriginal);
             if (!cupomResult.isValido()) {
-                throw new IllegalArgumentException("Cupom invalido: " + cupomResult.getMensagem());
+                throw new IllegalArgumentException("Cupom inválido: " + cupomResult.getMensagem());
             }
             valor = cupomResult.getValorComDesconto();
         }
@@ -854,7 +854,7 @@ public class AssinaturaService {
     public CupomValidacaoResponseDTO validarCupomParaOrganizacao(ValidarCupomDTO dto) {
         Long organizacaoId = TenantContext.getCurrentOrganizacaoId();
         if (organizacaoId == null) {
-            throw new SecurityException("Organizacao nao identificada no token");
+            throw new SecurityException("Organização não identificada no token");
         }
 
         Organizacao org = organizacaoRepository.findById(organizacaoId)
@@ -887,7 +887,7 @@ public class AssinaturaService {
     public List<CobrancaPlataformaDTO> getMinhasCobrancas(String statusFiltro) {
         Long organizacaoId = TenantContext.getCurrentOrganizacaoId();
         if (organizacaoId == null) {
-            throw new SecurityException("Organizacao nao identificada no token");
+            throw new SecurityException("Organização não identificada no token");
         }
 
         // Tentar buscar do Asaas primeiro
@@ -1014,7 +1014,7 @@ public class AssinaturaService {
     @Transactional
     public void processarWebhookPagamento(AssasWebhookPayload payload) {
         if (payload == null || payload.getPayment() == null) {
-            log.warn("Webhook Asaas recebido com payload invalido");
+            log.warn("Webhook Asaas recebido com payload inválido");
             return;
         }
 
@@ -1084,7 +1084,7 @@ public class AssinaturaService {
     @Transactional
     public void processarWebhookAssinatura(AssasWebhookPayload payload) {
         if (payload == null) {
-            log.warn("Webhook Asaas de assinatura recebido com payload invalido");
+            log.warn("Webhook Asaas de assinatura recebido com payload inválido");
             return;
         }
 

@@ -108,7 +108,7 @@ public class AuthController {
                         .bloqueado(false)
                         .statusAssinatura("INDISPONIVEL")
                         .situacao("ATIVA")
-                        .mensagem("Nao foi possivel verificar o status da assinatura. Tente novamente em instantes.")
+                        .mensagem("Não foi possível verificar o status da assinatura. Tente novamente em instantes.")
                         .build();
                 organizacaoInfo.setAssinatura(assinaturaStatus);
             }

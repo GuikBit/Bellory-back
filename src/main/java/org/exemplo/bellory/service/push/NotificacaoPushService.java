@@ -54,7 +54,7 @@ public class NotificacaoPushService {
     @Transactional
     public NotificacaoPushDTO marcarComoLida(Long id) {
         NotificacaoPush notificacao = notificacaoPushRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Notificacao nao encontrada"));
+                .orElseThrow(() -> new IllegalArgumentException("Notificação não encontrada"));
 
         validarAcesso(notificacao);
 
@@ -68,7 +68,7 @@ public class NotificacaoPushService {
     @Transactional
     public void deletar(Long id) {
         NotificacaoPush notificacao = notificacaoPushRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Notificacao nao encontrada"));
+                .orElseThrow(() -> new IllegalArgumentException("Notificação não encontrada"));
 
         validarAcesso(notificacao);
 
@@ -92,7 +92,7 @@ public class NotificacaoPushService {
                                          String detalhe, String metadata) {
 
         Organizacao organizacao = organizacaoRepository.findById(organizacaoId)
-                .orElseThrow(() -> new IllegalArgumentException("Organizacao nao encontrada"));
+                .orElseThrow(() -> new IllegalArgumentException("Organização não encontrada"));
 
         NotificacaoPush notificacao = new NotificacaoPush();
         notificacao.setUserId(userId);
@@ -124,7 +124,7 @@ public class NotificacaoPushService {
                                       String detalhe, String metadata) {
         try {
             Organizacao organizacao = organizacaoRepository.findById(organizacaoId)
-                    .orElseThrow(() -> new IllegalArgumentException("Organizacao nao encontrada"));
+                    .orElseThrow(() -> new IllegalArgumentException("Organização não encontrada"));
 
             List<Funcionario> funcionarios = funcionarioRepository
                     .findAllByRoleAndOrganizacao_IdAndAtivoTrueAndIsDeletadoFalse(role, organizacaoId);
@@ -168,7 +168,7 @@ public class NotificacaoPushService {
         if (!notificacao.getUserId().equals(userId)
                 || !notificacao.getUserRole().equals(userRole)
                 || !notificacao.getOrganizacao().getId().equals(organizacaoId)) {
-            throw new SecurityException("Acesso negado a esta notificacao");
+            throw new SecurityException("Acesso negado a esta notificação");
         }
     }
 }

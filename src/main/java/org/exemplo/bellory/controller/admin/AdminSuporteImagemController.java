@@ -27,13 +27,13 @@ public class AdminSuporteImagemController {
 
     // ==================== Imagens ====================
 
-    @Operation(summary = "Upload de imagem", description = "Faz upload de uma imagem para o diretorio de suporte. Opcionalmente pode especificar uma pasta.")
+    @Operation(summary = "Upload de imagem", description = "Faz upload de uma imagem para o diretório de suporte. Opcionalmente pode especificar uma pasta.")
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ResponseAPI<SuporteImagemDTO>> uploadImagem(
             @RequestParam("file") MultipartFile file,
-            @Parameter(description = "Nome da pasta (opcional). Se nao informado, salva na raiz do diretorio de suporte.")
+            @Parameter(description = "Nome da pasta (opcional). Se não informado, salva na raiz do diretório de suporte.")
             @RequestParam(value = "pasta", required = false) String pasta,
-            @Parameter(description = "Nome personalizado para a imagem (opcional). Se nao informado, usa o nome original do arquivo.")
+            @Parameter(description = "Nome personalizado para a imagem (opcional). Se não informado, usa o nome original do arquivo.")
             @RequestParam(value = "nome", required = false) String nome) {
         try {
             SuporteImagemDTO resultado = adminSuporteImagemService.uploadImagem(file, pasta, nome);
@@ -54,7 +54,7 @@ public class AdminSuporteImagemController {
         }
     }
 
-    @Operation(summary = "Listar imagens", description = "Lista todas as imagens do diretorio de suporte. Opcionalmente filtra por pasta.")
+    @Operation(summary = "Listar imagens", description = "Lista todas as imagens do diretório de suporte. Opcionalmente filtra por pasta.")
     @GetMapping
     public ResponseEntity<ResponseAPI<List<SuporteImagemDTO>>> listarImagens(
             @Parameter(description = "Nome da pasta para filtrar (opcional)")
@@ -92,7 +92,7 @@ public class AdminSuporteImagemController {
 
     // ==================== Pastas ====================
 
-    @Operation(summary = "Criar pasta", description = "Cria uma subpasta dentro do diretorio de suporte para organizar imagens")
+    @Operation(summary = "Criar pasta", description = "Cria uma subpasta dentro do diretório de suporte para organizar imagens")
     @PostMapping("/pastas")
     public ResponseEntity<ResponseAPI<SuportePastaDTO>> criarPasta(
             @RequestBody Map<String, String> body) {
@@ -116,7 +116,7 @@ public class AdminSuporteImagemController {
         }
     }
 
-    @Operation(summary = "Listar pastas", description = "Lista todas as subpastas dentro do diretorio de suporte")
+    @Operation(summary = "Listar pastas", description = "Lista todas as subpastas dentro do diretório de suporte")
     @GetMapping("/pastas")
     public ResponseEntity<ResponseAPI<List<SuportePastaDTO>>> listarPastas() {
         List<SuportePastaDTO> pastas = adminSuporteImagemService.listarPastas();

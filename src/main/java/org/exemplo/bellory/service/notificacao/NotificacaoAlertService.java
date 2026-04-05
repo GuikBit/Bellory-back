@@ -38,12 +38,12 @@ public class NotificacaoAlertService {
             String corpo = String.format("""
                 <html>
                 <body>
-                <h2>Ola!</h2>
+                <h2>Olá!</h2>
 
-                <p>Sua instancia do WhatsApp esta desconectada e existem <strong>%d</strong>
-                notificacoes pendentes para seus clientes.</p>
+                <p>Sua instância do WhatsApp está desconectada e existem <strong>%d</strong>
+                notificações pendentes para seus clientes.</p>
 
-                <p>Acesse o painel Bellory e reconecte seu WhatsApp para que as notificacoes
+                <p>Acesse o painel Bellory e reconecte seu WhatsApp para que as notificações
                 de agendamento sejam enviadas corretamente.</p>
 
                 <br>

@@ -361,7 +361,7 @@ public class AgendamentoController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ResponseAPI.<Void>builder()
                             .success(false)
-                            .message("Erro interno a divisao do pagamento: " + e.getMessage())
+                            .message("Erro interno na divisão do pagamento: " + e.getMessage())
                             .errorCode(500)
                             .build());
         }

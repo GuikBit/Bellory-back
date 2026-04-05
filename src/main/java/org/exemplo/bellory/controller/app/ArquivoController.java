@@ -32,7 +32,7 @@ public class ArquivoController {
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ResponseAPI<List<ArquivoDTO>>> uploadArquivos(
             @RequestParam("files") List<MultipartFile> files,
-            @Parameter(description = "ID da pasta destino (opcional). Se nao informado, salva na raiz.")
+            @Parameter(description = "ID da pasta destino (opcional). Se não informado, salva na raiz.")
             @RequestParam(value = "pastaId", required = false) Long pastaId) {
         try {
             List<ArquivoDTO> resultados = arquivoStorageService.uploadArquivos(files, pastaId);
@@ -262,7 +262,7 @@ public class ArquivoController {
 
     // ==================== NAVEGAÇÃO ====================
 
-    @Operation(summary = "Navegar pasta do modulo", description = "Retorna conteudo de uma pasta do modulo de arquivos (subpastas + arquivos). Se pastaId nao informado, retorna a raiz com TODAS as pastas (sistema + usuario).")
+    @Operation(summary = "Navegar pasta do modulo", description = "Retorna conteudo de uma pasta do modulo de arquivos (subpastas + arquivos). Se pastaId nao informado, retorna a raiz com TODAS as pastas (sistema + usuário).")
     @GetMapping("/navegar")
     public ResponseEntity<ResponseAPI<PastaArquivoDTO>> navegarPasta(
             @Parameter(description = "ID da pasta do modulo (opcional, null = raiz)")

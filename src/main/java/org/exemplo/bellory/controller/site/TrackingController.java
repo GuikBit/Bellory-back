@@ -21,7 +21,7 @@ import java.util.Map;
 @RequestMapping("/api/v1/tracking")
 @RequiredArgsConstructor
 @Slf4j
-@Tag(name = "Tracking", description = "Endpoint de ingestao de eventos de tracking do site bellory.com.br")
+@Tag(name = "Tracking", description = "Endpoint de ingestão de eventos de tracking do site bellory.com.br")
 public class TrackingController {
 
     private final TrackingProcessingService trackingProcessingService;
