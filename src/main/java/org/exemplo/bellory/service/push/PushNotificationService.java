@@ -119,12 +119,11 @@ public class PushNotificationService {
             );
 
             Map<String, Object> payload = new HashMap<>();
-            payload.put("title", notificacao.getTitulo());
-            payload.put("body", notificacao.getDescricao());
-            payload.put("icon", notificacao.getIcone());
-            payload.put("url", notificacao.getUrlAcao());
+            payload.put("titulo", notificacao.getTitulo());
+            payload.put("descricao", notificacao.getDescricao());
+            payload.put("url_acao", notificacao.getUrlAcao());
             payload.put("categoria", notificacao.getCategoria() != null ? notificacao.getCategoria().name() : null);
-            payload.put("prioridade", notificacao.getPrioridade() != null ? notificacao.getPrioridade().name() : null);
+            payload.put("origem", notificacao.getOrigem());
 
             String payloadJson = objectMapper.writeValueAsString(payload);
 

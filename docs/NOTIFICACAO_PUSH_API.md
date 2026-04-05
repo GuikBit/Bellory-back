@@ -20,9 +20,6 @@ GET /api/v1/notificacao-push?page=0&size=20
 **Query Params:**
 
 | Param | Tipo | Default | Descricao |
-
-
-
 |-------|------|---------|-----------|
 | page  | int  | 0       | Pagina atual |
 | size  | int  | 20      | Itens por pagina |
