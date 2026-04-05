@@ -3,6 +3,7 @@ package org.exemplo.bellory.controller.app;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import org.exemplo.bellory.config.RateLimiter;
 import org.exemplo.bellory.model.dto.booking.*;
 import org.exemplo.bellory.model.entity.error.ResponseAPI;
@@ -69,10 +70,16 @@ public class PublicBookingController {
                 return notFound("Organização não encontrada");
             }
 
-            // Retorna 200 com dados null quando cliente não encontrado (front trata como "novo")
+            if (resultado.isEmpty()) {
+                return ResponseEntity.ok(ResponseAPI.<ClientePublicDTO>builder()
+                        .success(false)
+                        .message("Cliente não encontrado com este telefone.")
+                        .build());
+            }
+
             return ResponseEntity.ok(ResponseAPI.<ClientePublicDTO>builder()
                     .success(true)
-                    .dados(resultado.orElse(null))
+                    .dados(resultado.get())
                     .build());
 
         } catch (IllegalArgumentException e) {
@@ -82,10 +89,44 @@ public class PublicBookingController {
         }
     }
 
+    // ==================== 1.1. ATUALIZAR EMAIL DO CLIENTE ====================
+
+    @Operation(summary = "Atualizar email do cliente")
+    @PatchMapping("/{slug}/booking/cliente/{clienteId}")
+    public ResponseEntity<ResponseAPI<ClientePublicDTO>> atualizarClientePublico(
+            @PathVariable String slug,
+            @PathVariable Long clienteId,
+            @Valid @RequestBody AtualizarClientePublicoDTO dto,
+            HttpServletRequest request) {
+        try {
+            String normalizedSlug = normalizeSlug(slug);
+            if (normalizedSlug == null) {
+                return badRequest("Slug é obrigatório");
+            }
+
+            if (!rateLimiter.tryAcquire("ip:" + getClientIp(request), RATE_LIMIT_GENERAL, RATE_WINDOW_MINUTES)) {
+                return tooManyRequests();
+            }
+
+            ClientePublicDTO resultado = bookingService.atualizarEmailCliente(normalizedSlug, clienteId, dto.getEmail());
+
+            return ResponseEntity.ok(ResponseAPI.<ClientePublicDTO>builder()
+                    .success(true)
+                    .message("Cliente atualizado com sucesso.")
+                    .dados(resultado)
+                    .build());
+
+        } catch (IllegalArgumentException e) {
+            return badRequest(e.getMessage());
+        } catch (Exception e) {
+            return serverError("Erro ao atualizar cliente: " + e.getMessage());
+        }
+    }
+
     // ==================== 2. CRIAR CLIENTE ====================
 
     @Operation(summary = "Cadastrar novo cliente (auto-cadastro)")
-    @PostMapping("/{slug}/booking/cliente")
+@PostMapping("/{slug}/booking/cliente")
     public ResponseEntity<ResponseAPI<ClientePublicDTO>> criarCliente(
             @PathVariable String slug,
             @RequestBody ClienteCreatePublicDTO dto,

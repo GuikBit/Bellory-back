@@ -205,6 +205,8 @@ public interface ProdutoRepository extends JpaRepository<Produto, Long> {
         return findProdutosComImagens(Pageable.ofSize(limite));
     }
 
+    List<Produto> findByOrganizacao_IdAndAtivoTrueAndNomeIn(Long organizacaoId, List<String> nomes);
+
     List<Produto> findByOrganizacao_IdAndAtivoTrueAndDestaqueTrue(Long organizacaoId);
 
     /**

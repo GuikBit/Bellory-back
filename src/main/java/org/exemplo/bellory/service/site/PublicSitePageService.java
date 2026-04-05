@@ -17,10 +17,14 @@ import org.exemplo.bellory.model.entity.servico.Categoria;
 import org.exemplo.bellory.model.entity.servico.Servico;
 import org.exemplo.bellory.model.entity.landingpage.LandingPage;
 import org.exemplo.bellory.model.entity.landingpage.LandingPageSection;
+import org.exemplo.bellory.model.entity.organizacao.BloqueioOrganizacao;
+import org.exemplo.bellory.model.entity.organizacao.HorarioFuncionamento;
 import org.exemplo.bellory.model.entity.site.SitePublicoConfig;
 import org.exemplo.bellory.model.repository.categoria.CategoriaRepository;
 import org.exemplo.bellory.model.repository.funcionario.FuncionarioRepository;
 import org.exemplo.bellory.model.repository.landingpage.LandingPageRepository;
+import org.exemplo.bellory.model.repository.organizacao.BloqueioOrganizacaoRepository;
+import org.exemplo.bellory.model.repository.organizacao.HorarioFuncionamentoRepository;
 import org.exemplo.bellory.model.repository.organizacao.OrganizacaoRepository;
 import org.exemplo.bellory.model.repository.produtos.ProdutoRepository;
 import org.exemplo.bellory.model.repository.servico.ServicoRepository;
@@ -32,6 +36,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.*;
@@ -52,6 +57,8 @@ public class PublicSitePageService {
     private final ProdutoRepository produtoRepository;
     private final SitePublicoConfigRepository siteConfigRepository;
     private final LandingPageRepository landingPageRepository;
+    private final BloqueioOrganizacaoRepository bloqueioOrganizacaoRepository;
+    private final HorarioFuncionamentoRepository horarioFuncionamentoRepository;
     private final ObjectMapper objectMapper;
 
     public PublicSitePageService(
@@ -62,6 +69,8 @@ public class PublicSitePageService {
             ProdutoRepository produtoRepository,
             SitePublicoConfigRepository siteConfigRepository,
             LandingPageRepository landingPageRepository,
+            BloqueioOrganizacaoRepository bloqueioOrganizacaoRepository,
+            HorarioFuncionamentoRepository horarioFuncionamentoRepository,
             ObjectMapper objectMapper) {
         this.organizacaoRepository = organizacaoRepository;
         this.funcionarioRepository = funcionarioRepository;
@@ -70,6 +79,8 @@ public class PublicSitePageService {
         this.produtoRepository = produtoRepository;
         this.siteConfigRepository = siteConfigRepository;
         this.landingPageRepository = landingPageRepository;
+        this.bloqueioOrganizacaoRepository = bloqueioOrganizacaoRepository;
+        this.horarioFuncionamentoRepository = horarioFuncionamentoRepository;
         this.objectMapper = objectMapper;
     }
 
@@ -112,7 +123,7 @@ public class PublicSitePageService {
                 .findAllByOrganizacao_IdAndAtivoTrueAndIsDeletadoFalseOrderByNomeAsc(orgId);
 
         List<Servico> servicosDestaque = todosServicos.stream()
-//                .filter(s -> s.get() != null && s.getIsHome())
+                .filter(Servico::isHome)
                 .limit(siteConfig.getServicesFeaturedLimit() != null ? siteConfig.getServicesFeaturedLimit() : 6)
                 .collect(Collectors.toList());
 
@@ -222,7 +233,7 @@ public class PublicSitePageService {
                 .findAllByOrganizacao_IdAndAtivoTrueAndIsDeletadoFalseOrderByNomeAsc(orgId);
 
         List<Servico> servicosDestaque = todosServicos.stream()
-//                .filter(s -> s.getIsHome() != null && s.getIsHome())
+                .filter(Servico::isHome)
                 .limit(siteConfig.getServicesFeaturedLimit() != null ? siteConfig.getServicesFeaturedLimit() : 6)
                 .collect(Collectors.toList());
 
@@ -780,13 +791,57 @@ public class PublicSitePageService {
                                                   List<Servico> servicos, List<Funcionario> funcionarios) {
         ConfigSistema configSistema = org.getConfigSistema();
 
+        var configAgendamento = configSistema != null ? configSistema.getConfigAgendamento() : null;
+
+        Integer minDias = configAgendamento != null && configAgendamento.getMinDiasAgendamento() != null
+                ? configAgendamento.getMinDiasAgendamento() : 1;
+        Integer maxDias = configAgendamento != null && configAgendamento.getMaxDiasAgendamento() != null
+                ? configAgendamento.getMaxDiasAgendamento() : 90;
+        Boolean cobrarSinal = configAgendamento != null && configAgendamento.getCobrarSinal() != null
+                ? configAgendamento.getCobrarSinal() : false;
+        Integer porcentSinal = configAgendamento != null ? configAgendamento.getPorcentSinal() : null;
+
         BookingSectionDTO.BookingConfigDTO bookingConfig = BookingSectionDTO.BookingConfigDTO.builder()
-                .requiresDeposit(false)
+                .requiresDeposit(cobrarSinal)
+                .depositPercentage(porcentSinal != null ? porcentSinal.doubleValue() : null)
                 .minAdvanceHours(1)
-                .maxAdvanceDays(30)
+                .minAdvanceDays(minDias)
+                .maxAdvanceDays(maxDias)
                 .allowMultipleServices(true)
                 .requiresLogin(false)
                 .build();
+
+        // Bloqueios ativos no período de agendamento (de hoje até maxDias)
+        LocalDate hoje = LocalDate.now();
+        LocalDate dataLimite = hoje.plusDays(maxDias);
+        List<BloqueioOrganizacao> bloqueios = bloqueioOrganizacaoRepository
+                .findBloqueiosAtivosNoPeriodo(org.getId(), hoje, dataLimite);
+
+        List<BookingSectionDTO.BloqueioDTO> diasBloqueados = bloqueios.stream()
+                .map(b -> BookingSectionDTO.BloqueioDTO.builder()
+                        .titulo(b.getTitulo())
+                        .dataInicio(b.getDataInicio())
+                        .dataFim(b.getDataFim())
+                        .tipo(b.getTipo().name())
+                        .build())
+                .collect(Collectors.toList());
+
+        // Horários de funcionamento da organização
+        List<HorarioFuncionamento> horarios = horarioFuncionamentoRepository
+                .findByOrganizacaoIdWithPeriodos(org.getId());
+
+        List<BookingSectionDTO.HorarioFuncionamentoDTO> horariosFuncionamento = horarios.stream()
+                .map(h -> BookingSectionDTO.HorarioFuncionamentoDTO.builder()
+                        .diaSemana(h.getDiaSemana().name())
+                        .ativo(h.getAtivo())
+                        .periodos(h.getPeriodos().stream()
+                                .map(p -> BookingSectionDTO.PeriodoDTO.builder()
+                                        .horaInicio(p.getHoraInicio())
+                                        .horaFim(p.getHoraFim())
+                                        .build())
+                                .collect(Collectors.toList()))
+                        .build())
+                .collect(Collectors.toList());
 
         return BookingSectionDTO.builder()
                 .title(config.getBookingSectionTitle())
@@ -798,6 +853,8 @@ public class PublicSitePageService {
                 .servicosDisponiveis(servicos.stream().map(this::convertServico).collect(Collectors.toList()))
                 .profissionaisDisponiveis(funcionarios.stream().map(this::convertFuncionario).collect(Collectors.toList()))
                 .config(bookingConfig)
+                .diasBloqueados(diasBloqueados)
+                .horariosFuncionamento(horariosFuncionamento)
                 .build();
     }
 
@@ -927,6 +984,7 @@ public class PublicSitePageService {
                 .imagens(servico.getUrlsImagens())
                 .disponivel(servico.isAtivo())
                 .funcionarioIds(funcionarioIds)
+                .produtos(servico.getProdutos())
                 .build();
     }
 
@@ -946,6 +1004,22 @@ public class PublicSitePageService {
                 .map(this::convertFuncionario)
                 .collect(Collectors.toList())
                 : Collections.emptyList();
+
+        // Buscar produtos utilizados no serviço
+        List<ServicoDetalhadoDTO.ProdutoResumidoDTO> produtosUtilizados = Collections.emptyList();
+        if (servico.getProdutos() != null && !servico.getProdutos().isEmpty()) {
+            Long orgId = servico.getOrganizacao().getId();
+            List<Produto> produtos = produtoRepository
+                    .findByOrganizacao_IdAndAtivoTrueAndNomeIn(orgId, servico.getProdutos());
+            produtosUtilizados = produtos.stream()
+                    .map(p -> ServicoDetalhadoDTO.ProdutoResumidoDTO.builder()
+                            .id(p.getId())
+                            .nome(p.getNome())
+                            .imagemUrl(p.getUrlsImagens() != null && !p.getUrlsImagens().isEmpty()
+                                    ? p.getUrlsImagens().get(0) : null)
+                            .build())
+                    .collect(Collectors.toList());
+        }
 
         ProdutoDetalhadoDTO.SeoDataDTO seo = ProdutoDetalhadoDTO.SeoDataDTO.builder()
                 .title(servico.getNome() + " | " + servico.getOrganizacao().getNomeFantasia())
@@ -969,6 +1043,7 @@ public class PublicSitePageService {
                 .imagemPrincipal(servico.getUrlsImagens() != null && !servico.getUrlsImagens().isEmpty()
                         ? servico.getUrlsImagens().get(0) : null)
                 .profissionais(profissionais)
+                .produtosUtilizados(produtosUtilizados)
                 .permiteAgendamentoOnline(true)
                 .seo(seo)
                 .build();
