@@ -5,6 +5,7 @@ import jakarta.transaction.Transactional;
 import nl.martijndwars.webpush.Notification;
 import nl.martijndwars.webpush.PushService;
 import nl.martijndwars.webpush.Subscription;
+import nl.martijndwars.webpush.Urgency;
 import org.apache.http.HttpResponse;
 import org.exemplo.bellory.context.TenantContext;
 import org.exemplo.bellory.model.dto.push.PushSubscriptionRequestDTO;
@@ -127,7 +128,14 @@ public class PushNotificationService {
 
             String payloadJson = objectMapper.writeValueAsString(payload);
 
-            Notification notification = new Notification(subscription, payloadJson);
+            Notification notification = Notification.builder()
+                    .endpoint(subscription.endpoint)
+                    .userPublicKey(subscription.keys.p256dh)
+                    .userAuth(subscription.keys.auth)
+                    .payload(payloadJson)
+                    .ttl(86400)
+                    .urgency(Urgency.HIGH)
+                    .build();
             HttpResponse response = pushService.send(notification);
 
             int statusCode = response.getStatusLine().getStatusCode();

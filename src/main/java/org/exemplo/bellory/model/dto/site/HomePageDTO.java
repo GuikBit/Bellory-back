@@ -9,6 +9,7 @@ import org.exemplo.bellory.model.dto.site.request.TransitionConfigRequest;
 import org.exemplo.bellory.model.dto.tenent.FeaturesDTO;
 import org.exemplo.bellory.model.dto.tenent.OrganizacaoPublicDTO;
 import org.exemplo.bellory.model.dto.tenent.SeoMetadataDTO;
+import org.exemplo.bellory.model.dto.tenent.HorarioFuncionamentoDTO;
 import org.exemplo.bellory.model.dto.tenent.SiteConfigDTO;
 
 import java.util.List;
@@ -71,6 +72,11 @@ public class HomePageDTO {
      * Configuração do footer
      */
     private FooterConfigDTO footer;
+
+    /**
+     * Horários de funcionamento da organização (formato resumido)
+     */
+    private List<HorarioFuncionamentoDTO> horariosFuncionamento;
 
     // ==================== METADADOS ====================
 

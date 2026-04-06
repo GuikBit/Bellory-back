@@ -6,10 +6,10 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.exemplo.bellory.model.dto.tenent.FuncionarioPublicDTO;
+import org.exemplo.bellory.model.dto.tenent.HorarioFuncionamentoDTO;
 import org.exemplo.bellory.model.dto.tenent.ServicoPublicDTO;
 
 import java.time.LocalDate;
-import java.time.LocalTime;
 import java.util.List;
 
 /**
@@ -50,7 +50,7 @@ public class BookingSectionDTO {
     private List<BloqueioDTO> diasBloqueados;
 
     /**
-     * Horários de funcionamento por dia da semana
+     * Horários de funcionamento da organização
      */
     private List<HorarioFuncionamentoDTO> horariosFuncionamento;
 
@@ -77,24 +77,5 @@ public class BookingSectionDTO {
         private LocalDate dataInicio;
         private LocalDate dataFim;
         private String tipo;
-    }
-
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class HorarioFuncionamentoDTO {
-        private String diaSemana;
-        private Boolean ativo;
-        private List<PeriodoDTO> periodos;
-    }
-
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class PeriodoDTO {
-        private LocalTime horaInicio;
-        private LocalTime horaFim;
     }
 }

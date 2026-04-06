@@ -26,6 +26,7 @@ public class NotificacaoPushDTO {
     private String detalhe;
     private PrioridadeNotificacao prioridade;
     private CategoriaNotificacao categoria;
+    private String categoriaIcone;
     private Boolean lido;
     private String icone;
     private String urlAcao;
@@ -41,6 +42,7 @@ public class NotificacaoPushDTO {
         this.detalhe = entity.getDetalhe();
         this.prioridade = entity.getPrioridade();
         this.categoria = entity.getCategoria();
+        this.categoriaIcone = entity.getCategoria() != null ? entity.getCategoria().getIcone() : null;
         this.lido = entity.getLido();
         this.icone = entity.getIcone();
         this.urlAcao = entity.getUrlAcao();

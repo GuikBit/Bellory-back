@@ -19,6 +19,7 @@ import org.exemplo.bellory.model.entity.landingpage.LandingPage;
 import org.exemplo.bellory.model.entity.landingpage.LandingPageSection;
 import org.exemplo.bellory.model.entity.organizacao.BloqueioOrganizacao;
 import org.exemplo.bellory.model.entity.organizacao.HorarioFuncionamento;
+import org.exemplo.bellory.model.entity.organizacao.PeriodoFuncionamento;
 import org.exemplo.bellory.model.entity.site.SitePublicoConfig;
 import org.exemplo.bellory.model.repository.categoria.CategoriaRepository;
 import org.exemplo.bellory.model.repository.funcionario.FuncionarioRepository;
@@ -148,6 +149,7 @@ public class PublicSitePageService {
                 .products(buildProductsSection(siteConfig, produtosDestaque))
                 .team(buildTeamSection(siteConfig, funcionarios))
                 .booking(buildBookingSection(org, siteConfig, todosServicos, funcionarios))
+                .horariosFuncionamento(buildHorariosFuncionamento(org.getId()))
                 .footer(buildFooterConfig(org, siteConfig, funcionarios))
                 .sectionsOrder(parseSectionsOrder(siteConfig.getHomeSectionsOrder()))
                 .transitions(parseTransitions(siteConfig.getTransitions()))
@@ -826,23 +828,6 @@ public class PublicSitePageService {
                         .build())
                 .collect(Collectors.toList());
 
-        // Horários de funcionamento da organização
-        List<HorarioFuncionamento> horarios = horarioFuncionamentoRepository
-                .findByOrganizacaoIdWithPeriodos(org.getId());
-
-        List<BookingSectionDTO.HorarioFuncionamentoDTO> horariosFuncionamento = horarios.stream()
-                .map(h -> BookingSectionDTO.HorarioFuncionamentoDTO.builder()
-                        .diaSemana(h.getDiaSemana().name())
-                        .ativo(h.getAtivo())
-                        .periodos(h.getPeriodos().stream()
-                                .map(p -> BookingSectionDTO.PeriodoDTO.builder()
-                                        .horaInicio(p.getHoraInicio())
-                                        .horaFim(p.getHoraFim())
-                                        .build())
-                                .collect(Collectors.toList()))
-                        .build())
-                .collect(Collectors.toList());
-
         return BookingSectionDTO.builder()
                 .title(config.getBookingSectionTitle())
                 .subtitle(config.getBookingSectionSubtitle())
@@ -854,7 +839,7 @@ public class PublicSitePageService {
                 .profissionaisDisponiveis(funcionarios.stream().map(this::convertFuncionario).collect(Collectors.toList()))
                 .config(bookingConfig)
                 .diasBloqueados(diasBloqueados)
-                .horariosFuncionamento(horariosFuncionamento)
+                .horariosFuncionamento(buildHorariosFuncionamento(org.getId()))
                 .build();
     }
 
@@ -901,7 +886,7 @@ public class PublicSitePageService {
                 .showHours(config.getFooterShowHours())
                 .showSocial(config.getFooterShowSocial())
                 .showNewsletter(config.getFooterShowNewsletter())
-                .horariosFuncionamento(buildHorariosFuncionamento(funcionarios))
+                .horariosFuncionamento(buildHorariosFuncionamento(org.getId()))
                 .endereco(convertEndereco(org.getEnderecoPrincipal()))
                 .layout(config.getFooterLayout())
                 .logoHeight(config.getFooterLogoHeight())
@@ -1251,7 +1236,10 @@ public class PublicSitePageService {
                 .build();
     }
 
-    private List<HorarioFuncionamentoDTO> buildHorariosFuncionamento(List<Funcionario> funcionarios) {
+    private List<HorarioFuncionamentoDTO> buildHorariosFuncionamento(Long orgId) {
+        List<HorarioFuncionamento> horarios = horarioFuncionamentoRepository
+                .findByOrganizacaoIdWithPeriodos(orgId);
+
         Map<String, HorarioFuncionamentoDTO> horariosPorDia = new LinkedHashMap<>();
 
         String[] diasSemana = {"SEGUNDA", "TERCA", "QUARTA", "QUINTA", "SEXTA", "SABADO", "DOMINGO"};
@@ -1263,33 +1251,25 @@ public class PublicSitePageService {
                     .build());
         }
 
-        for (Funcionario func : funcionarios) {
-            if (func.getJornadasDia() == null) continue;
+        for (HorarioFuncionamento h : horarios) {
+            String dia = h.getDiaSemana().name();
+            HorarioFuncionamentoDTO dto = horariosPorDia.get(dia);
+            if (dto == null) continue;
 
-            for (JornadaDia jornada : func.getJornadasDia()) {
-                if (jornada.getAtivo() == null || !jornada.getAtivo()) continue;
-                if (jornada.getHorarios() == null || jornada.getHorarios().isEmpty()) continue;
+            boolean ativo = h.getAtivo() != null && h.getAtivo();
+            dto.setAberto(ativo);
 
-                String dia = jornada.getDiaSemana().name();
-                HorarioFuncionamentoDTO horarioAtual = horariosPorDia.get(dia);
-
-                for (HorarioTrabalho ht : jornada.getHorarios()) {
-                    String inicio = ht.getHoraInicio().toString();
-                    String fim = ht.getHoraFim().toString();
-
-                    if (!horarioAtual.getAberto()) {
-                        horarioAtual.setAberto(true);
-                        horarioAtual.setHoraAbertura(inicio);
-                        horarioAtual.setHoraFechamento(fim);
-                    } else {
-                        if (inicio.compareTo(horarioAtual.getHoraAbertura()) < 0) {
-                            horarioAtual.setHoraAbertura(inicio);
-                        }
-                        if (fim.compareTo(horarioAtual.getHoraFechamento()) > 0) {
-                            horarioAtual.setHoraFechamento(fim);
-                        }
-                    }
-                }
+            if (ativo && h.getPeriodos() != null && !h.getPeriodos().isEmpty()) {
+                String abertura = h.getPeriodos().stream()
+                        .map(p -> p.getHoraInicio().toString())
+                        .min(String::compareTo)
+                        .orElse(null);
+                String fechamento = h.getPeriodos().stream()
+                        .map(p -> p.getHoraFim().toString())
+                        .max(String::compareTo)
+                        .orElse(null);
+                dto.setHoraAbertura(abertura);
+                dto.setHoraFechamento(fechamento);
             }
         }
 

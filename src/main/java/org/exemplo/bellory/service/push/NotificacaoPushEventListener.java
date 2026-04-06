@@ -64,7 +64,7 @@ public class NotificacaoPushEventListener {
             notificacaoPushService.criarEEnviarParaRole(
                     role, event.getOrganizacaoId(),
                     titulo, descricao, "AGENDAMENTO",
-                    CategoriaNotificacao.SISTEMA, PrioridadeNotificacao.MEDIA,
+                    CategoriaNotificacao.AGENDAMENTO, PrioridadeNotificacao.MEDIA,
                     null, urlAcao, detalhe, metadataJson
             );
         }
@@ -104,7 +104,7 @@ public class NotificacaoPushEventListener {
             notificacaoPushService.criarEEnviar(
                     funcionarioId, "ROLE_FUNCIONARIO", event.getOrganizacaoId(),
                     titulo, descricao, "AGENDAMENTO",
-                    CategoriaNotificacao.SISTEMA, PrioridadeNotificacao.ALTA,
+                    CategoriaNotificacao.AGENDAMENTO, PrioridadeNotificacao.ALTA,
                     null, urlAcao, detalhe, metadataJson
             );
         }
@@ -113,7 +113,7 @@ public class NotificacaoPushEventListener {
         notificacaoPushService.criarEEnviarParaRole(
                 "ROLE_ADMIN", event.getOrganizacaoId(),
                 titulo, descricao, "AGENDAMENTO",
-                CategoriaNotificacao.SISTEMA, PrioridadeNotificacao.ALTA,
+                CategoriaNotificacao.AGENDAMENTO, PrioridadeNotificacao.ALTA,
                 null, urlAcao, detalhe, metadataJson
         );
     }
@@ -151,7 +151,7 @@ public class NotificacaoPushEventListener {
             notificacaoPushService.criarEEnviar(
                     funcionarioId, "ROLE_FUNCIONARIO", event.getOrganizacaoId(),
                     titulo, descricao, "AGENDAMENTO",
-                    CategoriaNotificacao.SISTEMA, PrioridadeNotificacao.MEDIA,
+                    CategoriaNotificacao.AGENDAMENTO, PrioridadeNotificacao.MEDIA,
                     null, urlAcao, detalhe, metadataJson
             );
         }
@@ -185,7 +185,7 @@ public class NotificacaoPushEventListener {
             notificacaoPushService.criarEEnviarParaRole(
                     role, event.getOrganizacaoId(),
                     titulo, descricao, "FINANCEIRO",
-                    CategoriaNotificacao.SISTEMA, PrioridadeNotificacao.MEDIA,
+                    CategoriaNotificacao.PAGAMENTO, PrioridadeNotificacao.MEDIA,
                     null, "/financeiro", detalhe, metadataJson
             );
         }
@@ -226,7 +226,7 @@ public class NotificacaoPushEventListener {
         notificacaoPushService.criarEEnviarParaRole(
                 "ROLE_ADMIN", event.getOrganizacaoId(),
                 titulo, descricao, "CLIENTE",
-                CategoriaNotificacao.SISTEMA, PrioridadeNotificacao.BAIXA,
+                CategoriaNotificacao.CLIENTE, PrioridadeNotificacao.BAIXA,
                 null, "/clientes/" + event.getClienteId(), detalhe, metadataJson
         );
     }
