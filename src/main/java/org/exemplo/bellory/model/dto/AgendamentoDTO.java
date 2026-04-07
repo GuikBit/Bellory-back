@@ -78,7 +78,7 @@ public class AgendamentoDTO {
                         funcionario.getId(),
                         funcionario.getNomeCompleto(),
                         funcionario.getEmail(),
-                        funcionario.getCargo().getNome(),
+                        funcionario.getCargo() != null ? funcionario.getCargo().getNome() : null,
                         funcionario.getFotoPerfil()
                 ))
                 .collect(Collectors.toList());
