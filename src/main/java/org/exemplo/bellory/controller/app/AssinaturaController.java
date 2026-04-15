@@ -35,7 +35,7 @@ public class AssinaturaController {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                         .body(ResponseAPI.<AssinaturaStatusDTO>builder()
                                 .success(false)
-                                .message("Organizacao nao identificada no token")
+                                .message("Organização não identificada no token")
                                 .errorCode(401)
                                 .build());
             }
@@ -49,6 +49,26 @@ public class AssinaturaController {
             log.error("Erro ao buscar status da assinatura: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ResponseAPI.<AssinaturaStatusDTO>builder()
+                            .success(false)
+                            .message("Erro interno: " + e.getMessage())
+                            .errorCode(500)
+                            .build());
+        }
+    }
+
+    @GetMapping("/forma-pagamento")
+    @Operation(summary = "Retorna a forma de pagamento atual da assinatura")
+    public ResponseEntity<ResponseAPI<FormaPagamentoResponseDTO>> getFormaPagamento() {
+        try {
+FormaPagamentoResponseDTO result = assinaturaService.getFormaPagamento();
+            return ResponseEntity.ok(ResponseAPI.<FormaPagamentoResponseDTO>builder()
+                    .success(true)
+                    .dados(result)
+                    .build());
+        } catch (Exception e) {
+            log.error("Erro ao buscar forma de pagamento: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseAPI.<FormaPagamentoResponseDTO>builder()
                             .success(false)
                             .message("Erro interno: " + e.getMessage())
                             .errorCode(500)
@@ -135,14 +155,14 @@ public class AssinaturaController {
     }
 
     @PostMapping("/trocar-plano")
-    @Operation(summary = "Upgrade ou downgrade de plano com calculo pro-rata")
+    @Operation(summary = "Agendar troca de plano para o proximo ciclo de cobranca")
     public ResponseEntity<ResponseAPI<AssinaturaResponseDTO>> trocarPlano(
             @RequestBody @Valid EscolherPlanoDTO dto) {
         try {
             AssinaturaResponseDTO result = assinaturaService.trocarPlano(dto);
             return ResponseEntity.ok(ResponseAPI.<AssinaturaResponseDTO>builder()
                     .success(true)
-                    .message("Plano alterado com sucesso")
+                    .message("Troca de plano agendada para o proximo ciclo de cobranca")
                     .dados(result)
                     .build());
         } catch (IllegalArgumentException | IllegalStateException e) {
@@ -156,6 +176,62 @@ public class AssinaturaController {
             log.error("Erro ao trocar plano: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ResponseAPI.<AssinaturaResponseDTO>builder()
+                            .success(false)
+                            .message("Erro interno: " + e.getMessage())
+                            .errorCode(500)
+                            .build());
+        }
+    }
+
+    @PostMapping("/cancelar-troca-agendada")
+    @Operation(summary = "Cancelar troca de plano agendada")
+    public ResponseEntity<ResponseAPI<AssinaturaResponseDTO>> cancelarTrocaAgendada() {
+        try {
+            AssinaturaResponseDTO result = assinaturaService.cancelarTrocaAgendada();
+            return ResponseEntity.ok(ResponseAPI.<AssinaturaResponseDTO>builder()
+                    .success(true)
+                    .message("Troca de plano agendada cancelada")
+                    .dados(result)
+                    .build());
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ResponseAPI.<AssinaturaResponseDTO>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(400)
+                            .build());
+        } catch (Exception e) {
+            log.error("Erro ao cancelar troca agendada: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseAPI.<AssinaturaResponseDTO>builder()
+                            .success(false)
+                            .message("Erro interno: " + e.getMessage())
+                            .errorCode(500)
+                            .build());
+        }
+    }
+
+    @PostMapping("/preview-troca-plano")
+    @Operation(summary = "Preview da troca de plano agendada")
+    public ResponseEntity<ResponseAPI<ProRataPreviewDTO>> previewTrocaPlano(
+            @RequestBody @Valid EscolherPlanoDTO dto) {
+        try {
+            ProRataPreviewDTO preview = assinaturaService.previewTrocaPlano(dto);
+            return ResponseEntity.ok(ResponseAPI.<ProRataPreviewDTO>builder()
+                    .success(true)
+                    .dados(preview)
+                    .build());
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ResponseAPI.<ProRataPreviewDTO>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(400)
+                            .build());
+        } catch (Exception e) {
+            log.error("Erro ao calcular preview de troca de plano: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseAPI.<ProRataPreviewDTO>builder()
                             .success(false)
                             .message("Erro interno: " + e.getMessage())
                             .errorCode(500)

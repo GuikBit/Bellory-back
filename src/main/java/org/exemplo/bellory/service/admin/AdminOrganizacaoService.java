@@ -59,7 +59,7 @@ public class AdminOrganizacaoService {
 
     public AdminOrganizacaoDetalheDTO detalharOrganizacao(Long organizacaoId) {
         Organizacao org = adminQueryRepository.findOrganizacaoComDetalhesById(organizacaoId)
-                .orElseThrow(() -> new RuntimeException("Organizacao nao encontrada: " + organizacaoId));
+                .orElseThrow(() -> new RuntimeException("Organização não encontrada: " + organizacaoId));
 
         PlanoBellory plano = org.getPlano();
         PlanoLimitesBellory limitesPlano = plano != null ? plano.getLimites() : null;

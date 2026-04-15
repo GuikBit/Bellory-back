@@ -20,7 +20,7 @@ public class TestController {
     @GetMapping
     @Operation(summary = "Endpoint público de teste")
     public String getPublicData() {
-        return "Olá! Esta é uma mensagem pública que não precisa de login para ser acedida.";
+        return "Olá! Esta é uma mensagem pública que não precisa de login para ser acessada.";
     }
 
 }

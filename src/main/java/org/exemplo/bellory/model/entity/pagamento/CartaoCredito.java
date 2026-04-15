@@ -6,7 +6,7 @@ import lombok.*;
 import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 import org.exemplo.bellory.model.entity.users.Cliente;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "cartao_credito", schema = "app", indexes = {
@@ -36,14 +36,9 @@ public class CartaoCredito {
     @Column(nullable = false, length = 100)
     private String nomePortador;
 
-    @Column(nullable = false, length = 19) // Formato: XXXX-XXXX-XXXX-XXXX
-    private String numeroCartao;
-
-    @Column(nullable = false, length = 7) // Formato: MM/YYYY
-    private String dataVencimento;
-
-    @Column(nullable = false, length = 4)
-    private String cvv;
+    // Apenas os ultimos 4 digitos (ex: "1234")
+    @Column(name = "ultimos_quatro_digitos", length = 4)
+    private String ultimosQuatroDigitos;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
@@ -56,7 +51,29 @@ public class CartaoCredito {
     private boolean ativo = true;
 
     @Column(length = 50)
-    private String apelido; // Nome amigável para o cartão
+    private String apelido;
+
+    // Token do cartao no Asaas (referencia segura para cobrar sem dados sensíveis)
+    @Column(name = "assas_credit_card_token", length = 255)
+    private String assasCreditCardToken;
+
+    @Column(name = "dt_criacao", columnDefinition = "TIMESTAMP DEFAULT now()")
+    private LocalDateTime dtCriacao;
+
+    @Column(name = "dt_atualizacao")
+    private LocalDateTime dtAtualizacao;
+
+    @PrePersist
+    public void prePersist() {
+        if (this.dtCriacao == null) {
+            this.dtCriacao = LocalDateTime.now();
+        }
+    }
+
+    @PreUpdate
+    public void preUpdate() {
+        this.dtAtualizacao = LocalDateTime.now();
+    }
 
     public enum BandeiraCartao {
         VISA,

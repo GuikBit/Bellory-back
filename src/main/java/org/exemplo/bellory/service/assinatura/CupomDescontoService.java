@@ -37,7 +37,7 @@ public class CupomDescontoService {
         if (cupom == null) {
             return CupomValidacaoResult.builder()
                     .valido(false)
-                    .mensagem("Cupom nao encontrado ou inativo")
+                    .mensagem("Cupom não encontrado ou inativo")
                     .build();
         }
 
@@ -45,7 +45,7 @@ public class CupomDescontoService {
         if (!cupom.isVigente()) {
             return CupomValidacaoResult.builder()
                     .valido(false)
-                    .mensagem("Cupom fora do periodo de validade")
+                    .mensagem("Cupom fora do período de validade")
                     .build();
         }
 
@@ -53,7 +53,7 @@ public class CupomDescontoService {
         if (cupom.atingiuLimiteGlobal()) {
             return CupomValidacaoResult.builder()
                     .valido(false)
-                    .mensagem("Cupom atingiu o limite maximo de utilizacoes")
+                    .mensagem("Cupom atingiu o limite máximo de utilizações")
                     .build();
         }
 
@@ -63,7 +63,7 @@ public class CupomDescontoService {
             if (utilizacoesOrg >= cupom.getMaxUtilizacoesPorOrg()) {
                 return CupomValidacaoResult.builder()
                         .valido(false)
-                        .mensagem("Cupom ja utilizado o maximo de vezes para esta organizacao")
+                        .mensagem("Cupom já utilizado o máximo de vezes para esta organização")
                         .build();
             }
         }
@@ -73,7 +73,7 @@ public class CupomDescontoService {
         if (planos != null && !planos.isEmpty() && !planos.contains(planoCodigo)) {
             return CupomValidacaoResult.builder()
                     .valido(false)
-                    .mensagem("Cupom nao e valido para o plano selecionado")
+                    .mensagem("Cupom não é válido para o plano selecionado")
                     .build();
         }
 
@@ -84,7 +84,7 @@ public class CupomDescontoService {
             if (publicoAlvo == null || !segmentos.contains(publicoAlvo)) {
                 return CupomValidacaoResult.builder()
                         .valido(false)
-                        .mensagem("Cupom nao e valido para o segmento da sua organizacao")
+                        .mensagem("Cupom não é válido para o segmento da sua organização")
                         .build();
             }
         }
@@ -94,7 +94,7 @@ public class CupomDescontoService {
         if (orgsPermitidas != null && !orgsPermitidas.isEmpty() && !orgsPermitidas.contains(organizacao.getId())) {
             return CupomValidacaoResult.builder()
                     .valido(false)
-                    .mensagem("Cupom nao e valido para esta organizacao")
+                    .mensagem("Cupom não é válido para esta organização")
                     .build();
         }
 
@@ -103,7 +103,7 @@ public class CupomDescontoService {
                 && !cupom.getCicloCobranca().equalsIgnoreCase(cicloCobranca)) {
             return CupomValidacaoResult.builder()
                     .valido(false)
-                    .mensagem("Cupom nao e valido para o ciclo de cobranca selecionado")
+                    .mensagem("Cupom não é válido para o ciclo de cobrança selecionado")
                     .build();
         }
 
@@ -132,21 +132,21 @@ public class CupomDescontoService {
         if (cupom == null) {
             return CupomValidacaoResult.builder()
                     .valido(false)
-                    .mensagem("Cupom nao encontrado ou inativo")
+                    .mensagem("Cupom não encontrado ou inativo")
                     .build();
         }
 
         if (!cupom.isVigente()) {
             return CupomValidacaoResult.builder()
                     .valido(false)
-                    .mensagem("Cupom fora do periodo de validade")
+                    .mensagem("Cupom fora do período de validade")
                     .build();
         }
 
         if (cupom.atingiuLimiteGlobal()) {
             return CupomValidacaoResult.builder()
                     .valido(false)
-                    .mensagem("Cupom atingiu o limite maximo de utilizacoes")
+                    .mensagem("Cupom atingiu o limite máximo de utilizações")
                     .build();
         }
 
@@ -154,7 +154,7 @@ public class CupomDescontoService {
         if (planos != null && !planos.isEmpty() && !planos.contains(planoCodigo)) {
             return CupomValidacaoResult.builder()
                     .valido(false)
-                    .mensagem("Cupom nao e valido para o plano selecionado")
+                    .mensagem("Cupom não é válido para o plano selecionado")
                     .build();
         }
 
@@ -162,7 +162,7 @@ public class CupomDescontoService {
                 && !cupom.getCicloCobranca().equalsIgnoreCase(cicloCobranca)) {
             return CupomValidacaoResult.builder()
                     .valido(false)
-                    .mensagem("Cupom nao e valido para o ciclo de cobranca selecionado")
+                    .mensagem("Cupom não é válido para o ciclo de cobrança selecionado")
                     .build();
         }
 

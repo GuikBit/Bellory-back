@@ -26,14 +26,14 @@ import java.util.List;
 @RequestMapping("/api/v1/public/planos")
 @RequiredArgsConstructor
 @Slf4j
-@Tag(name = "Publico - Planos", description = "Listagem publica de planos e validacao de cupons para o site externo")
+@Tag(name = "Público - Planos", description = "Listagem pública de planos e validação de cupons para o site externo")
 public class PublicPlanosController {
 
     private final AdminPlanoBelloryService service;
     private final CupomDescontoService cupomDescontoService;
     private final PlanoBelloryRepository planoBelloryRepository;
 
-    @Operation(summary = "Listar planos ativos", description = "Retorna os planos ativos para exibicao no site publico. Nao requer autenticacao.")
+    @Operation(summary = "Listar planos ativos", description = "Retorna os planos ativos para exibição no site público. Não requer autenticação.")
     @GetMapping
     public ResponseEntity<ResponseAPI<List<PlanoBelloryPublicDTO>>> listarPlanosPublicos() {
         try {
@@ -52,13 +52,13 @@ public class PublicPlanosController {
         }
     }
 
-    @Operation(summary = "Validar cupom de desconto (publico)", description = "Valida um cupom de desconto durante o cadastro da organizacao. Nao requer autenticacao.")
+    @Operation(summary = "Validar cupom de desconto (publico)", description = "Valida um cupom de desconto durante o cadastro da organização. Não requer autenticação.")
     @PostMapping("/validar-cupom")
     public ResponseEntity<ResponseAPI<CupomValidacaoResponseDTO>> validarCupomPublico(
             @RequestBody @Valid ValidarCupomDTO dto) {
         try {
             PlanoBellory plano = planoBelloryRepository.findByCodigo(dto.getPlanoCodigo())
-                    .orElseThrow(() -> new IllegalArgumentException("Plano nao encontrado: " + dto.getPlanoCodigo()));
+                    .orElseThrow(() -> new IllegalArgumentException("Plano não encontrado: " + dto.getPlanoCodigo()));
 
             CicloCobranca ciclo = CicloCobranca.valueOf(dto.getCicloCobranca());
             BigDecimal valorOriginal = ciclo == CicloCobranca.ANUAL ? plano.getPrecoAnual() : plano.getPrecoMensal();
@@ -89,7 +89,7 @@ public class PublicPlanosController {
                             .errorCode(400)
                             .build());
         } catch (Exception e) {
-            log.error("Erro ao validar cupom publico: ", e);
+            log.error("Erro ao validar cupom público: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ResponseAPI.<CupomValidacaoResponseDTO>builder()
                             .success(false)

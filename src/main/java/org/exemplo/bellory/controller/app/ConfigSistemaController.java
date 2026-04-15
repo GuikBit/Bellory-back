@@ -26,10 +26,10 @@ public class ConfigSistemaController {
         try {
             ConfigSistemaDTO config = configSistemaService.buscarConfigPorOrganizacao();
 
-            return ResponseEntity.status(HttpStatus.CREATED)
+            return ResponseEntity.status(HttpStatus.OK)
                     .body(ResponseAPI.<ConfigSistemaDTO>builder()
                             .success(true)
-                            .message("Pagamento processado com sucesso.")
+                            .message("Configurações recuperadas com sucesso.")
                             .dados(config)
                             .build());
 
@@ -49,10 +49,10 @@ public class ConfigSistemaController {
         try {
             ConfigSistemaDTO saved = configSistemaService.salvarConfigCompleta(configSistemaDTO);
 
-            return ResponseEntity.status(HttpStatus.CREATED)
+            return ResponseEntity.status(HttpStatus.OK)
                     .body(ResponseAPI.<ConfigSistemaDTO>builder()
                             .success(true)
-                            .message("Pagamento processado com sucesso.")
+                            .message("Configurações salvas com sucesso.")
                             .dados(saved)
                             .build());
         } catch (IllegalArgumentException e) {
@@ -71,10 +71,10 @@ public class ConfigSistemaController {
         try {
             ConfigAgendamentoDTO updated = configSistemaService.atualizarConfigAgendamento(configAgendamento);
 
-            return ResponseEntity.status(HttpStatus.CREATED)
+            return ResponseEntity.status(HttpStatus.OK)
                     .body(ResponseAPI.<ConfigAgendamentoDTO>builder()
                             .success(true)
-                            .message("Pagamento processado com sucesso.")
+                            .message("Configurações de agendamento atualizadas com sucesso.")
                             .dados(updated)
                             .build());
         } catch (IllegalArgumentException e) {
@@ -92,10 +92,10 @@ public class ConfigSistemaController {
         try {
             ConfigServicoDTO updated = configSistemaService.atualizarConfigServico(configServico);
 
-            return ResponseEntity.status(HttpStatus.CREATED)
+            return ResponseEntity.status(HttpStatus.OK)
                     .body(ResponseAPI.<ConfigServicoDTO>builder()
                             .success(true)
-                            .message("Pagamento processado com sucesso.")
+                            .message("Configurações de serviço atualizadas com sucesso.")
                             .dados(updated)
                             .build());
         } catch (IllegalArgumentException e) {
@@ -113,10 +113,10 @@ public class ConfigSistemaController {
         try {
             ConfigClienteDTO updated = configSistemaService.atualizarConfigCliente(configcliente);
 
-            return ResponseEntity.status(HttpStatus.CREATED)
+            return ResponseEntity.status(HttpStatus.OK)
                     .body(ResponseAPI.<ConfigClienteDTO>builder()
                             .success(true)
-                            .message("Pagamento processado com sucesso.")
+                            .message("Configurações de cliente atualizadas com sucesso.")
                             .dados(updated)
                             .build());
         } catch (IllegalArgumentException e) {
@@ -134,10 +134,10 @@ public class ConfigSistemaController {
         try {
             ConfigColaboradorDTO updated = configSistemaService.atualizarConfigColaborador(configColaborador);
 
-            return ResponseEntity.status(HttpStatus.CREATED)
+            return ResponseEntity.status(HttpStatus.OK)
                     .body(ResponseAPI.<ConfigColaboradorDTO>builder()
                             .success(true)
-                            .message("Pagamento processado com sucesso.")
+                            .message("Configurações de colaborador atualizadas com sucesso.")
                             .dados(updated)
                             .build());
         } catch (IllegalArgumentException e) {
@@ -155,10 +155,10 @@ public class ConfigSistemaController {
         try {
             ConfigNotificacaoDTO updated = configSistemaService.atualizarConfigNotificacao(configNotificacao);
 
-            return ResponseEntity.status(HttpStatus.CREATED)
+            return ResponseEntity.status(HttpStatus.OK)
                     .body(ResponseAPI.<ConfigNotificacaoDTO>builder()
                             .success(true)
-                            .message("Pagamento processado com sucesso.")
+                            .message("Configurações de notificação atualizadas com sucesso.")
                             .dados(updated)
                             .build());
         } catch (IllegalArgumentException e) {

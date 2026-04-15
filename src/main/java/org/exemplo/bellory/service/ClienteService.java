@@ -165,6 +165,8 @@ public class ClienteService {
                 this,
                 clienteSalvo.getId(),
                 clienteSalvo.getNomeCompleto(),
+                clienteSalvo.getTelefone(),
+                clienteSalvo.getEmail(),
                 organizacaoId
         ));
 

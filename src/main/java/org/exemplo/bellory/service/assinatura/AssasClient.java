@@ -48,7 +48,7 @@ public class AssasClient {
 
     private void verificarConfiguracao() {
         if (!isConfigurado()) {
-            throw new AssasApiException("Asaas API key nao configurada");
+            throw new AssasApiException("Asaas API key não configurada");
         }
     }
 
@@ -256,6 +256,62 @@ public class AssasClient {
         } catch (HttpClientErrorException e) {
             log.warn("Erro ao buscar PIX QR Code no Asaas [{}]: {}", e.getStatusCode(), e.getResponseBodyAsString());
             return null;
+        }
+    }
+
+    // ==================== ONE-TIME PAYMENTS ====================
+
+    /**
+     * Creates a one-time payment for pro-rata charges (convenience overload).
+     */
+    public AssasPaymentResponse criarCobrancaAvulsa(String customerId, java.math.BigDecimal valor, String billingType, String description) {
+        AssasPaymentRequest request = AssasPaymentRequest.builder()
+                .customer(customerId)
+                .billingType(billingType)
+                .value(valor)
+                .dueDate(java.time.LocalDate.now().plusDays(1).toString())
+                .description(description)
+                .build();
+        return criarCobrancaAvulsa(request);
+    }
+
+    /**
+     * Creates a one-time payment (not subscription) in Asaas for pro-rata charges.
+     */
+    @Retryable(retryFor = {HttpServerErrorException.class, RestClientException.class},
+               maxAttempts = 3, backoff = @Backoff(delay = 1000, multiplier = 2))
+    public AssasPaymentResponse criarCobrancaAvulsa(AssasPaymentRequest request) {
+        verificarConfiguracao();
+        String url = assasApiUrl + "/v3/payments";
+        HttpEntity<AssasPaymentRequest> entity = new HttpEntity<>(request, createHeaders());
+        try {
+            ResponseEntity<AssasPaymentResponse> response = restTemplate.exchange(
+                    url, HttpMethod.POST, entity, AssasPaymentResponse.class);
+            log.info("Cobranca avulsa criada no Asaas: {}", response.getBody() != null ? response.getBody().getId() : "null");
+            return response.getBody();
+        } catch (HttpClientErrorException e) {
+            log.error("Erro ao criar cobranca avulsa no Asaas [{}]: {}", e.getStatusCode(), e.getResponseBodyAsString());
+            throw new AssasApiException("Erro ao criar cobranca avulsa: " + e.getMessage(), e.getStatusCode().value(), e.getResponseBodyAsString(), e);
+        }
+    }
+
+    /**
+     * Fetches payments by status from Asaas (e.g., OVERDUE).
+     * Used for batch inadimplence checking instead of N+1 queries.
+     */
+    @Retryable(retryFor = {HttpServerErrorException.class, RestClientException.class},
+               maxAttempts = 3, backoff = @Backoff(delay = 1000, multiplier = 2))
+    public AssasPaymentListResponse buscarPagamentosPorStatus(String status) {
+        verificarConfiguracao();
+        String url = assasApiUrl + "/v3/payments?status=" + status + "&limit=100";
+        HttpEntity<Void> entity = new HttpEntity<>(createHeaders());
+        try {
+            ResponseEntity<AssasPaymentListResponse> response = restTemplate.exchange(
+                    url, HttpMethod.GET, entity, AssasPaymentListResponse.class);
+            return response.getBody();
+        } catch (HttpClientErrorException e) {
+            log.error("Erro ao buscar pagamentos por status no Asaas [{}]: {}", e.getStatusCode(), e.getResponseBodyAsString());
+            throw new AssasApiException("Erro ao buscar pagamentos: " + e.getMessage(), e.getStatusCode().value(), e.getResponseBodyAsString(), e);
         }
     }
 

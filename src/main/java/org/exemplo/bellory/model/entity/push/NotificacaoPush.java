@@ -62,6 +62,9 @@ public class NotificacaoPush {
     @Column(name = "url_acao", length = 500)
     private String urlAcao;
 
+    @Column(name = "metadata", columnDefinition = "TEXT")
+    private String metadata;
+
     @Column(name = "is_sw")
     private Boolean isSw = false;
 

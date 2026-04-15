@@ -23,6 +23,23 @@ public class ProductsSectionDTO {
     private String title;
     private String subtitle;
     private Boolean showPrices;
+    private String layout;
+    private String cardStyle;
+    private Integer columns;
+    private Integer cardImageHeight;
+    private Boolean showRating;
+    private Boolean showCategory;
+    private Boolean showDescription;
+    private Boolean showDiscount;
+    private Boolean showStock;
+    private Boolean showAddToCart;
+    private String hoverEffect;
+    private String badgeStyle;
+    private Boolean autoPlay;
+    private Integer autoPlaySpeed;
+    private String backgroundColor;
+    private String backgroundPattern;
+    private Double patternOpacity;
 
     private List<ProdutoPublicDTO> produtos;
     private List<CategoriaPublicDTO> categorias;

@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -36,12 +35,6 @@ public class DadosFaturamentoOrganizacao {
 
     @Column(name = "conta_verificador", length = 2)
     private String contaVerificador;
-
-    @Column(name = "numero_cartao", length = 19)
-    private String numeroCartao;
-
-    @Column(name = "dt_validade_cartao")
-    private LocalDate dtValidadeCartao;
 
     @Column(nullable = false)
     private boolean ativo = true;

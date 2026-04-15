@@ -29,11 +29,16 @@ public class AssinaturaResponseDTO {
     private LocalDateTime dtInicio;
     private LocalDateTime dtProximoVencimento;
     private LocalDateTime dtCancelamento;
-    private BigDecimal valorMensal;
-    private BigDecimal valorAnual;
+    private BigDecimal creditoProRata;
+    private String planoAnteriorCodigo;
     private String assasCustomerId;
     private String assasSubscriptionId;
     private String cupomCodigo;
     private BigDecimal valorDesconto;
     private LocalDateTime dtCriacao;
+
+    // Troca de plano agendada
+    private String planoAgendadoCodigo;
+    private String planoAgendadoNome;
+    private String cicloAgendado;
 }

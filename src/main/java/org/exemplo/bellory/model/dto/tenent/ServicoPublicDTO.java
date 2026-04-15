@@ -28,4 +28,5 @@ public class ServicoPublicDTO {
     private List<String> imagens;
     private Boolean disponivel;
     private List<Long> funcionarioIds;   // Funcionários que atendem
+    private List<String> produtos;       // Nomes dos produtos utilizados
 }

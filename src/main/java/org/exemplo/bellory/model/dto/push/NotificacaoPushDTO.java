@@ -1,11 +1,14 @@
 package org.exemplo.bellory.model.dto.push;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.*;
 import org.exemplo.bellory.model.entity.push.CategoriaNotificacao;
 import org.exemplo.bellory.model.entity.push.NotificacaoPush;
 import org.exemplo.bellory.model.entity.push.PrioridadeNotificacao;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 @Getter
 @Setter
@@ -14,6 +17,8 @@ import java.time.LocalDateTime;
 @Builder
 public class NotificacaoPushDTO {
 
+    private static final ObjectMapper objectMapper = new ObjectMapper();
+
     private Long id;
     private String titulo;
     private String descricao;
@@ -21,9 +26,11 @@ public class NotificacaoPushDTO {
     private String detalhe;
     private PrioridadeNotificacao prioridade;
     private CategoriaNotificacao categoria;
+    private String categoriaIcone;
     private Boolean lido;
     private String icone;
     private String urlAcao;
+    private Map<String, Object> metadata;
     private LocalDateTime dtCadastro;
     private LocalDateTime dtRead;
 
@@ -35,10 +42,21 @@ public class NotificacaoPushDTO {
         this.detalhe = entity.getDetalhe();
         this.prioridade = entity.getPrioridade();
         this.categoria = entity.getCategoria();
+        this.categoriaIcone = entity.getCategoria() != null ? entity.getCategoria().getIcone() : null;
         this.lido = entity.getLido();
         this.icone = entity.getIcone();
         this.urlAcao = entity.getUrlAcao();
         this.dtCadastro = entity.getDtCadastro();
         this.dtRead = entity.getDtRead();
+        this.metadata = parseMetadata(entity.getMetadata());
+    }
+
+    private static Map<String, Object> parseMetadata(String json) {
+        if (json == null || json.isBlank()) return null;
+        try {
+            return objectMapper.readValue(json, new TypeReference<>() {});
+        } catch (Exception e) {
+            return null;
+        }
     }
 }

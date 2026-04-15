@@ -59,7 +59,7 @@ public class AdminAssinaturaService {
     @Transactional(readOnly = true)
     public AssinaturaResponseDTO detalharAssinatura(Long id) {
         Assinatura assinatura = assinaturaRepository.findByIdWithDetails(id)
-                .orElseThrow(() -> new IllegalArgumentException("Assinatura nao encontrada com ID: " + id));
+                .orElseThrow(() -> new IllegalArgumentException("Assinatura não encontrada com ID: " + id));
         return assinaturaService.toAssinaturaResponseDTO(assinatura);
     }
 
@@ -75,7 +75,7 @@ public class AdminAssinaturaService {
     @Transactional(readOnly = true)
     public AssinaturaResponseDTO buscarPorOrganizacaoId(Long organizacaoId) {
         Assinatura assinatura = assinaturaRepository.findByOrganizacaoId(organizacaoId)
-                .orElseThrow(() -> new IllegalArgumentException("Assinatura nao encontrada para a organizacao ID: " + organizacaoId));
+                .orElseThrow(() -> new IllegalArgumentException("Assinatura não encontrada para a organização ID: " + organizacaoId));
         return assinaturaService.toAssinaturaResponseDTO(assinatura);
     }
 
@@ -109,7 +109,7 @@ public class AdminAssinaturaService {
     @Transactional
     public AssinaturaResponseDTO cancelarAssinatura(Long id) {
         Assinatura assinatura = assinaturaRepository.findByIdWithDetails(id)
-                .orElseThrow(() -> new IllegalArgumentException("Assinatura nao encontrada com ID: " + id));
+                .orElseThrow(() -> new IllegalArgumentException("Assinatura não encontrada com ID: " + id));
 
         try {
             assasClient.cancelarAssinatura(assinatura.getAssasSubscriptionId());
@@ -128,7 +128,7 @@ public class AdminAssinaturaService {
     @Transactional
     public AssinaturaResponseDTO suspenderAssinatura(Long id) {
         Assinatura assinatura = assinaturaRepository.findByIdWithDetails(id)
-                .orElseThrow(() -> new IllegalArgumentException("Assinatura nao encontrada com ID: " + id));
+                .orElseThrow(() -> new IllegalArgumentException("Assinatura não encontrada com ID: " + id));
 
         assinatura.setStatus(StatusAssinatura.SUSPENSA);
         assinaturaRepository.save(assinatura);
@@ -140,7 +140,7 @@ public class AdminAssinaturaService {
     @Transactional
     public AssinaturaResponseDTO reativarAssinatura(Long id) {
         Assinatura assinatura = assinaturaRepository.findByIdWithDetails(id)
-                .orElseThrow(() -> new IllegalArgumentException("Assinatura nao encontrada com ID: " + id));
+                .orElseThrow(() -> new IllegalArgumentException("Assinatura não encontrada com ID: " + id));
 
         assinatura.setStatus(StatusAssinatura.ATIVA);
         assinatura.setDtCancelamento(null);

@@ -149,7 +149,7 @@ public class FuncionarioService {
         Funcionario funcionario = funcionarioRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Funcionário com ID " + id + " não encontrado."));
 
-        Cargo cargo = cargoRepository.findById(funcionario.getCargo().getId()).orElseThrow(()-> new IllegalArgumentException("Cargo nao encontrado."));
+        Cargo cargo = cargoRepository.findById(funcionario.getCargo().getId()).orElseThrow(()-> new IllegalArgumentException("Cargo não encontrado."));
         // Validar organização
         validarOrganizacao(funcionario.getOrganizacao().getId());
 

@@ -22,6 +22,18 @@ public class TeamSectionDTO {
     private String title;
     private String subtitle;
     private Boolean showSection;
+    private String layout;
+    private String cardStyle;
+    private String photoShape;
+    private Integer photoHeight;
+    private Boolean showBio;
+    private Boolean showServices;
+    private Boolean showSchedule;
+    private Boolean carouselAutoPlay;
+    private Integer carouselSpeed;
+    private String backgroundColor;
+    private String backgroundPattern;
+    private Double patternOpacity;
 
     private List<FuncionarioPublicDTO> membros;
 

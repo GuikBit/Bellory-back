@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -80,4 +81,13 @@ public interface AssinaturaRepository extends JpaRepository<Assinatura, Long> {
     List<Assinatura> findByAssasSubscriptionIdNotNullAndStatusIn(@Param("statuses") List<StatusAssinatura> statuses);
 
     Optional<Assinatura> findByAssasSubscriptionId(String assasSubscriptionId);
+
+    List<Assinatura> findByAssasSubscriptionIdInAndStatus(Collection<String> subscriptionIds, StatusAssinatura status);
+
+    @Query("SELECT a FROM Assinatura a " +
+           "LEFT JOIN FETCH a.organizacao " +
+           "LEFT JOIN FETCH a.planoBellory " +
+           "LEFT JOIN FETCH a.planoAgendado " +
+           "WHERE a.planoAgendado IS NOT NULL")
+    List<Assinatura> findByPlanoAgendadoNotNull();
 }

@@ -7,7 +7,9 @@ import org.exemplo.bellory.model.dto.site.*;
 import org.exemplo.bellory.model.dto.tenent.OrganizacaoPublicDTO;
 import org.exemplo.bellory.model.dto.tenent.PublicSiteResponseDTO;
 import org.exemplo.bellory.model.entity.error.ResponseAPI;
+import org.exemplo.bellory.model.dto.landingpage.LandingPageDTO;
 import org.exemplo.bellory.service.PublicSiteService;
+import org.exemplo.bellory.service.landingpage.PublicLandingPageService;
 import org.exemplo.bellory.service.site.PublicSitePageService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -68,11 +70,14 @@ public class PublicSiteController {
 
     private final PublicSiteService publicSiteService;
     private final PublicSitePageService publicSitePageService;
+    private final PublicLandingPageService publicLandingPageService;
 
     public PublicSiteController(PublicSiteService publicSiteService,
-                                PublicSitePageService publicSitePageService) {
+                                PublicSitePageService publicSitePageService,
+                                PublicLandingPageService publicLandingPageService) {
         this.publicSiteService = publicSiteService;
         this.publicSitePageService = publicSitePageService;
+        this.publicLandingPageService = publicLandingPageService;
     }
 
     // ==================== HOME PAGE ====================
@@ -570,6 +575,62 @@ public class PublicSiteController {
 
         } catch (Exception e) {
             return serverError("Erro interno do servidor: " + e.getMessage());
+        }
+    }
+
+    // ==================== LANDING PAGES ====================
+
+    /**
+     * Lista landing pages publicadas da organização.
+     *
+     * GET /api/v1/public/site/{slug}/pages
+     */
+    @Operation(summary = "Listar landing pages publicadas")
+    @GetMapping("/{slug}/pages")
+    public ResponseEntity<ResponseAPI<java.util.List<LandingPageDTO>>> getPublishedPages(
+            @PathVariable String slug) {
+        try {
+            String normalizedSlug = normalizeSlug(slug);
+            if (normalizedSlug == null) {
+                return badRequest("Slug é obrigatório");
+            }
+
+            java.util.List<LandingPageDTO> pages = publicLandingPageService.listPublishedPages(normalizedSlug);
+            return success("Páginas recuperadas com sucesso", pages);
+
+        } catch (Exception e) {
+            return serverError("Erro ao recuperar páginas: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Retorna uma landing page publicada com todas as seções.
+     *
+     * GET /api/v1/public/site/{slug}/pages/{pageSlug}
+     */
+    @Operation(summary = "Obter landing page publicada")
+    @GetMapping("/{slug}/pages/{pageSlug}")
+    public ResponseEntity<ResponseAPI<LandingPageDTO>> getPublishedPage(
+            @PathVariable String slug,
+            @PathVariable String pageSlug) {
+        try {
+            String normalizedSlug = normalizeSlug(slug);
+            String normalizedPageSlug = normalizeSlug(pageSlug);
+            if (normalizedSlug == null || normalizedPageSlug == null) {
+                return badRequest("Slugs são obrigatórios");
+            }
+
+            java.util.Optional<LandingPageDTO> page = publicLandingPageService
+                    .getPublishedPage(normalizedSlug, normalizedPageSlug);
+
+            if (page.isEmpty()) {
+                return notFound("Página não encontrada");
+            }
+
+            return success("Página recuperada com sucesso", page.get());
+
+        } catch (Exception e) {
+            return serverError("Erro ao recuperar página: " + e.getMessage());
         }
     }
 

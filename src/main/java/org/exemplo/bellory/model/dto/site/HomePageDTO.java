@@ -5,12 +5,15 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.exemplo.bellory.model.dto.site.request.TransitionConfigRequest;
 import org.exemplo.bellory.model.dto.tenent.FeaturesDTO;
 import org.exemplo.bellory.model.dto.tenent.OrganizacaoPublicDTO;
 import org.exemplo.bellory.model.dto.tenent.SeoMetadataDTO;
+import org.exemplo.bellory.model.dto.tenent.HorarioFuncionamentoDTO;
 import org.exemplo.bellory.model.dto.tenent.SiteConfigDTO;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * DTO que agrupa todos os dados necessários para renderizar a home page do site público.
@@ -70,6 +73,11 @@ public class HomePageDTO {
      */
     private FooterConfigDTO footer;
 
+    /**
+     * Horários de funcionamento da organização (formato resumido)
+     */
+    private List<HorarioFuncionamentoDTO> horariosFuncionamento;
+
     // ==================== METADADOS ====================
 
     /**
@@ -86,6 +94,11 @@ public class HomePageDTO {
      * Features habilitadas
      */
     private FeaturesDTO features;
+
+    /**
+     * Configurações de transições entre seções
+     */
+    private Map<String, TransitionConfigRequest> transitions;
 
     /**
      * Scripts e estilos customizados

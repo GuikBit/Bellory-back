@@ -41,4 +41,9 @@ public class AssinaturaStatusDTO {
     // Ciclo
     private String cicloCobranca;
     private LocalDate dtProximoVencimento;
+
+    // Troca de plano agendada
+    private String planoAgendadoCodigo;
+    private String planoAgendadoNome;
+    private String cicloAgendado;
 }

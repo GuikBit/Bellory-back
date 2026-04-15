@@ -15,8 +15,8 @@ public class AssinaturaSchedulerService {
     }
 
     /**
-     * Diario as 2:00 AM - Expira trials (migra para gratuito),
-     * bloqueia cancelamentos expirados.
+     * Diario as 2:00 AM - Bloqueia cancelamentos expirados.
+     * REMOVIDO: expirarTrials (trial expirado agora bloqueia o acesso ate o admin escolher um plano)
      * REMOVIDO: marcarCobrancasVencidas (Asaas gerencia status de pagamento)
      * REMOVIDO: gerarCobrancasMensais (Asaas gera automaticamente)
      * REMOVIDO: gerarCobrancasAnuais (Asaas gera automaticamente)
@@ -25,7 +25,6 @@ public class AssinaturaSchedulerService {
     public void jobDiario() {
         log.info("Iniciando job diario de assinaturas...");
         try {
-            assinaturaService.expirarTrials();
             assinaturaService.bloquearCancelamentoExpirado();
             log.info("Job diario de assinaturas finalizado com sucesso.");
         } catch (Exception e) {
@@ -44,6 +43,21 @@ public class AssinaturaSchedulerService {
             log.info("Job de verificacao de inadimplentes finalizado com sucesso.");
         } catch (Exception e) {
             log.error("Erro no job de verificacao de inadimplentes: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * A cada 2 horas - Efetiva trocas de plano agendadas cujo ciclo ja virou
+     * (backup caso o webhook nao dispare)
+     */
+    @Scheduled(cron = "0 30 */2 * * *")
+    public void jobEfetivarTrocasAgendadas() {
+        log.info("Iniciando job de efetivacao de trocas de plano agendadas...");
+        try {
+            assinaturaService.efetivarTrocasAgendadasVencidas();
+            log.info("Job de efetivacao de trocas agendadas finalizado com sucesso.");
+        } catch (Exception e) {
+            log.error("Erro no job de efetivacao de trocas agendadas: {}", e.getMessage(), e);
         }
     }
 

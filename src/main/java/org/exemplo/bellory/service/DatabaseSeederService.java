@@ -3413,8 +3413,8 @@ public class DatabaseSeederService {
         a.setCicloCobranca(CicloCobranca.MENSAL);
         a.setDtInicioTrial(agora.minusDays(4));
         a.setDtFimTrial(agora.plusDays(10));
-        a.setValorMensal(plano.getPrecoMensal());
-        a.setValorAnual(plano.getPrecoAnual());
+//        a.setValorMensal(plano.getPrecoMensal());
+//        a.setValorAnual(plano.getPrecoAnual());
         // Sem cobranças - trial puro
     }
 
@@ -3427,8 +3427,8 @@ public class DatabaseSeederService {
         a.setDtFimTrial(agora.minusDays(46));
         a.setDtInicio(agora.minusDays(46));
         a.setDtProximoVencimento(agora.plusDays(14));
-        a.setValorMensal(plano.getPrecoMensal());
-        a.setValorAnual(plano.getPrecoAnual());
+//        a.setValorMensal(plano.getPrecoMensal());
+//        a.setValorAnual(plano.getPrecoAnual());
         a.setFormaPagamento(FormaPagamentoPlataforma.PIX);
         a.setCupom(cupom);
         a.setCupomCodigo(cupom.getCodigo());
@@ -3496,8 +3496,8 @@ public class DatabaseSeederService {
         a.setDtFimTrial(agora.minusDays(76));
         a.setDtInicio(agora.minusDays(76));
         a.setDtProximoVencimento(agora.plusDays(289));
-        a.setValorMensal(plano.getPrecoMensal());
-        a.setValorAnual(plano.getPrecoAnual());
+//        a.setValorMensal(plano.getPrecoMensal());
+//        a.setValorAnual(plano.getPrecoAnual());
         a.setFormaPagamento(FormaPagamentoPlataforma.BOLETO);
         a.setCupom(cupom);
         a.setCupomCodigo(cupom.getCodigo());
@@ -3538,8 +3538,8 @@ public class DatabaseSeederService {
         a.setDtFimTrial(agora.minusDays(61));
         a.setDtInicio(agora.minusDays(61));
         a.setDtProximoVencimento(agora.minusDays(1));
-        a.setValorMensal(plano.getPrecoMensal());
-        a.setValorAnual(plano.getPrecoAnual());
+//        a.setValorMensal(plano.getPrecoMensal());
+//        a.setValorAnual(plano.getPrecoAnual());
         a.setFormaPagamento(FormaPagamentoPlataforma.BOLETO); // Sandbox não aceita CREDIT_CARD sem token
 
         // Criar assinatura no Asaas (sandbox)
@@ -3601,8 +3601,8 @@ public class DatabaseSeederService {
         a.setDtInicioTrial(agora.minusDays(17));
         a.setDtFimTrial(agora.minusDays(3));
         a.setDtTrialNotificado(agora.minusDays(5)); // Notificado 2 dias antes do fim
-        a.setValorMensal(plano.getPrecoMensal());
-        a.setValorAnual(plano.getPrecoAnual());
+//        a.setValorMensal(plano.getPrecoMensal());
+//        a.setValorAnual(plano.getPrecoAnual());
         // Sem cobranças - nunca escolheu plano
     }
 
@@ -3616,8 +3616,8 @@ public class DatabaseSeederService {
         a.setDtInicio(agora.minusDays(106));
         a.setDtProximoVencimento(agora.plusDays(15)); // Acesso até aqui
         a.setDtCancelamento(agora.minusDays(5));
-        a.setValorMensal(plano.getPrecoMensal());
-        a.setValorAnual(plano.getPrecoAnual());
+//        a.setValorMensal(plano.getPrecoMensal());
+//        a.setValorAnual(plano.getPrecoAnual());
         a.setFormaPagamento(FormaPagamentoPlataforma.PIX);
 
         // Criar assinatura no Asaas e depois cancelar (simula cenário real)
@@ -3662,8 +3662,8 @@ public class DatabaseSeederService {
         a.setDtFimTrial(agora.minusDays(36));
         a.setDtInicio(agora.minusDays(36));
         a.setDtProximoVencimento(agora.minusDays(10));
-        a.setValorMensal(plano.getPrecoMensal());
-        a.setValorAnual(plano.getPrecoAnual());
+//        a.setValorMensal(plano.getPrecoMensal());
+//        a.setValorAnual(plano.getPrecoAnual());
         a.setFormaPagamento(FormaPagamentoPlataforma.BOLETO);
 
         // Criar assinatura no Asaas (sandbox)
@@ -3712,8 +3712,8 @@ public class DatabaseSeederService {
         a.setDtInicioTrial(agora.minusDays(30));
         a.setDtFimTrial(agora.minusDays(16));
         a.setDtInicio(agora.minusDays(16)); // Migrou para gratuito quando trial expirou
-        a.setValorMensal(BigDecimal.ZERO);
-        a.setValorAnual(BigDecimal.ZERO);
+//        a.setValorMensal(BigDecimal.ZERO);
+//        a.setValorAnual(BigDecimal.ZERO);
         // Sem cobranças - plano gratuito
     }
 

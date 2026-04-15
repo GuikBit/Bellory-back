@@ -54,7 +54,7 @@ public class NotificacaoPushService {
     @Transactional
     public NotificacaoPushDTO marcarComoLida(Long id) {
         NotificacaoPush notificacao = notificacaoPushRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Notificacao nao encontrada"));
+                .orElseThrow(() -> new IllegalArgumentException("Notificação não encontrada"));
 
         validarAcesso(notificacao);
 
@@ -68,7 +68,7 @@ public class NotificacaoPushService {
     @Transactional
     public void deletar(Long id) {
         NotificacaoPush notificacao = notificacaoPushRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Notificacao nao encontrada"));
+                .orElseThrow(() -> new IllegalArgumentException("Notificação não encontrada"));
 
         validarAcesso(notificacao);
 
@@ -88,10 +88,11 @@ public class NotificacaoPushService {
     public NotificacaoPush criarEEnviar(Long userId, String userRole, Long organizacaoId,
                                          String titulo, String descricao, String origem,
                                          CategoriaNotificacao categoria, PrioridadeNotificacao prioridade,
-                                         String icone, String urlAcao) {
+                                         String icone, String urlAcao,
+                                         String detalhe, String metadata) {
 
         Organizacao organizacao = organizacaoRepository.findById(organizacaoId)
-                .orElseThrow(() -> new IllegalArgumentException("Organizacao nao encontrada"));
+                .orElseThrow(() -> new IllegalArgumentException("Organização não encontrada"));
 
         NotificacaoPush notificacao = new NotificacaoPush();
         notificacao.setUserId(userId);
@@ -104,6 +105,8 @@ public class NotificacaoPushService {
         notificacao.setPrioridade(prioridade);
         notificacao.setIcone(icone);
         notificacao.setUrlAcao(urlAcao);
+        notificacao.setDetalhe(detalhe);
+        notificacao.setMetadata(metadata);
 
         NotificacaoPush saved = notificacaoPushRepository.save(notificacao);
 
@@ -117,10 +120,11 @@ public class NotificacaoPushService {
     public void criarEEnviarParaRole(String role, Long organizacaoId,
                                       String titulo, String descricao, String origem,
                                       CategoriaNotificacao categoria, PrioridadeNotificacao prioridade,
-                                      String icone, String urlAcao) {
+                                      String icone, String urlAcao,
+                                      String detalhe, String metadata) {
         try {
             Organizacao organizacao = organizacaoRepository.findById(organizacaoId)
-                    .orElseThrow(() -> new IllegalArgumentException("Organizacao nao encontrada"));
+                    .orElseThrow(() -> new IllegalArgumentException("Organização não encontrada"));
 
             List<Funcionario> funcionarios = funcionarioRepository
                     .findAllByRoleAndOrganizacao_IdAndAtivoTrueAndIsDeletadoFalse(role, organizacaoId);
@@ -142,6 +146,8 @@ public class NotificacaoPushService {
                 notificacao.setPrioridade(prioridade);
                 notificacao.setIcone(icone);
                 notificacao.setUrlAcao(urlAcao);
+                notificacao.setDetalhe(detalhe);
+                notificacao.setMetadata(metadata);
 
                 NotificacaoPush saved = notificacaoPushRepository.save(notificacao);
 
@@ -162,7 +168,7 @@ public class NotificacaoPushService {
         if (!notificacao.getUserId().equals(userId)
                 || !notificacao.getUserRole().equals(userRole)
                 || !notificacao.getOrganizacao().getId().equals(organizacaoId)) {
-            throw new SecurityException("Acesso negado a esta notificacao");
+            throw new SecurityException("Acesso negado a esta notificação");
         }
     }
 }

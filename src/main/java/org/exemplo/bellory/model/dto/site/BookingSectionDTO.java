@@ -6,8 +6,10 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.exemplo.bellory.model.dto.tenent.FuncionarioPublicDTO;
+import org.exemplo.bellory.model.dto.tenent.HorarioFuncionamentoDTO;
 import org.exemplo.bellory.model.dto.tenent.ServicoPublicDTO;
 
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -23,6 +25,9 @@ public class BookingSectionDTO {
     private String title;
     private String subtitle;
     private Boolean enabled;
+    private String backgroundColor;
+    private String backgroundPattern;
+    private Double patternOpacity;
 
     /**
      * Serviços disponíveis para agendamento
@@ -39,6 +44,16 @@ public class BookingSectionDTO {
      */
     private BookingConfigDTO config;
 
+    /**
+     * Dias bloqueados (feriados e bloqueios da organização)
+     */
+    private List<BloqueioDTO> diasBloqueados;
+
+    /**
+     * Horários de funcionamento da organização
+     */
+    private List<HorarioFuncionamentoDTO> horariosFuncionamento;
+
     @Data
     @Builder
     @NoArgsConstructor
@@ -47,8 +62,20 @@ public class BookingSectionDTO {
         private Boolean requiresDeposit;
         private Double depositPercentage;
         private Integer minAdvanceHours;
+        private Integer minAdvanceDays;
         private Integer maxAdvanceDays;
         private Boolean allowMultipleServices;
         private Boolean requiresLogin;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class BloqueioDTO {
+        private String titulo;
+        private LocalDate dataInicio;
+        private LocalDate dataFim;
+        private String tipo;
     }
 }

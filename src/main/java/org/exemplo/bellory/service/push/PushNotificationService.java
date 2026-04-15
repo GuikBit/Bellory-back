@@ -5,6 +5,7 @@ import jakarta.transaction.Transactional;
 import nl.martijndwars.webpush.Notification;
 import nl.martijndwars.webpush.PushService;
 import nl.martijndwars.webpush.Subscription;
+import nl.martijndwars.webpush.Urgency;
 import org.apache.http.HttpResponse;
 import org.exemplo.bellory.context.TenantContext;
 import org.exemplo.bellory.model.dto.push.PushSubscriptionRequestDTO;
@@ -55,7 +56,7 @@ public class PushNotificationService {
                 .orElse(new PushSubscription());
 
         Organizacao organizacao = organizacaoRepository.findById(organizacaoId)
-                .orElseThrow(() -> new IllegalArgumentException("Organizacao nao encontrada"));
+                .orElseThrow(() -> new IllegalArgumentException("Organização não encontrada"));
 
         subscription.setUserId(userId);
         subscription.setUserRole(userRole);
@@ -119,16 +120,22 @@ public class PushNotificationService {
             );
 
             Map<String, Object> payload = new HashMap<>();
-            payload.put("title", notificacao.getTitulo());
-            payload.put("body", notificacao.getDescricao());
-            payload.put("icon", notificacao.getIcone());
-            payload.put("url", notificacao.getUrlAcao());
+            payload.put("titulo", notificacao.getTitulo());
+            payload.put("descricao", notificacao.getDescricao());
+            payload.put("url_acao", notificacao.getUrlAcao());
             payload.put("categoria", notificacao.getCategoria() != null ? notificacao.getCategoria().name() : null);
-            payload.put("prioridade", notificacao.getPrioridade() != null ? notificacao.getPrioridade().name() : null);
+            payload.put("origem", notificacao.getOrigem());
 
             String payloadJson = objectMapper.writeValueAsString(payload);
 
-            Notification notification = new Notification(subscription, payloadJson);
+            Notification notification = Notification.builder()
+                    .endpoint(subscription.endpoint)
+                    .userPublicKey(subscription.keys.p256dh)
+                    .userAuth(subscription.keys.auth)
+                    .payload(payloadJson)
+                    .ttl(86400)
+                    .urgency(Urgency.HIGH)
+                    .build();
             HttpResponse response = pushService.send(notification);
 
             int statusCode = response.getStatusLine().getStatusCode();

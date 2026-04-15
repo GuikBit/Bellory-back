@@ -10,15 +10,20 @@ public class PagamentoRecebidoEvent extends ApplicationEvent {
 
     private final Long pagamentoId;
     private final BigDecimal valor;
+    private final Long clienteId;
     private final String nomeCliente;
+    private final String formaPagamento;
     private final Long organizacaoId;
 
     public PagamentoRecebidoEvent(Object source, Long pagamentoId, BigDecimal valor,
-                                   String nomeCliente, Long organizacaoId) {
+                                   Long clienteId, String nomeCliente,
+                                   String formaPagamento, Long organizacaoId) {
         super(source);
         this.pagamentoId = pagamentoId;
         this.valor = valor;
+        this.clienteId = clienteId;
         this.nomeCliente = nomeCliente;
+        this.formaPagamento = formaPagamento;
         this.organizacaoId = organizacaoId;
     }
 }

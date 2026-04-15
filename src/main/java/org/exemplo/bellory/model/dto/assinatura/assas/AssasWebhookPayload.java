@@ -16,6 +16,7 @@ import java.math.BigDecimal;
 public class AssasWebhookPayload {
     private String event;
     private Payment payment;
+    private Subscription subscription;
 
     @Data
     @NoArgsConstructor
@@ -36,5 +37,19 @@ public class AssasWebhookPayload {
         // PIX
         private String encodedImage;
         private String payload;
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class Subscription {
+        private String id;
+        private String status;
+        private String customer;
+        private BigDecimal value;
+        private String nextDueDate;
+        private String cycle;
+        private String billingType;
     }
 }

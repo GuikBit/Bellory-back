@@ -67,6 +67,14 @@ public interface ClienteRepository extends JpaRepository<Cliente, Long> {
 
     Optional<Cliente> findByTelefoneAndOrganizacao_Id(String telefone, Long organizacaoId);
 
+    @Query(value = "SELECT * FROM app.cliente c " +
+            "WHERE c.organizacao_id = :organizacaoId " +
+            "AND REGEXP_REPLACE(c.telefone, '[^0-9]', '', 'g') = :telefone",
+            nativeQuery = true)
+    Optional<Cliente> findByTelefoneDigitsAndOrganizacaoId(
+            @Param("telefone") String telefone,
+            @Param("organizacaoId") Long organizacaoId);
+
     // ==================== QUERIES OTIMIZADAS PARA DASHBOARD ====================
 
     /**

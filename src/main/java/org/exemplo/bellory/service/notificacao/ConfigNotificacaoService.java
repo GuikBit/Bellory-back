@@ -44,7 +44,7 @@ public class ConfigNotificacaoService {
         validarHorasAntes(dto.getTipo(), dto.getHorasAntes());
 
         Organizacao org = organizacaoRepository.findById(orgId)
-            .orElseThrow(() -> new IllegalArgumentException("Organizacao nao encontrada"));
+            .orElseThrow(() -> new IllegalArgumentException("Organização não encontrada"));
 
         ConfigNotificacao entity = ConfigNotificacao.builder()
             .organizacao(org)
@@ -82,7 +82,7 @@ public class ConfigNotificacaoService {
         } else {
             // Cria nova configuracao
             Organizacao org = organizacaoRepository.findById(orgId)
-                .orElseThrow(() -> new IllegalArgumentException("Organizacao nao encontrada"));
+                .orElseThrow(() -> new IllegalArgumentException("Organização não encontrada"));
 
             ConfigNotificacao entity = ConfigNotificacao.builder()
                 .organizacao(org)
@@ -143,13 +143,13 @@ public class ConfigNotificacaoService {
             case LEMBRETE -> List.of(1, 2, 3, 4, 5, 6);
         };
         if (!permitidos.contains(horas)) {
-            throw new IllegalArgumentException("Horas invalidas para " + tipo + ". Permitido: " + permitidos);
+            throw new IllegalArgumentException("Horas inválidas para " + tipo + ". Permitido: " + permitidos);
         }
     }
 
     private Long getOrganizacaoId() {
         Long orgId = TenantContext.getCurrentOrganizacaoId();
-        if (orgId == null) throw new SecurityException("Organizacao nao identificada");
+        if (orgId == null) throw new SecurityException("Organização não identificada");
         return orgId;
     }
 }

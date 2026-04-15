@@ -74,6 +74,9 @@ public class CupomDesconto {
     @Builder.Default
     private TipoAplicacaoCupom tipoAplicacao = TipoAplicacaoCupom.PRIMEIRA_COBRANCA;
 
+    @Column(name = "meses_recorrencia")
+    private Integer mesesRecorrencia; // null = infinito, 3 = desconto por 3 meses
+
     @Column(nullable = false)
     @Builder.Default
     private Boolean ativo = true;

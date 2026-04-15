@@ -1,5 +1,6 @@
 package org.exemplo.bellory.config;
 
+import lombok.extern.slf4j.Slf4j;
 import org.exemplo.bellory.model.entity.error.ResponseAPI;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import java.util.HashMap;
 import java.util.Map;
 
+@Slf4j
 @RestControllerAdvice // Combina @ControllerAdvice e @ResponseBody. Captura exceções de todos os @RestControllers.
 public class GlobalExceptionHandler {
 
@@ -59,8 +61,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public ResponseAPI<Object> handleGeneralExceptions(Exception ex) {
-        // Opcional: logar a exceção completa para depuração
-        // log.error("Ocorreu um erro não esperado: ", ex);
+        log.error("Erro não esperado: ", ex);
         return ResponseAPI.builder()
                 .success(false)
                 .message("Ocorreu um erro interno no servidor.")

@@ -3,6 +3,7 @@ package org.exemplo.bellory.service.site;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.exemplo.bellory.model.dto.site.*;
+import org.exemplo.bellory.model.dto.site.request.TransitionConfigRequest;
 import org.exemplo.bellory.model.dto.tenent.*;
 import org.exemplo.bellory.model.entity.config.ConfigSistema;
 import org.exemplo.bellory.model.entity.endereco.Endereco;
@@ -14,9 +15,17 @@ import org.exemplo.bellory.model.entity.organizacao.RedesSociais;
 import org.exemplo.bellory.model.entity.produto.Produto;
 import org.exemplo.bellory.model.entity.servico.Categoria;
 import org.exemplo.bellory.model.entity.servico.Servico;
+import org.exemplo.bellory.model.entity.landingpage.LandingPage;
+import org.exemplo.bellory.model.entity.landingpage.LandingPageSection;
+import org.exemplo.bellory.model.entity.organizacao.BloqueioOrganizacao;
+import org.exemplo.bellory.model.entity.organizacao.HorarioFuncionamento;
+import org.exemplo.bellory.model.entity.organizacao.PeriodoFuncionamento;
 import org.exemplo.bellory.model.entity.site.SitePublicoConfig;
 import org.exemplo.bellory.model.repository.categoria.CategoriaRepository;
 import org.exemplo.bellory.model.repository.funcionario.FuncionarioRepository;
+import org.exemplo.bellory.model.repository.landingpage.LandingPageRepository;
+import org.exemplo.bellory.model.repository.organizacao.BloqueioOrganizacaoRepository;
+import org.exemplo.bellory.model.repository.organizacao.HorarioFuncionamentoRepository;
 import org.exemplo.bellory.model.repository.organizacao.OrganizacaoRepository;
 import org.exemplo.bellory.model.repository.produtos.ProdutoRepository;
 import org.exemplo.bellory.model.repository.servico.ServicoRepository;
@@ -28,6 +37,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.*;
@@ -47,6 +57,9 @@ public class PublicSitePageService {
     private final CategoriaRepository categoriaRepository;
     private final ProdutoRepository produtoRepository;
     private final SitePublicoConfigRepository siteConfigRepository;
+    private final LandingPageRepository landingPageRepository;
+    private final BloqueioOrganizacaoRepository bloqueioOrganizacaoRepository;
+    private final HorarioFuncionamentoRepository horarioFuncionamentoRepository;
     private final ObjectMapper objectMapper;
 
     public PublicSitePageService(
@@ -56,6 +69,9 @@ public class PublicSitePageService {
             CategoriaRepository categoriaRepository,
             ProdutoRepository produtoRepository,
             SitePublicoConfigRepository siteConfigRepository,
+            LandingPageRepository landingPageRepository,
+            BloqueioOrganizacaoRepository bloqueioOrganizacaoRepository,
+            HorarioFuncionamentoRepository horarioFuncionamentoRepository,
             ObjectMapper objectMapper) {
         this.organizacaoRepository = organizacaoRepository;
         this.funcionarioRepository = funcionarioRepository;
@@ -63,6 +79,9 @@ public class PublicSitePageService {
         this.categoriaRepository = categoriaRepository;
         this.produtoRepository = produtoRepository;
         this.siteConfigRepository = siteConfigRepository;
+        this.landingPageRepository = landingPageRepository;
+        this.bloqueioOrganizacaoRepository = bloqueioOrganizacaoRepository;
+        this.horarioFuncionamentoRepository = horarioFuncionamentoRepository;
         this.objectMapper = objectMapper;
     }
 
@@ -70,6 +89,7 @@ public class PublicSitePageService {
 
     /**
      * Retorna todos os dados necessários para renderizar a home page.
+     * Prioriza LandingPage publicada (is_home=true), senão usa SitePublicoConfig.
      */
     public Optional<HomePageDTO> getHomePage(String slug) {
         Optional<Organizacao> orgOpt = organizacaoRepository.findBySlugAndAtivoTrue(slug);
@@ -80,10 +100,21 @@ public class PublicSitePageService {
         Organizacao org = orgOpt.get();
         Long orgId = org.getId();
 
-        // Buscar configuração do site (ou usar defaults)
+        // Prioridade: LandingPage publicada com is_home=true
+        // Se existir, usa os settings das seções da LandingPage como SitePublicoConfig
         SitePublicoConfig siteConfig = siteConfigRepository
                 .findByOrganizacaoSlugAndActive(slug)
-                .orElse(buildDefaultSiteConfig(org));
+                .orElse(null);
+
+        Optional<LandingPage> publishedHome = landingPageRepository.findPublishedHomeByOrgSlug(slug);
+        if (publishedHome.isPresent() && siteConfig != null) {
+            // Merge: settings da LandingPage sobrescrevem o SitePublicoConfig
+            mergeLandingPageSettingsIntoConfig(publishedHome.get(), siteConfig);
+        }
+
+        if (siteConfig == null) {
+            siteConfig = buildDefaultSiteConfig(org);
+        }
 
         // Buscar dados relacionados
         List<Funcionario> funcionarios = funcionarioRepository
@@ -93,7 +124,7 @@ public class PublicSitePageService {
                 .findAllByOrganizacao_IdAndAtivoTrueAndIsDeletadoFalseOrderByNomeAsc(orgId);
 
         List<Servico> servicosDestaque = todosServicos.stream()
-//                .filter(s -> s.get() != null && s.getIsHome())
+                .filter(Servico::isHome)
                 .limit(siteConfig.getServicesFeaturedLimit() != null ? siteConfig.getServicesFeaturedLimit() : 6)
                 .collect(Collectors.toList());
 
@@ -118,8 +149,10 @@ public class PublicSitePageService {
                 .products(buildProductsSection(siteConfig, produtosDestaque))
                 .team(buildTeamSection(siteConfig, funcionarios))
                 .booking(buildBookingSection(org, siteConfig, todosServicos, funcionarios))
+                .horariosFuncionamento(buildHorariosFuncionamento(org.getId()))
                 .footer(buildFooterConfig(org, siteConfig, funcionarios))
                 .sectionsOrder(parseSectionsOrder(siteConfig.getHomeSectionsOrder()))
+                .transitions(parseTransitions(siteConfig.getTransitions()))
                 .seo(buildSeoMetadata(org))
                 .features(buildFeatures(org))
                 .customAssets(buildCustomAssets(siteConfig))
@@ -202,7 +235,7 @@ public class PublicSitePageService {
                 .findAllByOrganizacao_IdAndAtivoTrueAndIsDeletadoFalseOrderByNomeAsc(orgId);
 
         List<Servico> servicosDestaque = todosServicos.stream()
-//                .filter(s -> s.getIsHome() != null && s.getIsHome())
+                .filter(Servico::isHome)
                 .limit(siteConfig.getServicesFeaturedLimit() != null ? siteConfig.getServicesFeaturedLimit() : 6)
                 .collect(Collectors.toList());
 
@@ -347,6 +380,9 @@ public class PublicSitePageService {
 
     // ==================== BOOKING ====================
 
+    // aqui precisa passar mais informacoes, como: dias bloqueados (feriados - bloqueio), se um dia da semana nao tiver horario na organizacao, esse dia da semana deve ser bloqueado,
+    // o dia minimo e o dia maximo para agendamento
+
     public Optional<BookingSectionDTO> getBookingInfo(String slug) {
         Optional<Organizacao> orgOpt = organizacaoRepository.findBySlugAndAtivoTrue(slug);
         if (orgOpt.isEmpty()) {
@@ -388,6 +424,132 @@ public class PublicSitePageService {
                 .findAllByOrganizacao_IdAndAtivoTrueAndIsVisivelExternoTrue(orgId);
 
         return Optional.of(buildFooterConfig(org, siteConfig, funcionarios));
+    }
+
+    // ==================== LANDING PAGE INTEGRATION ====================
+
+    /**
+     * Aplica os settings das seções de uma LandingPage publicada sobre o SitePublicoConfig.
+     * Isso permite que edições feitas no editor de landing pages reflitam no site público.
+     */
+    private void mergeLandingPageSettingsIntoConfig(LandingPage landingPage, SitePublicoConfig config) {
+        if (landingPage.getSections() == null) return;
+
+        for (LandingPageSection section : landingPage.getSections()) {
+            if (!Boolean.TRUE.equals(section.getAtivo()) || !Boolean.TRUE.equals(section.getVisivel())) {
+                continue;
+            }
+            if (section.getSettings() == null || section.getSettings().isBlank()) {
+                continue;
+            }
+
+            try {
+                Map<String, Object> settings = objectMapper.readValue(
+                        section.getSettings(), new TypeReference<Map<String, Object>>() {});
+
+                switch (section.getTipo()) {
+                    case "HERO":
+                        applyIfPresent(settings, "title", v -> config.setHeroTitle((String) v));
+                        applyIfPresent(settings, "subtitle", v -> config.setHeroSubtitle((String) v));
+                        applyIfPresent(settings, "backgroundUrl", v -> config.setHeroBackgroundUrl((String) v));
+                        applyIfPresent(settings, "backgroundOverlay", v -> config.setHeroBackgroundOverlay(((Number) v).doubleValue()));
+                        applyIfPresent(settings, "type", v -> config.setHeroType((String) v));
+                        applyIfPresent(settings, "customHtml", v -> config.setHeroCustomHtml((String) v));
+                        applyIfPresent(settings, "showBookingForm", v -> config.setHeroShowBookingForm((Boolean) v));
+                        if (settings.containsKey("buttons")) {
+                            config.setHeroButtons(objectMapper.writeValueAsString(settings.get("buttons")));
+                        }
+                        break;
+                    case "HEADER":
+                        applyIfPresent(settings, "logoUrl", v -> config.setHeaderLogoUrl((String) v));
+                        applyIfPresent(settings, "logoAlt", v -> config.setHeaderLogoAlt((String) v));
+                        applyIfPresent(settings, "showPhone", v -> config.setHeaderShowPhone((Boolean) v));
+                        applyIfPresent(settings, "showSocial", v -> config.setHeaderShowSocial((Boolean) v));
+                        applyIfPresent(settings, "sticky", v -> config.setHeaderSticky((Boolean) v));
+                        if (settings.containsKey("menuItems")) {
+                            config.setHeaderMenuItems(objectMapper.writeValueAsString(settings.get("menuItems")));
+                        }
+                        if (settings.containsKey("actionButtons")) {
+                            config.setHeaderActionButtons(objectMapper.writeValueAsString(settings.get("actionButtons")));
+                        }
+                        break;
+                    case "ABOUT":
+                        applyIfPresent(settings, "title", v -> config.setAboutTitle((String) v));
+                        applyIfPresent(settings, "subtitle", v -> config.setAboutSubtitle((String) v));
+                        applyIfPresent(settings, "description", v -> config.setAboutDescription((String) v));
+                        applyIfPresent(settings, "fullDescription", v -> config.setAboutFullDescription((String) v));
+                        applyIfPresent(settings, "imageUrl", v -> config.setAboutImageUrl((String) v));
+                        applyIfPresent(settings, "videoUrl", v -> config.setAboutVideoUrl((String) v));
+                        applyIfPresent(settings, "mission", v -> config.setAboutMission((String) v));
+                        applyIfPresent(settings, "vision", v -> config.setAboutVision((String) v));
+                        applyIfPresent(settings, "values", v -> config.setAboutValues((String) v));
+                        if (settings.containsKey("galleryImages")) {
+                            config.setAboutGalleryImages(objectMapper.writeValueAsString(settings.get("galleryImages")));
+                        }
+                        if (settings.containsKey("highlights")) {
+                            config.setAboutHighlights(objectMapper.writeValueAsString(settings.get("highlights")));
+                        }
+                        break;
+                    case "SERVICES":
+                        applyIfPresent(settings, "sectionTitle", v -> config.setServicesSectionTitle((String) v));
+                        applyIfPresent(settings, "sectionSubtitle", v -> config.setServicesSectionSubtitle((String) v));
+                        applyIfPresent(settings, "showPrices", v -> config.setServicesShowPrices((Boolean) v));
+                        applyIfPresent(settings, "showDuration", v -> config.setServicesShowDuration((Boolean) v));
+                        applyIfPresent(settings, "featuredLimit", v -> config.setServicesFeaturedLimit(((Number) v).intValue()));
+                        break;
+                    case "PRODUCTS":
+                        applyIfPresent(settings, "sectionTitle", v -> config.setProductsSectionTitle((String) v));
+                        applyIfPresent(settings, "sectionSubtitle", v -> config.setProductsSectionSubtitle((String) v));
+                        applyIfPresent(settings, "showPrices", v -> config.setProductsShowPrices((Boolean) v));
+                        applyIfPresent(settings, "featuredLimit", v -> config.setProductsFeaturedLimit(((Number) v).intValue()));
+                        break;
+                    case "TEAM":
+                        applyIfPresent(settings, "sectionTitle", v -> config.setTeamSectionTitle((String) v));
+                        applyIfPresent(settings, "sectionSubtitle", v -> config.setTeamSectionSubtitle((String) v));
+                        applyIfPresent(settings, "showSection", v -> config.setTeamShowSection((Boolean) v));
+                        break;
+                    case "BOOKING":
+                        applyIfPresent(settings, "sectionTitle", v -> config.setBookingSectionTitle((String) v));
+                        applyIfPresent(settings, "sectionSubtitle", v -> config.setBookingSectionSubtitle((String) v));
+                        applyIfPresent(settings, "enabled", v -> config.setBookingEnabled((Boolean) v));
+                        break;
+                    case "FOOTER":
+                        applyIfPresent(settings, "description", v -> config.setFooterDescription((String) v));
+                        applyIfPresent(settings, "logoUrl", v -> config.setFooterLogoUrl((String) v));
+                        applyIfPresent(settings, "copyrightText", v -> config.setFooterCopyrightText((String) v));
+                        applyIfPresent(settings, "showMap", v -> config.setFooterShowMap((Boolean) v));
+                        applyIfPresent(settings, "showHours", v -> config.setFooterShowHours((Boolean) v));
+                        applyIfPresent(settings, "showSocial", v -> config.setFooterShowSocial((Boolean) v));
+                        applyIfPresent(settings, "showNewsletter", v -> config.setFooterShowNewsletter((Boolean) v));
+                        if (settings.containsKey("linkSections")) {
+                            config.setFooterLinkSections(objectMapper.writeValueAsString(settings.get("linkSections")));
+                        }
+                        break;
+                }
+            } catch (Exception e) {
+                // Log e continua - não quebra a renderização por um settings inválido
+            }
+        }
+
+        // Atualizar sectionsOrder baseado na ordem das seções visíveis da LandingPage
+        List<String> sectionsOrder = landingPage.getSections().stream()
+                .filter(s -> Boolean.TRUE.equals(s.getAtivo()) && Boolean.TRUE.equals(s.getVisivel()))
+                .sorted(Comparator.comparingInt(LandingPageSection::getOrdem))
+                .map(LandingPageSection::getTipo)
+                .collect(Collectors.toList());
+        if (!sectionsOrder.isEmpty()) {
+            try {
+                config.setHomeSectionsOrder(objectMapper.writeValueAsString(sectionsOrder));
+            } catch (Exception ignored) {}
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void applyIfPresent(Map<String, Object> settings, String key, java.util.function.Consumer<Object> setter) {
+        Object value = settings.get(key);
+        if (value != null) {
+            setter.accept(value);
+        }
     }
 
     // ==================== PRIVATE BUILD METHODS ====================
@@ -453,7 +615,15 @@ public class PublicSitePageService {
                 .phoneNumber(org.getTelefone1())
                 .showSocial(config.getHeaderShowSocial())
                 .sticky(config.getHeaderSticky())
+                .headerLayout(config.getHeaderLayout())
+                .menuStyle(config.getHeaderMenuStyle())
+                .transparentOnHero(config.getHeaderTransparentOnHero())
+                .showCart(config.getHeaderShowCart())
+                .logoHeight(config.getHeaderLogoHeight())
                 .socialLinks(socialLinks)
+                .backgroundColor(config.getHeaderBackgroundColor())
+                .backgroundPattern(config.getHeaderBackgroundPattern())
+                .patternOpacity(config.getHeaderPatternOpacity())
                 .build();
     }
 
@@ -489,7 +659,20 @@ public class PublicSitePageService {
                 .customHtml(config.getHeroCustomHtml())
                 .buttons(buttons)
                 .showBookingForm(config.getHeroShowBookingForm())
+                .contentLayout(config.getHeroContentLayout())
+                .titleSize(config.getHeroTitleSize())
+                .heroHeight(config.getHeroHeight())
+                .overlayStyle(config.getHeroOverlayStyle())
+                .badgeText(config.getHeroBadgeText())
+                .titleHighlight(config.getHeroTitleHighlight())
+                .showParticles(config.getHeroShowParticles())
+                .videoUrl(config.getHeroVideoUrl())
+                .sideImageUrl(config.getHeroSideImageUrl())
+                .statsConfig(parseStatsConfig(config.getHeroStatsConfig()))
                 .stats(stats)
+                .backgroundColor(config.getHeroBackgroundColor())
+                .backgroundPattern(config.getHeroBackgroundPattern())
+                .patternOpacity(config.getHeroPatternOpacity())
                 .build();
     }
 
@@ -512,6 +695,15 @@ public class PublicSitePageService {
                 .videoUrl(config.getAboutVideoUrl())
                 .galleryImages(parseStringList(config.getAboutGalleryImages()))
                 .highlights(highlights)
+                .showGallery(config.getAboutShowGallery())
+                .showHighlights(config.getAboutShowHighlights())
+                .showMVV(config.getAboutShowMVV())
+                .layoutStyle(config.getAboutLayoutStyle())
+                .yearFounded(config.getAboutYearFounded())
+                .teamPhotoUrl(config.getAboutTeamPhotoUrl())
+                .backgroundColor(config.getAboutBackgroundColor())
+                .backgroundPattern(config.getAboutBackgroundPattern())
+                .patternOpacity(config.getAboutPatternOpacity())
                 .organizationInfo(orgInfo);
 
         if (fullVersion) {
@@ -531,6 +723,17 @@ public class PublicSitePageService {
                 .subtitle(config.getServicesSectionSubtitle())
                 .showPrices(config.getServicesShowPrices())
                 .showDuration(config.getServicesShowDuration())
+                .cardStyle(config.getServicesCardStyle())
+                .showCategory(config.getServicesShowCategory())
+                .showDescription(config.getServicesShowDescription())
+                .showImage(config.getServicesShowImage())
+                .showDiscount(config.getServicesShowDiscount())
+                .cardImageHeight(config.getServicesCardImageHeight())
+                .showCategoryFilter(config.getServicesShowCategoryFilter())
+                .columns(config.getServicesColumns())
+                .backgroundColor(config.getServicesBackgroundColor())
+                .backgroundPattern(config.getServicesBackgroundPattern())
+                .patternOpacity(config.getServicesPatternOpacity())
                 .servicos(servicos.stream().map(this::convertServico).collect(Collectors.toList()))
                 .categorias(convertCategoriasServicos(categorias, servicos))
                 .totalServicos(totalServicos)
@@ -542,6 +745,23 @@ public class PublicSitePageService {
                 .title(config.getProductsSectionTitle())
                 .subtitle(config.getProductsSectionSubtitle())
                 .showPrices(config.getProductsShowPrices())
+                .layout(config.getProductsLayout())
+                .cardStyle(config.getProductsCardStyle())
+                .columns(config.getProductsColumns())
+                .cardImageHeight(config.getProductsCardImageHeight())
+                .showRating(config.getProductsShowRating())
+                .showCategory(config.getProductsShowCategory())
+                .showDescription(config.getProductsShowDescription())
+                .showDiscount(config.getProductsShowDiscount())
+                .showStock(config.getProductsShowStock())
+                .showAddToCart(config.getProductsShowAddToCart())
+                .hoverEffect(config.getProductsHoverEffect())
+                .badgeStyle(config.getProductsBadgeStyle())
+                .autoPlay(config.getProductsAutoPlay())
+                .autoPlaySpeed(config.getProductsAutoPlaySpeed())
+                .backgroundColor(config.getProductsBackgroundColor())
+                .backgroundPattern(config.getProductsBackgroundPattern())
+                .patternOpacity(config.getProductsPatternOpacity())
                 .produtos(produtos.stream().map(this::convertProduto).collect(Collectors.toList()))
                 .totalProdutos(produtos.size())
                 .build();
@@ -552,6 +772,18 @@ public class PublicSitePageService {
                 .title(config.getTeamSectionTitle())
                 .subtitle(config.getTeamSectionSubtitle())
                 .showSection(config.getTeamShowSection())
+                .layout(config.getTeamLayout())
+                .cardStyle(config.getTeamCardStyle())
+                .photoShape(config.getTeamPhotoShape())
+                .photoHeight(config.getTeamPhotoHeight())
+                .showBio(config.getTeamShowBio())
+                .showServices(config.getTeamShowServices())
+                .showSchedule(config.getTeamShowSchedule())
+                .carouselAutoPlay(config.getTeamCarouselAutoPlay())
+                .carouselSpeed(config.getTeamCarouselSpeed())
+                .backgroundColor(config.getTeamBackgroundColor())
+                .backgroundPattern(config.getTeamBackgroundPattern())
+                .patternOpacity(config.getTeamPatternOpacity())
                 .membros(funcionarios.stream().map(this::convertFuncionario).collect(Collectors.toList()))
                 .totalMembros(funcionarios.size())
                 .build();
@@ -561,21 +793,53 @@ public class PublicSitePageService {
                                                   List<Servico> servicos, List<Funcionario> funcionarios) {
         ConfigSistema configSistema = org.getConfigSistema();
 
+        var configAgendamento = configSistema != null ? configSistema.getConfigAgendamento() : null;
+
+        Integer minDias = configAgendamento != null && configAgendamento.getMinDiasAgendamento() != null
+                ? configAgendamento.getMinDiasAgendamento() : 1;
+        Integer maxDias = configAgendamento != null && configAgendamento.getMaxDiasAgendamento() != null
+                ? configAgendamento.getMaxDiasAgendamento() : 90;
+        Boolean cobrarSinal = configAgendamento != null && configAgendamento.getCobrarSinal() != null
+                ? configAgendamento.getCobrarSinal() : false;
+        Integer porcentSinal = configAgendamento != null ? configAgendamento.getPorcentSinal() : null;
+
         BookingSectionDTO.BookingConfigDTO bookingConfig = BookingSectionDTO.BookingConfigDTO.builder()
-                .requiresDeposit(false)
+                .requiresDeposit(cobrarSinal)
+                .depositPercentage(porcentSinal != null ? porcentSinal.doubleValue() : null)
                 .minAdvanceHours(1)
-                .maxAdvanceDays(30)
+                .minAdvanceDays(minDias)
+                .maxAdvanceDays(maxDias)
                 .allowMultipleServices(true)
                 .requiresLogin(false)
                 .build();
+
+        // Bloqueios ativos no período de agendamento (de hoje até maxDias)
+        LocalDate hoje = LocalDate.now();
+        LocalDate dataLimite = hoje.plusDays(maxDias);
+        List<BloqueioOrganizacao> bloqueios = bloqueioOrganizacaoRepository
+                .findBloqueiosAtivosNoPeriodo(org.getId(), hoje, dataLimite);
+
+        List<BookingSectionDTO.BloqueioDTO> diasBloqueados = bloqueios.stream()
+                .map(b -> BookingSectionDTO.BloqueioDTO.builder()
+                        .titulo(b.getTitulo())
+                        .dataInicio(b.getDataInicio())
+                        .dataFim(b.getDataFim())
+                        .tipo(b.getTipo().name())
+                        .build())
+                .collect(Collectors.toList());
 
         return BookingSectionDTO.builder()
                 .title(config.getBookingSectionTitle())
                 .subtitle(config.getBookingSectionSubtitle())
                 .enabled(config.getBookingEnabled())
+                .backgroundColor(config.getBookingBackgroundColor())
+                .backgroundPattern(config.getBookingBackgroundPattern())
+                .patternOpacity(config.getBookingPatternOpacity())
                 .servicosDisponiveis(servicos.stream().map(this::convertServico).collect(Collectors.toList()))
                 .profissionaisDisponiveis(funcionarios.stream().map(this::convertFuncionario).collect(Collectors.toList()))
                 .config(bookingConfig)
+                .diasBloqueados(diasBloqueados)
+                .horariosFuncionamento(buildHorariosFuncionamento(org.getId()))
                 .build();
     }
 
@@ -622,8 +886,22 @@ public class PublicSitePageService {
                 .showHours(config.getFooterShowHours())
                 .showSocial(config.getFooterShowSocial())
                 .showNewsletter(config.getFooterShowNewsletter())
-                .horariosFuncionamento(buildHorariosFuncionamento(funcionarios))
+                .horariosFuncionamento(buildHorariosFuncionamento(org.getId()))
                 .endereco(convertEndereco(org.getEnderecoPrincipal()))
+                .layout(config.getFooterLayout())
+                .logoHeight(config.getFooterLogoHeight())
+                .showLogo(config.getFooterShowLogo())
+                .socialStyle(config.getFooterSocialStyle())
+                .dividerStyle(config.getFooterDividerStyle())
+                .showContact(config.getFooterShowContact())
+                .showBackToTop(config.getFooterShowBackToTop())
+                .newsletterTitle(config.getFooterNewsletterTitle())
+                .newsletterPlaceholder(config.getFooterNewsletterPlaceholder())
+                .columns(config.getFooterColumns())
+                .compactHours(config.getFooterCompactHours())
+                .backgroundColor(config.getFooterBackgroundColor())
+                .backgroundPattern(config.getFooterBackgroundPattern())
+                .patternOpacity(config.getFooterPatternOpacity())
                 .build();
     }
 
@@ -691,6 +969,7 @@ public class PublicSitePageService {
                 .imagens(servico.getUrlsImagens())
                 .disponivel(servico.isAtivo())
                 .funcionarioIds(funcionarioIds)
+                .produtos(servico.getProdutos())
                 .build();
     }
 
@@ -710,6 +989,22 @@ public class PublicSitePageService {
                 .map(this::convertFuncionario)
                 .collect(Collectors.toList())
                 : Collections.emptyList();
+
+        // Buscar produtos utilizados no serviço
+        List<ServicoDetalhadoDTO.ProdutoResumidoDTO> produtosUtilizados = Collections.emptyList();
+        if (servico.getProdutos() != null && !servico.getProdutos().isEmpty()) {
+            Long orgId = servico.getOrganizacao().getId();
+            List<Produto> produtos = produtoRepository
+                    .findByOrganizacao_IdAndAtivoTrueAndNomeIn(orgId, servico.getProdutos());
+            produtosUtilizados = produtos.stream()
+                    .map(p -> ServicoDetalhadoDTO.ProdutoResumidoDTO.builder()
+                            .id(p.getId())
+                            .nome(p.getNome())
+                            .imagemUrl(p.getUrlsImagens() != null && !p.getUrlsImagens().isEmpty()
+                                    ? p.getUrlsImagens().get(0) : null)
+                            .build())
+                    .collect(Collectors.toList());
+        }
 
         ProdutoDetalhadoDTO.SeoDataDTO seo = ProdutoDetalhadoDTO.SeoDataDTO.builder()
                 .title(servico.getNome() + " | " + servico.getOrganizacao().getNomeFantasia())
@@ -733,6 +1028,7 @@ public class PublicSitePageService {
                 .imagemPrincipal(servico.getUrlsImagens() != null && !servico.getUrlsImagens().isEmpty()
                         ? servico.getUrlsImagens().get(0) : null)
                 .profissionais(profissionais)
+                .produtosUtilizados(produtosUtilizados)
                 .permiteAgendamentoOnline(true)
                 .seo(seo)
                 .build();
@@ -940,7 +1236,10 @@ public class PublicSitePageService {
                 .build();
     }
 
-    private List<HorarioFuncionamentoDTO> buildHorariosFuncionamento(List<Funcionario> funcionarios) {
+    private List<HorarioFuncionamentoDTO> buildHorariosFuncionamento(Long orgId) {
+        List<HorarioFuncionamento> horarios = horarioFuncionamentoRepository
+                .findByOrganizacaoIdWithPeriodos(orgId);
+
         Map<String, HorarioFuncionamentoDTO> horariosPorDia = new LinkedHashMap<>();
 
         String[] diasSemana = {"SEGUNDA", "TERCA", "QUARTA", "QUINTA", "SEXTA", "SABADO", "DOMINGO"};
@@ -952,33 +1251,25 @@ public class PublicSitePageService {
                     .build());
         }
 
-        for (Funcionario func : funcionarios) {
-            if (func.getJornadasDia() == null) continue;
+        for (HorarioFuncionamento h : horarios) {
+            String dia = h.getDiaSemana().name();
+            HorarioFuncionamentoDTO dto = horariosPorDia.get(dia);
+            if (dto == null) continue;
 
-            for (JornadaDia jornada : func.getJornadasDia()) {
-                if (jornada.getAtivo() == null || !jornada.getAtivo()) continue;
-                if (jornada.getHorarios() == null || jornada.getHorarios().isEmpty()) continue;
+            boolean ativo = h.getAtivo() != null && h.getAtivo();
+            dto.setAberto(ativo);
 
-                String dia = jornada.getDiaSemana().name();
-                HorarioFuncionamentoDTO horarioAtual = horariosPorDia.get(dia);
-
-                for (HorarioTrabalho ht : jornada.getHorarios()) {
-                    String inicio = ht.getHoraInicio().toString();
-                    String fim = ht.getHoraFim().toString();
-
-                    if (!horarioAtual.getAberto()) {
-                        horarioAtual.setAberto(true);
-                        horarioAtual.setHoraAbertura(inicio);
-                        horarioAtual.setHoraFechamento(fim);
-                    } else {
-                        if (inicio.compareTo(horarioAtual.getHoraAbertura()) < 0) {
-                            horarioAtual.setHoraAbertura(inicio);
-                        }
-                        if (fim.compareTo(horarioAtual.getHoraFechamento()) > 0) {
-                            horarioAtual.setHoraFechamento(fim);
-                        }
-                    }
-                }
+            if (ativo && h.getPeriodos() != null && !h.getPeriodos().isEmpty()) {
+                String abertura = h.getPeriodos().stream()
+                        .map(p -> p.getHoraInicio().toString())
+                        .min(String::compareTo)
+                        .orElse(null);
+                String fechamento = h.getPeriodos().stream()
+                        .map(p -> p.getHoraFim().toString())
+                        .max(String::compareTo)
+                        .orElse(null);
+                dto.setHoraAbertura(abertura);
+                dto.setHoraFechamento(fechamento);
             }
         }
 
@@ -1009,6 +1300,15 @@ public class PublicSitePageService {
         if (json == null || json.isEmpty()) return null;
         try {
             return objectMapper.readValue(json, new TypeReference<List<HeroSectionDTO.HeroButtonDTO>>() {});
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private HeroSectionDTO.StatsConfigDTO parseStatsConfig(String json) {
+        if (json == null || json.isEmpty()) return null;
+        try {
+            return objectMapper.readValue(json, new TypeReference<HeroSectionDTO.StatsConfigDTO>() {});
         } catch (Exception e) {
             return null;
         }
@@ -1049,6 +1349,15 @@ public class PublicSitePageService {
             return objectMapper.readValue(json, new TypeReference<List<String>>() {});
         } catch (Exception e) {
             return List.of("HERO", "ABOUT", "SERVICES", "PRODUCTS", "TEAM", "BOOKING");
+        }
+    }
+
+    private Map<String, TransitionConfigRequest> parseTransitions(String json) {
+        if (json == null || json.isEmpty()) return null;
+        try {
+            return objectMapper.readValue(json, new TypeReference<Map<String, TransitionConfigRequest>>() {});
+        } catch (Exception e) {
+            return null;
         }
     }
 

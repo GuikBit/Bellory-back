@@ -5,8 +5,6 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.exemplo.bellory.model.entity.cobranca.Cobranca;
-import org.exemplo.bellory.model.entity.pagamento.CartaoCredito;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -14,8 +12,6 @@ import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 
 @Entity
 @Table(name = "plano_bellory", schema = "admin",
@@ -99,9 +95,6 @@ public class PlanoBellory {
     // Limites do plano
     @OneToOne(mappedBy = "plano", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private PlanoLimitesBellory limites;
-
-    @OneToOne(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private CartaoCredito cartaoCredito;
 
     // Auditoria
     @CreationTimestamp
