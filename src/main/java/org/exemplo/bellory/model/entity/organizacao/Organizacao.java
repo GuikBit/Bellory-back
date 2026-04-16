@@ -10,11 +10,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.*;
 import org.exemplo.bellory.model.entity.config.ConfigSistema;
-import org.exemplo.bellory.model.entity.plano.Plano;
 import org.exemplo.bellory.model.entity.endereco.Endereco;
-import org.exemplo.bellory.model.entity.plano.PlanoBellory;
-import org.exemplo.bellory.model.entity.plano.PlanoLimites;
-import org.exemplo.bellory.model.entity.plano.PlanoLimitesBellory;
 import org.exemplo.bellory.model.entity.tema.Tema;
 
 import java.time.LocalDateTime;
@@ -101,12 +97,6 @@ public class Organizacao {
     // Assumindo que é uma entidade:
     @Embedded
     private Tema tema;
-    // CORRETO: ManyToOne com Plano
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "plano_id", nullable = false)
-    @JsonIgnore
-    private PlanoBellory plano;
-
     @Column(unique = true, nullable = false)
     private String slug;
 
@@ -143,13 +133,6 @@ public class Organizacao {
     @OneToOne(mappedBy = "organizacao", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @JsonManagedReference("organizacao-faturamento")
     private DadosFaturamentoOrganizacao dadosFaturamento;
-
-    // CORRETO: OneToOne com PlanoLimites
-    @OneToOne(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    @JoinColumn(name = "limites_personalizados_id")
-    private PlanoLimitesBellory limitesPersonalizados;
-
-
 
     @Column(name = "logo_url")
     private String logoUrl;

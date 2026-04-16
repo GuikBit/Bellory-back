@@ -15,8 +15,6 @@ import org.exemplo.bellory.model.entity.organizacao.AcessoAdm;
 import org.exemplo.bellory.model.entity.organizacao.DiaSemanaFuncionamento;
 import org.exemplo.bellory.model.entity.organizacao.RedesSociais;
 import org.exemplo.bellory.model.entity.organizacao.Responsavel;
-import org.exemplo.bellory.model.entity.plano.Plano;
-import org.exemplo.bellory.model.entity.plano.PlanoLimites;
 import org.exemplo.bellory.model.entity.tema.Tema;
 
 import java.util.List;
@@ -61,9 +59,6 @@ public class UpdateOrganizacaoDTO {
     private Tema tema;
 
     @Valid
-    private Plano plano;
-
-    @Valid
     private ConfigSistema configSistema;
 
     @Valid
@@ -71,8 +66,6 @@ public class UpdateOrganizacaoDTO {
 
     @Valid
     private List<DiaSemanaFuncionamento> horarioFuncionamento;
-
-    private PlanoLimites limitesPersonalizados;
 
     private Boolean ativo;
 }

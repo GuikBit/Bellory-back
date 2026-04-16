@@ -10,6 +10,8 @@ import org.exemplo.bellory.model.entity.landingpage.*;
 import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 import org.exemplo.bellory.model.repository.landingpage.*;
 import org.exemplo.bellory.model.repository.organizacao.OrganizacaoRepository;
+import org.exemplo.bellory.service.plano.LimiteValidatorService;
+import org.exemplo.bellory.service.plano.LimiteValidatorService.TipoLimite;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -32,18 +34,21 @@ public class LandingPageEditorService {
     private final LandingPageVersionRepository versionRepository;
     private final OrganizacaoRepository organizacaoRepository;
     private final ObjectMapper objectMapper;
+    private final LimiteValidatorService limiteValidator;
 
     public LandingPageEditorService(
             LandingPageRepository landingPageRepository,
             LandingPageSectionRepository sectionRepository,
             LandingPageVersionRepository versionRepository,
             OrganizacaoRepository organizacaoRepository,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            LimiteValidatorService limiteValidator) {
         this.landingPageRepository = landingPageRepository;
         this.sectionRepository = sectionRepository;
         this.versionRepository = versionRepository;
         this.organizacaoRepository = organizacaoRepository;
         this.objectMapper = objectMapper;
+        this.limiteValidator = limiteValidator;
     }
 
     // ==================== LANDING PAGE CRUD ====================
@@ -96,6 +101,11 @@ public class LandingPageEditorService {
      */
     public LandingPageDTO create(CreateLandingPageRequest request) {
         Long orgId = TenantContext.getCurrentOrganizacaoId();
+
+        // Valida limite do plano (site_externo pode ser NUMBER/BOOLEAN/UNLIMITED)
+        long totalAtual = landingPageRepository.countByOrganizacaoIdAndAtivoTrue(orgId);
+        limiteValidator.validar(orgId, TipoLimite.SITE_EXTERNO, (int) (totalAtual + 1));
+
         Organizacao org = organizacaoRepository.findById(orgId)
                 .orElseThrow(() -> new RuntimeException("Organização não encontrada"));
 

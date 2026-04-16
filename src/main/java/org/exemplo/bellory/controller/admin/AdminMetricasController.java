@@ -54,9 +54,4 @@ public class AdminMetricasController {
         return ResponseEntity.ok(adminMetricasService.getMetricasInstancias());
     }
 
-    @Operation(summary = "Metricas de planos", description = "Distribuicao de organizacoes por plano, percentual de adesao e detalhes de cada plano")
-    @GetMapping("/planos")
-    public ResponseEntity<AdminPlanoMetricasDTO> getMetricasPlanos() {
-        return ResponseEntity.ok(adminMetricasService.getMetricasPlanos());
-    }
 }

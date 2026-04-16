@@ -6,13 +6,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.exemplo.bellory.model.entity.config.ConfigSistema;
 import org.exemplo.bellory.model.entity.endereco.Endereco;
-import org.exemplo.bellory.model.entity.organizacao.AcessoAdm;
 import org.exemplo.bellory.model.entity.organizacao.RedesSociais;
 import org.exemplo.bellory.model.entity.organizacao.Responsavel;
-import org.exemplo.bellory.model.entity.plano.Plano;
-import org.exemplo.bellory.model.entity.plano.PlanoBellory;
-import org.exemplo.bellory.model.entity.plano.PlanoLimites;
-import org.exemplo.bellory.model.entity.plano.PlanoLimitesBellory;
 import org.exemplo.bellory.model.entity.tema.Tema;
 
 import java.time.LocalDateTime;
@@ -33,27 +28,18 @@ public class OrganizacaoResponseDTO {
     private String whatsapp;
     private String slug;
 
-    // ✅ DTOs para Embeddables
     private Responsavel responsavel;
     private Integer acessoAdm;
     private RedesSociais redesSociais;
     private Tema tema;
 
-    // Relacionamentos
-    private Long planoId;
-    private String planoNome;
-    private PlanoBellory plano;
     private ConfigSistema configSistema;
     private Endereco enderecoPrincipal;
-    private PlanoLimitesBellory limitesPersonalizados;
 
-    // Imagens
     private String logoUrl;
     private String bannerUrl;
 
-    // Controle
     private Boolean ativo;
     private LocalDateTime dtCadastro;
     private LocalDateTime dtAtualizacao;
-
 }

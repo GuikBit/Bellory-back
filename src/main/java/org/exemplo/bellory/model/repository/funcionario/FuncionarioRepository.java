@@ -33,6 +33,8 @@ public interface FuncionarioRepository extends JpaRepository<Funcionario, Long> 
     // Listagem excluindo deletados (desabilitados aparecem)
     List<Funcionario> findAllByOrganizacao_IdAndIsDeletadoFalse(Long organizacaoId);
 
+    long countByOrganizacao_IdAndIsDeletadoFalse(Long organizacaoId);
+
     // Para agendamento: somente ativos E nao deletados
     List<Funcionario> findAllByOrganizacao_IdAndAtivoTrueAndIsDeletadoFalse(Long organizacaoId);
 

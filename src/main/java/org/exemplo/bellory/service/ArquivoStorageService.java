@@ -745,12 +745,8 @@ public class ArquivoStorageService {
     }
 
     private Integer obterLimiteStorageMb(Organizacao organizacao) {
-        if (organizacao.getLimitesPersonalizados() != null && organizacao.getLimitesPersonalizados().getMaxStorageMb() != null) {
-            return organizacao.getLimitesPersonalizados().getMaxStorageMb();
-        }
-        if (organizacao.getPlano() != null && organizacao.getPlano().getLimites() != null) {
-            return organizacao.getPlano().getLimites().getMaxStorageMb();
-        }
+        // TODO: adicionar key 'max_storage_mb' nos planos da Payment API e consultar via
+        // LimiteValidatorService/AssinaturaCacheService. Por ora retorna null = sem limite.
         return null;
     }
 

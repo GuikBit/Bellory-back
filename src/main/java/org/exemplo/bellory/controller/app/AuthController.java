@@ -13,7 +13,7 @@ import org.exemplo.bellory.model.entity.users.User;
 import org.exemplo.bellory.service.TokenService;
 import org.exemplo.bellory.service.CustomUserDetailsService;
 import org.exemplo.bellory.service.UserInfoService;
-import org.exemplo.bellory.service.assinatura.AssinaturaService;
+import org.exemplo.bellory.service.assinatura.AssinaturaCacheService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -40,18 +40,18 @@ public class AuthController {
     private final AuthenticationManager authenticationManager;
     private final CustomUserDetailsService userDetailsService;
     private final UserInfoService userInfoService;
-    private final AssinaturaService assinaturaService;
+    private final AssinaturaCacheService assinaturaCacheService;
 
     public AuthController(TokenService tokenService,
                           AuthenticationManager authenticationManager,
                           CustomUserDetailsService userDetailsService,
                           UserInfoService userInfoService,
-                          AssinaturaService assinaturaService) {
+                          AssinaturaCacheService assinaturaCacheService) {
         this.tokenService = tokenService;
         this.authenticationManager = authenticationManager;
         this.userDetailsService = userDetailsService;
         this.userInfoService = userInfoService;
-        this.assinaturaService = assinaturaService;
+        this.assinaturaCacheService = assinaturaCacheService;
     }
 
     @Operation(summary = "Realizar login")
@@ -90,7 +90,6 @@ public class AuthController {
             organizacaoInfo.setNomeFantasia(org.getNomeFantasia());
             organizacaoInfo.setSlug(org.getSlug());
             organizacaoInfo.setEmailPrincipal(org.getEmailPrincipal());
-            organizacaoInfo.setPlano(org.getPlano());
             organizacaoInfo.setConfigSistema(org.getConfigSistema());
             organizacaoInfo.setTema(org.getTema());
             organizacaoInfo.setAtivo(org.getAtivo());
@@ -99,7 +98,7 @@ public class AuthController {
             // Buscar status da assinatura
             AssinaturaStatusDTO assinaturaStatus;
             try {
-                assinaturaStatus = assinaturaService.getStatusAssinatura(org.getId());
+                assinaturaStatus = assinaturaCacheService.getStatusByOrganizacao(org.getId());
                 organizacaoInfo.setAssinatura(assinaturaStatus);
             } catch (Exception e) {
                 log.warn("Erro ao buscar status da assinatura no login para org {}: {}", org.getId(), e.getMessage());
@@ -244,7 +243,7 @@ public class AuthController {
             AssinaturaStatusDTO assinaturaStatus = null;
             if (userDetails instanceof User validUser && validUser.getOrganizacao() != null) {
                 try {
-                    assinaturaStatus = assinaturaService.getStatusAssinatura(validUser.getOrganizacao().getId());
+                    assinaturaStatus = assinaturaCacheService.getStatusByOrganizacao(validUser.getOrganizacao().getId());
                 } catch (Exception e) {
                     log.warn("Erro ao buscar assinatura na validacao de token: {}", e.getMessage());
                 }
@@ -355,7 +354,7 @@ public class AuthController {
             // Incluir status da assinatura no /me
             if (user.getOrganizacao() != null) {
                 try {
-                    AssinaturaStatusDTO assinaturaStatus = assinaturaService.getStatusAssinatura(user.getOrganizacao().getId());
+                    AssinaturaStatusDTO assinaturaStatus = assinaturaCacheService.getStatusByOrganizacao(user.getOrganizacao().getId());
                     userInfo.setAssinatura(assinaturaStatus);
                 } catch (Exception e) {
                     log.warn("Erro ao buscar assinatura em /me: {}", e.getMessage());

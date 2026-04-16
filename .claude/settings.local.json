@@ -4,7 +4,8 @@
       "Bash(find /c/Users/Guilherme/Desktop/MyRepo/GitHub/Bellory-API -type f \\\\\\(-name *.tsx -o -name *.jsx \\\\\\))",
       "Bash(cmd.exe /c \"curl -s http://localhost:8081/api/v1/site-config\" 2>&1)",
       "Bash(javap -public -cp \"/c/Users/Pluri Sistemas/.m2/repository/nl/martijndwars/web-push/5.1.1/web-push-5.1.1.jar\" nl.martijndwars.webpush.Notification)",
-      "Bash(javap:*)"
+      "Bash(javap:*)",
+      "Bash(grep -E \"\\\\.java$\")"
     ]
   }
 }

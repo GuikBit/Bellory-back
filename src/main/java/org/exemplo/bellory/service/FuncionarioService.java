@@ -21,6 +21,8 @@ import org.exemplo.bellory.model.repository.funcionario.FuncionarioRepository;
 import org.exemplo.bellory.model.repository.organizacao.BloqueioOrganizacaoRepository;
 import org.exemplo.bellory.model.repository.organizacao.OrganizacaoRepository;
 import org.exemplo.bellory.model.repository.servico.ServicoRepository;
+import org.exemplo.bellory.service.plano.LimiteValidatorService;
+import org.exemplo.bellory.service.plano.LimiteValidatorService.TipoLimite;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -46,6 +48,7 @@ public class FuncionarioService {
     private final FileStorageService fileStorageService;
     private final JornadaTrabalhoService jornadaTrabalhoService;
     private final HorarioValidator horarioValidator;
+    private final LimiteValidatorService limiteValidator;
 
     public FuncionarioService(
             FuncionarioRepository funcionarioRepository,
@@ -58,7 +61,8 @@ public class FuncionarioService {
             PasswordEncoder passwordEncoder,
             FileStorageService fileStorageService,
             JornadaTrabalhoService jornadaTrabalhoService,
-            HorarioValidator horarioValidator) {
+            HorarioValidator horarioValidator,
+            LimiteValidatorService limiteValidator) {
         this.funcionarioRepository = funcionarioRepository;
         this.organizacaoRepository = organizacaoRepository;
         this.cargoRepository = cargoRepository;
@@ -70,6 +74,7 @@ public class FuncionarioService {
         this.fileStorageService = fileStorageService;
         this.jornadaTrabalhoService = jornadaTrabalhoService;
         this.horarioValidator = horarioValidator;
+        this.limiteValidator = limiteValidator;
     }
 
     @Transactional
@@ -79,6 +84,10 @@ public class FuncionarioService {
         if (!organizacaoId.equals(dto.getIdOrganizacao())) {
             throw new SecurityException("Acesso negado: Você não tem permissão para criar funcionário nesta organização");
         }
+
+        // === VALIDAÇÃO DE LIMITE DO PLANO ===
+        long totalAtual = funcionarioRepository.countByOrganizacao_IdAndIsDeletadoFalse(organizacaoId);
+        limiteValidator.validar(organizacaoId, TipoLimite.FUNCIONARIO, (int) (totalAtual + 1));
 
         // === VALIDAÇÕES OBRIGATÓRIAS ===
         validarCamposObrigatorios(dto);

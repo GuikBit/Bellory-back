@@ -17,6 +17,8 @@ import org.exemplo.bellory.model.repository.users.ClienteRepository;
 import org.exemplo.bellory.model.repository.agendamento.AgendamentoRepository;
 import org.exemplo.bellory.model.repository.Transacao.CobrancaRepository;
 import org.exemplo.bellory.model.event.ClienteCadastradoEvent;
+import org.exemplo.bellory.service.plano.LimiteValidatorService;
+import org.exemplo.bellory.service.plano.LimiteValidatorService.TipoLimite;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
@@ -44,6 +46,7 @@ public class ClienteService {
     private final OrganizacaoService organizacaoService;
     private final OrganizacaoRepository organizacaoRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final LimiteValidatorService limiteValidator;
 
     public ClienteService(ClienteRepository clienteRepository,
                           AgendamentoRepository agendamentoRepository,
@@ -51,7 +54,8 @@ public class ClienteService {
                           PasswordEncoder passwordEncoder,
                           OrganizacaoService organizacaoService,
                           OrganizacaoRepository organizacaoRepository,
-                          ApplicationEventPublisher eventPublisher) {
+                          ApplicationEventPublisher eventPublisher,
+                          LimiteValidatorService limiteValidator) {
         this.clienteRepository = clienteRepository;
         this.agendamentoRepository = agendamentoRepository;
         this.cobrancaRepository = cobrancaRepository;
@@ -59,6 +63,7 @@ public class ClienteService {
         this.organizacaoService = organizacaoService;
         this.organizacaoRepository = organizacaoRepository;
         this.eventPublisher = eventPublisher;
+        this.limiteValidator = limiteValidator;
     }
 
     // =============== MÉTODOS EXISTENTES ATUALIZADOS ===============
@@ -111,6 +116,10 @@ public class ClienteService {
     @Transactional
     public ClienteDTO createCliente(ClienteCreateDTO dto) {
         Long organizacaoId = getOrganizacaoIdFromContext();
+
+        // Valida limite do plano (cliente novo => total atual + 1)
+        long totalAtual = clienteRepository.countByOrganizacao_Id(organizacaoId);
+        limiteValidator.validar(organizacaoId, TipoLimite.CLIENTE, (int) (totalAtual + 1));
 
         // Validações - só valida se os campos não estiverem vazios
         if (dto.getEmail() != null && !dto.getEmail().trim().isEmpty()) {

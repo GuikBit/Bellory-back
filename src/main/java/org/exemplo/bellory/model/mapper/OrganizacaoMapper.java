@@ -7,7 +7,6 @@ import org.exemplo.bellory.model.entity.config.ConfigSistema;
 import org.exemplo.bellory.model.entity.endereco.Coordenadas;
 import org.exemplo.bellory.model.entity.endereco.Endereco;
 import org.exemplo.bellory.model.entity.organizacao.*;
-import org.exemplo.bellory.model.entity.plano.Plano;
 import org.exemplo.bellory.model.entity.tema.*;
 import org.springframework.stereotype.Component;
 
@@ -330,14 +329,7 @@ public class OrganizacaoMapper {
             dto.setTema(temaDTO);
         }
 
-        // Plano
-        if (org.getPlano() != null) {
-            dto.setPlano(org.getPlano());
-        }
-
-        if(org.getLimitesPersonalizados() != null) {
-            dto.setLimitesPersonalizados(org.getLimitesPersonalizados());
-        }
+        // Plano/limites agora vem da Payment API (consumido no frontend via /auth/me + /assinatura/refresh-cache).
 
         // Endereco
         if (org.getEnderecoPrincipal() != null) {

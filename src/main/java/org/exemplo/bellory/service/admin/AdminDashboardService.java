@@ -36,10 +36,6 @@ public class AdminDashboardService {
         Long cobrancasPendentes = adminQueryRepository.countCobrancasPendentes();
         Long cobrancasPagas = adminQueryRepository.countCobrancasPagas();
 
-        // Distribuicao de planos
-        List<Object[]> planosDist = adminQueryRepository.contarOrganizacoesPorPlano();
-        AdminDashboardDTO.DistribuicaoPlanos distribuicao = buildDistribuicaoPlanos(planosDist);
-
         // Localizacoes para o mapa
         List<AdminDashboardDTO.OrgLocationDTO> localizacoes = buildLocalizacoes(
                 adminQueryRepository.findLocalizacoesOrganizacoes());
@@ -59,7 +55,6 @@ public class AdminDashboardService {
                 .totalCobrancas(totalCobrancas)
                 .cobrancasPendentes(cobrancasPendentes)
                 .cobrancasPagas(cobrancasPagas)
-                .distribuicaoPlanos(distribuicao)
                 .localizacoes(localizacoes)
                 .build();
     }
@@ -88,23 +83,4 @@ public class AdminDashboardService {
         return localizacoes;
     }
 
-    private AdminDashboardDTO.DistribuicaoPlanos buildDistribuicaoPlanos(List<Object[]> dados) {
-        long gratuito = 0, basico = 0, plus = 0, premium = 0;
-        for (Object[] row : dados) {
-            String codigo = (String) row[1];
-            Long count = (Long) row[7];
-            switch (codigo != null ? codigo.toLowerCase() : "") {
-                case "gratuito" -> gratuito = count;
-                case "basico" -> basico = count;
-                case "plus" -> plus = count;
-                case "premium" -> premium = count;
-            }
-        }
-        return AdminDashboardDTO.DistribuicaoPlanos.builder()
-                .gratuito(gratuito)
-                .basico(basico)
-                .plus(plus)
-                .premium(premium)
-                .build();
-    }
 }

@@ -13,15 +13,9 @@ import java.util.concurrent.TimeUnit;
 @EnableCaching
 public class CacheConfig {
 
-    public static final String CACHE_ASSAS_SUBSCRIPTION = "assasSubscription";
-    public static final String CACHE_ASSAS_PAYMENTS = "assasPayments";
-
     @Bean
     public CacheManager cacheManager() {
-        CaffeineCacheManager cacheManager = new CaffeineCacheManager(
-                CACHE_ASSAS_SUBSCRIPTION,
-                CACHE_ASSAS_PAYMENTS
-        );
+        CaffeineCacheManager cacheManager = new CaffeineCacheManager();
         cacheManager.setCaffeine(Caffeine.newBuilder()
                 .maximumSize(500)
                 .expireAfterWrite(5, TimeUnit.MINUTES)

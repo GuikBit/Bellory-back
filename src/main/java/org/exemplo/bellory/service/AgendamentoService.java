@@ -24,8 +24,12 @@ import org.exemplo.bellory.model.repository.organizacao.BloqueioOrganizacaoRepos
 import org.exemplo.bellory.model.repository.organizacao.OrganizacaoRepository;
 import org.exemplo.bellory.model.repository.servico.ServicoRepository;
 import org.exemplo.bellory.model.repository.users.ClienteRepository;
+import org.exemplo.bellory.service.plano.LimiteValidatorService;
+import org.exemplo.bellory.service.plano.LimiteValidatorService.TipoLimite;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+
+import java.time.temporal.TemporalAdjusters;
 
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
@@ -50,6 +54,7 @@ public class AgendamentoService {
 
     private final TransacaoService transacaoService;
     private final ApplicationEventPublisher eventPublisher;
+    private final LimiteValidatorService limiteValidator;
 
 
     //private static final int TOLERANCIA_MINUTOS = 10;
@@ -79,7 +84,8 @@ public class AgendamentoService {
                               CobrancaRepository cobrancaRepository,
                               BloqueioOrganizacaoRepository bloqueioOrganizacaoRepository,
                               TransacaoService transacaoService,
-                              ApplicationEventPublisher eventPublisher) {
+                              ApplicationEventPublisher eventPublisher,
+                              LimiteValidatorService limiteValidator) {
         this.agendamentoRepository = agendamentoRepository;
         this.disponibilidadeRepository = disponibilidadeRepository;
         this.jornadaTrabalhoRepository = jornadaTrabalhoRepository;
@@ -91,6 +97,7 @@ public class AgendamentoService {
         this.bloqueioOrganizacaoRepository = bloqueioOrganizacaoRepository;
         this.transacaoService = transacaoService;
         this.eventPublisher = eventPublisher;
+        this.limiteValidator = limiteValidator;
     }
 
 
@@ -236,6 +243,12 @@ public class AgendamentoService {
     public AgendamentoDTO createAgendamentoCompleto(AgendamentoCreateDTO dto) {
         // 1. Buscar entidades relacionadas
         Long organizacaoId = getOrganizacaoIdFromContext();
+
+        // Valida limite de agendamentos do mes corrente (key 'agendamento' nos planos)
+        LocalDateTime inicioMes = LocalDate.now().withDayOfMonth(1).atStartOfDay();
+        LocalDateTime fimMes = LocalDate.now().with(TemporalAdjusters.lastDayOfMonth()).atTime(LocalTime.MAX);
+        long totalMesAtual = agendamentoRepository.countByOrganizacaoAndPeriodo(organizacaoId, inicioMes, fimMes);
+        limiteValidator.validar(organizacaoId, TipoLimite.AGENDAMENTO, (int) (totalMesAtual + 1));
 
         Organizacao organizacao = organizacaoRepository.findById(organizacaoId)
                 .orElseThrow(() -> new IllegalArgumentException("Organização não encontrada."));

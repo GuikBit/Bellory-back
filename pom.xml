@@ -121,6 +121,12 @@
             <artifactId>caffeine</artifactId>
         </dependency>
 
+        <!-- Redis - Cache de status da Payment API (fresh+stale) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+
         <!-- Spring Retry - Retry automatico para chamadas externas -->
         <dependency>
             <groupId>org.springframework.retry</groupId>

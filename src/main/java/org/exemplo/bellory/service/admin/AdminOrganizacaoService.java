@@ -5,19 +5,21 @@ import org.exemplo.bellory.model.dto.admin.AdminOrganizacaoDetalheDTO;
 import org.exemplo.bellory.model.dto.admin.AdminOrganizacaoListDTO;
 import org.exemplo.bellory.model.entity.instancia.Instance;
 import org.exemplo.bellory.model.entity.organizacao.Organizacao;
-import org.exemplo.bellory.model.entity.plano.PlanoBellory;
-import org.exemplo.bellory.model.entity.plano.PlanoLimitesBellory;
 import org.exemplo.bellory.model.repository.admin.AdminQueryRepository;
 import org.exemplo.bellory.model.repository.instance.InstanceRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * Informacoes administrativas de organizacao. Dados de plano/limites foram movidos
+ * para a Payment API — o frontend consulta laqde diretamente ou via
+ * {@code GET /api/v1/assinatura/refresh-cache} + dados do login.
+ */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -45,8 +47,6 @@ public class AdminOrganizacaoService {
                     .telefone1(org.getTelefone1())
                     .slug(org.getSlug())
                     .ativo(org.getAtivo())
-                    .planoNome(org.getPlano() != null ? org.getPlano().getNome() : null)
-                    .planoCodigo(org.getPlano() != null ? org.getPlano().getCodigo() : null)
                     .dtCadastro(org.getDtCadastro())
                     .totalAgendamentos(totalAgendamentos)
                     .totalClientes(totalClientes)
@@ -60,10 +60,6 @@ public class AdminOrganizacaoService {
     public AdminOrganizacaoDetalheDTO detalharOrganizacao(Long organizacaoId) {
         Organizacao org = adminQueryRepository.findOrganizacaoComDetalhesById(organizacaoId)
                 .orElseThrow(() -> new RuntimeException("Organização não encontrada: " + organizacaoId));
-
-        PlanoBellory plano = org.getPlano();
-        PlanoLimitesBellory limitesPlano = plano != null ? plano.getLimites() : null;
-        PlanoLimitesBellory limitesPersonalizados = org.getLimitesPersonalizados();
 
         // Metricas
         LocalDateTime inicioMes = LocalDateTime.now().withDayOfMonth(1).with(LocalTime.MIN);
@@ -117,36 +113,8 @@ public class AdminOrganizacaoService {
                 .responsavelNome(org.getResponsavel() != null ? org.getResponsavel().getNome() : null)
                 .responsavelEmail(org.getResponsavel() != null ? org.getResponsavel().getEmail() : null)
                 .responsavelTelefone(org.getResponsavel() != null ? org.getResponsavel().getTelefone() : null)
-                .plano(plano != null ? AdminOrganizacaoDetalheDTO.PlanoInfo.builder()
-                        .id(plano.getId())
-                        .codigo(plano.getCodigo())
-                        .nome(plano.getNome())
-                        .precoMensal(plano.getPrecoMensal())
-                        .precoAnual(plano.getPrecoAnual())
-                        .build() : null)
-                .limites(limitesPlano != null ? mapLimites(limitesPlano) : null)
-                .limitesPersonalizados(limitesPersonalizados != null ? mapLimites(limitesPersonalizados) : null)
                 .metricas(metricas)
                 .instancias(instanciasList)
-                .build();
-    }
-
-    private AdminOrganizacaoDetalheDTO.LimitesInfo mapLimites(PlanoLimitesBellory limites) {
-        return AdminOrganizacaoDetalheDTO.LimitesInfo.builder()
-                .maxAgendamentosMes(limites.getMaxAgendamentosMes())
-                .maxUsuarios(limites.getMaxUsuarios())
-                .maxClientes(limites.getMaxClientes())
-                .maxServicos(limites.getMaxServicos())
-                .maxUnidades(limites.getMaxUnidades())
-                .permiteAgendamentoOnline(limites.isPermiteAgendamentoOnline())
-                .permiteWhatsapp(limites.isPermiteWhatsapp())
-                .permiteSite(limites.isPermiteSite())
-                .permiteEcommerce(limites.isPermiteEcommerce())
-                .permiteRelatoriosAvancados(limites.isPermiteRelatoriosAvancados())
-                .permiteApi(limites.isPermiteApi())
-                .permiteIntegracaoPersonalizada(limites.isPermiteIntegracaoPersonalizada())
-                .suportePrioritario(limites.isSuportePrioritario())
-                .suporte24x7(limites.isSuporte24x7())
                 .build();
     }
 }

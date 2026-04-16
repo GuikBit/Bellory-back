@@ -136,19 +136,19 @@ public interface AdminQueryRepository extends JpaRepository<Organizacao, Long> {
     @Query("SELECT COUNT(c) FROM Cobranca c WHERE c.statusCobranca = 'VENCIDA'")
     Long countCobrancasVencidas();
 
-    @Query("SELECT p.organizacao.id, p.organizacao.nomeFantasia, o.plano.codigo, " +
+    @Query("SELECT p.organizacao.id, p.organizacao.nomeFantasia, " +
             "COALESCE(SUM(p.valor), 0), " +
             "COUNT(p) " +
-            "FROM Pagamento p JOIN p.organizacao o WHERE p.statusPagamento = 'CONFIRMADO' " +
-            "GROUP BY p.organizacao.id, p.organizacao.nomeFantasia, o.plano.codigo ORDER BY SUM(p.valor) DESC")
+            "FROM Pagamento p WHERE p.statusPagamento = 'CONFIRMADO' " +
+            "GROUP BY p.organizacao.id, p.organizacao.nomeFantasia ORDER BY SUM(p.valor) DESC")
     List<Object[]> calcularFaturamentoPorOrganizacao();
 
-    @Query("SELECT p.organizacao.id, p.organizacao.nomeFantasia, o.plano.codigo, " +
+    @Query("SELECT p.organizacao.id, p.organizacao.nomeFantasia, " +
             "COALESCE(SUM(p.valor), 0), " +
             "COUNT(p) " +
-            "FROM Pagamento p JOIN p.organizacao o WHERE p.statusPagamento = 'CONFIRMADO' " +
+            "FROM Pagamento p WHERE p.statusPagamento = 'CONFIRMADO' " +
             "AND p.dtPagamento >= :inicio AND p.dtPagamento <= :fim " +
-            "GROUP BY p.organizacao.id, p.organizacao.nomeFantasia, o.plano.codigo ORDER BY SUM(p.valor) DESC")
+            "GROUP BY p.organizacao.id, p.organizacao.nomeFantasia ORDER BY SUM(p.valor) DESC")
     List<Object[]> calcularFaturamentoPorOrganizacaoNoPeriodo(@Param("inicio") LocalDateTime inicio, @Param("fim") LocalDateTime fim);
 
     @Query("SELECT FUNCTION('TO_CHAR', p.dtPagamento, 'YYYY-MM') as mes, COALESCE(SUM(p.valor), 0), COUNT(p) " +
@@ -170,14 +170,6 @@ public interface AdminQueryRepository extends JpaRepository<Organizacao, Long> {
             "FROM Instance i WHERE i.deletado = false " +
             "GROUP BY i.organizacao.id, i.organizacao.nomeFantasia ORDER BY COUNT(i) DESC")
     List<Object[]> countInstanciasPorOrganizacao();
-
-    // === PLANOS ===
-
-    @Query("SELECT p.id, p.codigo, p.nome, p.precoMensal, p.precoAnual, p.ativo, p.popular, COUNT(o) " +
-            "FROM PlanoBellory p LEFT JOIN Organizacao o ON o.plano = p " +
-            "GROUP BY p.id, p.codigo, p.nome, p.precoMensal, p.precoAnual, p.ativo, p.popular " +
-            "ORDER BY COUNT(o) DESC")
-    List<Object[]> contarOrganizacoesPorPlano();
 
     // === METRICAS POR ORGANIZACAO ESPECIFICA ===
 
@@ -243,17 +235,11 @@ public interface AdminQueryRepository extends JpaRepository<Organizacao, Long> {
     // === ORGANIZACOES COM DETALHES ===
 
     @Query("SELECT DISTINCT o FROM Organizacao o " +
-            "LEFT JOIN FETCH o.plano p " +
-            "LEFT JOIN FETCH p.limites " +
-            "LEFT JOIN FETCH o.limitesPersonalizados " +
             "LEFT JOIN FETCH o.configSistema " +
             "ORDER BY o.dtCadastro DESC")
     List<Organizacao> findAllOrganizacoesComPlano();
 
     @Query("SELECT DISTINCT o FROM Organizacao o " +
-            "LEFT JOIN FETCH o.plano p " +
-            "LEFT JOIN FETCH p.limites " +
-            "LEFT JOIN FETCH o.limitesPersonalizados " +
             "LEFT JOIN FETCH o.configSistema " +
             "LEFT JOIN FETCH o.enderecoPrincipal " +
             "LEFT JOIN FETCH o.dadosFaturamento " +

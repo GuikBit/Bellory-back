@@ -13,6 +13,8 @@ import org.exemplo.bellory.model.entity.instancia.*;
 import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 import org.exemplo.bellory.model.repository.instance.InstanceRepository;
 import org.exemplo.bellory.model.repository.organizacao.OrganizacaoRepository;
+import org.exemplo.bellory.service.plano.LimiteValidatorService;
+import org.exemplo.bellory.service.plano.LimiteValidatorService.TipoLimite;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
@@ -31,6 +33,7 @@ public class InstanceService {
     private final OrganizacaoRepository organizacaoRepository;
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
+    private final LimiteValidatorService limiteValidator;
 
     @Value("${evolution.api.url:https://wa.bellory.com.br}")
     private String evolutionApiUrl;
@@ -42,11 +45,13 @@ public class InstanceService {
             InstanceRepository instanceRepository,
             OrganizacaoRepository organizacaoRepository,
             RestTemplate restTemplate,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            LimiteValidatorService limiteValidator) {
         this.instanceRepository = instanceRepository;
         this.organizacaoRepository = organizacaoRepository;
         this.restTemplate = restTemplate;
         this.objectMapper = objectMapper;
+        this.limiteValidator = limiteValidator;
     }
 
     // ================================================================
@@ -78,6 +83,13 @@ public class InstanceService {
 
         if (instanceRepository.existsByInstanceName(dto.getInstanceName())) {
             throw new IllegalArgumentException("Já existe uma instância com este nome");
+        }
+
+        // Validacao de limite: so aplica para chamadas externas (chamadas internas do signup
+        // criam a instance inicial desativada, que precisa existir antes do upgrade de plano).
+        if (!interno) {
+            long totalAtual = instanceRepository.countByOrganizacaoIdAndDeletadoFalse(organizacaoId);
+            limiteValidator.validar(organizacaoId, TipoLimite.AGENTE_VIRTUAL, (int) (totalAtual + 1));
         }
 
         try {

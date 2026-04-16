@@ -119,10 +119,9 @@ public class AdminMetricasService {
                     return AdminFaturamentoMetricasDTO.FaturamentoPorOrganizacao.builder()
                             .organizacaoId(orgId)
                             .nomeFantasia((String) row[1])
-                            .planoCodigo((String) row[2])
-                            .faturamentoTotal((BigDecimal) row[3])
+                            .faturamentoTotal((BigDecimal) row[2])
                             .faturamentoMes(faturamentoMesOrg)
-                            .totalCobrancas((Long) row[4])
+                            .totalCobrancas((Long) row[3])
                             .cobrancasPagas(cobrancasPagas)
                             .cobrancasPendentes(cobrancasPendentes)
                             .build();
@@ -295,35 +294,6 @@ public class AdminMetricasService {
     }
 
     // ===== PLANOS =====
-    public AdminPlanoMetricasDTO getMetricasPlanos() {
-        List<Object[]> planoData = adminQueryRepository.contarOrganizacoesPorPlano();
-        Long totalOrgs = adminQueryRepository.count();
-
-        List<AdminPlanoMetricasDTO.PlanoDistribuicao> distribuicao = planoData.stream()
-                .map(row -> {
-                    Long count = (Long) row[7];
-                    Double percentual = totalOrgs > 0 ? (count * 100.0 / totalOrgs) : 0.0;
-
-                    return AdminPlanoMetricasDTO.PlanoDistribuicao.builder()
-                            .planoId((Long) row[0])
-                            .codigo((String) row[1])
-                            .nome((String) row[2])
-                            .precoMensal((BigDecimal) row[3])
-                            .precoAnual((BigDecimal) row[4])
-                            .ativo((Boolean) row[5])
-                            .popular((Boolean) row[6])
-                            .totalOrganizacoes(count)
-                            .percentualDistribuicao(Math.round(percentual * 100.0) / 100.0)
-                            .build();
-                })
-                .collect(Collectors.toList());
-
-        long planosAtivos = distribuicao.stream().filter(AdminPlanoMetricasDTO.PlanoDistribuicao::getAtivo).count();
-
-        return AdminPlanoMetricasDTO.builder()
-                .totalPlanos((long) distribuicao.size())
-                .planosAtivos(planosAtivos)
-                .distribuicao(distribuicao)
-                .build();
-    }
+    // Metricas de planos foram movidas para a Payment API (GET /api/v1/plans e /reports).
+    // Removido do Bellory junto com as entities PlanoBellory.
 }

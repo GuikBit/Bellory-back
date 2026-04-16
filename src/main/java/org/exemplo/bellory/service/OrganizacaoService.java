@@ -1,17 +1,28 @@
 package org.exemplo.bellory.service;
 
+import org.exemplo.bellory.client.payment.PaymentApiClient;
+import org.exemplo.bellory.client.payment.dto.CreateCustomerRequest;
+import org.exemplo.bellory.client.payment.dto.CreateSubscriptionRequest;
+import org.exemplo.bellory.client.payment.dto.CustomerResponse;
+import org.exemplo.bellory.client.payment.dto.PaymentBillingType;
+import org.exemplo.bellory.client.payment.dto.PaymentSubscriptionCycle;
+import org.exemplo.bellory.client.payment.dto.PlanResponse;
+import org.exemplo.bellory.client.payment.dto.SubscriptionResponse;
 import org.exemplo.bellory.context.TenantContext;
+import org.exemplo.bellory.exception.PaymentApiException;
 import org.exemplo.bellory.model.dto.instancia.InstanceCreateDTO;
 import org.exemplo.bellory.model.dto.organizacao.CreateOrganizacaoDTO;
+import org.exemplo.bellory.model.dto.organizacao.EnderecoDTO;
 import org.exemplo.bellory.model.dto.organizacao.OrganizacaoResponseDTO;
 import org.exemplo.bellory.model.dto.UpdateOrganizacaoDTO;
+import org.exemplo.bellory.model.entity.assinatura.Assinatura;
 import org.exemplo.bellory.model.entity.config.*;
 import org.exemplo.bellory.model.entity.email.EmailTemplate;
 import org.exemplo.bellory.model.entity.template.CategoriaTemplate;
 import org.exemplo.bellory.model.entity.template.TipoTemplate;
+import org.exemplo.bellory.model.repository.assinatura.AssinaturaRepository;
 import org.exemplo.bellory.model.repository.template.TemplateBelloryRepository;
 import org.exemplo.bellory.model.entity.organizacao.Organizacao;
-import org.exemplo.bellory.model.entity.plano.PlanoBellory;
 import org.exemplo.bellory.model.entity.funcionario.Cargo;
 import org.exemplo.bellory.model.entity.funcionario.Funcionario;
 import org.exemplo.bellory.model.entity.users.Admin;
@@ -19,12 +30,12 @@ import org.exemplo.bellory.model.mapper.OrganizacaoMapper;
 import org.exemplo.bellory.model.repository.funcionario.CargoRepository;
 import org.exemplo.bellory.model.repository.funcionario.FuncionarioRepository;
 import org.exemplo.bellory.model.repository.organizacao.OrganizacaoRepository;
-import org.exemplo.bellory.model.repository.organizacao.PlanoBelloryRepository;
-import org.exemplo.bellory.model.repository.organizacao.PlanoRepository;
 import org.exemplo.bellory.model.repository.users.AdminRepository;
-import org.exemplo.bellory.service.assinatura.AssinaturaService;
+import org.exemplo.bellory.service.assinatura.PaymentApiCompensationService;
 import org.exemplo.bellory.util.CNPJUtil;
 import org.exemplo.bellory.util.SlugUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -37,12 +48,11 @@ import java.util.Map;
 @Service
 public class OrganizacaoService {
 
+    private static final Logger log = LoggerFactory.getLogger(OrganizacaoService.class);
 
     OrganizacaoRepository organizacaoRepository;
     OrganizacaoMapper organizacaoMapper;
     PasswordEncoder passwordEncoder;
-    PlanoRepository planoRepository;
-    PlanoBelloryRepository planoBelloryRepository;
     AdminRepository adminRepository;
     FuncionarioRepository funcionarioRepository;
     CargoRepository cargoRepository;
@@ -51,28 +61,30 @@ public class OrganizacaoService {
     private InstanceService instanceService;
     private ApiKeyService apiKeyService;
     private TemplateBelloryRepository templateBelloryRepository;
-    private AssinaturaService assinaturaService;
+    private AssinaturaRepository assinaturaRepository;
+    private PaymentApiClient paymentApiClient;
+    private PaymentApiCompensationService paymentApiCompensationService;
 
     private static final int MAX_TENTATIVAS_SLUG = 10;
 
     @Value("${app.url}")
     private String appUrl;
 
-    public OrganizacaoService(OrganizacaoRepository organizacaoRepository, OrganizacaoMapper organizacaoMapper, PasswordEncoder passwordEncoder, PlanoRepository planoRepository, AdminRepository adminRepository, EmailService emailService, PlanoBelloryRepository planoBelloryRepository, FileStorageService fileStorageService, FuncionarioRepository funcionarioRepository, CargoRepository cargoRepository, InstanceService instanceService, ApiKeyService apiKeyService, TemplateBelloryRepository templateBelloryRepository, AssinaturaService assinaturaService) {
+    public OrganizacaoService(OrganizacaoRepository organizacaoRepository, OrganizacaoMapper organizacaoMapper, PasswordEncoder passwordEncoder, AdminRepository adminRepository, EmailService emailService, FileStorageService fileStorageService, FuncionarioRepository funcionarioRepository, CargoRepository cargoRepository, InstanceService instanceService, ApiKeyService apiKeyService, TemplateBelloryRepository templateBelloryRepository, AssinaturaRepository assinaturaRepository, PaymentApiClient paymentApiClient, PaymentApiCompensationService paymentApiCompensationService) {
         this.organizacaoRepository = organizacaoRepository;
         this.organizacaoMapper = organizacaoMapper;
         this.passwordEncoder = passwordEncoder;
-        this.planoRepository = planoRepository;
         this.adminRepository = adminRepository;
         this.emailService = emailService;
-        this.planoBelloryRepository = planoBelloryRepository;
         this.fileStorageService = fileStorageService;
         this.funcionarioRepository = funcionarioRepository;
         this.cargoRepository = cargoRepository;
         this.instanceService = instanceService;
         this.apiKeyService = apiKeyService;
         this.templateBelloryRepository = templateBelloryRepository;
-        this.assinaturaService = assinaturaService;
+        this.assinaturaRepository = assinaturaRepository;
+        this.paymentApiClient = paymentApiClient;
+        this.paymentApiCompensationService = paymentApiCompensationService;
     }
 
     public Organizacao getOrganizacaoPadrao() {
@@ -96,8 +108,20 @@ public class OrganizacaoService {
 
 
     /**
-     * Cria uma nova organização
+     * Cria uma nova organização.
+     *
+     * Fluxo:
+     *  1. Valida dados locais (CNPJ, admin)
+     *  2. Resolve o plano escolhido na Payment API (pelo código)
+     *  3. Persiste Organizacao + ConfigSistema
+     *  4. Cria customer + subscription na Payment API (com o plano escolhido)
+     *  5. Persiste Assinatura local com os IDs retornados pela Payment API
+     *  6. Cria cargo/funcionario/admin/instance/api key e envia e-mail
+     *
+     * Em caso de falha após o passo 4 (customer criado, mas alguma etapa posterior falha),
+     * dispara {@link PaymentApiCompensationService#deleteCustomerSafe(Long)} async para evitar órfãos.
      */
+    @Transactional
     public OrganizacaoResponseDTO create(CreateOrganizacaoDTO createDTO) {
 
         // Normaliza e valida CNPJ
@@ -147,19 +171,28 @@ public class OrganizacaoService {
             throw new IllegalArgumentException("Dados de acesso do administrador são obrigatórios");
         }
 
+        if (createDTO.getPlano() == null || createDTO.getPlano().getId() == null || createDTO.getPlano().getId().isBlank()) {
+            throw new IllegalArgumentException("Plano é obrigatório");
+        }
+
+        // Resolve o plano escolhido na Payment API (pelo codigo informado no form)
+        String planoCodigo = createDTO.getPlano().getId();
+        PlanResponse planoPayment;
+        try {
+            planoPayment = paymentApiClient.getPlanByCodigo(planoCodigo);
+        } catch (PaymentApiException e) {
+            throw new IllegalArgumentException("Plano '" + planoCodigo + "' nao disponivel na Payment API: " + e.getMessage(), e);
+        }
+        if (planoPayment == null || !Boolean.TRUE.equals(planoPayment.getActive())) {
+            throw new IllegalArgumentException("Plano '" + planoCodigo + "' esta inativo na Payment API");
+        }
+
         // Converte DTO para Entity
         Organizacao organizacao = organizacaoMapper.toEntity(createDTO);
         organizacao.setCnpj(cnpjLimpo); // Salva CNPJ sem formatação
 
         String slug = gerarSlugUnico(createDTO.getNomeFantasia());
         organizacao.setSlug(slug);
-
-        // Busca e atribui plano
-        PlanoBellory planos = planoBelloryRepository.findByCodigo(createDTO.getPlano().getId()).get();
-        if (!planos.isAtivo() ) {
-            throw new IllegalStateException("Nenhum plano disponível no sistema");
-        }
-        organizacao.setPlano(planos);
 
         ConfigAgendamento configAgendamento = new ConfigAgendamento();
         ConfigServico configServico = new ConfigServico();
@@ -187,13 +220,35 @@ public class OrganizacaoService {
         // Salva a organização
         Organizacao savedOrganizacao = organizacaoRepository.save(organizacao);
 
-        // Cria assinatura trial para a nova organizacao
+        // Cria customer + subscription na Payment API (com compensacao async em falha)
+        CustomerResponse customer = null;
+        SubscriptionResponse subscription;
         try {
-            assinaturaService.criarAssinaturaTrial(savedOrganizacao, planos);
+            customer = paymentApiClient.createCustomer(toCreateCustomerRequest(createDTO, cnpjLimpo));
+            CreateSubscriptionRequest subReq = CreateSubscriptionRequest.builder()
+                    .customerId(customer.getId())
+                    .planId(planoPayment.getId())
+                    .billingType(PaymentBillingType.UNDEFINED)
+                    .cycle(toPaymentCycle(createDTO.getPlano().getPeriodicidade()))
+                    .externalReference("org-" + savedOrganizacao.getId())
+                    .description("Assinatura " + planoPayment.getName() + " - " + savedOrganizacao.getNomeFantasia())
+                    .build();
+            subscription = paymentApiClient.createSubscription(subReq);
         } catch (Exception e) {
-            // Nao bloqueia criacao da organizacao se falhar ao criar trial
-            System.err.println("Erro ao criar assinatura trial: " + e.getMessage());
+            if (customer != null) {
+                log.warn("Disparando compensacao deleteCustomer({}) apos falha no signup", customer.getId());
+                paymentApiCompensationService.deleteCustomerSafe(customer.getId());
+            }
+            throw new IllegalStateException("Falha criando assinatura na Payment API: " + e.getMessage(), e);
         }
+
+        // Cria Assinatura local — apenas o vinculo com os IDs da Payment API
+        Assinatura assinatura = Assinatura.builder()
+                .organizacao(savedOrganizacao)
+                .paymentApiCustomerId(customer.getId())
+                .paymentApiSubscriptionId(subscription.getId())
+                .build();
+        assinaturaRepository.save(assinatura);
 
         // Cria o cargo "Administrador" na organização
         Cargo cargoAdmin = new Cargo();
@@ -350,6 +405,34 @@ public class OrganizacaoService {
                 .orElseThrow(() -> new IllegalArgumentException("Organização não encontrada com CNPJ: " + cnpj));
 
         return organizacaoMapper.toResponseDTO(organizacao);
+    }
+
+    private CreateCustomerRequest toCreateCustomerRequest(CreateOrganizacaoDTO dto, String cnpjLimpo) {
+        EnderecoDTO end = dto.getEndereco();
+        String telefoneDigits = dto.getTelefone1() != null ? dto.getTelefone1().replaceAll("\\D", "") : null;
+        return CreateCustomerRequest.builder()
+                .name(dto.getRazaoSocial())
+                .document(cnpjLimpo)
+                .email(dto.getEmail())
+                .phone(telefoneDigits)
+                .addressStreet(end != null ? end.getLogradouro() : null)
+                .addressNumber(end != null ? end.getNumero() : null)
+                .addressComplement(end != null ? end.getComplemento() : null)
+                .addressNeighborhood(end != null ? end.getBairro() : null)
+                .addressCity(end != null ? end.getCidade() : null)
+                .addressState(end != null ? end.getUf() : null)
+                .addressPostalCode(end != null && end.getCep() != null ? end.getCep().replaceAll("\\D", "") : null)
+                .build();
+    }
+
+    private PaymentSubscriptionCycle toPaymentCycle(String periodicidade) {
+        if (periodicidade == null) return PaymentSubscriptionCycle.MONTHLY;
+        String p = periodicidade.trim().toUpperCase();
+        return switch (p) {
+            case "ANUAL", "YEARLY" -> PaymentSubscriptionCycle.YEARLY;
+            case "SEMESTRAL", "SEMIANNUALLY" -> PaymentSubscriptionCycle.SEMIANNUALLY;
+            default -> PaymentSubscriptionCycle.MONTHLY;
+        };
     }
 
     private String gerarSlugUnico(String nomeFantasia) {

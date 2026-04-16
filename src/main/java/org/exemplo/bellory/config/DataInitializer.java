@@ -1,6 +1,5 @@
 package org.exemplo.bellory.config;
 
-import org.exemplo.bellory.service.DatabaseSeederService;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -11,18 +10,14 @@ import org.springframework.context.annotation.Profile;
 public class DataInitializer {
 
     /**
-     * Este Bean executa na inicialização do Spring.
-     * Sua única responsabilidade agora é chamar o DatabaseSeederService,
-     * que contém toda a lógica de negócio e o controle transacional.
-     * @param seederService O serviço que contém a lógica de popular o banco.
-     * @return um CommandLineRunner.
+     * Placeholder de inicializacao para o profile dev. Deixa um gancho para
+     * eventuais seeds futuros — o seeder legado foi removido junto com o ciclo
+     * Asaas/PlanoBellory local.
      */
     @Bean
-    public CommandLineRunner loadData(DatabaseSeederService seederService) {
+    public CommandLineRunner loadData() {
         return args -> {
-            System.out.println("Iniciando a carga de dados iniciais via Seeder Service...");
-            // seederService.seedDatabase();
-            System.out.println("Carga de dados iniciais finalizada com sucesso.");
+            System.out.println("[dev] DataInitializer: sem seeders ativos.");
         };
     }
 }

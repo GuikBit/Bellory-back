@@ -13,20 +13,15 @@ import java.util.Optional;
 public interface OrganizacaoRepository extends JpaRepository<Organizacao, Long> {
     Optional<Organizacao> findByNomeFantasia(String nome);
 
-    // ✅ ADICIONE ESTE MÉTODO
     @Query("SELECT DISTINCT o FROM Organizacao o " +
-            "LEFT JOIN FETCH o.plano " +
             "LEFT JOIN FETCH o.enderecoPrincipal " +
             "LEFT JOIN FETCH o.configSistema " +
-            "LEFT JOIN FETCH o.limitesPersonalizados " +
             "WHERE o.ativo = true")
     List<Organizacao> findAllByAtivoTrueWithDetails();
 
     @Query("SELECT o FROM Organizacao o " +
-            "LEFT JOIN FETCH o.plano " +
             "LEFT JOIN FETCH o.enderecoPrincipal " +
             "LEFT JOIN FETCH o.configSistema " +
-            "LEFT JOIN FETCH o.limitesPersonalizados " +
             "LEFT JOIN FETCH o.dadosFaturamento " +
             "WHERE o.id = :id AND o.ativo = true")
     Optional<Organizacao> findByIdWithDetails(@Param("id") Long id);

@@ -1,19 +1,16 @@
 package org.exemplo.bellory.model.dto.auth;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.exemplo.bellory.model.entity.config.ConfigSistema;
-import org.exemplo.bellory.model.entity.plano.Plano;
-import org.exemplo.bellory.model.entity.plano.PlanoBellory;
-import org.exemplo.bellory.model.entity.plano.PlanoLimites;
 import org.exemplo.bellory.model.entity.tema.Tema;
 
 import org.exemplo.bellory.model.dto.assinatura.AssinaturaStatusDTO;
 
 import java.time.LocalDateTime;
+
 @Data
 @Builder
 @NoArgsConstructor
@@ -24,11 +21,9 @@ public class OrganizacaoInfoDTO {
     private String nomeFantasia;
     private String slug;
     private String emailPrincipal;
-    private PlanoBellory plano;
     private ConfigSistema configSistema;
     private Tema tema;
     private boolean ativo;
     private LocalDateTime dtCadastro;
-    private PlanoLimites limitesPersonalizados;
     private AssinaturaStatusDTO assinatura;
 }
