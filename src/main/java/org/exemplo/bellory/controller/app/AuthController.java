@@ -8,6 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.exemplo.bellory.model.dto.auth.*;
 import org.exemplo.bellory.model.dto.assinatura.AssinaturaStatusDTO;
+import org.exemplo.bellory.model.dto.config.ConfigSistemaDTO;
 import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 import org.exemplo.bellory.model.entity.users.User;
 import org.exemplo.bellory.service.TokenService;
@@ -90,7 +91,7 @@ public class AuthController {
             organizacaoInfo.setNomeFantasia(org.getNomeFantasia());
             organizacaoInfo.setSlug(org.getSlug());
             organizacaoInfo.setEmailPrincipal(org.getEmailPrincipal());
-            organizacaoInfo.setConfigSistema(org.getConfigSistema());
+            organizacaoInfo.setConfigSistema(ConfigSistemaDTO.fromEntity(org.getConfigSistema()));
             organizacaoInfo.setTema(org.getTema());
             organizacaoInfo.setAtivo(org.getAtivo());
 //            organizacaoInfo.setLimitesPersonalizados(org.getLimitesPersonalizados());

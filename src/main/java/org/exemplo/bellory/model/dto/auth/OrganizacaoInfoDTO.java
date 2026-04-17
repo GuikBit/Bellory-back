@@ -4,10 +4,10 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.exemplo.bellory.model.entity.config.ConfigSistema;
 import org.exemplo.bellory.model.entity.tema.Tema;
 
 import org.exemplo.bellory.model.dto.assinatura.AssinaturaStatusDTO;
+import org.exemplo.bellory.model.dto.config.ConfigSistemaDTO;
 
 import java.time.LocalDateTime;
 
@@ -21,7 +21,7 @@ public class OrganizacaoInfoDTO {
     private String nomeFantasia;
     private String slug;
     private String emailPrincipal;
-    private ConfigSistema configSistema;
+    private ConfigSistemaDTO configSistema;
     private Tema tema;
     private boolean ativo;
     private LocalDateTime dtCadastro;

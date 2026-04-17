@@ -56,8 +56,11 @@ public class PaymentApiClient {
     }
 
     public CustomerResponse createCustomer(CreateCustomerRequest req) {
+        log.info("Payment API >> POST /api/v1/customers name='{}' document='{}' email='{}'",
+                req.getName(), req.getDocument(), req.getEmail());
+        log.debug("Payment API >> POST /api/v1/customers body={}", req);
         try {
-            return restClient.post()
+            CustomerResponse resp = restClient.post()
                     .uri("/api/v1/customers")
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(req)
@@ -66,6 +69,9 @@ public class PaymentApiClient {
                         throw buildException("POST /customers", response.getStatusCode(), bodyAsString(response));
                     })
                     .body(CustomerResponse.class);
+            log.info("Payment API << POST /api/v1/customers OK id={} name='{}'",
+                    resp != null ? resp.getId() : null, resp != null ? resp.getName() : null);
+            return resp;
         } catch (ResourceAccessException e) {
             throw new PaymentApiException("Timeout/IO em POST /customers", e);
         }
@@ -105,8 +111,11 @@ public class PaymentApiClient {
     }
 
     public SubscriptionResponse createSubscription(CreateSubscriptionRequest req) {
+        log.info("Payment API >> POST /api/v1/subscriptions customerId={} planId={} cycle={} externalRef='{}'",
+                req.getCustomerId(), req.getPlanId(), req.getCycle(), req.getExternalReference());
+        log.debug("Payment API >> POST /api/v1/subscriptions body={}", req);
         try {
-            return restClient.post()
+            SubscriptionResponse resp = restClient.post()
                     .uri("/api/v1/subscriptions")
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(req)
@@ -115,8 +124,55 @@ public class PaymentApiClient {
                         throw buildException("POST /subscriptions", response.getStatusCode(), bodyAsString(response));
                     })
                     .body(SubscriptionResponse.class);
+            log.info("Payment API << POST /api/v1/subscriptions OK id={} status={}",
+                    resp != null ? resp.getId() : null, resp != null ? resp.getStatus() : null);
+            return resp;
         } catch (ResourceAccessException e) {
             throw new PaymentApiException("Timeout/IO em POST /subscriptions", e);
+        }
+    }
+
+    @Retryable(
+            retryFor = { ResourceAccessException.class, IOException.class },
+            maxAttempts = 3,
+            backoff = @Backoff(delay = 500, multiplier = 2)
+    )
+    public SubscriptionResponse getSubscription(Long subscriptionId) {
+        try {
+            return restClient.get()
+                    .uri("/api/v1/subscriptions/{id}", subscriptionId)
+                    .retrieve()
+                    .onStatus(HttpStatusCode::isError, (request, response) -> {
+                        throw buildException("GET /subscriptions/" + subscriptionId, response.getStatusCode(), bodyAsString(response));
+                    })
+                    .body(SubscriptionResponse.class);
+        } catch (ResourceAccessException e) {
+            throw new PaymentApiException("Timeout/IO em GET /subscriptions/" + subscriptionId, e);
+        }
+    }
+
+    @Retryable(
+            retryFor = { ResourceAccessException.class, IOException.class },
+            maxAttempts = 3,
+            backoff = @Backoff(delay = 500, multiplier = 2)
+    )
+    public List<ChargeResponse> listChargesBySubscription(Long subscriptionId) {
+        try {
+            PageResponse<ChargeResponse> page = restClient.get()
+                    .uri(uriBuilder -> uriBuilder
+                            .path("/api/v1/subscriptions/{id}/charges")
+                            .queryParam("size", 100)
+                            .queryParam("sort", "createdAt,desc")
+                            .build(subscriptionId))
+                    .retrieve()
+                    .onStatus(HttpStatusCode::isError, (request, response) -> {
+                        throw buildException("GET /subscriptions/" + subscriptionId + "/charges", response.getStatusCode(), bodyAsString(response));
+                    })
+                    .body(new ParameterizedTypeReference<PageResponse<ChargeResponse>>() {});
+            if (page == null || page.getContent() == null) return Collections.emptyList();
+            return page.getContent();
+        } catch (ResourceAccessException e) {
+            throw new PaymentApiException("Timeout/IO em GET /subscriptions/" + subscriptionId + "/charges", e);
         }
     }
 
@@ -142,6 +198,32 @@ public class PaymentApiClient {
             return page.getContent();
         } catch (ResourceAccessException e) {
             throw new PaymentApiException("Timeout/IO em GET /subscriptions customerId=" + customerId, e);
+        }
+    }
+
+    @Retryable(
+            retryFor = { ResourceAccessException.class, IOException.class },
+            maxAttempts = 3,
+            backoff = @Backoff(delay = 500, multiplier = 2)
+    )
+    public List<ChargeResponse> listChargesByCustomer(Long customerId) {
+        try {
+            PageResponse<ChargeResponse> page = restClient.get()
+                    .uri(uriBuilder -> uriBuilder
+                            .path("/api/v1/charges")
+                            .queryParam("customerId", customerId)
+                            .queryParam("size", 100)
+                            .queryParam("sort", "createdAt,desc")
+                            .build())
+                    .retrieve()
+                    .onStatus(HttpStatusCode::isError, (request, response) -> {
+                        throw buildException("GET /charges?customerId=" + customerId, response.getStatusCode(), bodyAsString(response));
+                    })
+                    .body(new ParameterizedTypeReference<PageResponse<ChargeResponse>>() {});
+            if (page == null || page.getContent() == null) return Collections.emptyList();
+            return page.getContent();
+        } catch (ResourceAccessException e) {
+            throw new PaymentApiException("Timeout/IO em GET /charges customerId=" + customerId, e);
         }
     }
 

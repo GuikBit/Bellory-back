@@ -23,9 +23,22 @@ public class ConfigSistemaDTO {
     private ConfigNotificacao configNotificacao;
     private ConfigColaborador configColaborador;
 
-
-    // Adicione aqui outros DTOs de configuração quando criar
-    // private ConfigClienteDTO configCliente;
-    // private ConfigServicoDTO configServico;
-    // private ConfigColaboradorDTO configColaborador;
+    public static ConfigSistemaDTO fromEntity(ConfigSistema config) {
+        if (config == null) return null;
+        return ConfigSistemaDTO.builder()
+                .id(config.getId())
+                .organizacaoId(config.getOrganizacao() != null ? config.getOrganizacao().getId() : null)
+                .usaEcommerce(config.isUsaEcommerce())
+                .usaGestaoProdutos(config.isUsaGestaoProdutos())
+                .usaPlanosParaClientes(config.isUsaPlanosParaClientes())
+                .disparaNotificacoesPush(config.isDisparaNotificacoesPush())
+                .urlAcesso(config.getUrlAcesso())
+                .tenantId(config.getTenantId())
+                .configAgendamento(config.getConfigAgendamento())
+                .configServico(config.getConfigServico())
+                .configCliente(config.getConfigCliente())
+                .configColaborador(config.getConfigColaborador())
+                .configNotificacao(config.getConfigNotificacao())
+                .build();
+    }
 }
