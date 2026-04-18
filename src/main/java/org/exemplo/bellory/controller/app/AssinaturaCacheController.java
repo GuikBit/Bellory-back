@@ -11,6 +11,8 @@ import org.exemplo.bellory.context.TenantContext;
 import org.exemplo.bellory.exception.PaymentApiException;
 import org.exemplo.bellory.model.dto.assinatura.AssinaturaCompletaDTO;
 import org.exemplo.bellory.model.dto.assinatura.AssinaturaStatusDTO;
+import org.exemplo.bellory.model.dto.assinatura.PlanoUsoDTO;
+import org.exemplo.bellory.service.plano.PlanoUsoService;
 import org.exemplo.bellory.model.entity.assinatura.Assinatura;
 import org.exemplo.bellory.model.repository.assinatura.AssinaturaRepository;
 import org.exemplo.bellory.service.assinatura.AssinaturaCacheService;
@@ -44,13 +46,16 @@ public class AssinaturaCacheController {
     private final AssinaturaCacheService assinaturaCacheService;
     private final AssinaturaRepository assinaturaRepository;
     private final PaymentApiClient paymentApiClient;
+    private final PlanoUsoService planoUsoService;
 
     public AssinaturaCacheController(AssinaturaCacheService assinaturaCacheService,
                                      AssinaturaRepository assinaturaRepository,
-                                     PaymentApiClient paymentApiClient) {
+                                     PaymentApiClient paymentApiClient,
+                                     PlanoUsoService planoUsoService) {
         this.assinaturaCacheService = assinaturaCacheService;
         this.assinaturaRepository = assinaturaRepository;
         this.paymentApiClient = paymentApiClient;
+        this.planoUsoService = planoUsoService;
     }
 
     @Operation(summary = "Retorna o status atual da assinatura (le do cache Redis, fresh 5min + stale 24h; sem invalidar)")
@@ -73,6 +78,17 @@ public class AssinaturaCacheController {
         }
         AssinaturaStatusDTO status = assinaturaCacheService.refreshByOrganizacao(organizacaoId);
         return ResponseEntity.ok(status);
+    }
+
+    @Operation(summary = "Retorna os limites do plano com o uso atual da organizacao (funcionarios, clientes, servicos, agendamentos, etc.)")
+    @GetMapping("/uso")
+    public ResponseEntity<PlanoUsoDTO> getUso() {
+        Long organizacaoId = TenantContext.getCurrentOrganizacaoId();
+        if (organizacaoId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        PlanoUsoDTO uso = planoUsoService.getUso(organizacaoId);
+        return ResponseEntity.ok(uso);
     }
 
     @Operation(summary = "Retorna o agregado {assinatura, plano, cobrancas} consultando a Payment API em tempo real pela organizacao logada")

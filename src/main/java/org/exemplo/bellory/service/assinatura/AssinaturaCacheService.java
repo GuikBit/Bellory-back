@@ -281,6 +281,8 @@ public class AssinaturaCacheService {
                 .planoCodigo(s.getPlanCodigo())
                 .planoNome(s.getPlanName())
                 .planoGratuito(s.isPlanIsFree())
+                .planoLimites(s.getLimits())
+                .planoFeatures(s.getFeatures())
                 .cicloCobranca(s.getCycle() != null ? s.getCycle().name() : null)
                 .dtProximoVencimento(s.getNextDueDate())
                 .build();

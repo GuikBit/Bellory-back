@@ -5,7 +5,15 @@
       "Bash(cmd.exe /c \"curl -s http://localhost:8081/api/v1/site-config\" 2>&1)",
       "Bash(javap -public -cp \"/c/Users/Pluri Sistemas/.m2/repository/nl/martijndwars/web-push/5.1.1/web-push-5.1.1.jar\" nl.martijndwars.webpush.Notification)",
       "Bash(javap:*)",
-      "Bash(grep -E \"\\\\.java$\")"
+      "Bash(grep -E \"\\\\.java$\")",
+      "Bash(grep -n \"Response — \\\\`PlanResponse\\\\`\" /c/Users/Guilherme/Desktop/MyRepo/GitHub/Bellory-API/docs/PAYMENT_API_REFERENCE.md)",
+      "Bash(grep -n -B 10 -A 60 \"POST /api/v1/subscriptions$\" /c/Users/Guilherme/Desktop/MyRepo/GitHub/Bellory-API/docs/PAYMENT_API_REFERENCE.md)",
+      "Bash(cmd.exe /c \"mvn -v\")",
+      "Read(//c/Program Files/**)",
+      "Read(//c//**)",
+      "Read(//c/Users/Guilherme/.sdkman/candidates/**)",
+      "Read(//c/Program Files/JetBrains/**)",
+      "Bash(\"C:/Program Files/JetBrains/IntelliJ IDEA 2025.3.1.1/plugins/maven/lib/maven3/bin/mvn\" compile -q)"
     ]
   }
 }

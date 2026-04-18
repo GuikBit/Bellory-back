@@ -6,8 +6,11 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import org.exemplo.bellory.client.payment.dto.PlanLimitDto;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 
 @Data
 @Builder
@@ -25,6 +28,10 @@ public class AssinaturaStatusDTO {
     private String planoCodigo;
     private String planoNome;
     private boolean planoGratuito;
+
+    // Limites e features do plano (para controle de acesso no frontend)
+    private List<PlanLimitDto> planoLimites;
+    private List<PlanLimitDto> planoFeatures;
 
     // Trial
     private Integer diasRestantesTrial;

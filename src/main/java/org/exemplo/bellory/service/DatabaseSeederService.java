@@ -994,7 +994,7 @@ public class DatabaseSeederService {
             String nome = data[0];
             Categoria categoria = categorias.get(Integer.parseInt(data[1]));
 
-            Servico servico = servicoRepository.findByNomeAndOrganizacao(nome, org).orElseGet(() -> {
+            Servico servico = servicoRepository.findFirstByNomeAndOrganizacao(nome, org).orElseGet(() -> {
                 Servico s = new Servico();
                 s.setNome(nome);
                 s.setCategoria(categoria);
