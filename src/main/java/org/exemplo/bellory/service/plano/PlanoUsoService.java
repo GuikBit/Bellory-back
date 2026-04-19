@@ -19,6 +19,7 @@ import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
@@ -73,6 +74,26 @@ public class PlanoUsoService {
                 .limites(limites)
                 .features(features)
                 .build();
+    }
+
+    /**
+     * Retorna mapa key→uso atual (ex: {"funcionario": 5, "cliente": 42}).
+     * Usado pelo PlanoController na troca de plano para validacao de downgrade.
+     */
+    public Map<String, Integer> getUsageMap(Long organizacaoId) {
+        Map<String, Supplier<Long>> contadores = buildContadores(organizacaoId);
+        Map<String, Integer> usage = new HashMap<>();
+        for (Map.Entry<String, Supplier<Long>> entry : contadores.entrySet()) {
+            try {
+                Long valor = entry.getValue().get();
+                if (valor != null) {
+                    usage.put(entry.getKey(), valor.intValue());
+                }
+            } catch (Exception e) {
+                log.warn("Erro ao contar uso para key='{}': {}", entry.getKey(), e.getMessage());
+            }
+        }
+        return usage;
     }
 
     private Map<String, Supplier<Long>> buildContadores(Long orgId) {

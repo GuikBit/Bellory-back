@@ -347,6 +347,110 @@ public class PaymentApiClient {
         }
     }
 
+    // ==================== PLANS ====================
+
+    @Retryable(
+            retryFor = { ResourceAccessException.class, IOException.class },
+            maxAttempts = 3,
+            backoff = @Backoff(delay = 500, multiplier = 2)
+    )
+    public List<PlanResponse> listPlans() {
+        try {
+            PageResponse<PlanResponse> page = restClient.get()
+                    .uri(uriBuilder -> uriBuilder
+                            .path("/api/v1/plans")
+                            .queryParam("size", 50)
+                            .queryParam("sort", "tierOrder,asc")
+                            .build())
+                    .retrieve()
+                    .onStatus(HttpStatusCode::isError, (request, response) -> {
+                        throw buildException("GET /plans", response.getStatusCode(), bodyAsString(response));
+                    })
+                    .body(new ParameterizedTypeReference<PageResponse<PlanResponse>>() {});
+            if (page == null || page.getContent() == null) return Collections.emptyList();
+            return page.getContent();
+        } catch (ResourceAccessException e) {
+            throw new PaymentApiException("Timeout/IO em GET /plans", e);
+        }
+    }
+
+    // ==================== PLAN CHANGE ====================
+
+    public PlanChangePreviewResponse previewPlanChange(Long subscriptionId, Long newPlanId) {
+        log.info("Payment API >> POST /subscriptions/{}/preview-change?newPlanId={}", subscriptionId, newPlanId);
+        try {
+            return restClient.post()
+                    .uri(uriBuilder -> uriBuilder
+                            .path("/api/v1/subscriptions/{id}/preview-change")
+                            .queryParam("newPlanId", newPlanId)
+                            .build(subscriptionId))
+                    .retrieve()
+                    .onStatus(HttpStatusCode::isError, (request, response) -> {
+                        throw buildException("POST /subscriptions/" + subscriptionId + "/preview-change",
+                                response.getStatusCode(), bodyAsString(response));
+                    })
+                    .body(PlanChangePreviewResponse.class);
+        } catch (ResourceAccessException e) {
+            throw new PaymentApiException("Timeout/IO em POST /subscriptions/" + subscriptionId + "/preview-change", e);
+        }
+    }
+
+    public PlanChangeResponse changePlan(Long subscriptionId, RequestPlanChangeRequest req) {
+        log.info("Payment API >> POST /subscriptions/{}/change-plan newPlanId={}", subscriptionId, req.getNewPlanId());
+        try {
+            return restClient.post()
+                    .uri("/api/v1/subscriptions/{id}/change-plan", subscriptionId)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(req)
+                    .retrieve()
+                    .onStatus(HttpStatusCode::isError, (request, response) -> {
+                        throw buildException("POST /subscriptions/" + subscriptionId + "/change-plan",
+                                response.getStatusCode(), bodyAsString(response));
+                    })
+                    .body(PlanChangeResponse.class);
+        } catch (ResourceAccessException e) {
+            throw new PaymentApiException("Timeout/IO em POST /subscriptions/" + subscriptionId + "/change-plan", e);
+        }
+    }
+
+    // ==================== CANCEL / PAUSE / RESUME ====================
+
+    public SubscriptionResponse cancelSubscription(Long subscriptionId) {
+        log.info("Payment API >> DELETE /subscriptions/{}", subscriptionId);
+        try {
+            return restClient.delete()
+                    .uri("/api/v1/subscriptions/{id}", subscriptionId)
+                    .retrieve()
+                    .onStatus(HttpStatusCode::isError, (request, response) -> {
+                        throw buildException("DELETE /subscriptions/" + subscriptionId,
+                                response.getStatusCode(), bodyAsString(response));
+                    })
+                    .body(SubscriptionResponse.class);
+        } catch (ResourceAccessException e) {
+            throw new PaymentApiException("Timeout/IO em DELETE /subscriptions/" + subscriptionId, e);
+        }
+    }
+
+    // ==================== COUPONS ====================
+
+    public CouponValidationResponse validateCouponPublic(ValidateCouponRequest req) {
+        log.info("Payment API >> POST /coupons/validate/public code='{}'", req.getCouponCode());
+        try {
+            return restClient.post()
+                    .uri("/api/v1/coupons/validate/public")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(req)
+                    .retrieve()
+                    .onStatus(HttpStatusCode::isError, (request, response) -> {
+                        throw buildException("POST /coupons/validate/public",
+                                response.getStatusCode(), bodyAsString(response));
+                    })
+                    .body(CouponValidationResponse.class);
+        } catch (ResourceAccessException e) {
+            throw new PaymentApiException("Timeout/IO em POST /coupons/validate/public", e);
+        }
+    }
+
     private PaymentApiException buildException(String opLabel, HttpStatusCode status, String body) {
         int code = status != null ? status.value() : 0;
         String msg = "Payment API erro em " + opLabel + " (HTTP " + code + ")";
