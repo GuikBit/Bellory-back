@@ -5,6 +5,7 @@ import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Getter
 @Setter
@@ -14,11 +15,16 @@ public class FuncionarioUpdateDTO {
     private String nomeCompleto;
     private String email;
     private String telefone;
+    private String cpf;
     private LocalDate dataNasc;
     private String sexo;
     private String apelido;
+    private String naturalidade;
+    private String estadoCivil;
+    private String nomeMae;
+    private String nomePai;
 
-    // Endereço
+    // Endereco
     private String cep;
     private String logradouro;
     private String numero;
@@ -27,13 +33,33 @@ public class FuncionarioUpdateDTO {
     private String cidade;
     private String uf;
 
+    // Documentos
+    private String rg;
+    private String rgOrgEmissor;
+    private String tituloEleitor;
+    private String certMilitar;
+    private String cnh;
+    private String categHabilitacao;
+    private String ctps;
+    private String ctpsSerie;
+    private String pisPasep;
+
     // Dados Profissionais
-    private String cargo;
+    private Long cargoId;
     private BigDecimal salario;
-    private boolean isComissao;
+    private Boolean isComissao;
     private String comissao;
     private String jornadaSemanal;
+    private Integer nivel;
+    private String situacao;
+    private String formacao;
+    private String grauInstrucao;
+    private LocalDateTime dataContratacao;
+    private Boolean isVisivelExterno;
 
-    // O status (ativo/inativo) pode ser controlado separadamente se necessário
-    // private Boolean ativo;
+    // Dados Bancarios
+    private String banco;
+    private String agencia;
+    private String conta;
+    private String operacao;
 }

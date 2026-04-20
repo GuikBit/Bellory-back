@@ -144,8 +144,12 @@ public class Funcionario extends User {
     private LocalDateTime dtDeletado;
 
     // A comissão pode ser um percentual ou valor fixo, por isso String
+    // Lombok não gera setComissao(String) porque setComissao(boolean) já existe (campo isComissao)
     @Column(length = 50)
     private String comissao;
+
+    public void setValorComissao(String comissao) { this.comissao = comissao; }
+    public String getValorComissao() { return this.comissao; }
 
     @Column(name = "nome_mae", length = 255)
     private String nomeMae;

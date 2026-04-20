@@ -331,8 +331,8 @@ public class OrganizacaoService {
      * Atualiza uma organização
      * Valida o token JWT e atualiza apenas as propriedades fornecidas
      */
+    @Transactional
     public OrganizacaoResponseDTO update(long id, UpdateOrganizacaoDTO updateDTO) {
-
 
         // Valida o token JWT
         Long organizacaoIdFromToken = getOrganizacaoIdFromContext();
@@ -352,15 +352,84 @@ public class OrganizacaoService {
             }
         }
 
-        // Criptografa a senha se estiver sendo alterada
-        if (updateDTO.getAcessoAdm() != null && updateDTO.getAcessoAdm().getSenha() != null) {
-            var acessoAdm = updateDTO.getAcessoAdm();
-            acessoAdm.setSenha(passwordEncoder.encode(acessoAdm.getSenha()));
-            updateDTO.setAcessoAdm(acessoAdm);
+        // Atualiza apenas os campos fornecidos
+        if (updateDTO.getCnpj() != null) {
+            organizacao.setCnpj(updateDTO.getCnpj());
+        }
+        if (updateDTO.getRazaoSocial() != null) {
+            organizacao.setRazaoSocial(updateDTO.getRazaoSocial());
+        }
+        if (updateDTO.getNomeFantasia() != null) {
+            organizacao.setNomeFantasia(updateDTO.getNomeFantasia());
+        }
+        if (updateDTO.getInscricaoEstadual() != null) {
+            organizacao.setInscricaoEstadual(updateDTO.getInscricaoEstadual());
+        }
+        if (updateDTO.getEmail() != null) {
+            organizacao.setEmailPrincipal(updateDTO.getEmail());
+        }
+        if (updateDTO.getTelefone1() != null) {
+            organizacao.setTelefone1(updateDTO.getTelefone1());
+        }
+        if (updateDTO.getTelefone2() != null) {
+            organizacao.setTelefone2(updateDTO.getTelefone2());
+        }
+        if (updateDTO.getWhatsapp() != null) {
+            organizacao.setWhatsapp(updateDTO.getWhatsapp());
+        }
+        if (updateDTO.getResponsavel() != null) {
+            organizacao.setResponsavel(updateDTO.getResponsavel());
+        }
+        if (updateDTO.getRedesSociais() != null) {
+            organizacao.setRedesSociais(updateDTO.getRedesSociais());
+        }
+        if (updateDTO.getTema() != null) {
+            organizacao.setTema(updateDTO.getTema());
+        }
+        if (updateDTO.getAtivo() != null) {
+            organizacao.setAtivo(updateDTO.getAtivo());
         }
 
-        // Atualiza apenas os campos fornecidos
-//        organizacaoMapper.updateEntityFromDTO(updateDTO, organizacao);
+        // Endereco (OneToOne)
+        if (updateDTO.getEndereco() != null) {
+            var enderecoDTO = updateDTO.getEndereco();
+            var endereco = organizacao.getEnderecoPrincipal();
+            if (endereco == null) {
+                endereco = new org.exemplo.bellory.model.entity.endereco.Endereco();
+                organizacao.setEnderecoPrincipal(endereco);
+            }
+            if (enderecoDTO.getLogradouro() != null) endereco.setLogradouro(enderecoDTO.getLogradouro());
+            if (enderecoDTO.getNumero() != null) endereco.setNumero(enderecoDTO.getNumero());
+            if (enderecoDTO.getBairro() != null) endereco.setBairro(enderecoDTO.getBairro());
+            if (enderecoDTO.getCidade() != null) endereco.setCidade(enderecoDTO.getCidade());
+            if (enderecoDTO.getCep() != null) endereco.setCep(enderecoDTO.getCep());
+            if (enderecoDTO.getUf() != null) endereco.setUf(enderecoDTO.getUf());
+            if (enderecoDTO.getReferencia() != null) endereco.setReferencia(enderecoDTO.getReferencia());
+            if (enderecoDTO.getComplemento() != null) endereco.setComplemento(enderecoDTO.getComplemento());
+            if (enderecoDTO.getCoordenadas() != null) endereco.setCoordenadas(enderecoDTO.getCoordenadas());
+        }
+
+        // Coordenadas diretas (sem precisar enviar endereco inteiro)
+        if (updateDTO.getCoordenadas() != null) {
+            var endereco = organizacao.getEnderecoPrincipal();
+            if (endereco != null) {
+                endereco.setCoordenadas(updateDTO.getCoordenadas());
+            }
+        }
+
+        // ConfigSistema (OneToOne)
+        if (updateDTO.getConfigSistema() != null) {
+            var configDTO = updateDTO.getConfigSistema();
+            var config = organizacao.getConfigSistema();
+            if (config != null) {
+                config.setUsaEcommerce(configDTO.isUsaEcommerce());
+                config.setUsaGestaoProdutos(configDTO.isUsaGestaoProdutos());
+                config.setUsaPlanosParaClientes(configDTO.isUsaPlanosParaClientes());
+                config.setDisparaNotificacoesPush(configDTO.isDisparaNotificacoesPush());
+                if (configDTO.getUrlAcesso() != null) config.setUrlAcesso(configDTO.getUrlAcesso());
+                if (configDTO.getTenantId() != null) config.setTenantId(configDTO.getTenantId());
+            }
+        }
 
         // Salva as alterações
         Organizacao updatedOrganizacao = organizacaoRepository.save(organizacao);

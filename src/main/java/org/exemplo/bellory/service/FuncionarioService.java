@@ -158,11 +158,10 @@ public class FuncionarioService {
         Funcionario funcionario = funcionarioRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Funcionário com ID " + id + " não encontrado."));
 
-        Cargo cargo = cargoRepository.findById(funcionario.getCargo().getId()).orElseThrow(()-> new IllegalArgumentException("Cargo não encontrado."));
         // Validar organização
         validarOrganizacao(funcionario.getOrganizacao().getId());
 
-        // Atualiza apenas os campos fornecidos
+        // === Dados Pessoais ===
         if (dto.getNomeCompleto() != null && !dto.getNomeCompleto().trim().isEmpty()) {
             funcionario.setNomeCompleto(dto.getNomeCompleto());
         }
@@ -172,17 +171,134 @@ public class FuncionarioService {
         if (dto.getTelefone() != null) {
             funcionario.setTelefone(dto.getTelefone());
         }
+        if (dto.getCpf() != null) {
+            funcionario.setCpf(dto.getCpf());
+        }
         if (dto.getDataNasc() != null) {
             funcionario.setDataNasc(dto.getDataNasc());
         }
-        if (dto.getCargo() != null && !dto.getCargo().trim().isEmpty()) {
+        if (dto.getSexo() != null) {
+            funcionario.setSexo(dto.getSexo());
+        }
+        if (dto.getApelido() != null) {
+            funcionario.setApelido(dto.getApelido());
+        }
+        if (dto.getNaturalidade() != null) {
+            funcionario.setNaturalidade(dto.getNaturalidade());
+        }
+        if (dto.getEstadoCivil() != null) {
+            funcionario.setEstadoCivil(dto.getEstadoCivil());
+        }
+        if (dto.getNomeMae() != null) {
+            funcionario.setNomeMae(dto.getNomeMae());
+        }
+        if (dto.getNomePai() != null) {
+            funcionario.setNomePai(dto.getNomePai());
+        }
+
+        // === Endereco ===
+        if (dto.getCep() != null) {
+            funcionario.setCep(dto.getCep());
+        }
+        if (dto.getLogradouro() != null) {
+            funcionario.setLogradouro(dto.getLogradouro());
+        }
+        if (dto.getNumero() != null) {
+            funcionario.setNumero(dto.getNumero());
+        }
+        if (dto.getComplemento() != null) {
+            funcionario.setComplemento(dto.getComplemento());
+        }
+        if (dto.getBairro() != null) {
+            funcionario.setBairro(dto.getBairro());
+        }
+        if (dto.getCidade() != null) {
+            funcionario.setCidade(dto.getCidade());
+        }
+        if (dto.getUf() != null) {
+            funcionario.setUf(dto.getUf());
+        }
+
+        // === Documentos ===
+        if (dto.getRg() != null) {
+            funcionario.setRg(dto.getRg());
+        }
+        if (dto.getRgOrgEmissor() != null) {
+            funcionario.setRgOrgEmissor(dto.getRgOrgEmissor());
+        }
+        if (dto.getTituloEleitor() != null) {
+            funcionario.setTituloEleitor(dto.getTituloEleitor());
+        }
+        if (dto.getCertMilitar() != null) {
+            funcionario.setCertMilitar(dto.getCertMilitar());
+        }
+        if (dto.getCnh() != null) {
+            funcionario.setCnh(dto.getCnh());
+        }
+        if (dto.getCategHabilitacao() != null) {
+            funcionario.setCategHabilitacao(dto.getCategHabilitacao());
+        }
+        if (dto.getCtps() != null) {
+            funcionario.setCtps(dto.getCtps());
+        }
+        if (dto.getCtpsSerie() != null) {
+            funcionario.setCtpsSerie(dto.getCtpsSerie());
+        }
+        if (dto.getPisPasep() != null) {
+            funcionario.setPisPasep(dto.getPisPasep());
+        }
+
+        // === Dados Profissionais ===
+        if (dto.getCargoId() != null) {
+            Cargo cargo = cargoRepository.findById(dto.getCargoId())
+                    .orElseThrow(() -> new IllegalArgumentException("Cargo não encontrado com ID: " + dto.getCargoId()));
             funcionario.setCargo(cargo);
         }
         if (dto.getSalario() != null) {
             funcionario.setSalario(dto.getSalario());
         }
+        if (dto.getIsComissao() != null) {
+            funcionario.setComissao(dto.getIsComissao());
+        }
+        if (dto.getComissao() != null) {
+            funcionario.setValorComissao(dto.getComissao());
+        }
+        if (dto.getJornadaSemanal() != null) {
+            funcionario.setJornadaSemanal(dto.getJornadaSemanal());
+        }
+        if (dto.getNivel() != null) {
+            funcionario.setNivel(dto.getNivel());
+        }
+        if (dto.getSituacao() != null) {
+            funcionario.setSituacao(dto.getSituacao());
+        }
+        if (dto.getFormacao() != null) {
+            funcionario.setFormacao(dto.getFormacao());
+        }
+        if (dto.getGrauInstrucao() != null) {
+            funcionario.setGrauInstrucao(dto.getGrauInstrucao());
+        }
+        if (dto.getDataContratacao() != null) {
+            funcionario.setDataContratacao(dto.getDataContratacao());
+        }
+        if (dto.getIsVisivelExterno() != null) {
+            funcionario.setVisivelExterno(dto.getIsVisivelExterno());
+        }
 
-        funcionario.setComissao(dto.isComissao());
+        // === Dados Bancarios ===
+        if (dto.getBanco() != null) {
+            funcionario.setBanco(dto.getBanco());
+        }
+        if (dto.getAgencia() != null) {
+            funcionario.setAgencia(dto.getAgencia());
+        }
+        if (dto.getConta() != null) {
+            funcionario.setConta(dto.getConta());
+        }
+        if (dto.getOperacao() != null) {
+            funcionario.setOperacao(dto.getOperacao());
+        }
+
         funcionario.setDataUpdate(LocalDateTime.now());
 
         return funcionarioRepository.save(funcionario);

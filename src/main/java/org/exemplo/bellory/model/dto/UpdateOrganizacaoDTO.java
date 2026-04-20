@@ -10,6 +10,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.exemplo.bellory.model.entity.config.ConfigSistema;
+import org.exemplo.bellory.model.entity.endereco.Coordenadas;
 import org.exemplo.bellory.model.entity.endereco.Endereco;
 import org.exemplo.bellory.model.entity.organizacao.AcessoAdm;
 import org.exemplo.bellory.model.entity.organizacao.DiaSemanaFuncionamento;
@@ -66,6 +67,9 @@ public class UpdateOrganizacaoDTO {
 
     @Valid
     private List<DiaSemanaFuncionamento> horarioFuncionamento;
+
+    @Valid
+    private Coordenadas coordenadas;
 
     private Boolean ativo;
 }

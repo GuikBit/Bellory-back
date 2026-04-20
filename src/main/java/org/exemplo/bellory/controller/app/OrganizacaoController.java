@@ -12,10 +12,12 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.exemplo.bellory.model.dto.home.*;
 import org.exemplo.bellory.model.dto.organizacao.CreateOrganizacaoDTO;
 import org.exemplo.bellory.model.dto.organizacao.OrganizacaoResponseDTO;
 import org.exemplo.bellory.model.dto.UpdateOrganizacaoDTO;
 import org.exemplo.bellory.model.entity.error.ResponseAPI;
+import org.exemplo.bellory.service.OrganizacaoHomeService;
 import org.exemplo.bellory.service.OrganizacaoService;
 import org.exemplo.bellory.util.CNPJUtil;
 import org.springframework.http.HttpStatus;
@@ -35,6 +37,7 @@ import java.util.Map;
 public class OrganizacaoController {
 
     private final OrganizacaoService organizacaoService;
+    private final OrganizacaoHomeService organizacaoHomeService;
 
     /**
      * Cria uma nova organização
@@ -241,7 +244,7 @@ public class OrganizacaoController {
 //    @PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")
     public ResponseEntity<ResponseAPI<OrganizacaoResponseDTO>> update(
             @Parameter(description = "ID da organização", required = true)
-            @PathVariable @NotBlank long id,
+            @PathVariable long id,
             @Valid @RequestBody UpdateOrganizacaoDTO updateDTO) {
         try {
             OrganizacaoResponseDTO organizacaoAtualizada = organizacaoService.update(id, updateDTO);
@@ -300,7 +303,7 @@ public class OrganizacaoController {
     @PreAuthorize("hasRole('SUPER_ADMIN')")
     public ResponseEntity<ResponseAPI<Void>> delete(
             @Parameter(description = "ID da organização", required = true)
-            @PathVariable @NotBlank long id) {
+            @PathVariable long id) {
         try {
             organizacaoService.delete(id);
 
@@ -423,7 +426,7 @@ public class OrganizacaoController {
     @PreAuthorize("hasRole('SUPER_ADMIN')")
     public ResponseEntity<ResponseAPI<OrganizacaoResponseDTO>> ativar(
             @Parameter(description = "ID da organização", required = true)
-            @PathVariable @NotBlank long id) {
+            @PathVariable long id) {
         try {
             UpdateOrganizacaoDTO updateDTO = UpdateOrganizacaoDTO.builder()
                     .ativo(true)
@@ -788,6 +791,117 @@ public class OrganizacaoController {
                             .message("Erro ao remover banner.")
                             .errorCode(500)
                             .build());
+        }
+    }
+
+    // ==================== HOME / DASHBOARD LEVE ====================
+
+    @GetMapping("/resumo-home")
+    @Operation(summary = "Métricas agregadas para a home", description = "Retorna agendamentos hoje, faturamento mês, clientes ativos, taxa ocupação e próximo agendamento")
+    public ResponseEntity<ResponseAPI<ResumoHomeDTO>> getResumoHome() {
+        try {
+            ResumoHomeDTO resumo = organizacaoHomeService.getResumoHome();
+            return ResponseEntity.ok(ResponseAPI.<ResumoHomeDTO>builder()
+                    .success(true)
+                    .message("Resumo da home recuperado com sucesso.")
+                    .dados(resumo)
+                    .build());
+        } catch (SecurityException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ResponseAPI.<ResumoHomeDTO>builder()
+                            .success(false).message(e.getMessage()).errorCode(403).build());
+        } catch (Exception e) {
+            log.error("Erro ao buscar resumo da home: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseAPI.<ResumoHomeDTO>builder()
+                            .success(false).message("Erro ao buscar resumo: " + e.getMessage()).errorCode(500).build());
+        }
+    }
+
+    @GetMapping("/avisos")
+    @Operation(summary = "Avisos ativos da organização", description = "Retorna avisos de cobranças vencidas, limites próximos, onboarding incompleto, etc.")
+    public ResponseEntity<ResponseAPI<List<AvisoDTO>>> getAvisos() {
+        try {
+            List<AvisoDTO> avisos = organizacaoHomeService.getAvisos();
+            return ResponseEntity.ok(ResponseAPI.<List<AvisoDTO>>builder()
+                    .success(true)
+                    .message("Avisos recuperados com sucesso.")
+                    .dados(avisos)
+                    .build());
+        } catch (SecurityException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ResponseAPI.<List<AvisoDTO>>builder()
+                            .success(false).message(e.getMessage()).errorCode(403).build());
+        } catch (Exception e) {
+            log.error("Erro ao buscar avisos: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseAPI.<List<AvisoDTO>>builder()
+                            .success(false).message("Erro ao buscar avisos: " + e.getMessage()).errorCode(500).build());
+        }
+    }
+
+    @PostMapping("/avisos/{avisoId}/dispensar")
+    @Operation(summary = "Dispensar aviso", description = "Marca um aviso como lido/dispensado para o usuário logado")
+    public ResponseEntity<ResponseAPI<Void>> dispensarAviso(@PathVariable String avisoId) {
+        try {
+            organizacaoHomeService.dispensarAviso(avisoId);
+            return ResponseEntity.ok(ResponseAPI.<Void>builder()
+                    .success(true)
+                    .message("Aviso dispensado com sucesso.")
+                    .build());
+        } catch (SecurityException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ResponseAPI.<Void>builder()
+                            .success(false).message(e.getMessage()).errorCode(403).build());
+        } catch (Exception e) {
+            log.error("Erro ao dispensar aviso: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseAPI.<Void>builder()
+                            .success(false).message("Erro ao dispensar aviso: " + e.getMessage()).errorCode(500).build());
+        }
+    }
+
+    @GetMapping("/checklist-onboarding")
+    @Operation(summary = "Estado do onboarding", description = "Retorna checklist com status de cada etapa de configuração")
+    public ResponseEntity<ResponseAPI<ChecklistOnboardingDTO>> getChecklistOnboarding() {
+        try {
+            ChecklistOnboardingDTO checklist = organizacaoHomeService.getChecklistOnboarding();
+            return ResponseEntity.ok(ResponseAPI.<ChecklistOnboardingDTO>builder()
+                    .success(true)
+                    .message("Checklist de onboarding recuperado com sucesso.")
+                    .dados(checklist)
+                    .build());
+        } catch (SecurityException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ResponseAPI.<ChecklistOnboardingDTO>builder()
+                            .success(false).message(e.getMessage()).errorCode(403).build());
+        } catch (Exception e) {
+            log.error("Erro ao buscar checklist de onboarding: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseAPI.<ChecklistOnboardingDTO>builder()
+                            .success(false).message("Erro ao buscar checklist: " + e.getMessage()).errorCode(500).build());
+        }
+    }
+
+    @GetMapping("/atividade-recente")
+    @Operation(summary = "Atividade recente", description = "Retorna últimas atividades (agendamentos, cobranças) dos últimos 7 dias")
+    public ResponseEntity<ResponseAPI<List<AtividadeRecenteDTO>>> getAtividadeRecente() {
+        try {
+            List<AtividadeRecenteDTO> atividades = organizacaoHomeService.getAtividadeRecente();
+            return ResponseEntity.ok(ResponseAPI.<List<AtividadeRecenteDTO>>builder()
+                    .success(true)
+                    .message("Atividade recente recuperada com sucesso.")
+                    .dados(atividades)
+                    .build());
+        } catch (SecurityException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ResponseAPI.<List<AtividadeRecenteDTO>>builder()
+                            .success(false).message(e.getMessage()).errorCode(403).build());
+        } catch (Exception e) {
+            log.error("Erro ao buscar atividade recente: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseAPI.<List<AtividadeRecenteDTO>>builder()
+                            .success(false).message("Erro ao buscar atividade: " + e.getMessage()).errorCode(500).build());
         }
     }
 

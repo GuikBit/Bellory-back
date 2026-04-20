@@ -16,7 +16,8 @@
       "Bash(\"C:/Program Files/JetBrains/IntelliJ IDEA 2025.3.1.1/plugins/maven/lib/maven3/bin/mvn\" compile -q)",
       "Bash(xargs grep *)",
       "Bash(find *)",
-      "Bash(grep *)"
+      "Bash(grep *)",
+      "Bash(mvn compile *)"
     ]
   }
 }
