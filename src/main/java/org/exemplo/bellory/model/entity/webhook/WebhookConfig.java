@@ -5,7 +5,7 @@ import lombok.*;
 
 import java.time.LocalDateTime;
 
-@Entity
+@Entity(name = "PaymentWebhookConfig")
 @Table(name = "webhook_config", schema = "admin")
 @Getter
 @Setter
