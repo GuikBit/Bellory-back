@@ -8,6 +8,7 @@ import org.exemplo.bellory.client.payment.PaymentApiClient;
 import org.exemplo.bellory.client.payment.dto.*;
 import org.exemplo.bellory.context.TenantContext;
 import org.exemplo.bellory.exception.PaymentApiException;
+import org.exemplo.bellory.model.dto.assinatura.TrocarPlanoRequestDTO;
 import org.exemplo.bellory.model.entity.assinatura.Assinatura;
 import org.exemplo.bellory.model.repository.assinatura.AssinaturaRepository;
 import org.exemplo.bellory.service.assinatura.AssinaturaCacheService;
@@ -93,9 +94,13 @@ public class PlanoController {
 
     @Operation(summary = "Efetiva a troca de plano da organizacao logada")
     @PostMapping("/trocar")
-    public ResponseEntity<?> trocarPlano(@RequestParam Long novoPlanId, HttpServletRequest request) {
+    public ResponseEntity<?> trocarPlano(@RequestBody TrocarPlanoRequestDTO body, HttpServletRequest request) {
         Long organizacaoId = TenantContext.getCurrentOrganizacaoId();
         if (organizacaoId == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+
+        if (body.getNewPlanId() == null) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", "newPlanId é obrigatório"));
+        }
 
         Assinatura assinatura = getAssinaturaOrThrow(organizacaoId);
 
@@ -105,24 +110,48 @@ public class PlanoController {
         String requestedBy = TenantContext.getCurrentUsername();
         String remoteIp = request.getRemoteAddr();
 
+        // Resolve billingType do body (default UNDEFINED se não informado)
+        PaymentBillingType billingType = null;
+        if (body.getBillingType() != null && !body.getBillingType().isBlank()) {
+            billingType = PaymentBillingType.valueOf(body.getBillingType().toUpperCase());
+        }
+
         RequestPlanChangeRequest req = RequestPlanChangeRequest.builder()
-                .newPlanId(novoPlanId)
+                .newPlanId(body.getNewPlanId())
                 .currentUsage(currentUsage)
                 .requestedBy(requestedBy)
                 .remoteIp(remoteIp)
+                .billingType(billingType)
+                .creditCard(body.getCreditCard())
+                .creditCardHolderInfo(body.getCreditCardHolderInfo())
+                .creditCardToken(body.getCreditCardToken())
                 .build();
 
         try {
-            PlanChangeResponse response = paymentApiClient.changePlan(
+            PlanChangeResponse planChange = paymentApiClient.changePlan(
                     assinatura.getPaymentApiSubscriptionId(), req);
 
             // Invalida cache para refletir o novo plano imediatamente
             assinaturaCacheService.refreshByOrganizacao(organizacaoId);
 
-            return ResponseEntity.ok(response);
+            // Se gerou cobranca (upgrade com pro-rata), busca os dados de pagamento
+            ChargeResponse cobranca = null;
+            if (planChange.getChargeId() != null) {
+                try {
+                    cobranca = paymentApiClient.getCharge(planChange.getChargeId());
+                } catch (PaymentApiException ce) {
+                    log.warn("Troca de plano OK, mas falha ao buscar cobranca {}: {}",
+                            planChange.getChargeId(), ce.getMessage());
+                }
+            }
+
+            return ResponseEntity.ok(TrocaPlanoResponseDTO.builder()
+                    .trocaPlano(planChange)
+                    .cobranca(cobranca)
+                    .build());
         } catch (PaymentApiException e) {
             log.error("Falha na troca de plano (org={}, novoPlanId={}): {}",
-                    organizacaoId, novoPlanId, e.getMessage());
+                    organizacaoId, body.getNewPlanId(), e.getMessage());
             return buildPaymentErrorResponse(e);
         }
     }

@@ -121,18 +121,40 @@ public class AssinaturaCacheController {
                 }
             }
 
-            List<ChargeResponse> cobrancas;
+            // Cobranças da assinatura
+            List<ChargeResponse> cobrancasSubscription;
             try {
-                cobrancas = paymentApiClient.listChargesBySubscription(subscriptionId);
+                cobrancasSubscription = paymentApiClient.listChargesBySubscription(subscriptionId);
             } catch (PaymentApiException e) {
                 log.warn("Falha consultando cobrancas (subscriptionId={}): {}", subscriptionId, e.getMessage());
-                cobrancas = Collections.emptyList();
+                cobrancasSubscription = Collections.emptyList();
             }
+
+            // Cobranças avulsas do customer (troca de plano, etc.)
+            Long customerId = optAssinatura.get().getPaymentApiCustomerId();
+            List<ChargeResponse> cobrancasCustomer = Collections.emptyList();
+            if (customerId != null) {
+                try {
+                    cobrancasCustomer = paymentApiClient.listChargesByCustomer(customerId);
+                } catch (PaymentApiException e) {
+                    log.warn("Falha consultando cobrancas (customerId={}): {}", customerId, e.getMessage());
+                }
+            }
+
+            // Junta as duas listas removendo duplicatas por ID
+            java.util.Map<Long, ChargeResponse> cobrancasMap = new java.util.LinkedHashMap<>();
+            for (ChargeResponse c : cobrancasSubscription) {
+                cobrancasMap.put(c.getId(), c);
+            }
+            for (ChargeResponse c : cobrancasCustomer) {
+                cobrancasMap.putIfAbsent(c.getId(), c);
+            }
+            List<ChargeResponse> todasCobrancas = new java.util.ArrayList<>(cobrancasMap.values());
 
             return ResponseEntity.ok(AssinaturaCompletaDTO.builder()
                     .assinatura(assinatura)
                     .plano(plano)
-                    .cobrancas(cobrancas)
+                    .cobrancas(todasCobrancas)
                     .build());
         } catch (PaymentApiException e) {
             log.error("Falha consultando assinatura na Payment API (subscriptionId={}): {}", subscriptionId, e.getMessage());

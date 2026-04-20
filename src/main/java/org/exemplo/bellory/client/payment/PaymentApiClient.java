@@ -347,6 +347,27 @@ public class PaymentApiClient {
         }
     }
 
+    // ==================== CHARGES ====================
+
+    @Retryable(
+            retryFor = { ResourceAccessException.class, IOException.class },
+            maxAttempts = 3,
+            backoff = @Backoff(delay = 500, multiplier = 2)
+    )
+    public ChargeResponse getCharge(Long chargeId) {
+        try {
+            return restClient.get()
+                    .uri("/api/v1/charges/{id}", chargeId)
+                    .retrieve()
+                    .onStatus(HttpStatusCode::isError, (request, response) -> {
+                        throw buildException("GET /charges/" + chargeId, response.getStatusCode(), bodyAsString(response));
+                    })
+                    .body(ChargeResponse.class);
+        } catch (ResourceAccessException e) {
+            throw new PaymentApiException("Timeout/IO em GET /charges/" + chargeId, e);
+        }
+    }
+
     // ==================== PLANS ====================
 
     @Retryable(

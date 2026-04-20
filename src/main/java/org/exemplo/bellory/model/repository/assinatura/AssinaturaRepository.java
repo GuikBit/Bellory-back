@@ -13,6 +13,10 @@ public interface AssinaturaRepository extends JpaRepository<Assinatura, Long> {
     @Query("SELECT a FROM Assinatura a LEFT JOIN FETCH a.organizacao WHERE a.organizacao.id = :organizacaoId")
     Optional<Assinatura> findByOrganizacaoId(@Param("organizacaoId") Long organizacaoId);
 
+    Optional<Assinatura> findByPaymentApiCustomerId(Long paymentApiCustomerId);
+
+    Optional<Assinatura> findByPaymentApiSubscriptionId(Long paymentApiSubscriptionId);
+
     @Query("SELECT a FROM Assinatura a LEFT JOIN FETCH a.organizacao WHERE a.id = :id")
     Optional<Assinatura> findByIdWithDetails(@Param("id") Long id);
 

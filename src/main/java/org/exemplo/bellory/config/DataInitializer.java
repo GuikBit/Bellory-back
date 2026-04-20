@@ -14,7 +14,7 @@ public class DataInitializer {
     public CommandLineRunner loadData(DatabaseSeederService seeder) {
         return args -> {
             try {
-               //seeder.seedDatabase();
+               // seeder.seedDatabase();
             } catch (Exception e) {
                 System.err.println("[dev] DataInitializer: falha no seed — " + e.getMessage());
                 e.printStackTrace();

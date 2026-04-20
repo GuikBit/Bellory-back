@@ -138,8 +138,9 @@ public class SecurityConfig {
                                 // Login admin da plataforma (publico)
                                 "/api/v1/admin/auth/**",
 
-                                // Webhook Assas (publico, validado por token proprio)
-                                "/api/v1/webhook/assas"
+                                // Webhooks (publico, validado por token proprio)
+                                "/api/v1/webhook/assas",
+                                "/api/v1/webhook/payment"
                         ).permitAll()
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/v1/admin/**").hasAnyRole("PLATFORM_ADMIN", "SUPERADMIN", "ADMIN")
