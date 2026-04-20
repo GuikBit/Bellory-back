@@ -472,6 +472,168 @@ public class PaymentApiClient {
         }
     }
 
+    public CouponResponse createCoupon(CreateCouponRequest req) {
+        log.info("Payment API >> POST /coupons code='{}'", req.getCode());
+        try {
+            return restClient.post()
+                    .uri("/api/v1/coupons")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(req)
+                    .retrieve()
+                    .onStatus(HttpStatusCode::isError, (request, response) -> {
+                        throw buildException("POST /coupons", response.getStatusCode(), bodyAsString(response));
+                    })
+                    .body(CouponResponse.class);
+        } catch (ResourceAccessException e) {
+            throw new PaymentApiException("Timeout/IO em POST /coupons", e);
+        }
+    }
+
+    @Retryable(retryFor = { ResourceAccessException.class, IOException.class },
+            maxAttempts = 3, backoff = @Backoff(delay = 500, multiplier = 2))
+    public PageResponse<CouponResponse> listCoupons(int page, int size) {
+        try {
+            PageResponse<CouponResponse> resp = restClient.get()
+                    .uri(uriBuilder -> uriBuilder
+                            .path("/api/v1/coupons")
+                            .queryParam("page", page)
+                            .queryParam("size", size)
+                            .queryParam("sort", "createdAt,desc")
+                            .build())
+                    .retrieve()
+                    .onStatus(HttpStatusCode::isError, (request, response) -> {
+                        throw buildException("GET /coupons", response.getStatusCode(), bodyAsString(response));
+                    })
+                    .body(new ParameterizedTypeReference<PageResponse<CouponResponse>>() {});
+            return resp != null ? resp : new PageResponse<>();
+        } catch (ResourceAccessException e) {
+            throw new PaymentApiException("Timeout/IO em GET /coupons", e);
+        }
+    }
+
+    @Retryable(retryFor = { ResourceAccessException.class, IOException.class },
+            maxAttempts = 3, backoff = @Backoff(delay = 500, multiplier = 2))
+    public PageResponse<CouponResponse> listActiveCoupons(int page, int size) {
+        try {
+            PageResponse<CouponResponse> resp = restClient.get()
+                    .uri(uriBuilder -> uriBuilder
+                            .path("/api/v1/coupons/active")
+                            .queryParam("page", page)
+                            .queryParam("size", size)
+                            .build())
+                    .retrieve()
+                    .onStatus(HttpStatusCode::isError, (request, response) -> {
+                        throw buildException("GET /coupons/active", response.getStatusCode(), bodyAsString(response));
+                    })
+                    .body(new ParameterizedTypeReference<PageResponse<CouponResponse>>() {});
+            return resp != null ? resp : new PageResponse<>();
+        } catch (ResourceAccessException e) {
+            throw new PaymentApiException("Timeout/IO em GET /coupons/active", e);
+        }
+    }
+
+    @Retryable(retryFor = { ResourceAccessException.class, IOException.class },
+            maxAttempts = 3, backoff = @Backoff(delay = 500, multiplier = 2))
+    public CouponResponse getCoupon(Long couponId) {
+        try {
+            return restClient.get()
+                    .uri("/api/v1/coupons/{id}", couponId)
+                    .retrieve()
+                    .onStatus(HttpStatusCode::isError, (request, response) -> {
+                        throw buildException("GET /coupons/" + couponId, response.getStatusCode(), bodyAsString(response));
+                    })
+                    .body(CouponResponse.class);
+        } catch (ResourceAccessException e) {
+            throw new PaymentApiException("Timeout/IO em GET /coupons/" + couponId, e);
+        }
+    }
+
+    @Retryable(retryFor = { ResourceAccessException.class, IOException.class },
+            maxAttempts = 3, backoff = @Backoff(delay = 500, multiplier = 2))
+    public CouponResponse getCouponByCode(String code) {
+        try {
+            return restClient.get()
+                    .uri("/api/v1/coupons/code/{code}", code)
+                    .retrieve()
+                    .onStatus(HttpStatusCode::isError, (request, response) -> {
+                        throw buildException("GET /coupons/code/" + code, response.getStatusCode(), bodyAsString(response));
+                    })
+                    .body(CouponResponse.class);
+        } catch (ResourceAccessException e) {
+            throw new PaymentApiException("Timeout/IO em GET /coupons/code/" + code, e);
+        }
+    }
+
+    public CouponResponse updateCoupon(Long couponId, UpdateCouponRequest req) {
+        log.info("Payment API >> PUT /coupons/{}", couponId);
+        try {
+            return restClient.put()
+                    .uri("/api/v1/coupons/{id}", couponId)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(req)
+                    .retrieve()
+                    .onStatus(HttpStatusCode::isError, (request, response) -> {
+                        throw buildException("PUT /coupons/" + couponId, response.getStatusCode(), bodyAsString(response));
+                    })
+                    .body(CouponResponse.class);
+        } catch (ResourceAccessException e) {
+            throw new PaymentApiException("Timeout/IO em PUT /coupons/" + couponId, e);
+        }
+    }
+
+    public void deleteCoupon(Long couponId) {
+        log.info("Payment API >> DELETE /coupons/{}", couponId);
+        try {
+            restClient.delete()
+                    .uri("/api/v1/coupons/{id}", couponId)
+                    .retrieve()
+                    .onStatus(HttpStatusCode::isError, (request, response) -> {
+                        throw buildException("DELETE /coupons/" + couponId, response.getStatusCode(), bodyAsString(response));
+                    })
+                    .toBodilessEntity();
+        } catch (ResourceAccessException e) {
+            throw new PaymentApiException("Timeout/IO em DELETE /coupons/" + couponId, e);
+        }
+    }
+
+    public CouponResponse activateCoupon(Long couponId) {
+        log.info("Payment API >> PATCH /coupons/{}/activate", couponId);
+        try {
+            return restClient.patch()
+                    .uri("/api/v1/coupons/{id}/activate", couponId)
+                    .retrieve()
+                    .onStatus(HttpStatusCode::isError, (request, response) -> {
+                        throw buildException("PATCH /coupons/" + couponId + "/activate",
+                                response.getStatusCode(), bodyAsString(response));
+                    })
+                    .body(CouponResponse.class);
+        } catch (ResourceAccessException e) {
+            throw new PaymentApiException("Timeout/IO em PATCH /coupons/" + couponId + "/activate", e);
+        }
+    }
+
+    @Retryable(retryFor = { ResourceAccessException.class, IOException.class },
+            maxAttempts = 3, backoff = @Backoff(delay = 500, multiplier = 2))
+    public PageResponse<CouponUsageResponse> getCouponUsages(Long couponId, int page, int size) {
+        try {
+            PageResponse<CouponUsageResponse> resp = restClient.get()
+                    .uri(uriBuilder -> uriBuilder
+                            .path("/api/v1/coupons/{id}/usages")
+                            .queryParam("page", page)
+                            .queryParam("size", size)
+                            .build(couponId))
+                    .retrieve()
+                    .onStatus(HttpStatusCode::isError, (request, response) -> {
+                        throw buildException("GET /coupons/" + couponId + "/usages",
+                                response.getStatusCode(), bodyAsString(response));
+                    })
+                    .body(new ParameterizedTypeReference<PageResponse<CouponUsageResponse>>() {});
+            return resp != null ? resp : new PageResponse<>();
+        } catch (ResourceAccessException e) {
+            throw new PaymentApiException("Timeout/IO em GET /coupons/" + couponId + "/usages", e);
+        }
+    }
+
     private PaymentApiException buildException(String opLabel, HttpStatusCode status, String body) {
         int code = status != null ? status.value() : 0;
         String msg = "Payment API erro em " + opLabel + " (HTTP " + code + ")";
@@ -495,5 +657,9 @@ public class PaymentApiClient {
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class PageResponse<T> {
         private List<T> content;
+        private Long totalElements;
+        private Integer totalPages;
+        private Integer number;
+        private Integer size;
     }
 }
