@@ -227,6 +227,29 @@ public class PaymentApiClient {
         }
     }
 
+    @Retryable(retryFor = { ResourceAccessException.class, IOException.class },
+            maxAttempts = 3, backoff = @Backoff(delay = 500, multiplier = 2))
+    public PageResponse<ChargeResponse> listChargesByCustomerPaged(Long customerId, int page, int size) {
+        try {
+            PageResponse<ChargeResponse> resp = restClient.get()
+                    .uri(uriBuilder -> uriBuilder
+                            .path("/api/v1/charges")
+                            .queryParam("customerId", customerId)
+                            .queryParam("page", page)
+                            .queryParam("size", size)
+                            .queryParam("sort", "createdAt,desc")
+                            .build())
+                    .retrieve()
+                    .onStatus(HttpStatusCode::isError, (request, response) -> {
+                        throw buildException("GET /charges?customerId=" + customerId, response.getStatusCode(), bodyAsString(response));
+                    })
+                    .body(new ParameterizedTypeReference<PageResponse<ChargeResponse>>() {});
+            return resp != null ? resp : new PageResponse<>();
+        } catch (ResourceAccessException e) {
+            throw new PaymentApiException("Timeout/IO em GET /charges customerId=" + customerId, e);
+        }
+    }
+
     @Retryable(
             retryFor = { ResourceAccessException.class, IOException.class },
             maxAttempts = 3,
