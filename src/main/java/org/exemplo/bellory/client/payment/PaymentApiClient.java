@@ -395,6 +395,122 @@ public class PaymentApiClient {
         }
     }
 
+    public PlanResponse createPlan(CreatePlanRequest req) {
+        log.info("Payment API >> POST /plans codigo='{}'", req.getCodigo());
+        try {
+            return restClient.post()
+                    .uri("/api/v1/plans")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(req)
+                    .retrieve()
+                    .onStatus(HttpStatusCode::isError, (request, response) -> {
+                        throw buildException("POST /plans", response.getStatusCode(), bodyAsString(response));
+                    })
+                    .body(PlanResponse.class);
+        } catch (ResourceAccessException e) {
+            throw new PaymentApiException("Timeout/IO em POST /plans", e);
+        }
+    }
+
+    public PlanResponse updatePlan(Long planId, UpdatePlanRequest req) {
+        log.info("Payment API >> PUT /plans/{}", planId);
+        try {
+            return restClient.put()
+                    .uri("/api/v1/plans/{id}", planId)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(req)
+                    .retrieve()
+                    .onStatus(HttpStatusCode::isError, (request, response) -> {
+                        throw buildException("PUT /plans/" + planId, response.getStatusCode(), bodyAsString(response));
+                    })
+                    .body(PlanResponse.class);
+        } catch (ResourceAccessException e) {
+            throw new PaymentApiException("Timeout/IO em PUT /plans/" + planId, e);
+        }
+    }
+
+    public PlanResponse activatePlan(Long planId) {
+        log.info("Payment API >> PATCH /plans/{}/activate", planId);
+        try {
+            return restClient.patch()
+                    .uri("/api/v1/plans/{id}/activate", planId)
+                    .retrieve()
+                    .onStatus(HttpStatusCode::isError, (request, response) -> {
+                        throw buildException("PATCH /plans/" + planId + "/activate",
+                                response.getStatusCode(), bodyAsString(response));
+                    })
+                    .body(PlanResponse.class);
+        } catch (ResourceAccessException e) {
+            throw new PaymentApiException("Timeout/IO em PATCH /plans/" + planId + "/activate", e);
+        }
+    }
+
+    public PlanResponse deactivatePlan(Long planId) {
+        log.info("Payment API >> PATCH /plans/{}/deactivate", planId);
+        try {
+            return restClient.patch()
+                    .uri("/api/v1/plans/{id}/deactivate", planId)
+                    .retrieve()
+                    .onStatus(HttpStatusCode::isError, (request, response) -> {
+                        throw buildException("PATCH /plans/" + planId + "/deactivate",
+                                response.getStatusCode(), bodyAsString(response));
+                    })
+                    .body(PlanResponse.class);
+        } catch (ResourceAccessException e) {
+            throw new PaymentApiException("Timeout/IO em PATCH /plans/" + planId + "/deactivate", e);
+        }
+    }
+
+    public void deletePlan(Long planId) {
+        log.info("Payment API >> DELETE /plans/{}", planId);
+        try {
+            restClient.delete()
+                    .uri("/api/v1/plans/{id}", planId)
+                    .retrieve()
+                    .onStatus(HttpStatusCode::isError, (request, response) -> {
+                        throw buildException("DELETE /plans/" + planId, response.getStatusCode(), bodyAsString(response));
+                    })
+                    .toBodilessEntity();
+        } catch (ResourceAccessException e) {
+            throw new PaymentApiException("Timeout/IO em DELETE /plans/" + planId, e);
+        }
+    }
+
+    public PlanResponse createNewPlanVersion(Long planId, UpdatePlanRequest req) {
+        log.info("Payment API >> POST /plans/{}/new-version", planId);
+        try {
+            return restClient.post()
+                    .uri("/api/v1/plans/{id}/new-version", planId)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(req)
+                    .retrieve()
+                    .onStatus(HttpStatusCode::isError, (request, response) -> {
+                        throw buildException("POST /plans/" + planId + "/new-version",
+                                response.getStatusCode(), bodyAsString(response));
+                    })
+                    .body(PlanResponse.class);
+        } catch (ResourceAccessException e) {
+            throw new PaymentApiException("Timeout/IO em POST /plans/" + planId + "/new-version", e);
+        }
+    }
+
+    @Retryable(retryFor = { ResourceAccessException.class, IOException.class },
+            maxAttempts = 3, backoff = @Backoff(delay = 500, multiplier = 2))
+    public PlanPricingResponse getPlanPricing(Long planId) {
+        try {
+            return restClient.get()
+                    .uri("/api/v1/plans/{id}/pricing", planId)
+                    .retrieve()
+                    .onStatus(HttpStatusCode::isError, (request, response) -> {
+                        throw buildException("GET /plans/" + planId + "/pricing",
+                                response.getStatusCode(), bodyAsString(response));
+                    })
+                    .body(PlanPricingResponse.class);
+        } catch (ResourceAccessException e) {
+            throw new PaymentApiException("Timeout/IO em GET /plans/" + planId + "/pricing", e);
+        }
+    }
+
     // ==================== PLAN CHANGE ====================
 
     public PlanChangePreviewResponse previewPlanChange(Long subscriptionId, Long newPlanId) {
