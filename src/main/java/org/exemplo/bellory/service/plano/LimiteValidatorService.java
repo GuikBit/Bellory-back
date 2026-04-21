@@ -139,14 +139,14 @@ public class LimiteValidatorService {
     public enum TipoLimite {
         CLIENTE("cliente", "clientes"),
         AGENDAMENTO("agendamento", "agendamentos"),
-        FUNCIONARIO("funcionario", "funcionarios"),
-        SERVICO("servicos", "servicos"),
+        FUNCIONARIO("funcionario", "funcionários"),
+        SERVICO("servico", "serviços"),
         UNIDADE("unidade", "unidades"),
-        ARQUIVOS("arquivos", "arquivos"),
+        ARQUIVO("arquivo", "arquivos"),
         SITE_EXTERNO("site_externo", "site externo"),
         AGENTE_VIRTUAL("agente_virtual", "agentes virtuais"),
         API("api", "API"),
-        RELATORIOS("relatorios", "relatorios");
+        RELATORIO("relatorio", "relatórios");
 
         private final String key;
         private final String label;

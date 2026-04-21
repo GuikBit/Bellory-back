@@ -1,6 +1,10 @@
 package org.exemplo.bellory.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.exemplo.bellory.client.payment.dto.CachedCustomerStatus;
+import org.exemplo.bellory.client.payment.dto.PaymentPlanLimitType;
+import org.exemplo.bellory.client.payment.dto.PlanLimitDto;
 import org.exemplo.bellory.context.TenantContext;
 import org.exemplo.bellory.model.dto.arquivo.ArquivoDTO;
 import org.exemplo.bellory.model.dto.arquivo.PastaArquivoDTO;
@@ -11,6 +15,9 @@ import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 import org.exemplo.bellory.model.repository.arquivo.ArquivoRepository;
 import org.exemplo.bellory.model.repository.arquivo.PastaArquivoRepository;
 import org.exemplo.bellory.model.repository.organizacao.OrganizacaoRepository;
+import org.exemplo.bellory.service.assinatura.AssinaturaCacheService;
+import org.exemplo.bellory.service.plano.LimiteValidatorService;
+import org.exemplo.bellory.service.plano.LimiteValidatorService.TipoLimite;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +34,7 @@ import java.time.ZoneId;
 import java.util.*;
 import java.util.stream.Stream;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ArquivoStorageService {
@@ -34,6 +42,8 @@ public class ArquivoStorageService {
     private final ArquivoRepository arquivoRepository;
     private final PastaArquivoRepository pastaArquivoRepository;
     private final OrganizacaoRepository organizacaoRepository;
+    private final LimiteValidatorService limiteValidator;
+    private final AssinaturaCacheService assinaturaCacheService;
 
     @Value("${file.upload.dir}")
     private String uploadDir;
@@ -84,6 +94,9 @@ public class ArquivoStorageService {
     public List<ArquivoDTO> uploadArquivos(List<MultipartFile> files, Long pastaId) {
         Long organizacaoId = getOrganizacaoId();
         Long userId = TenantContext.getCurrentUserId();
+
+        // Verifica se o plano permite uso do modulo de arquivos
+        limiteValidator.validarFeatureHabilitada(organizacaoId, TipoLimite.ARQUIVO);
 
         verificarLimiteStorage(organizacaoId, files);
 
@@ -201,6 +214,9 @@ public class ArquivoStorageService {
     public PastaArquivoDTO criarPasta(String nome, Long pastaPaiId) {
         Long organizacaoId = getOrganizacaoId();
         Long userId = TenantContext.getCurrentUserId();
+
+        // Verifica se o plano permite uso do modulo de arquivos
+        limiteValidator.validarFeatureHabilitada(organizacaoId, TipoLimite.ARQUIVO);
 
         if (nome == null || nome.isBlank()) {
             throw new IllegalArgumentException("Nome da pasta é obrigatório.");
@@ -745,9 +761,37 @@ public class ArquivoStorageService {
     }
 
     private Integer obterLimiteStorageMb(Organizacao organizacao) {
-        // TODO: adicionar key 'max_storage_mb' nos planos da Payment API e consultar via
-        // LimiteValidatorService/AssinaturaCacheService. Por ora retorna null = sem limite.
-        return null;
+        try {
+            CachedCustomerStatus status = assinaturaCacheService.getCachedByOrganizacao(organizacao.getId());
+            if (status == null || status.getLimits() == null) {
+                log.debug("Sem cache de plano para org={}, storage sem limite", organizacao.getId());
+                return null;
+            }
+
+            // Busca a key "arquivo" nos limites do plano
+            return status.getLimits().stream()
+                    .filter(l -> "arquivo".equalsIgnoreCase(l.getKey()))
+                    .findFirst()
+                    .map(limit -> {
+                        if (limit.getType() == PaymentPlanLimitType.BOOLEAN) {
+                            // BOOLEAN false = modulo desabilitado (0MB)
+                            // BOOLEAN true = sem limite de storage definido
+                            return Boolean.TRUE.equals(limit.getEnabled()) ? null : 0;
+                        }
+                        if (limit.getType() == PaymentPlanLimitType.UNLIMITED) {
+                            return null; // sem limite
+                        }
+                        if (limit.getType() == PaymentPlanLimitType.NUMBER) {
+                            // value = limite em MB
+                            return limit.getValue() != null ? limit.getValue().intValue() : null;
+                        }
+                        return null;
+                    })
+                    .orElse(null);
+        } catch (Exception e) {
+            log.warn("Erro ao consultar limite de storage para org={}: {}", organizacao.getId(), e.getMessage());
+            return null; // fail-open
+        }
     }
 
     // ==================== METODOS PRIVADOS - DISCO ====================
