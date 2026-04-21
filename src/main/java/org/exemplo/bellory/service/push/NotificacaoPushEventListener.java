@@ -60,7 +60,7 @@ public class NotificacaoPushEventListener {
         String metadataJson = toJson(meta);
         String urlAcao = "/agendamentos/" + event.getAgendamentoId();
 
-        for (String role : new String[]{"ROLE_ADMIN", "ROLE_GERENTE", "ROLE_RECEPCAO"}) {
+        for (String role : new String[]{"ROLE_SUPERADMIN", "ROLE_ADMIN", "ROLE_GERENTE", "ROLE_RECEPCAO"}) {
             notificacaoPushService.criarEEnviarParaRole(
                     role, event.getOrganizacaoId(),
                     titulo, descricao, "AGENDAMENTO",
@@ -109,13 +109,15 @@ public class NotificacaoPushEventListener {
             );
         }
 
-        // Notificar ROLE_ADMIN
-        notificacaoPushService.criarEEnviarParaRole(
-                "ROLE_ADMIN", event.getOrganizacaoId(),
-                titulo, descricao, "AGENDAMENTO",
-                CategoriaNotificacao.AGENDAMENTO, PrioridadeNotificacao.ALTA,
-                null, urlAcao, detalhe, metadataJson
-        );
+        // Notificar ADMIN e SUPERADMIN
+        for (String adminRole : new String[]{"ROLE_SUPERADMIN", "ROLE_ADMIN"}) {
+            notificacaoPushService.criarEEnviarParaRole(
+                    adminRole, event.getOrganizacaoId(),
+                    titulo, descricao, "AGENDAMENTO",
+                    CategoriaNotificacao.AGENDAMENTO, PrioridadeNotificacao.ALTA,
+                    null, urlAcao, detalhe, metadataJson
+            );
+        }
     }
 
     // ==================== AGENDAMENTO CONFIRMADO ====================
@@ -181,7 +183,7 @@ public class NotificacaoPushEventListener {
 
         String metadataJson = toJson(meta);
 
-        for (String role : new String[]{"ROLE_ADMIN", "ROLE_GERENTE"}) {
+        for (String role : new String[]{"ROLE_SUPERADMIN", "ROLE_ADMIN", "ROLE_GERENTE"}) {
             notificacaoPushService.criarEEnviarParaRole(
                     role, event.getOrganizacaoId(),
                     titulo, descricao, "FINANCEIRO",
@@ -223,12 +225,14 @@ public class NotificacaoPushEventListener {
 
         String metadataJson = toJson(meta);
 
-        notificacaoPushService.criarEEnviarParaRole(
-                "ROLE_ADMIN", event.getOrganizacaoId(),
-                titulo, descricao, "CLIENTE",
-                CategoriaNotificacao.CLIENTE, PrioridadeNotificacao.BAIXA,
-                null, "/clientes/" + event.getClienteId(), detalhe, metadataJson
-        );
+        for (String role : new String[]{"ROLE_SUPERADMIN", "ROLE_ADMIN"}) {
+            notificacaoPushService.criarEEnviarParaRole(
+                    role, event.getOrganizacaoId(),
+                    titulo, descricao, "CLIENTE",
+                    CategoriaNotificacao.CLIENTE, PrioridadeNotificacao.BAIXA,
+                    null, "/clientes/" + event.getClienteId(), detalhe, metadataJson
+            );
+        }
     }
 
     // ==================== ESTOQUE BAIXO ====================
@@ -251,7 +255,7 @@ public class NotificacaoPushEventListener {
 
         String metadataJson = toJson(meta);
 
-        for (String role : new String[]{"ROLE_ADMIN", "ROLE_GERENTE"}) {
+        for (String role : new String[]{"ROLE_SUPERADMIN", "ROLE_ADMIN", "ROLE_GERENTE"}) {
             notificacaoPushService.criarEEnviarParaRole(
                     role, event.getOrganizacaoId(),
                     titulo, descricao, "ESTOQUE",

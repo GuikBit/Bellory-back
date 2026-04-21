@@ -28,4 +28,6 @@ public interface AdminRepository extends JpaRepository<Admin, Long> {
 
     @Query("SELECT a FROM Admin a WHERE LOWER(a.email) = LOWER(:email)")
     List<Admin> findAllByEmailIgnoreCase(@Param("email") String email);
+
+    List<Admin> findAllByOrganizacao_IdAndAtivoTrue(Long organizacaoId);
 }

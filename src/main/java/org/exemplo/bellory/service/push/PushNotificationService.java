@@ -77,8 +77,18 @@ public class PushNotificationService {
 
     @Async
     public void sendToUser(Long userId, String userRole, Long orgId, NotificacaoPush notificacao) {
+        log.info("[PUSH] sendToUser userId={}, role={}, orgId={}, titulo='{}'", userId, userRole, orgId, notificacao.getTitulo());
+
         List<PushSubscription> subscriptions = pushSubscriptionRepository
                 .findAllByUserIdAndUserRoleAndOrganizacao_Id(userId, userRole, orgId);
+
+        if (subscriptions.isEmpty()) {
+            log.warn("[PUSH] Nenhuma subscription encontrada para userId={}, role={}, orgId={}. "
+                    + "O frontend registrou a subscription via POST /api/v1/push/subscribe?", userId, userRole, orgId);
+            return;
+        }
+
+        log.info("[PUSH] Encontradas {} subscription(s) para userId={}", subscriptions.size(), userId);
 
         for (PushSubscription sub : subscriptions) {
             sendPush(sub, notificacao);
@@ -87,9 +97,13 @@ public class PushNotificationService {
 
     @Async
     public void sendToUsers(List<Long> userIds, String userRole, Long orgId, NotificacaoPush notificacao) {
+        log.info("[PUSH] sendToUsers userIds={}, role={}, orgId={}", userIds, userRole, orgId);
         for (Long userId : userIds) {
             List<PushSubscription> subscriptions = pushSubscriptionRepository
                     .findAllByUserIdAndUserRoleAndOrganizacao_Id(userId, userRole, orgId);
+            if (subscriptions.isEmpty()) {
+                log.warn("[PUSH] Nenhuma subscription para userId={}, role={}, orgId={}", userId, userRole, orgId);
+            }
             for (PushSubscription sub : subscriptions) {
                 sendPush(sub, notificacao);
             }
@@ -102,6 +116,8 @@ public class PushNotificationService {
         List<PushSubscription> subscriptions = pushSubscriptionRepository
                 .findAllByUserRoleAndOrganizacao_Id(role, orgId);
 
+        log.info("[PUSH] sendToRole role={}, orgId={}, subscriptions={}", role, orgId, subscriptions.size());
+
         for (PushSubscription sub : subscriptions) {
             sendPush(sub, notificacao);
         }
@@ -109,7 +125,7 @@ public class PushNotificationService {
 
     private void sendPush(PushSubscription sub, NotificacaoPush notificacao) {
         if (pushService == null) {
-            log.warn("PushService nao configurado. Verifique as chaves VAPID.");
+            log.error("[PUSH] PushService e NULL! Chaves VAPID nao configuradas. Nenhum push sera enviado.");
             return;
         }
 
@@ -128,6 +144,10 @@ public class PushNotificationService {
 
             String payloadJson = objectMapper.writeValueAsString(payload);
 
+            log.info("[PUSH] Enviando push para endpoint={}... titulo='{}'",
+                    sub.getEndpoint().substring(0, Math.min(60, sub.getEndpoint().length())) + "...",
+                    notificacao.getTitulo());
+
             Notification notification = Notification.builder()
                     .endpoint(subscription.endpoint)
                     .userPublicKey(subscription.keys.p256dh)
@@ -140,16 +160,21 @@ public class PushNotificationService {
 
             int statusCode = response.getStatusLine().getStatusCode();
 
-            // 410 Gone = subscription expirada, remover do banco
-            if (statusCode == 410 || statusCode == 404) {
-                log.info("Subscription expirada ({}), removendo: {}", statusCode, sub.getEndpoint());
+            if (statusCode >= 200 && statusCode < 300) {
+                log.info("[PUSH] Enviado com SUCESSO (status {}) para userId={}, orgId={}",
+                        statusCode, sub.getUserId(), sub.getOrganizacao().getId());
+            } else if (statusCode == 410 || statusCode == 404) {
+                log.warn("[PUSH] Subscription EXPIRADA (status {}), removendo do banco. endpoint={}",
+                        statusCode, sub.getEndpoint().substring(0, Math.min(60, sub.getEndpoint().length())));
                 pushSubscriptionRepository.delete(sub);
-            } else if (statusCode >= 400) {
-                log.warn("Erro ao enviar push (status {}): {}", statusCode, sub.getEndpoint());
+            } else {
+                log.error("[PUSH] FALHA ao enviar push (status {}). endpoint={}, response={}",
+                        statusCode, sub.getEndpoint().substring(0, Math.min(60, sub.getEndpoint().length())),
+                        response.getStatusLine().getReasonPhrase());
             }
 
         } catch (Exception e) {
-            log.error("Erro ao enviar push notification para endpoint {}", sub.getEndpoint(), e);
+            log.error("[PUSH] EXCECAO ao enviar push para endpoint={}", sub.getEndpoint(), e);
         }
     }
 }

@@ -8,9 +8,11 @@ import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 import org.exemplo.bellory.model.entity.push.CategoriaNotificacao;
 import org.exemplo.bellory.model.entity.push.NotificacaoPush;
 import org.exemplo.bellory.model.entity.push.PrioridadeNotificacao;
+import org.exemplo.bellory.model.entity.users.Admin;
 import org.exemplo.bellory.model.repository.funcionario.FuncionarioRepository;
 import org.exemplo.bellory.model.repository.organizacao.OrganizacaoRepository;
 import org.exemplo.bellory.model.repository.push.NotificacaoPushRepository;
+import org.exemplo.bellory.model.repository.users.AdminRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -28,15 +30,18 @@ public class NotificacaoPushService {
     private final NotificacaoPushRepository notificacaoPushRepository;
     private final OrganizacaoRepository organizacaoRepository;
     private final FuncionarioRepository funcionarioRepository;
+    private final AdminRepository adminRepository;
     private final PushNotificationService pushNotificationService;
 
     public NotificacaoPushService(NotificacaoPushRepository notificacaoPushRepository,
                                   OrganizacaoRepository organizacaoRepository,
                                   FuncionarioRepository funcionarioRepository,
+                                  AdminRepository adminRepository,
                                   PushNotificationService pushNotificationService) {
         this.notificacaoPushRepository = notificacaoPushRepository;
         this.organizacaoRepository = organizacaoRepository;
         this.funcionarioRepository = funcionarioRepository;
+        this.adminRepository = adminRepository;
         this.pushNotificationService = pushNotificationService;
     }
 
@@ -126,38 +131,62 @@ public class NotificacaoPushService {
             Organizacao organizacao = organizacaoRepository.findById(organizacaoId)
                     .orElseThrow(() -> new IllegalArgumentException("Organização não encontrada"));
 
-            List<Funcionario> funcionarios = funcionarioRepository
-                    .findAllByRoleAndOrganizacao_IdAndAtivoTrueAndIsDeletadoFalse(role, organizacaoId);
+            int count = 0;
 
-            if (funcionarios.isEmpty()) {
-                log.debug("Nenhum funcionario ativo com role {} na organizacao {}", role, organizacaoId);
-                return;
+            // ROLE_SUPERADMIN vive na tabela admin, nao na funcionario
+            if ("ROLE_SUPERADMIN".equals(role)) {
+                List<Admin> admins = adminRepository.findAllByOrganizacao_IdAndAtivoTrue(organizacaoId);
+
+                for (Admin admin : admins) {
+                    NotificacaoPush notificacao = buildNotificacao(
+                            admin.getId(), role, organizacao, titulo, descricao,
+                            origem, categoria, prioridade, icone, urlAcao, detalhe, metadata);
+                    NotificacaoPush saved = notificacaoPushRepository.save(notificacao);
+                    pushNotificationService.sendToUser(admin.getId(), role, organizacaoId, saved);
+                    count++;
+                }
+            } else {
+                List<Funcionario> funcionarios = funcionarioRepository
+                        .findAllByRoleAndOrganizacao_IdAndAtivoTrueAndIsDeletadoFalse(role, organizacaoId);
+
+                for (Funcionario funcionario : funcionarios) {
+                    NotificacaoPush notificacao = buildNotificacao(
+                            funcionario.getId(), role, organizacao, titulo, descricao,
+                            origem, categoria, prioridade, icone, urlAcao, detalhe, metadata);
+                    NotificacaoPush saved = notificacaoPushRepository.save(notificacao);
+                    pushNotificationService.sendToUser(funcionario.getId(), role, organizacaoId, saved);
+                    count++;
+                }
             }
 
-            for (Funcionario funcionario : funcionarios) {
-                NotificacaoPush notificacao = new NotificacaoPush();
-                notificacao.setUserId(funcionario.getId());
-                notificacao.setUserRole(role);
-                notificacao.setOrganizacao(organizacao);
-                notificacao.setTitulo(titulo);
-                notificacao.setDescricao(descricao);
-                notificacao.setOrigem(origem);
-                notificacao.setCategoria(categoria);
-                notificacao.setPrioridade(prioridade);
-                notificacao.setIcone(icone);
-                notificacao.setUrlAcao(urlAcao);
-                notificacao.setDetalhe(detalhe);
-                notificacao.setMetadata(metadata);
-
-                NotificacaoPush saved = notificacaoPushRepository.save(notificacao);
-
-                pushNotificationService.sendToUser(funcionario.getId(), role, organizacaoId, saved);
+            if (count == 0) {
+                log.debug("Nenhum usuario ativo com role {} na organizacao {}", role, organizacaoId);
+            } else {
+                log.info("Criadas {} notificacoes para role {} na organizacao {}", count, role, organizacaoId);
             }
-
-            log.info("Criadas {} notificacoes para role {} na organizacao {}", funcionarios.size(), role, organizacaoId);
         } catch (Exception e) {
             log.error("Erro ao criar e enviar notificacoes para role {} na organizacao {}", role, organizacaoId, e);
         }
+    }
+
+    private NotificacaoPush buildNotificacao(Long userId, String role, Organizacao organizacao,
+                                              String titulo, String descricao, String origem,
+                                              CategoriaNotificacao categoria, PrioridadeNotificacao prioridade,
+                                              String icone, String urlAcao, String detalhe, String metadata) {
+        NotificacaoPush notificacao = new NotificacaoPush();
+        notificacao.setUserId(userId);
+        notificacao.setUserRole(role);
+        notificacao.setOrganizacao(organizacao);
+        notificacao.setTitulo(titulo);
+        notificacao.setDescricao(descricao);
+        notificacao.setOrigem(origem);
+        notificacao.setCategoria(categoria);
+        notificacao.setPrioridade(prioridade);
+        notificacao.setIcone(icone);
+        notificacao.setUrlAcao(urlAcao);
+        notificacao.setDetalhe(detalhe);
+        notificacao.setMetadata(metadata);
+        return notificacao;
     }
 
     private void validarAcesso(NotificacaoPush notificacao) {
