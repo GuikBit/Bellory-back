@@ -3,6 +3,7 @@ package org.exemplo.bellory.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.exemplo.bellory.context.TenantContext;
+import org.exemplo.bellory.model.dto.assinatura.AssinaturaStatusDTO;
 import org.exemplo.bellory.model.dto.home.*;
 import org.exemplo.bellory.model.entity.agendamento.Agendamento;
 import org.exemplo.bellory.model.entity.aviso.AvisoDispensado;
@@ -17,6 +18,7 @@ import org.exemplo.bellory.model.repository.organizacao.HorarioFuncionamentoRepo
 import org.exemplo.bellory.model.repository.organizacao.OrganizacaoRepository;
 import org.exemplo.bellory.model.repository.servico.ServicoRepository;
 import org.exemplo.bellory.model.repository.users.ClienteRepository;
+import org.exemplo.bellory.service.assinatura.AssinaturaCacheService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,6 +44,7 @@ public class OrganizacaoHomeService {
     private final OrganizacaoRepository organizacaoRepository;
     private final HorarioFuncionamentoRepository horarioFuncionamentoRepository;
     private final AssinaturaRepository assinaturaRepository;
+    private final AssinaturaCacheService assinaturaCacheService;
     private final AvisoDispensadoRepository avisoDispensadoRepository;
 
     // ==================== 1. RESUMO HOME ====================
@@ -120,7 +123,84 @@ public class OrganizacaoHomeService {
 
         List<AvisoDTO> avisos = new ArrayList<>();
 
-        // Cobrancas vencidas
+        // === Assinatura / Plano da organizacao (Payment API) ===
+        try {
+            AssinaturaStatusDTO status = assinaturaCacheService.getStatusByOrganizacao(orgId);
+            if (status != null) {
+                String situacao = status.getSituacao();
+
+                if ("PAGAMENTO_ATRASADO".equals(situacao)) {
+                    String msg = "Sua fatura está vencida.";
+                    if (status.getValorPendente() != null) {
+                        msg = String.format("Sua fatura de R$ %.2f está vencida. Regularize para evitar suspensão.", status.getValorPendente());
+                    }
+                    avisos.add(AvisoDTO.builder()
+                            .id("assinatura_pagamento_atrasado")
+                            .tipo("PLANO")
+                            .severidade("ERROR")
+                            .titulo("Pagamento atrasado")
+                            .mensagem(msg)
+                            .cta("Ver assinatura")
+                            .dispensavel(false)
+                            .build());
+                } else if ("SUSPENSA".equals(situacao)) {
+                    avisos.add(AvisoDTO.builder()
+                            .id("assinatura_suspensa")
+                            .tipo("PLANO")
+                            .severidade("ERROR")
+                            .titulo("Assinatura suspensa")
+                            .mensagem(status.getMensagem() != null ? status.getMensagem() : "Sua assinatura foi suspensa. Regularize o pagamento.")
+                            .cta("Ver assinatura")
+                            .dispensavel(false)
+                            .build());
+                } else if ("CANCELADA_SEM_ACESSO".equals(situacao)) {
+                    String msg = "Sua assinatura foi cancelada.";
+                    if (status.getDtAcessoAte() != null) {
+                        msg = String.format("Sua assinatura foi cancelada. Acesso até %s.", status.getDtAcessoAte());
+                    }
+                    avisos.add(AvisoDTO.builder()
+                            .id("assinatura_cancelada")
+                            .tipo("PLANO")
+                            .severidade("ERROR")
+                            .titulo("Assinatura cancelada")
+                            .mensagem(msg)
+                            .cta("Reativar plano")
+                            .dispensavel(false)
+                            .build());
+                } else if (Boolean.TRUE.equals(status.getTemCobrancaPendente())) {
+                    String msg = "Você tem uma cobrança pendente do seu plano.";
+                    if (status.getValorPendente() != null && status.getDtVencimentoProximaCobranca() != null) {
+                        msg = String.format("Fatura de R$ %.2f com vencimento em %s.", status.getValorPendente(), status.getDtVencimentoProximaCobranca());
+                    }
+                    avisos.add(AvisoDTO.builder()
+                            .id("assinatura_cobranca_pendente")
+                            .tipo("PLANO")
+                            .severidade("WARNING")
+                            .titulo("Fatura pendente do plano")
+                            .mensagem(msg)
+                            .cta("Ver assinatura")
+                            .dispensavel(true)
+                            .build());
+                }
+
+                // Trial acabando
+                if (status.getDiasRestantesTrial() != null && status.getDiasRestantesTrial() <= 7 && status.getDiasRestantesTrial() > 0) {
+                    avisos.add(AvisoDTO.builder()
+                            .id("trial_expirando")
+                            .tipo("PLANO")
+                            .severidade("WARNING")
+                            .titulo("Trial expirando")
+                            .mensagem(String.format("Seu período de teste termina em %d dia(s). Escolha um plano para continuar.", status.getDiasRestantesTrial()))
+                            .cta("Ver planos")
+                            .dispensavel(true)
+                            .build());
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Nao foi possivel consultar status da assinatura para org={}: {}", orgId, e.getMessage());
+        }
+
+        // === Cobrancas de clientes vencidas ===
         List<Cobranca> vencidas = cobrancaRepository.findVencidasByOrganizacao(orgId);
         if (!vencidas.isEmpty()) {
             BigDecimal totalVencido = cobrancaRepository.sumValorVencidoByOrganizacao(orgId);
