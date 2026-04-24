@@ -21,6 +21,13 @@ public interface NotificacaoEnviadaRepository extends JpaRepository<NotificacaoE
 
     List<NotificacaoEnviada> findByAgendamentoId(Long agendamentoId);
 
+    @Query("""
+        SELECT ne FROM NotificacaoEnviada ne
+        WHERE ne.agendamento.id IN :agendamentoIds
+        ORDER BY ne.dtEnvio DESC
+        """)
+    List<NotificacaoEnviada> findByAgendamentoIdIn(@Param("agendamentoIds") List<Long> agendamentoIds);
+
     List<NotificacaoEnviada> findByStatus(StatusEnvio status);
 
     @Query("""

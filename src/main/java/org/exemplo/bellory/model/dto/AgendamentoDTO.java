@@ -43,6 +43,9 @@ public class AgendamentoDTO {
     // Informações resumidas de cobrança
     private CobrancaResumoDTO resumoCobranca;
 
+    // Histórico de notificações enviadas ao cliente (somente leitura)
+    private List<NotificacaoEnviadaResumoDTO> notificacoes;
+
     public AgendamentoDTO(Agendamento agendamento) {
         this.id = agendamento.getId();
         this.organizacaoId = agendamento.getOrganizacao().getId();

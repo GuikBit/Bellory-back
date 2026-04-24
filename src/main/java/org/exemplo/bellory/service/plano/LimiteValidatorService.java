@@ -144,6 +144,7 @@ public class LimiteValidatorService {
         UNIDADE("unidade", "unidades"),
         ARQUIVO("arquivo", "arquivos"),
         SITE_EXTERNO("site_externo", "site externo"),
+        SITE_PERSONALIZACAO_COMPLETA("site_personalizacao_completa", "personalização completa do site"),
         AGENTE_VIRTUAL("agente_virtual", "agentes virtuais"),
         API("api", "API"),
         RELATORIO("relatorio", "relatórios");

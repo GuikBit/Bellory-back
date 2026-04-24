@@ -100,20 +100,21 @@ public class PublicSitePageService {
         Organizacao org = orgOpt.get();
         Long orgId = org.getId();
 
-        // Prioridade: LandingPage publicada com is_home=true
-        // Se existir, usa os settings das seções da LandingPage como SitePublicoConfig
+        // Site só é renderizado se houver SitePublicoConfig ativa.
+        // A checagem inicial (org.ativo AND siteConfig.active) é feita pelo PublicSiteGuard
+        // no controller; aqui mantemos o filtro como defesa em profundidade.
         SitePublicoConfig siteConfig = siteConfigRepository
                 .findByOrganizacaoSlugAndActive(slug)
                 .orElse(null);
 
-        Optional<LandingPage> publishedHome = landingPageRepository.findPublishedHomeByOrgSlug(slug);
-        if (publishedHome.isPresent() && siteConfig != null) {
-            // Merge: settings da LandingPage sobrescrevem o SitePublicoConfig
-            mergeLandingPageSettingsIntoConfig(publishedHome.get(), siteConfig);
+        if (siteConfig == null) {
+            return Optional.empty();
         }
 
-        if (siteConfig == null) {
-            siteConfig = buildDefaultSiteConfig(org);
+        Optional<LandingPage> publishedHome = landingPageRepository.findPublishedHomeByOrgSlug(slug);
+        if (publishedHome.isPresent()) {
+            // Merge: settings da LandingPage publicada (is_home=true) sobrescrevem o SitePublicoConfig
+            mergeLandingPageSettingsIntoConfig(publishedHome.get(), siteConfig);
         }
 
         // Buscar dados relacionados
@@ -159,6 +160,49 @@ public class PublicSitePageService {
                 .build();
 
         return Optional.of(homePage);
+    }
+
+    // ==================== HOME PAGE (MODO BÁSICO) ====================
+
+    /**
+     * Retorna apenas o mínimo necessário para renderizar a home no plano BÁSICO:
+     * organização (com logo e banner) + booking.
+     */
+    public Optional<HomePageBasicaDTO> getHomePageBasica(String slug) {
+        Optional<Organizacao> orgOpt = organizacaoRepository.findBySlugAndAtivoTrue(slug);
+        if (orgOpt.isEmpty()) {
+            return Optional.empty();
+        }
+
+        Organizacao org = orgOpt.get();
+        Long orgId = org.getId();
+
+        SitePublicoConfig siteConfig = siteConfigRepository
+                .findByOrganizacaoSlugAndActive(slug)
+                .orElse(null);
+        if (siteConfig == null) {
+            return Optional.empty();
+        }
+
+        List<Servico> servicos = servicoRepository
+                .findAllByOrganizacao_IdAndAtivoTrueAndIsDeletadoFalseOrderByNomeAsc(orgId);
+
+        List<Funcionario> funcionarios = funcionarioRepository
+                .findAllByOrganizacao_IdAndAtivoTrueAndIsVisivelExternoTrue(orgId);
+
+        HomePageBasicaDTO dto = HomePageBasicaDTO.builder()
+                .organizacao(convertOrganizacaoComMidia(org))
+                .booking(buildBookingSection(org, siteConfig, servicos, funcionarios))
+                .build();
+
+        return Optional.of(dto);
+    }
+
+    private OrganizacaoPublicDTO convertOrganizacaoComMidia(Organizacao org) {
+        OrganizacaoPublicDTO dto = convertOrganizacao(org);
+        dto.setLogo(org.getLogoUrl());
+        dto.setBanner(org.getBannerUrl());
+        return dto;
     }
 
     // ==================== HEADER ====================

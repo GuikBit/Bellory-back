@@ -8,6 +8,9 @@ import org.exemplo.bellory.model.entity.agendamento.Status;
 import org.exemplo.bellory.model.entity.cobranca.Cobranca;
 import org.exemplo.bellory.model.entity.config.ConfigSistema;
 import org.exemplo.bellory.model.entity.funcionario.*;
+import org.exemplo.bellory.model.entity.notificacao.ConfigNotificacao;
+import org.exemplo.bellory.model.entity.notificacao.NotificacaoEnviada;
+import org.exemplo.bellory.model.entity.notificacao.TipoNotificacao;
 import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 import org.exemplo.bellory.model.entity.servico.Servico;
 import org.exemplo.bellory.model.entity.users.Cliente;
@@ -20,6 +23,8 @@ import org.exemplo.bellory.model.repository.agendamento.AgendamentoRepository;
 import org.exemplo.bellory.model.repository.funcionario.DisponibilidadeRepository;
 import org.exemplo.bellory.model.repository.funcionario.FuncionarioRepository;
 import org.exemplo.bellory.model.repository.funcionario.JornadaTrabalhoRepository;
+import org.exemplo.bellory.model.repository.notificacao.ConfigNotificacaoRepository;
+import org.exemplo.bellory.model.repository.notificacao.NotificacaoEnviadaRepository;
 import org.exemplo.bellory.model.repository.organizacao.BloqueioOrganizacaoRepository;
 import org.exemplo.bellory.model.repository.organizacao.OrganizacaoRepository;
 import org.exemplo.bellory.model.repository.servico.ServicoRepository;
@@ -51,6 +56,8 @@ public class AgendamentoService {
     private final OrganizacaoRepository organizacaoRepository;
     private final CobrancaRepository cobrancaRepository;
     private final BloqueioOrganizacaoRepository bloqueioOrganizacaoRepository;
+    private final NotificacaoEnviadaRepository notificacaoEnviadaRepository;
+    private final ConfigNotificacaoRepository configNotificacaoRepository;
 
     private final TransacaoService transacaoService;
     private final ApplicationEventPublisher eventPublisher;
@@ -83,6 +90,8 @@ public class AgendamentoService {
                               OrganizacaoRepository organizacaoRepository,
                               CobrancaRepository cobrancaRepository,
                               BloqueioOrganizacaoRepository bloqueioOrganizacaoRepository,
+                              NotificacaoEnviadaRepository notificacaoEnviadaRepository,
+                              ConfigNotificacaoRepository configNotificacaoRepository,
                               TransacaoService transacaoService,
                               ApplicationEventPublisher eventPublisher,
                               LimiteValidatorService limiteValidator) {
@@ -95,6 +104,8 @@ public class AgendamentoService {
         this.organizacaoRepository = organizacaoRepository;
         this.cobrancaRepository = cobrancaRepository;
         this.bloqueioOrganizacaoRepository = bloqueioOrganizacaoRepository;
+        this.notificacaoEnviadaRepository = notificacaoEnviadaRepository;
+        this.configNotificacaoRepository = configNotificacaoRepository;
         this.transacaoService = transacaoService;
         this.eventPublisher = eventPublisher;
         this.limiteValidator = limiteValidator;
@@ -303,18 +314,61 @@ public class AgendamentoService {
         List<Agendamento> agendamentos = agendamentoRepository
                 .findAllByClienteOrganizacaoId(organizacaoId);
 
-        return agendamentos.stream()
+        List<AgendamentoDTO> dtos = agendamentos.stream()
                 .map(AgendamentoDTO::new)
                 .collect(Collectors.toList());
+
+        enriquecerComNotificacoes(dtos, organizacaoId);
+        return dtos;
     }
 
     public AgendamentoDTO getAgendamentoById(Long id) {
         Agendamento agendamento = agendamentoRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Agendamento com ID " + id + " não encontrado."));
 
-        validarOrganizacao(agendamento.getCliente().getOrganizacao().getId());
+        Long organizacaoId = agendamento.getCliente().getOrganizacao().getId();
+        validarOrganizacao(organizacaoId);
 
-        return new AgendamentoDTO(agendamento);
+        AgendamentoDTO dto = new AgendamentoDTO(agendamento);
+        enriquecerComNotificacoes(List.of(dto), organizacaoId);
+        return dto;
+    }
+
+    private void enriquecerComNotificacoes(List<AgendamentoDTO> dtos, Long organizacaoId) {
+        if (dtos == null || dtos.isEmpty()) {
+            return;
+        }
+
+        List<Long> agendamentoIds = dtos.stream()
+                .map(AgendamentoDTO::getId)
+                .collect(Collectors.toList());
+
+        List<NotificacaoEnviada> notificacoes = notificacaoEnviadaRepository
+                .findByAgendamentoIdIn(agendamentoIds);
+
+        Map<Long, List<NotificacaoEnviada>> porAgendamento = notificacoes.stream()
+                .collect(Collectors.groupingBy(n -> n.getAgendamento().getId()));
+
+        Map<String, ConfigNotificacao> configsPorChave = configNotificacaoRepository
+                .findByOrganizacaoId(organizacaoId).stream()
+                .collect(Collectors.toMap(
+                        c -> chaveConfig(c.getTipo(), c.getHorasAntes()),
+                        c -> c,
+                        (a, b) -> a));
+
+        for (AgendamentoDTO dto : dtos) {
+            List<NotificacaoEnviada> lista = porAgendamento.getOrDefault(dto.getId(), List.of());
+            List<NotificacaoEnviadaResumoDTO> resumos = lista.stream()
+                    .map(n -> new NotificacaoEnviadaResumoDTO(
+                            n,
+                            configsPorChave.get(chaveConfig(n.getTipo(), n.getHorasAntes()))))
+                    .collect(Collectors.toList());
+            dto.setNotificacoes(resumos);
+        }
+    }
+
+    private String chaveConfig(TipoNotificacao tipo, Integer horasAntes) {
+        return tipo + "::" + horasAntes;
     }
 
     @Transactional

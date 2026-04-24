@@ -185,6 +185,24 @@ public class SiteConfigController {
         }
     }
 
+    @Operation(summary = "Ativar/desativar o site público")
+    @PatchMapping("/status")
+    public ResponseEntity<ResponseAPI<SitePublicoConfigDTO>> updateStatus(
+            @RequestBody Map<String, Boolean> request) {
+        try {
+            Boolean active = request != null ? request.get("active") : null;
+            SitePublicoConfigDTO updated = siteConfigService.alterarStatus(active);
+            String msg = Boolean.TRUE.equals(updated.getActive())
+                    ? "Site público ativado com sucesso."
+                    : "Site público desativado com sucesso.";
+            return success(msg, updated);
+        } catch (IllegalArgumentException e) {
+            return badRequest(e.getMessage());
+        } catch (Exception e) {
+            return serverError("Erro ao alterar status do site: " + e.getMessage());
+        }
+    }
+
     @Operation(summary = "Atualizar configuração de transições entre seções")
     @PatchMapping("/transitions")
     public ResponseEntity<ResponseAPI<Map<String, TransitionConfigRequest>>> updateTransitions(

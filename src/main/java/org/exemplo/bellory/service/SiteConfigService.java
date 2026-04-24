@@ -201,6 +201,18 @@ public class SiteConfigService {
     }
 
     @Transactional
+    public SitePublicoConfigDTO alterarStatus(Boolean active) {
+        if (active == null) {
+            throw new IllegalArgumentException("O campo 'active' é obrigatório.");
+        }
+        Long orgId = getOrganizacaoId();
+        SitePublicoConfig config = findOrCreate(orgId);
+        config.setActive(active);
+        SitePublicoConfig saved = siteConfigRepository.save(config);
+        return convertToDTO(saved);
+    }
+
+    @Transactional
     public Map<String, TransitionConfigRequest> atualizarTransitions(Map<String, TransitionConfigRequest> dto) {
         Long orgId = getOrganizacaoId();
         SitePublicoConfig config = findOrCreate(orgId);

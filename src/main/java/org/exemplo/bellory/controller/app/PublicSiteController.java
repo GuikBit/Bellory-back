@@ -10,11 +10,14 @@ import org.exemplo.bellory.model.entity.error.ResponseAPI;
 import org.exemplo.bellory.model.dto.landingpage.LandingPageDTO;
 import org.exemplo.bellory.service.PublicSiteService;
 import org.exemplo.bellory.service.landingpage.PublicLandingPageService;
+import org.exemplo.bellory.service.site.PublicSiteGuard;
+import org.exemplo.bellory.service.site.PublicSiteGuard.PublicSiteAccess;
 import org.exemplo.bellory.service.site.PublicSitePageService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -22,46 +25,15 @@ import java.util.Optional;
  * Controller REST público para o site/landing page das organizações.
  *
  * IMPORTANTE: Este controller NÃO requer autenticação.
- * Os endpoints são públicos e destinados ao acesso externo.
  *
- * Fluxo de uso:
- * 1. Frontend acessa: app.bellory.com.br/barbeariadoje
- * 2. Extrai slug da URL: "barbeariadoje"
- * 3. Chama: GET /api/public/site/barbeariadoje
- * 4. Recebe todos os dados para renderizar a página
+ * Todas as respostas são embrulhadas em {@link PublicSiteResponse}:
+ *   - Site ativo COMPLETO → { siteAtivo: true, modo: "COMPLETO", conteudo: {...} }
+ *   - Site ativo BÁSICO   → { siteAtivo: true, modo: "BASICO",   conteudo: {...} ou null }
+ *   - Site inativo        → { siteAtivo: false, modo: null, conteudo: null }  (HTTP 200)
+ *   - Org inexistente / desativada → HTTP 404
  *
- * ENDPOINTS DISPONÍVEIS:
- *
- * HOME PAGE:
- * - GET /{slug}/home - Retorna todos os dados da home page
- *
- * SEÇÕES INDIVIDUAIS (para lazy loading):
- * - GET /{slug}/header - Configuração do header
- * - GET /{slug}/hero - Dados do hero
- * - GET /{slug}/about - Seção sobre (resumida)
- * - GET /{slug}/about/full - Seção sobre (completa)
- * - GET /{slug}/footer - Configuração do footer
- *
- * SERVIÇOS:
- * - GET /{slug}/services/featured - Serviços em destaque
- * - GET /{slug}/services - Lista todos os serviços (paginado)
- * - GET /{slug}/services/{id} - Detalhes de um serviço
- *
- * PRODUTOS:
- * - GET /{slug}/products/featured - Produtos em destaque
- * - GET /{slug}/products - Lista todos os produtos (paginado)
- * - GET /{slug}/products/{id} - Detalhes de um produto
- *
- * EQUIPE:
- * - GET /{slug}/team - Lista a equipe
- *
- * AGENDAMENTO:
- * - GET /{slug}/booking - Informações de agendamento
- *
- * UTILITÁRIOS:
- * - GET /{slug} - Dados completos (legado)
- * - GET /{slug}/exists - Verifica se slug existe
- * - GET /{slug}/basic - Informações básicas
+ * No modo BÁSICO apenas /home e /booking retornam conteúdo útil. As demais
+ * seções individuais respondem com conteudo: null + modo: BASICO.
  */
 @RestController
 @RequestMapping("/api/v1/public/site")
@@ -71,457 +43,196 @@ public class PublicSiteController {
     private final PublicSiteService publicSiteService;
     private final PublicSitePageService publicSitePageService;
     private final PublicLandingPageService publicLandingPageService;
+    private final PublicSiteGuard publicSiteGuard;
 
     public PublicSiteController(PublicSiteService publicSiteService,
                                 PublicSitePageService publicSitePageService,
-                                PublicLandingPageService publicLandingPageService) {
+                                PublicLandingPageService publicLandingPageService,
+                                PublicSiteGuard publicSiteGuard) {
         this.publicSiteService = publicSiteService;
         this.publicSitePageService = publicSitePageService;
         this.publicLandingPageService = publicLandingPageService;
+        this.publicSiteGuard = publicSiteGuard;
     }
 
     // ==================== HOME PAGE ====================
 
     /**
-     * Endpoint principal para a home page.
-     * Retorna todos os dados necessários para renderizar a página inicial.
-     *
-     * GET /api/public/site/{slug}/home
+     * Endpoint principal da home. Em BÁSICO devolve HomePageBasicaDTO (apenas
+     * organização com logo/banner + booking). Em COMPLETO devolve HomePageDTO.
      */
-    @Operation(summary = "Obter home page completa")
+    @Operation(summary = "Obter home page (conteúdo varia conforme o plano)")
     @GetMapping("/{slug}/home")
-    public ResponseEntity<ResponseAPI<HomePageDTO>> getHomePage(@PathVariable String slug) {
+    public ResponseEntity<ResponseAPI<PublicSiteResponse<Object>>> getHomePage(@PathVariable String slug) {
         try {
             String normalizedSlug = normalizeSlug(slug);
             if (normalizedSlug == null) {
-                return badRequest("Slug é obrigatório");
+                return badRequestPublic("Slug é obrigatório");
             }
 
-            Optional<HomePageDTO> homePage = publicSitePageService.getHomePage(normalizedSlug);
-
-            if (homePage.isEmpty()) {
-                return notFound("Organização não encontrada: " + normalizedSlug);
+            PublicSiteAccess access = publicSiteGuard.check(normalizedSlug);
+            if (access.getStatus() == PublicSiteGuard.Status.NOT_FOUND) {
+                return notFoundPublic("Organização não encontrada");
+            }
+            if (access.getStatus() == PublicSiteGuard.Status.INACTIVE) {
+                return inactive();
             }
 
-            return success("Home page recuperada com sucesso", homePage.get());
+            if (access.isBasico()) {
+                Optional<HomePageBasicaDTO> basica = publicSitePageService.getHomePageBasica(normalizedSlug);
+                if (basica.isEmpty()) {
+                    return notFoundPublic("Organização não encontrada");
+                }
+                return okPublic("Home page (modo básico) recuperada com sucesso",
+                        ModoSite.BASICO, basica.get());
+            }
+
+            Optional<HomePageDTO> completa = publicSitePageService.getHomePage(normalizedSlug);
+            if (completa.isEmpty()) {
+                return notFoundPublic("Organização não encontrada");
+            }
+            return okPublic("Home page recuperada com sucesso",
+                    ModoSite.COMPLETO, completa.get());
 
         } catch (Exception e) {
-            return serverError("Erro ao recuperar home page: " + e.getMessage());
+            return serverErrorPublic("Erro ao processar requisição: " + e.getMessage());
         }
     }
 
     // ==================== HEADER ====================
 
-    /**
-     * Retorna a configuração do header.
-     *
-     * GET /api/public/site/{slug}/header
-     */
-    @Operation(summary = "Obter configuração do header")
+    @Operation(summary = "Obter configuração do header (só no modo COMPLETO)")
     @GetMapping("/{slug}/header")
-    public ResponseEntity<ResponseAPI<HeaderConfigDTO>> getHeader(@PathVariable String slug) {
-        try {
-            String normalizedSlug = normalizeSlug(slug);
-            if (normalizedSlug == null) {
-                return badRequest("Slug é obrigatório");
-            }
-
-            Optional<HeaderConfigDTO> header = publicSitePageService.getHeader(normalizedSlug);
-
-            if (header.isEmpty()) {
-                return notFound("Organização não encontrada: " + normalizedSlug);
-            }
-
-            return success("Header recuperado com sucesso", header.get());
-
-        } catch (Exception e) {
-            return serverError("Erro ao recuperar header: " + e.getMessage());
-        }
+    public ResponseEntity<ResponseAPI<PublicSiteResponse<HeaderConfigDTO>>> getHeader(@PathVariable String slug) {
+        return handleCompletoOnly(slug, "Header recuperado com sucesso", "Organização não encontrada",
+                publicSitePageService::getHeader);
     }
 
     // ==================== HERO ====================
 
-    /**
-     * Retorna os dados do hero/banner principal.
-     *
-     * GET /api/public/site/{slug}/hero
-     */
-    @Operation(summary = "Obter dados do hero/banner")
+    @Operation(summary = "Obter dados do hero/banner (só no modo COMPLETO)")
     @GetMapping("/{slug}/hero")
-    public ResponseEntity<ResponseAPI<HeroSectionDTO>> getHero(@PathVariable String slug) {
-        try {
-            String normalizedSlug = normalizeSlug(slug);
-            if (normalizedSlug == null) {
-                return badRequest("Slug é obrigatório");
-            }
-
-            Optional<HeroSectionDTO> hero = publicSitePageService.getHero(normalizedSlug);
-
-            if (hero.isEmpty()) {
-                return notFound("Organização não encontrada: " + normalizedSlug);
-            }
-
-            return success("Hero recuperado com sucesso", hero.get());
-
-        } catch (Exception e) {
-            return serverError("Erro ao recuperar hero: " + e.getMessage());
-        }
+    public ResponseEntity<ResponseAPI<PublicSiteResponse<HeroSectionDTO>>> getHero(@PathVariable String slug) {
+        return handleCompletoOnly(slug, "Hero recuperado com sucesso", "Organização não encontrada",
+                publicSitePageService::getHero);
     }
 
     // ==================== ABOUT ====================
 
-    /**
-     * Retorna a seção sobre (versão resumida para home).
-     *
-     * GET /api/public/site/{slug}/about
-     */
-    @Operation(summary = "Obter seção sobre (resumida)")
+    @Operation(summary = "Obter seção sobre resumida (só no modo COMPLETO)")
     @GetMapping("/{slug}/about")
-    public ResponseEntity<ResponseAPI<AboutSectionDTO>> getAbout(@PathVariable String slug) {
-        try {
-            String normalizedSlug = normalizeSlug(slug);
-            if (normalizedSlug == null) {
-                return badRequest("Slug é obrigatório");
-            }
-
-            Optional<AboutSectionDTO> about = publicSitePageService.getAbout(normalizedSlug, false);
-
-            if (about.isEmpty()) {
-                return notFound("Organização não encontrada: " + normalizedSlug);
-            }
-
-            return success("Seção sobre recuperada com sucesso", about.get());
-
-        } catch (Exception e) {
-            return serverError("Erro ao recuperar seção sobre: " + e.getMessage());
-        }
+    public ResponseEntity<ResponseAPI<PublicSiteResponse<AboutSectionDTO>>> getAbout(@PathVariable String slug) {
+        return handleCompletoOnly(slug, "Seção sobre recuperada com sucesso", "Organização não encontrada",
+                s -> publicSitePageService.getAbout(s, false));
     }
 
-    /**
-     * Retorna a seção sobre completa (para página dedicada).
-     *
-     * GET /api/public/site/{slug}/about/full
-     */
-    @Operation(summary = "Obter seção sobre (completa)")
+    @Operation(summary = "Obter seção sobre completa (só no modo COMPLETO)")
     @GetMapping("/{slug}/about/full")
-    public ResponseEntity<ResponseAPI<AboutSectionDTO>> getAboutFull(@PathVariable String slug) {
-        try {
-            String normalizedSlug = normalizeSlug(slug);
-            if (normalizedSlug == null) {
-                return badRequest("Slug é obrigatório");
-            }
-
-            Optional<AboutSectionDTO> about = publicSitePageService.getAbout(normalizedSlug, true);
-
-            if (about.isEmpty()) {
-                return notFound("Organização não encontrada: " + normalizedSlug);
-            }
-
-            return success("Página sobre recuperada com sucesso", about.get());
-
-        } catch (Exception e) {
-            return serverError("Erro ao recuperar página sobre: " + e.getMessage());
-        }
+    public ResponseEntity<ResponseAPI<PublicSiteResponse<AboutSectionDTO>>> getAboutFull(@PathVariable String slug) {
+        return handleCompletoOnly(slug, "Página sobre recuperada com sucesso", "Organização não encontrada",
+                s -> publicSitePageService.getAbout(s, true));
     }
 
     // ==================== FOOTER ====================
 
-    /**
-     * Retorna a configuração do footer.
-     *
-     * GET /api/public/site/{slug}/footer
-     */
-    @Operation(summary = "Obter configuração do footer")
+    @Operation(summary = "Obter configuração do footer (só no modo COMPLETO)")
     @GetMapping("/{slug}/footer")
-    public ResponseEntity<ResponseAPI<FooterConfigDTO>> getFooter(@PathVariable String slug) {
-        try {
-            String normalizedSlug = normalizeSlug(slug);
-            if (normalizedSlug == null) {
-                return badRequest("Slug é obrigatório");
-            }
-
-            Optional<FooterConfigDTO> footer = publicSitePageService.getFooter(normalizedSlug);
-
-            if (footer.isEmpty()) {
-                return notFound("Organização não encontrada: " + normalizedSlug);
-            }
-
-            return success("Footer recuperado com sucesso", footer.get());
-
-        } catch (Exception e) {
-            return serverError("Erro ao recuperar footer: " + e.getMessage());
-        }
+    public ResponseEntity<ResponseAPI<PublicSiteResponse<FooterConfigDTO>>> getFooter(@PathVariable String slug) {
+        return handleCompletoOnly(slug, "Footer recuperado com sucesso", "Organização não encontrada",
+                publicSitePageService::getFooter);
     }
 
     // ==================== SERVICES ====================
 
-    /**
-     * Retorna os serviços em destaque.
-     *
-     * GET /api/public/site/{slug}/services/featured
-     */
-    @Operation(summary = "Obter serviços em destaque")
+    @Operation(summary = "Serviços em destaque (só no modo COMPLETO)")
     @GetMapping("/{slug}/services/featured")
-    public ResponseEntity<ResponseAPI<ServicesSectionDTO>> getFeaturedServices(@PathVariable String slug) {
-        try {
-            String normalizedSlug = normalizeSlug(slug);
-            if (normalizedSlug == null) {
-                return badRequest("Slug é obrigatório");
-            }
-
-            Optional<ServicesSectionDTO> services = publicSitePageService.getFeaturedServices(normalizedSlug);
-
-            if (services.isEmpty()) {
-                return notFound("Organização não encontrada: " + normalizedSlug);
-            }
-
-            return success("Serviços em destaque recuperados com sucesso", services.get());
-
-        } catch (Exception e) {
-            return serverError("Erro ao recuperar serviços em destaque: " + e.getMessage());
-        }
+    public ResponseEntity<ResponseAPI<PublicSiteResponse<ServicesSectionDTO>>> getFeaturedServices(@PathVariable String slug) {
+        return handleCompletoOnly(slug, "Serviços em destaque recuperados com sucesso", "Organização não encontrada",
+                publicSitePageService::getFeaturedServices);
     }
 
-    /**
-     * Retorna todos os serviços (paginado).
-     *
-     * GET /api/public/site/{slug}/services?page=0&size=10
-     */
-    @Operation(summary = "Listar todos os serviços (paginado)")
+    @Operation(summary = "Listar serviços (só no modo COMPLETO)")
     @GetMapping("/{slug}/services")
-    public ResponseEntity<ResponseAPI<ServicesSectionDTO>> getAllServices(
+    public ResponseEntity<ResponseAPI<PublicSiteResponse<ServicesSectionDTO>>> getAllServices(
             @PathVariable String slug,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "12") int size) {
-        try {
-            String normalizedSlug = normalizeSlug(slug);
-            if (normalizedSlug == null) {
-                return badRequest("Slug é obrigatório");
-            }
-
-            Optional<ServicesSectionDTO> services = publicSitePageService.getAllServices(normalizedSlug, page, size);
-
-            if (services.isEmpty()) {
-                return notFound("Organização não encontrada: " + normalizedSlug);
-            }
-
-            return success("Serviços recuperados com sucesso", services.get());
-
-        } catch (Exception e) {
-            return serverError("Erro ao recuperar serviços: " + e.getMessage());
-        }
+        return handleCompletoOnly(slug, "Serviços recuperados com sucesso", "Organização não encontrada",
+                s -> publicSitePageService.getAllServices(s, page, size));
     }
 
-    /**
-     * Retorna detalhes de um serviço específico.
-     *
-     * GET /api/public/site/{slug}/services/{id}
-     */
-    @Operation(summary = "Obter detalhes de um serviço")
+    @Operation(summary = "Detalhes de um serviço (só no modo COMPLETO)")
     @GetMapping("/{slug}/services/{id}")
-    public ResponseEntity<ResponseAPI<ServicoDetalhadoDTO>> getServiceById(
+    public ResponseEntity<ResponseAPI<PublicSiteResponse<ServicoDetalhadoDTO>>> getServiceById(
             @PathVariable String slug,
             @PathVariable Long id) {
-        try {
-            String normalizedSlug = normalizeSlug(slug);
-            if (normalizedSlug == null) {
-                return badRequest("Slug é obrigatório");
-            }
-
-            Optional<ServicoDetalhadoDTO> servico = publicSitePageService.getServiceById(normalizedSlug, id);
-
-            if (servico.isEmpty()) {
-                return notFound("Serviço não encontrado");
-            }
-
-            return success("Serviço recuperado com sucesso", servico.get());
-
-        } catch (Exception e) {
-            return serverError("Erro ao recuperar serviço: " + e.getMessage());
-        }
+        return handleCompletoOnly(slug, "Serviço recuperado com sucesso", "Serviço não encontrado",
+                s -> publicSitePageService.getServiceById(s, id));
     }
 
     // ==================== PRODUCTS ====================
 
-    /**
-     * Retorna os produtos em destaque.
-     *
-     * GET /api/public/site/{slug}/products/featured
-     */
-    @Operation(summary = "Obter produtos em destaque")
+    @Operation(summary = "Produtos em destaque (só no modo COMPLETO)")
     @GetMapping("/{slug}/products/featured")
-    public ResponseEntity<ResponseAPI<ProductsSectionDTO>> getFeaturedProducts(@PathVariable String slug) {
-        try {
-            String normalizedSlug = normalizeSlug(slug);
-            if (normalizedSlug == null) {
-                return badRequest("Slug é obrigatório");
-            }
-
-            Optional<ProductsSectionDTO> products = publicSitePageService.getFeaturedProducts(normalizedSlug);
-
-            if (products.isEmpty()) {
-                return notFound("Organização não encontrada: " + normalizedSlug);
-            }
-
-            return success("Produtos em destaque recuperados com sucesso", products.get());
-
-        } catch (Exception e) {
-            return serverError("Erro ao recuperar produtos em destaque: " + e.getMessage());
-        }
+    public ResponseEntity<ResponseAPI<PublicSiteResponse<ProductsSectionDTO>>> getFeaturedProducts(@PathVariable String slug) {
+        return handleCompletoOnly(slug, "Produtos em destaque recuperados com sucesso", "Organização não encontrada",
+                publicSitePageService::getFeaturedProducts);
     }
 
-    /**
-     * Retorna todos os produtos (paginado).
-     *
-     * GET /api/public/site/{slug}/products?page=0&size=12
-     */
-    @Operation(summary = "Listar todos os produtos (paginado)")
+    @Operation(summary = "Listar produtos (só no modo COMPLETO)")
     @GetMapping("/{slug}/products")
-    public ResponseEntity<ResponseAPI<ProductsSectionDTO>> getAllProducts(
+    public ResponseEntity<ResponseAPI<PublicSiteResponse<ProductsSectionDTO>>> getAllProducts(
             @PathVariable String slug,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "12") int size) {
-        try {
-            String normalizedSlug = normalizeSlug(slug);
-            if (normalizedSlug == null) {
-                return badRequest("Slug é obrigatório");
-            }
-
-            Optional<ProductsSectionDTO> products = publicSitePageService.getAllProducts(normalizedSlug, page, size);
-
-            if (products.isEmpty()) {
-                return notFound("Organização não encontrada: " + normalizedSlug);
-            }
-
-            return success("Produtos recuperados com sucesso", products.get());
-
-        } catch (Exception e) {
-            return serverError("Erro ao recuperar produtos: " + e.getMessage());
-        }
+        return handleCompletoOnly(slug, "Produtos recuperados com sucesso", "Organização não encontrada",
+                s -> publicSitePageService.getAllProducts(s, page, size));
     }
 
-    /**
-     * Retorna detalhes de um produto específico.
-     *
-     * GET /api/public/site/{slug}/products/{id}
-     */
-    @Operation(summary = "Obter detalhes de um produto")
+    @Operation(summary = "Detalhes de um produto (só no modo COMPLETO)")
     @GetMapping("/{slug}/products/{id}")
-    public ResponseEntity<ResponseAPI<ProdutoDetalhadoDTO>> getProductById(
+    public ResponseEntity<ResponseAPI<PublicSiteResponse<ProdutoDetalhadoDTO>>> getProductById(
             @PathVariable String slug,
             @PathVariable Long id) {
-        try {
-            String normalizedSlug = normalizeSlug(slug);
-            if (normalizedSlug == null) {
-                return badRequest("Slug é obrigatório");
-            }
-
-            Optional<ProdutoDetalhadoDTO> produto = publicSitePageService.getProductById(normalizedSlug, id);
-
-            if (produto.isEmpty()) {
-                return notFound("Produto não encontrado");
-            }
-
-            return success("Produto recuperado com sucesso", produto.get());
-
-        } catch (Exception e) {
-            return serverError("Erro ao recuperar produto: " + e.getMessage());
-        }
+        return handleCompletoOnly(slug, "Produto recuperado com sucesso", "Produto não encontrado",
+                s -> publicSitePageService.getProductById(s, id));
     }
 
     // ==================== TEAM ====================
 
-    /**
-     * Retorna a equipe/funcionários.
-     *
-     * GET /api/public/site/{slug}/team
-     */
-    @Operation(summary = "Obter equipe/funcionários")
+    @Operation(summary = "Equipe (só no modo COMPLETO)")
     @GetMapping("/{slug}/team")
-    public ResponseEntity<ResponseAPI<TeamSectionDTO>> getTeam(@PathVariable String slug) {
-        try {
-            String normalizedSlug = normalizeSlug(slug);
-            if (normalizedSlug == null) {
-                return badRequest("Slug é obrigatório");
-            }
-
-            Optional<TeamSectionDTO> team = publicSitePageService.getTeam(normalizedSlug);
-
-            if (team.isEmpty()) {
-                return notFound("Organização não encontrada: " + normalizedSlug);
-            }
-
-            return success("Equipe recuperada com sucesso", team.get());
-
-        } catch (Exception e) {
-            return serverError("Erro ao recuperar equipe: " + e.getMessage());
-        }
+    public ResponseEntity<ResponseAPI<PublicSiteResponse<TeamSectionDTO>>> getTeam(@PathVariable String slug) {
+        return handleCompletoOnly(slug, "Equipe recuperada com sucesso", "Organização não encontrada",
+                publicSitePageService::getTeam);
     }
 
     // ==================== BOOKING ====================
 
     /**
-     * Retorna informações para agendamento.
-     *
-     * GET /api/public/site/{slug}/booking
+     * Booking funciona tanto no modo BÁSICO quanto no COMPLETO — é o núcleo do site público.
      */
-    @Operation(summary = "Obter informações de agendamento")
+    @Operation(summary = "Obter informações de agendamento (disponível em todos os planos)")
     @GetMapping("/{slug}/booking")
-    public ResponseEntity<ResponseAPI<BookingSectionDTO>> getBookingInfo(@PathVariable String slug) {
-        try {
-            String normalizedSlug = normalizeSlug(slug);
-            if (normalizedSlug == null) {
-                return badRequest("Slug é obrigatório");
-            }
-
-            Optional<BookingSectionDTO> booking = publicSitePageService.getBookingInfo(normalizedSlug);
-
-            if (booking.isEmpty()) {
-                return notFound("Organização não encontrada: " + normalizedSlug);
-            }
-
-            return success("Informações de agendamento recuperadas com sucesso", booking.get());
-
-        } catch (Exception e) {
-            return serverError("Erro ao recuperar informações de agendamento: " + e.getMessage());
-        }
+    public ResponseEntity<ResponseAPI<PublicSiteResponse<BookingSectionDTO>>> getBookingInfo(@PathVariable String slug) {
+        return handleAmbosModos(slug, "Informações de agendamento recuperadas com sucesso", "Organização não encontrada",
+                publicSitePageService::getBookingInfo);
     }
 
     // ==================== LEGACY/UTILITY ENDPOINTS ====================
 
-    /**
-     * Endpoint legado: busca todos os dados públicos da organização pelo slug.
-     * Mantido para compatibilidade com integrações existentes.
-     *
-     * GET /api/public/site/{slug}
-     */
-    @Operation(summary = "Obter todos os dados públicos (legado)")
+    @Operation(summary = "Dados públicos agregados (legado — só no modo COMPLETO)")
     @GetMapping("/{slug}")
-    public ResponseEntity<ResponseAPI<PublicSiteResponseDTO>> getPublicSiteBySlug(
+    public ResponseEntity<ResponseAPI<PublicSiteResponse<PublicSiteResponseDTO>>> getPublicSiteBySlug(
             @PathVariable String slug) {
-        try {
-            String normalizedSlug = normalizeSlug(slug);
-            if (normalizedSlug == null) {
-                return badRequest("Slug é obrigatório");
-            }
-
-            Optional<PublicSiteResponseDTO> siteData = publicSiteService.getPublicSiteBySlug(normalizedSlug);
-
-            if (siteData.isEmpty()) {
-                return notFound("Organização não encontrada: " + normalizedSlug);
-            }
-
-            return success("Dados do site recuperados com sucesso", siteData.get());
-
-        } catch (Exception e) {
-            return serverError("Erro interno do servidor: " + e.getMessage());
-        }
+        return handleCompletoOnly(slug, "Dados do site recuperados com sucesso", "Organização não encontrada",
+                publicSiteService::getPublicSiteBySlug);
     }
 
     /**
      * Verifica se um slug existe e está disponível.
-     *
-     * GET /api/public/site/{slug}/exists
+     * Não passa pelo guard — este endpoint é usado para validar disponibilidade
+     * de slug em cadastro/onboarding.
      */
     @Operation(summary = "Verificar se slug existe")
     @GetMapping("/{slug}/exists")
@@ -551,90 +262,139 @@ public class PublicSiteController {
     }
 
     /**
-     * Retorna apenas informações básicas da organização.
-     *
-     * GET /api/public/site/{slug}/basic
+     * Informações básicas da organização (id, nome, slug, logo, banner).
+     * Disponível em ambos os modos — o front geralmente chama primeiro para decidir a navegação.
      */
-    @Operation(summary = "Obter informações básicas da organização")
+    @Operation(summary = "Informações básicas da organização (disponível em todos os planos)")
     @GetMapping("/{slug}/basic")
-    public ResponseEntity<ResponseAPI<OrganizacaoPublicDTO>> getBasicInfo(
+    public ResponseEntity<ResponseAPI<PublicSiteResponse<OrganizacaoPublicDTO>>> getBasicInfo(
             @PathVariable String slug) {
-        try {
-            String normalizedSlug = normalizeSlug(slug);
-            if (normalizedSlug == null) {
-                return badRequest("Slug é obrigatório");
-            }
-
-            Optional<OrganizacaoPublicDTO> basicInfo = publicSiteService.getBasicInfoBySlug(normalizedSlug);
-
-            if (basicInfo.isEmpty()) {
-                return notFound("Organização não encontrada: " + normalizedSlug);
-            }
-
-            return success("Informações básicas recuperadas com sucesso", basicInfo.get());
-
-        } catch (Exception e) {
-            return serverError("Erro interno do servidor: " + e.getMessage());
-        }
+        return handleAmbosModos(slug, "Informações básicas recuperadas com sucesso", "Organização não encontrada",
+                publicSiteService::getBasicInfoBySlug);
     }
 
     // ==================== LANDING PAGES ====================
 
-    /**
-     * Lista landing pages publicadas da organização.
-     *
-     * GET /api/v1/public/site/{slug}/pages
-     */
-    @Operation(summary = "Listar landing pages publicadas")
+    @Operation(summary = "Listar landing pages publicadas (só no modo COMPLETO)")
     @GetMapping("/{slug}/pages")
-    public ResponseEntity<ResponseAPI<java.util.List<LandingPageDTO>>> getPublishedPages(
+    public ResponseEntity<ResponseAPI<PublicSiteResponse<List<LandingPageDTO>>>> getPublishedPages(
             @PathVariable String slug) {
         try {
             String normalizedSlug = normalizeSlug(slug);
             if (normalizedSlug == null) {
-                return badRequest("Slug é obrigatório");
+                return badRequestPublic("Slug é obrigatório");
             }
 
-            java.util.List<LandingPageDTO> pages = publicLandingPageService.listPublishedPages(normalizedSlug);
-            return success("Páginas recuperadas com sucesso", pages);
+            PublicSiteAccess access = publicSiteGuard.check(normalizedSlug);
+            if (access.getStatus() == PublicSiteGuard.Status.NOT_FOUND) {
+                return notFoundPublic("Organização não encontrada");
+            }
+            if (access.getStatus() == PublicSiteGuard.Status.INACTIVE) {
+                return inactive();
+            }
+            if (access.isBasico()) {
+                return okPublic("Páginas não disponíveis no plano básico",
+                        ModoSite.BASICO, null);
+            }
+
+            List<LandingPageDTO> pages = publicLandingPageService.listPublishedPages(normalizedSlug);
+            return okPublic("Páginas recuperadas com sucesso", ModoSite.COMPLETO, pages);
 
         } catch (Exception e) {
-            return serverError("Erro ao recuperar páginas: " + e.getMessage());
+            return serverErrorPublic("Erro ao processar requisição: " + e.getMessage());
+        }
+    }
+
+    @Operation(summary = "Obter landing page publicada (só no modo COMPLETO)")
+    @GetMapping("/{slug}/pages/{pageSlug}")
+    public ResponseEntity<ResponseAPI<PublicSiteResponse<LandingPageDTO>>> getPublishedPage(
+            @PathVariable String slug,
+            @PathVariable String pageSlug) {
+        String normalizedPageSlug = normalizeSlug(pageSlug);
+        if (normalizedPageSlug == null) {
+            return badRequestPublic("Slug da página é obrigatório");
+        }
+        return handleCompletoOnly(slug, "Página recuperada com sucesso", "Página não encontrada",
+                normalizedSlug -> publicLandingPageService.getPublishedPage(normalizedSlug, normalizedPageSlug));
+    }
+
+    // ==================== HELPER METHODS ====================
+
+    /**
+     * Pipeline para endpoints restritos ao modo COMPLETO:
+     * - NOT_FOUND → 404
+     * - INACTIVE  → siteAtivo=false
+     * - ACTIVE+BASICO → siteAtivo=true, modo=BASICO, conteudo=null (sem chamar o service)
+     * - ACTIVE+COMPLETO → executa o fetcher normalmente
+     */
+    private <T> ResponseEntity<ResponseAPI<PublicSiteResponse<T>>> handleCompletoOnly(
+            String slug,
+            String successMessage,
+            String notFoundMessage,
+            java.util.function.Function<String, Optional<T>> fetcher) {
+        try {
+            String normalizedSlug = normalizeSlug(slug);
+            if (normalizedSlug == null) {
+                return badRequestPublic("Slug é obrigatório");
+            }
+
+            PublicSiteAccess access = publicSiteGuard.check(normalizedSlug);
+            if (access.getStatus() == PublicSiteGuard.Status.NOT_FOUND) {
+                return notFoundPublic(notFoundMessage);
+            }
+            if (access.getStatus() == PublicSiteGuard.Status.INACTIVE) {
+                return inactive();
+            }
+            if (access.isBasico()) {
+                return okPublic("Recurso não disponível no plano básico", ModoSite.BASICO, null);
+            }
+
+            Optional<T> data = fetcher.apply(normalizedSlug);
+            if (data.isEmpty()) {
+                return notFoundPublic(notFoundMessage);
+            }
+
+            return okPublic(successMessage, ModoSite.COMPLETO, data.get());
+
+        } catch (Exception e) {
+            return serverErrorPublic("Erro ao processar requisição: " + e.getMessage());
         }
     }
 
     /**
-     * Retorna uma landing page publicada com todas as seções.
-     *
-     * GET /api/v1/public/site/{slug}/pages/{pageSlug}
+     * Pipeline para endpoints disponíveis em AMBOS os modos (ex.: booking, basic info).
+     * Retorna o conteúdo com o modo real do plano.
      */
-    @Operation(summary = "Obter landing page publicada")
-    @GetMapping("/{slug}/pages/{pageSlug}")
-    public ResponseEntity<ResponseAPI<LandingPageDTO>> getPublishedPage(
-            @PathVariable String slug,
-            @PathVariable String pageSlug) {
+    private <T> ResponseEntity<ResponseAPI<PublicSiteResponse<T>>> handleAmbosModos(
+            String slug,
+            String successMessage,
+            String notFoundMessage,
+            java.util.function.Function<String, Optional<T>> fetcher) {
         try {
             String normalizedSlug = normalizeSlug(slug);
-            String normalizedPageSlug = normalizeSlug(pageSlug);
-            if (normalizedSlug == null || normalizedPageSlug == null) {
-                return badRequest("Slugs são obrigatórios");
+            if (normalizedSlug == null) {
+                return badRequestPublic("Slug é obrigatório");
             }
 
-            java.util.Optional<LandingPageDTO> page = publicLandingPageService
-                    .getPublishedPage(normalizedSlug, normalizedPageSlug);
-
-            if (page.isEmpty()) {
-                return notFound("Página não encontrada");
+            PublicSiteAccess access = publicSiteGuard.check(normalizedSlug);
+            if (access.getStatus() == PublicSiteGuard.Status.NOT_FOUND) {
+                return notFoundPublic(notFoundMessage);
+            }
+            if (access.getStatus() == PublicSiteGuard.Status.INACTIVE) {
+                return inactive();
             }
 
-            return success("Página recuperada com sucesso", page.get());
+            Optional<T> data = fetcher.apply(normalizedSlug);
+            if (data.isEmpty()) {
+                return notFoundPublic(notFoundMessage);
+            }
+
+            return okPublic(successMessage, access.getModo(), data.get());
 
         } catch (Exception e) {
-            return serverError("Erro ao recuperar página: " + e.getMessage());
+            return serverErrorPublic("Erro ao processar requisição: " + e.getMessage());
         }
     }
-
-    // ==================== HELPER METHODS ====================
 
     private String normalizeSlug(String slug) {
         if (slug == null || slug.trim().isEmpty()) {
@@ -643,29 +403,47 @@ public class PublicSiteController {
         return slug.toLowerCase().trim();
     }
 
-    private <T> ResponseEntity<ResponseAPI<T>> success(String message, T data) {
-        return ResponseEntity.ok(ResponseAPI.<T>builder()
+    private <T> ResponseEntity<ResponseAPI<PublicSiteResponse<T>>> okPublic(String message, ModoSite modo, T data) {
+        return ResponseEntity.ok(ResponseAPI.<PublicSiteResponse<T>>builder()
                 .success(true)
                 .message(message)
-                .dados(data)
+                .dados(PublicSiteResponse.ativo(modo, data))
                 .build());
     }
 
-    private <T> ResponseEntity<ResponseAPI<T>> badRequest(String message) {
+    @SuppressWarnings("unchecked")
+    private <T> ResponseEntity<ResponseAPI<PublicSiteResponse<T>>> inactive() {
+        return ResponseEntity.ok(ResponseAPI.<PublicSiteResponse<T>>builder()
+                .success(true)
+                .message("Site inativo")
+                .dados((PublicSiteResponse<T>) PublicSiteResponse.inativo())
+                .build());
+    }
+
+    private <T> ResponseEntity<ResponseAPI<PublicSiteResponse<T>>> badRequestPublic(String message) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ResponseAPI.<T>builder()
+                .body(ResponseAPI.<PublicSiteResponse<T>>builder()
                         .success(false)
                         .message(message)
                         .errorCode(400)
                         .build());
     }
 
-    private <T> ResponseEntity<ResponseAPI<T>> notFound(String message) {
+    private <T> ResponseEntity<ResponseAPI<PublicSiteResponse<T>>> notFoundPublic(String message) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(ResponseAPI.<T>builder()
+                .body(ResponseAPI.<PublicSiteResponse<T>>builder()
                         .success(false)
                         .message(message)
                         .errorCode(404)
+                        .build());
+    }
+
+    private <T> ResponseEntity<ResponseAPI<PublicSiteResponse<T>>> serverErrorPublic(String message) {
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ResponseAPI.<PublicSiteResponse<T>>builder()
+                        .success(false)
+                        .message(message)
+                        .errorCode(500)
                         .build());
     }
 
