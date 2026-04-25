@@ -41,6 +41,7 @@ public class AssinaturaStatusDTO {
     private Boolean temCobrancaPendente;
     private BigDecimal valorPendente;
     private LocalDate dtVencimentoProximaCobranca;
+    private List<CobrancaPendenteDTO> cobrancasPendentes;
 
     // Cancelamento
     private LocalDate dtAcessoAte;

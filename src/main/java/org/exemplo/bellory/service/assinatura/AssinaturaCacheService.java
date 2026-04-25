@@ -5,12 +5,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.exemplo.bellory.client.payment.PaymentApiClient;
 import org.exemplo.bellory.client.payment.dto.AccessStatusResponse;
 import org.exemplo.bellory.client.payment.dto.CachedCustomerStatus;
+import org.exemplo.bellory.client.payment.dto.ChargeResponse;
 import org.exemplo.bellory.client.payment.dto.PaymentSubscriptionStatus;
 import org.exemplo.bellory.client.payment.dto.PlanLimitDto;
 import org.exemplo.bellory.client.payment.dto.PlanResponse;
 import org.exemplo.bellory.client.payment.dto.SubscriptionResponse;
 import org.exemplo.bellory.exception.PaymentApiException;
 import org.exemplo.bellory.model.dto.assinatura.AssinaturaStatusDTO;
+import org.exemplo.bellory.model.dto.assinatura.CobrancaPendenteDTO;
 import org.exemplo.bellory.model.entity.assinatura.Assinatura;
 import org.exemplo.bellory.model.repository.assinatura.AssinaturaRepository;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -20,8 +22,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
@@ -119,6 +123,8 @@ public class AssinaturaCacheService {
         List<PlanLimitDto> limits = planId != null ? client.getPlanLimits(planId) : Collections.emptyList();
         List<PlanLimitDto> features = planId != null ? client.getPlanFeatures(planId) : Collections.emptyList();
 
+        List<ChargeResponse> cobrancasPendentes = fetchCobrancasPendentesSeNecessario(customerId, access);
+
         return CachedCustomerStatus.builder()
                 .customerId(customerId)
                 .customerName(access != null ? access.getCustomerName() : null)
@@ -138,8 +144,42 @@ public class AssinaturaCacheService {
                 .planIsFree(plan != null && Boolean.TRUE.equals(plan.getIsFree()))
                 .limits(limits)
                 .features(features)
+                .cobrancasPendentes(cobrancasPendentes)
                 .fetchedAt(LocalDateTime.now())
                 .build();
+    }
+
+    private List<ChargeResponse> fetchCobrancasPendentesSeNecessario(Long customerId, AccessStatusResponse access) {
+        if (access == null) return Collections.emptyList();
+        boolean bloqueado = !Boolean.TRUE.equals(access.getAllowed());
+        boolean temOverdueNoSummary = access.getSummary() != null
+                && access.getSummary().getOverdueCharges() != null
+                && access.getSummary().getOverdueCharges() > 0;
+        if (!bloqueado && !temOverdueNoSummary) return Collections.emptyList();
+
+        try {
+            List<ChargeResponse> all = client.listChargesByCustomer(customerId);
+            if (all == null || all.isEmpty()) return Collections.emptyList();
+            LocalDate hoje = LocalDate.now();
+            return all.stream()
+                    .filter(c -> isCobrancaAguardandoPagamento(c, hoje))
+                    .sorted(Comparator.comparing(ChargeResponse::getDueDate,
+                            Comparator.nullsLast(Comparator.naturalOrder())))
+                    .toList();
+        } catch (PaymentApiException e) {
+            log.warn("Falha ao buscar cobrancas pendentes customerId={}: {}", customerId, e.getMessage());
+            return Collections.emptyList();
+        }
+    }
+
+    private boolean isCobrancaAguardandoPagamento(ChargeResponse c, LocalDate hoje) {
+        if (c == null || c.getStatus() == null) return false;
+        String status = c.getStatus().toUpperCase();
+        if ("OVERDUE".equals(status)) return true;
+        if ("PENDING".equals(status)) {
+            return c.getDueDate() != null && !c.getDueDate().isAfter(hoje);
+        }
+        return false;
     }
 
     private SubscriptionResponse pickActiveOrLatest(List<SubscriptionResponse> subs) {
@@ -273,6 +313,11 @@ public class AssinaturaCacheService {
     private AssinaturaStatusDTO toStatusDTO(CachedCustomerStatus s) {
         if (s == null) return semAssinatura();
         boolean bloqueado = !s.isAllowed();
+
+        List<CobrancaPendenteDTO> cobrancas = s.getCobrancasPendentes() != null
+                ? s.getCobrancasPendentes().stream().map(this::toCobrancaPendenteDTO).toList()
+                : Collections.emptyList();
+
         return AssinaturaStatusDTO.builder()
                 .bloqueado(bloqueado)
                 .statusAssinatura(s.getSubscriptionStatus() != null ? s.getSubscriptionStatus().name() : "UNKNOWN")
@@ -285,6 +330,26 @@ public class AssinaturaCacheService {
                 .planoFeatures(s.getFeatures())
                 .cicloCobranca(s.getCycle() != null ? s.getCycle().name() : null)
                 .dtProximoVencimento(s.getNextDueDate())
+                .temCobrancaPendente(!cobrancas.isEmpty())
+                .valorPendente(s.getSummary() != null ? s.getSummary().getTotalOverdueValue() : null)
+                .cobrancasPendentes(cobrancas.isEmpty() ? null : cobrancas)
+                .build();
+    }
+
+    private CobrancaPendenteDTO toCobrancaPendenteDTO(ChargeResponse c) {
+        return CobrancaPendenteDTO.builder()
+                .id(c.getId())
+                .subscriptionId(c.getSubscriptionId())
+                .valor(c.getValue())
+                .valorOriginal(c.getOriginalValue())
+                .dtVencimento(c.getDueDate())
+                .status(c.getStatus())
+                .billingType(c.getBillingType())
+                .installmentNumber(c.getInstallmentNumber())
+                .pixQrcode(c.getPixQrcode())
+                .pixCopyPaste(c.getPixCopyPaste())
+                .boletoUrl(c.getBoletoUrl())
+                .invoiceUrl(c.getInvoiceUrl())
                 .build();
     }
 

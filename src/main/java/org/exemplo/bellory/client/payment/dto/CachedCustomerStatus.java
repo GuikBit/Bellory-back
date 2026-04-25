@@ -45,5 +45,7 @@ public class CachedCustomerStatus {
     private List<PlanLimitDto> limits;
     private List<PlanLimitDto> features;
 
+    private List<ChargeResponse> cobrancasPendentes;
+
     private LocalDateTime fetchedAt;
 }
