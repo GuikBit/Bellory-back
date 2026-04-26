@@ -10,6 +10,7 @@ import org.exemplo.bellory.model.entity.questionario.enums.TipoQuestionario;
 import org.exemplo.bellory.service.questionario.QuestionarioService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -145,19 +146,18 @@ public class QuestionarioController {
     }
 
     @GetMapping
-    @Operation(summary = "Listar todos os questionários da organização (paginado)")
-    public ResponseEntity<ResponseAPI<Page<QuestionarioDTO>>> listar(
-            @PageableDefault(size = 20, sort = "dtCriacao") Pageable pageable) {
+    @Operation(summary = "Listar todos os questionários da organização")
+    public ResponseEntity<ResponseAPI<List<QuestionarioDTO>>> listar() {
         try {
-            Page<QuestionarioDTO> page = questionarioService.listarPorOrganizacao(pageable);
+            List<QuestionarioDTO> list = questionarioService.listarPorOrganizacao();
 
-            return ResponseEntity.ok(ResponseAPI.<Page<QuestionarioDTO>>builder()
+            return ResponseEntity.ok(ResponseAPI.<List<QuestionarioDTO>>builder()
                     .success(true)
-                    .dados(page)
+                    .dados(list)
                     .build());
         } catch (SecurityException e) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(ResponseAPI.<Page<QuestionarioDTO>>builder()
+                    .body(ResponseAPI.<List<QuestionarioDTO>>builder()
                             .success(false)
                             .message(e.getMessage())
                             .errorCode(403)
@@ -210,7 +210,7 @@ public class QuestionarioController {
     @Operation(summary = "Pesquisar questionários por título ou descrição")
     public ResponseEntity<ResponseAPI<Page<QuestionarioDTO>>> pesquisar(
             @RequestParam String termo,
-            @PageableDefault(size = 20) Pageable pageable) {
+            @PageableDefault(size = 20, sort = "dtCriacao", direction = Sort.Direction.DESC) Pageable pageable) {
         try {
             Page<QuestionarioDTO> page = questionarioService.pesquisar(termo, pageable);
 

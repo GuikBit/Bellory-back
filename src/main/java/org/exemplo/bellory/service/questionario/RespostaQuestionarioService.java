@@ -3,7 +3,9 @@ package org.exemplo.bellory.service.questionario;
 import org.exemplo.bellory.model.dto.questionario.*;
 import org.exemplo.bellory.model.entity.questionario.*;
 import org.exemplo.bellory.model.entity.questionario.enums.TipoPergunta;
+import org.exemplo.bellory.model.repository.funcionario.FuncionarioRepository;
 import org.exemplo.bellory.model.repository.questionario.*;
+import org.exemplo.bellory.model.repository.users.ClienteRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -18,33 +20,57 @@ import java.util.stream.Collectors;
 @Service
 public class RespostaQuestionarioService {
 
+    private static final Set<String> STOPWORDS_PT = Set.of(
+            "a", "o", "e", "é", "de", "do", "da", "dos", "das", "no", "na", "nos", "nas",
+            "um", "uma", "uns", "umas", "que", "se", "para", "por", "com", "sem", "sob",
+            "mas", "ou", "como", "muito", "mais", "menos", "já", "também", "só", "ser",
+            "ter", "estar", "foi", "era", "são", "eu", "tu", "ele", "ela", "nós", "vós",
+            "eles", "elas", "meu", "minha", "seu", "sua", "este", "esta", "esse", "essa",
+            "isto", "isso", "aquele", "aquela", "ao", "aos", "à", "às", "pelo", "pela",
+            "em", "qual", "tudo", "nada", "algo", "sim", "não", "lhe", "te", "me");
+
+    private static final int TOP_PALAVRAS = 10;
+    private static final int TAMANHO_MIN_PALAVRA = 3;
+
+
     private final QuestionarioRepository questionarioRepository;
     private final RespostaQuestionarioRepository respostaQuestionarioRepository;
     private final RespostaPerguntaRepository respostaPerguntaRepository;
+    private final ClienteRepository clienteRepository;
+    private final FuncionarioRepository funcionarioRepository;
 
     public RespostaQuestionarioService(QuestionarioRepository questionarioRepository,
                                        RespostaQuestionarioRepository respostaQuestionarioRepository,
-                                       RespostaPerguntaRepository respostaPerguntaRepository) {
+                                       RespostaPerguntaRepository respostaPerguntaRepository,
+                                       ClienteRepository clienteRepository,
+                                       FuncionarioRepository funcionarioRepository) {
         this.questionarioRepository = questionarioRepository;
         this.respostaQuestionarioRepository = respostaQuestionarioRepository;
         this.respostaPerguntaRepository = respostaPerguntaRepository;
+        this.clienteRepository = clienteRepository;
+        this.funcionarioRepository = funcionarioRepository;
+    }
+
+    @Transactional
+    public RespostaQuestionarioDTO registrarPublico(Long organizacaoId, RespostaQuestionarioCreateDTO dto, String ipOrigem) {
+        Questionario questionario = questionarioRepository
+                .findByIdAndOrganizacaoIdWithPerguntas(dto.getQuestionarioId(), organizacaoId)
+                .orElseThrow(() -> new IllegalArgumentException("Questionário não encontrado."));
+        questionarioRepository.fetchPerguntasComOpcoes(dto.getQuestionarioId());
+        return registrarInterno(dto, ipOrigem, questionario);
     }
 
     @Transactional
     public RespostaQuestionarioDTO registrar(RespostaQuestionarioCreateDTO dto, String ipOrigem) {
         Questionario questionario = questionarioRepository.findByIdWithPerguntas(dto.getQuestionarioId())
                 .orElseThrow(() -> new IllegalArgumentException("Questionário não encontrado."));
+        return registrarInterno(dto, ipOrigem, questionario);
+    }
+
+    private RespostaQuestionarioDTO registrarInterno(RespostaQuestionarioCreateDTO dto, String ipOrigem, Questionario questionario) {
 
         if (!questionario.getAtivo()) {
             throw new IllegalArgumentException("Este questionário não está mais aceitando respostas.");
-        }
-
-        // Verificar duplicidade (se não for anônimo)
-        if (!questionario.getAnonimo() && dto.getClienteId() != null) {
-            if (respostaQuestionarioRepository.existsByQuestionarioIdAndClienteId(
-                    dto.getQuestionarioId(), dto.getClienteId())) {
-                throw new IllegalArgumentException("Você já respondeu este questionário.");
-            }
         }
 
         // Verificar se agendamento já foi avaliado
@@ -92,14 +118,23 @@ public class RespostaQuestionarioService {
         }
 
         RespostaQuestionario saved = respostaQuestionarioRepository.save(respostaQuestionario);
-        return new RespostaQuestionarioDTO(saved);
+        return enriquecerComNomes(new RespostaQuestionarioDTO(saved));
     }
 
     @Transactional(readOnly = true)
     public RespostaQuestionarioDTO buscarPorId(Long id) {
         RespostaQuestionario resposta = respostaQuestionarioRepository.findByIdWithRespostas(id)
                 .orElseThrow(() -> new IllegalArgumentException("Resposta não encontrada."));
-        return new RespostaQuestionarioDTO(resposta);
+        return enriquecerComNomes(new RespostaQuestionarioDTO(resposta));
+    }
+
+    @Transactional(readOnly = true)
+    public List<RespostaQuestionarioDTO> buscarHistoricoPorCliente(Long questionarioId, Long clienteId) {
+        return respostaQuestionarioRepository
+                .findHistoricoByQuestionarioIdAndClienteId(questionarioId, clienteId)
+                .stream()
+                .map(r -> enriquecerComNomes(new RespostaQuestionarioDTO(r)))
+                .collect(Collectors.toList());
     }
 
     @Transactional
@@ -113,7 +148,7 @@ public class RespostaQuestionarioService {
     @Transactional(readOnly = true)
     public Page<RespostaQuestionarioDTO> listarPorQuestionario(Long questionarioId, Pageable pageable) {
         return respostaQuestionarioRepository.findByQuestionarioId(questionarioId, pageable)
-                .map(RespostaQuestionarioDTO::new);
+                .map(r -> enriquecerComNomes(new RespostaQuestionarioDTO(r)));
     }
 
     @Transactional(readOnly = true)
@@ -121,7 +156,7 @@ public class RespostaQuestionarioService {
             Long questionarioId, LocalDateTime inicio, LocalDateTime fim, Pageable pageable) {
         return respostaQuestionarioRepository.findByQuestionarioIdAndPeriodoPaged(
                 questionarioId, inicio, fim, pageable)
-                .map(RespostaQuestionarioDTO::new);
+                .map(r -> enriquecerComNomes(new RespostaQuestionarioDTO(r)));
     }
 
     @Transactional(readOnly = true)
@@ -170,6 +205,37 @@ public class RespostaQuestionarioService {
         }
         stats.setEstatisticasPerguntas(estatisticasPerguntas);
 
+        // Taxa de conclusão = respostas preenchidas / (totalRespostas * totalPerguntas)
+        long totalPerguntas = questionario.getPerguntas().size();
+        if (stats.getTotalRespostas() != null && stats.getTotalRespostas() > 0 && totalPerguntas > 0) {
+            Long preenchidas = respostaPerguntaRepository
+                    .countRespostasPreenchidasByQuestionario(questionarioId);
+            long denominador = stats.getTotalRespostas() * totalPerguntas;
+            stats.setTaxaConclusao(preenchidas != null ? (preenchidas * 100.0) / denominador : 0.0);
+        }
+
+        // Distribuição temporal — últimos 30 dias por dia
+        List<Object[]> porDia = respostaQuestionarioRepository
+                .countByQuestionarioIdGroupByDay(questionarioId, agora.minusDays(30));
+        Map<String, Long> mapPorDia = new LinkedHashMap<>();
+        for (Object[] row : porDia) {
+            String data = row[0] != null ? row[0].toString() : null;
+            Long count = ((Number) row[1]).longValue();
+            if (data != null) mapPorDia.put(data, count);
+        }
+        stats.setRespostasPorDia(mapPorDia);
+
+        // Distribuição por hora do dia (00–23)
+        List<Object[]> porHora = respostaQuestionarioRepository
+                .countByQuestionarioIdGroupByHour(questionarioId);
+        Map<String, Long> mapPorHora = new LinkedHashMap<>();
+        for (Object[] row : porHora) {
+            Integer hora = ((Number) row[0]).intValue();
+            Long count = ((Number) row[1]).longValue();
+            mapPorHora.put(String.format("%02d", hora), count);
+        }
+        stats.setRespostasPorHora(mapPorHora);
+
         return stats;
     }
 
@@ -198,10 +264,22 @@ public class RespostaQuestionarioService {
         List<RespostaQuestionario> respostas = respostaQuestionarioRepository
                 .findByQuestionarioIdAndPeriodo(questionarioId, inicio, fim);
         relatorio.setRespostas(respostas.stream()
-                .map(RespostaQuestionarioDTO::new)
+                .map(r -> enriquecerComNomes(new RespostaQuestionarioDTO(r)))
                 .collect(Collectors.toList()));
 
         return relatorio;
+    }
+
+    private RespostaQuestionarioDTO enriquecerComNomes(RespostaQuestionarioDTO dto) {
+        if (dto.getClienteId() != null) {
+            clienteRepository.findById(dto.getClienteId())
+                    .ifPresent(c -> dto.setClienteNome(c.getNomeCompleto()));
+        }
+        if (dto.getColaboradorId() != null) {
+            funcionarioRepository.findById(dto.getColaboradorId())
+                    .ifPresent(f -> dto.setColaboradorNome(f.getNomeCompleto()));
+        }
+        return dto;
     }
 
     @Transactional(readOnly = true)
@@ -389,13 +467,14 @@ public class RespostaQuestionarioService {
                 pergunta.getTipo() == TipoPergunta.ESCALA ||
                 pergunta.getTipo() == TipoPergunta.AVALIACAO_ESTRELAS) {
 
-            Object[] numStats = respostaPerguntaRepository.getEstatisticasNumericas(pergunta.getId());
-            if (numStats != null && numStats[0] != null) {
-                stats.setMedia((Double) numStats[0]);
-                stats.setValorMinimo((Double) numStats[1]);
-                stats.setValorMaximo((Double) numStats[2]);
-                if (numStats[3] != null) {
-                    stats.setDesvioPadrao((Double) numStats[3]);
+            List<Object[]> numStatsResult = respostaPerguntaRepository.getEstatisticasNumericas(pergunta.getId());
+            if (!numStatsResult.isEmpty()) {
+                Object[] numStats = numStatsResult.get(0);
+                if (numStats != null && numStats[0] != null) {
+                    stats.setMedia(((Number) numStats[0]).doubleValue());
+                    if (numStats[1] != null) stats.setValorMinimo(((Number) numStats[1]).doubleValue());
+                    if (numStats[2] != null) stats.setValorMaximo(((Number) numStats[2]).doubleValue());
+                    if (numStats[3] != null) stats.setDesvioPadrao(((Number) numStats[3]).doubleValue());
                 }
             }
 
@@ -406,6 +485,14 @@ public class RespostaQuestionarioService {
                 distribuicaoMap.put((Integer) row[0], (Long) row[1]);
             }
             stats.setDistribuicaoNotas(distribuicaoMap);
+
+            // Mediana e moda
+            List<BigDecimal> ordenados = respostaPerguntaRepository
+                    .findRespostasNumericasOrdenadas(pergunta.getId());
+            if (!ordenados.isEmpty()) {
+                stats.setMediana(calcularMediana(ordenados));
+                stats.setModa(calcularModa(distribuicaoMap));
+            }
         }
 
         // Estatísticas de seleção
@@ -463,8 +550,50 @@ public class RespostaQuestionarioService {
         if (pergunta.getTipo() == TipoPergunta.TEXTO_CURTO ||
                 pergunta.getTipo() == TipoPergunta.TEXTO_LONGO) {
             stats.setMediaCaracteres(respostaPerguntaRepository.avgCaracteresTexto(pergunta.getId()));
+            List<String> textos = respostaPerguntaRepository.findRespostasTexto(pergunta.getId());
+            stats.setPalavrasFrequentes(extrairPalavrasFrequentes(textos));
         }
 
         return stats;
+    }
+
+    private Double calcularMediana(List<BigDecimal> ordenados) {
+        int n = ordenados.size();
+        if (n == 0) return null;
+        if (n % 2 == 1) {
+            return ordenados.get(n / 2).doubleValue();
+        }
+        BigDecimal a = ordenados.get(n / 2 - 1);
+        BigDecimal b = ordenados.get(n / 2);
+        return a.add(b).doubleValue() / 2.0;
+    }
+
+    private Double calcularModa(Map<Integer, Long> distribuicao) {
+        return distribuicao.entrySet().stream()
+                .max(Map.Entry.comparingByValue())
+                .map(e -> e.getKey().doubleValue())
+                .orElse(null);
+    }
+
+    private List<String> extrairPalavrasFrequentes(List<String> textos) {
+        if (textos == null || textos.isEmpty()) return Collections.emptyList();
+
+        Map<String, Long> contagem = new HashMap<>();
+        for (String texto : textos) {
+            String[] palavras = texto.toLowerCase()
+                    .replaceAll("[^\\p{L}\\p{N}\\s]", " ")
+                    .split("\\s+");
+            for (String p : palavras) {
+                if (p.length() >= TAMANHO_MIN_PALAVRA && !STOPWORDS_PT.contains(p)) {
+                    contagem.merge(p, 1L, Long::sum);
+                }
+            }
+        }
+
+        return contagem.entrySet().stream()
+                .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
+                .limit(TOP_PALAVRAS)
+                .map(Map.Entry::getKey)
+                .collect(Collectors.toList());
     }
 }

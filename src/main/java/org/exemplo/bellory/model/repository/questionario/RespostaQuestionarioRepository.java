@@ -25,6 +25,16 @@ public interface RespostaQuestionarioRepository extends JpaRepository<RespostaQu
 
     boolean existsByQuestionarioIdAndClienteId(Long questionarioId, Long clienteId);
 
+    @Query("SELECT DISTINCT r FROM RespostaQuestionario r " +
+           "LEFT JOIN FETCH r.respostas rp " +
+           "LEFT JOIN FETCH rp.pergunta " +
+           "WHERE r.questionario.id = :questionarioId " +
+           "AND r.clienteId = :clienteId " +
+           "ORDER BY r.dtResposta DESC")
+    List<RespostaQuestionario> findHistoricoByQuestionarioIdAndClienteId(
+            @Param("questionarioId") Long questionarioId,
+            @Param("clienteId") Long clienteId);
+
     List<RespostaQuestionario> findByClienteIdOrderByDtRespostaDesc(Long clienteId);
 
     Optional<RespostaQuestionario> findByQuestionarioIdAndAgendamentoId(Long questionarioId, Long agendamentoId);
@@ -65,6 +75,14 @@ public interface RespostaQuestionarioRepository extends JpaRepository<RespostaQu
     List<Object[]> countByQuestionarioIdGroupByDay(
             @Param("questionarioId") Long questionarioId,
             @Param("desde") LocalDateTime desde);
+
+    @Query(value = "SELECT EXTRACT(HOUR FROM r.dt_resposta)::int as hora, COUNT(*) as total " +
+                   "FROM app.resposta_questionario r " +
+                   "WHERE r.questionario_id = :questionarioId " +
+                   "GROUP BY EXTRACT(HOUR FROM r.dt_resposta) " +
+                   "ORDER BY EXTRACT(HOUR FROM r.dt_resposta)",
+           nativeQuery = true)
+    List<Object[]> countByQuestionarioIdGroupByHour(@Param("questionarioId") Long questionarioId);
 
     @Query("SELECT AVG(r.tempoPreenchimentoSegundos) FROM RespostaQuestionario r " +
            "WHERE r.questionario.id = :questionarioId " +

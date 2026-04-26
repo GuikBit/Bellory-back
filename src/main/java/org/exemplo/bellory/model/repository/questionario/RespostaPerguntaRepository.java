@@ -18,7 +18,7 @@ public interface RespostaPerguntaRepository extends JpaRepository<RespostaPergun
            "FROM RespostaPergunta rp " +
            "WHERE rp.pergunta.id = :perguntaId " +
            "AND rp.respostaNumero IS NOT NULL")
-    Object[] getEstatisticasNumericas(@Param("perguntaId") Long perguntaId);
+    List<Object[]> getEstatisticasNumericas(@Param("perguntaId") Long perguntaId);
 
     @Query("SELECT CAST(rp.respostaNumero AS integer), COUNT(rp) " +
            "FROM RespostaPergunta rp " +
@@ -53,10 +53,31 @@ public interface RespostaPerguntaRepository extends JpaRepository<RespostaPergun
            "WHERE rp.pergunta.id = :perguntaId " +
            "AND (rp.respostaTexto IS NULL OR rp.respostaTexto = '') " +
            "AND rp.respostaNumero IS NULL " +
-           "AND (rp.respostaOpcaoIds IS NULL OR SIZE(rp.respostaOpcaoIds) = 0) " +
+           "AND SIZE(rp.respostaOpcaoIds) = 0 " +
            "AND rp.respostaData IS NULL " +
            "AND rp.respostaHora IS NULL")
     Long countRespostasEmBranco(@Param("perguntaId") Long perguntaId);
 
     Long countByPerguntaId(Long perguntaId);
+
+    @Query("SELECT rp.respostaNumero FROM RespostaPergunta rp " +
+           "WHERE rp.pergunta.id = :perguntaId " +
+           "AND rp.respostaNumero IS NOT NULL " +
+           "ORDER BY rp.respostaNumero")
+    List<java.math.BigDecimal> findRespostasNumericasOrdenadas(@Param("perguntaId") Long perguntaId);
+
+    @Query("SELECT rp.respostaTexto FROM RespostaPergunta rp " +
+           "WHERE rp.pergunta.id = :perguntaId " +
+           "AND rp.respostaTexto IS NOT NULL " +
+           "AND LENGTH(rp.respostaTexto) > 0")
+    List<String> findRespostasTexto(@Param("perguntaId") Long perguntaId);
+
+    @Query("SELECT COUNT(rp) FROM RespostaPergunta rp " +
+           "WHERE rp.respostaQuestionario.questionario.id = :questionarioId " +
+           "AND ((rp.respostaTexto IS NOT NULL AND LENGTH(rp.respostaTexto) > 0) " +
+           "  OR rp.respostaNumero IS NOT NULL " +
+           "  OR SIZE(rp.respostaOpcaoIds) > 0 " +
+           "  OR rp.respostaData IS NOT NULL " +
+           "  OR rp.respostaHora IS NOT NULL)")
+    Long countRespostasPreenchidasByQuestionario(@Param("questionarioId") Long questionarioId);
 }

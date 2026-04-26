@@ -66,6 +66,7 @@ public class QuestionarioService {
         Questionario questionario = questionarioRepository
                 .findByIdAndOrganizacaoIdWithPerguntas(id, organizacaoId)
                 .orElseThrow(() -> new IllegalArgumentException("Questionário não encontrado."));
+        questionarioRepository.fetchPerguntasComOpcoes(id);
 
         validarOrganizacao(questionario.getOrganizacao().getId());
 
@@ -119,6 +120,7 @@ public class QuestionarioService {
         Questionario questionario = questionarioRepository
                 .findByIdAndOrganizacaoIdWithPerguntas(id, organizacaoId)
                 .orElseThrow(() -> new IllegalArgumentException("Questionário não encontrado."));
+        questionarioRepository.fetchPerguntasComOpcoes(id);
 
         validarOrganizacao(questionario.getOrganizacao().getId());
 
@@ -130,20 +132,41 @@ public class QuestionarioService {
 
     @Transactional(readOnly = true)
     public Questionario buscarEntityPorId(Long id) {
-        return questionarioRepository.findByIdWithPerguntas(id)
+        Questionario questionario = questionarioRepository.findByIdWithPerguntas(id)
                 .orElseThrow(() -> new IllegalArgumentException("Questionário não encontrado."));
+        questionarioRepository.fetchPerguntasComOpcoes(id);
+        return questionario;
     }
 
     @Transactional(readOnly = true)
-    public Page<QuestionarioDTO> listarPorOrganizacao(Pageable pageable) {
+    public QuestionarioDTO buscarPublicoPorSlug(Long id, Long organizacaoId) {
+        Questionario questionario = questionarioRepository
+                .findByIdAndOrganizacaoIdWithPerguntas(id, organizacaoId)
+                .orElseThrow(() -> new IllegalArgumentException("Questionário não encontrado."));
+        questionarioRepository.fetchPerguntasComOpcoes(id);
+
+        if (!questionario.getAtivo()) {
+            throw new IllegalArgumentException("Este questionário não está disponível.");
+        }
+
+        QuestionarioDTO dto = new QuestionarioDTO(questionario);
+        dto.setTotalRespostas(questionarioRepository.countRespostasByQuestionarioId(id));
+        return dto;
+    }
+
+    @Transactional(readOnly = true)
+    public List<QuestionarioDTO> listarPorOrganizacao() {
         Long organizacaoId = getOrganizacaoIdFromContext();
 
-        return questionarioRepository.findByOrganizacao_IdAndIsDeletadoFalse(organizacaoId, pageable)
+        return questionarioRepository
+                .findByOrganizacao_IdAndIsDeletadoFalseOrderByDtCriacaoDesc(organizacaoId)
+                .stream()
                 .map(q -> {
                     QuestionarioDTO dto = new QuestionarioDTO(q);
                     dto.setTotalRespostas(questionarioRepository.countRespostasByQuestionarioId(q.getId()));
                     return dto;
-                });
+                })
+                .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)

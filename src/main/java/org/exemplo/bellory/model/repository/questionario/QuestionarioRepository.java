@@ -1,5 +1,6 @@
 package org.exemplo.bellory.model.repository.questionario;
 
+import org.exemplo.bellory.model.entity.questionario.Pergunta;
 import org.exemplo.bellory.model.entity.questionario.Questionario;
 import org.exemplo.bellory.model.entity.questionario.enums.TipoQuestionario;
 import org.springframework.data.domain.Page;
@@ -25,19 +26,22 @@ public interface QuestionarioRepository extends JpaRepository<Questionario, Long
 
     Optional<Questionario> findByIdAndOrganizacao_IdAndIsDeletadoFalse(Long id, Long organizacaoId);
 
-    @Query("SELECT q FROM Questionario q " +
-           "LEFT JOIN FETCH q.perguntas p " +
-           "LEFT JOIN FETCH p.opcoes " +
+    @Query("SELECT DISTINCT q FROM Questionario q " +
+           "LEFT JOIN FETCH q.perguntas " +
            "WHERE q.id = :id AND q.isDeletado = false")
     Optional<Questionario> findByIdWithPerguntas(@Param("id") Long id);
 
-    @Query("SELECT q FROM Questionario q " +
-           "LEFT JOIN FETCH q.perguntas p " +
-           "LEFT JOIN FETCH p.opcoes " +
+    @Query("SELECT DISTINCT q FROM Questionario q " +
+           "LEFT JOIN FETCH q.perguntas " +
            "WHERE q.id = :id AND q.organizacao.id = :orgId AND q.isDeletado = false")
     Optional<Questionario> findByIdAndOrganizacaoIdWithPerguntas(
             @Param("id") Long id,
             @Param("orgId") Long organizacaoId);
+
+    @Query("SELECT DISTINCT p FROM Pergunta p " +
+           "LEFT JOIN FETCH p.opcoes " +
+           "WHERE p.questionario.id = :questionarioId")
+    List<Pergunta> fetchPerguntasComOpcoes(@Param("questionarioId") Long questionarioId);
 
     @Query("SELECT COUNT(r) FROM RespostaQuestionario r WHERE r.questionario.id = :questionarioId")
     Long countRespostasByQuestionarioId(@Param("questionarioId") Long questionarioId);

@@ -16,6 +16,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -143,6 +144,28 @@ public class RespostaQuestionarioController {
                     .body(ResponseAPI.<Page<RespostaQuestionarioDTO>>builder()
                             .success(false)
                             .message("Erro ao listar respostas por período.")
+                            .errorCode(500)
+                            .build());
+        }
+    }
+
+    @GetMapping("/cliente/{clienteId}/historico")
+    @Operation(summary = "Histórico de respostas de um cliente para o questionário (mais recentes primeiro)")
+    public ResponseEntity<ResponseAPI<List<RespostaQuestionarioDTO>>> buscarHistoricoPorCliente(
+            @PathVariable Long questionarioId,
+            @PathVariable Long clienteId) {
+        try {
+            List<RespostaQuestionarioDTO> historico = respostaService
+                    .buscarHistoricoPorCliente(questionarioId, clienteId);
+            return ResponseEntity.ok(ResponseAPI.<List<RespostaQuestionarioDTO>>builder()
+                    .success(true)
+                    .dados(historico)
+                    .build());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseAPI.<List<RespostaQuestionarioDTO>>builder()
+                            .success(false)
+                            .message("Erro ao buscar histórico de respostas.")
                             .errorCode(500)
                             .build());
         }
