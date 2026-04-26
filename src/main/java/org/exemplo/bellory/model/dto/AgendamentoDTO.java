@@ -24,6 +24,9 @@ public class AgendamentoDTO {
     private Long clienteId;
     private List<ServicoResumoDTO> servicos;
     private List<FuncionarioResumoDTO> funcionarios;
+    // Questionários (anamneses) vinculados ao agendamento, com status de envio/resposta.
+    // Derivados dos serviços que possuem Servico.anamnese configurada.
+    private List<QuestionarioAgendamentoDTO> questionarios;
     private LocalDateTime dtAgendamento;
     private List<CobrancaDTO> cobrancas; // Plural para deixar claro que são múltiplas
     private String observacao;
@@ -85,6 +88,13 @@ public class AgendamentoDTO {
                         funcionario.getFotoPerfil()
                 ))
                 .collect(Collectors.toList());
+
+        // Questionários derivados dos serviços, com tracking de envio/resposta
+        this.questionarios = agendamento.getQuestionarios() != null
+                ? agendamento.getQuestionarios().stream()
+                        .map(QuestionarioAgendamentoDTO::new)
+                        .collect(Collectors.toList())
+                : List.of();
 
         this.dtAgendamento = agendamento.getDtAgendamento();
         this.observacao = agendamento.getObservacao();

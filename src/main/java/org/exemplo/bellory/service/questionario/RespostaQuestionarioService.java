@@ -1,8 +1,10 @@
 package org.exemplo.bellory.service.questionario;
 
 import org.exemplo.bellory.model.dto.questionario.*;
+import org.exemplo.bellory.model.entity.agendamento.StatusQuestionarioAgendamento;
 import org.exemplo.bellory.model.entity.questionario.*;
 import org.exemplo.bellory.model.entity.questionario.enums.TipoPergunta;
+import org.exemplo.bellory.model.repository.agendamento.AgendamentoQuestionarioRepository;
 import org.exemplo.bellory.model.repository.funcionario.FuncionarioRepository;
 import org.exemplo.bellory.model.repository.questionario.*;
 import org.exemplo.bellory.model.repository.users.ClienteRepository;
@@ -38,17 +40,20 @@ public class RespostaQuestionarioService {
     private final RespostaPerguntaRepository respostaPerguntaRepository;
     private final ClienteRepository clienteRepository;
     private final FuncionarioRepository funcionarioRepository;
+    private final AgendamentoQuestionarioRepository agendamentoQuestionarioRepository;
 
     public RespostaQuestionarioService(QuestionarioRepository questionarioRepository,
                                        RespostaQuestionarioRepository respostaQuestionarioRepository,
                                        RespostaPerguntaRepository respostaPerguntaRepository,
                                        ClienteRepository clienteRepository,
-                                       FuncionarioRepository funcionarioRepository) {
+                                       FuncionarioRepository funcionarioRepository,
+                                       AgendamentoQuestionarioRepository agendamentoQuestionarioRepository) {
         this.questionarioRepository = questionarioRepository;
         this.respostaQuestionarioRepository = respostaQuestionarioRepository;
         this.respostaPerguntaRepository = respostaPerguntaRepository;
         this.clienteRepository = clienteRepository;
         this.funcionarioRepository = funcionarioRepository;
+        this.agendamentoQuestionarioRepository = agendamentoQuestionarioRepository;
     }
 
     @Transactional
@@ -118,6 +123,20 @@ public class RespostaQuestionarioService {
         }
 
         RespostaQuestionario saved = respostaQuestionarioRepository.save(respostaQuestionario);
+
+        // Tracking: se a resposta veio para um agendamento específico, marca o
+        // AgendamentoQuestionario correspondente como RESPONDIDO.
+        if (saved.getAgendamentoId() != null) {
+            agendamentoQuestionarioRepository
+                    .findByAgendamentoIdAndQuestionarioId(saved.getAgendamentoId(), questionario.getId())
+                    .ifPresent(aq -> {
+                        aq.setStatus(StatusQuestionarioAgendamento.RESPONDIDO);
+                        aq.setDtResposta(LocalDateTime.now());
+                        aq.setRespostaQuestionarioId(saved.getId());
+                        agendamentoQuestionarioRepository.save(aq);
+                    });
+        }
+
         return enriquecerComNomes(new RespostaQuestionarioDTO(saved));
     }
 

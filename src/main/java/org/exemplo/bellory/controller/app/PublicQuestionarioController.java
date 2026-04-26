@@ -26,7 +26,7 @@ import java.util.Map;
  * ENDPOINTS:
  * - GET  /{slug}/questionarios/{id}                              → Buscar questionário público (precisa estar ativo)
  * - POST /{slug}/questionarios/{id}/respostas                    → Registrar resposta
- * - GET  /{slug}/questionarios/{id}/respostas/verificar?clienteId= → Verificar se cliente já respondeu
+ * - GET  /{slug}/questionarios/{id}/respostas/verificar?clienteId=&agendamentoId= → Verifica se já respondeu (passe agendamentoId em casos de anamnese)
  */
 @RestController
 @RequestMapping("/api/v1/public")
@@ -123,12 +123,13 @@ public class PublicQuestionarioController {
         }
     }
 
-    @Operation(summary = "Verificar se cliente já respondeu o questionário")
+    @Operation(summary = "Verificar se cliente já respondeu o questionário (opcionalmente por agendamento)")
     @GetMapping("/{slug}/questionarios/{id}/respostas/verificar")
     public ResponseEntity<ResponseAPI<Map<String, Boolean>>> verificar(
             @PathVariable String slug,
             @PathVariable Long id,
             @RequestParam Long clienteId,
+            @RequestParam(required = false) Long agendamentoId,
             HttpServletRequest request) {
         try {
             String normalizedSlug = normalizeSlug(slug);
@@ -146,7 +147,14 @@ public class PublicQuestionarioController {
             // Garante que o questionário pertence à org do slug antes de consultar
             questionarioService.buscarPublicoPorSlug(id, access.getOrganizacaoId());
 
-            boolean jaRespondeu = respostaService.clienteJaRespondeu(id, clienteId);
+            // Quando agendamentoId é informado (caso anamnese), checamos por agendamento:
+            // o cliente pode ter respondido o questionário em outro agendamento e ainda
+            // assim PRECISA responder neste. Sem agendamentoId, mantém a lógica antiga
+            // de "cliente já respondeu pelo menos uma vez" (cadastro/pesquisa de satisfação).
+            boolean jaRespondeu = (agendamentoId != null)
+                    ? respostaService.agendamentoJaAvaliado(id, agendamentoId)
+                    : respostaService.clienteJaRespondeu(id, clienteId);
+
             return ResponseEntity.ok(ResponseAPI.<Map<String, Boolean>>builder()
                     .success(true)
                     .dados(Map.of("respondido", jaRespondeu))

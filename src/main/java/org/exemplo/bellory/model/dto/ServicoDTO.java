@@ -29,6 +29,7 @@ public class ServicoDTO {
     private Categoria categoria;
     private List<String> urlsImagens;
     private List<String> produtos;
+    private Long questionarioId;
 
     private LocalDateTime dtCriacao;
     private LocalDateTime dtAtualizacao;
@@ -52,5 +53,6 @@ public class ServicoDTO {
         this.dtCriacao = servico.getDtCriacao();
         this.dtAtualizacao = servico.getDtAtualizacao();
         this.produtos = servico.getProdutos();
+        this.questionarioId = servico.getAnamnese() != null ? servico.getAnamnese().getId() : null;
     }
 }

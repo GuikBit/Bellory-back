@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.exemplo.bellory.model.entity.funcionario.Funcionario;
 import org.exemplo.bellory.model.entity.organizacao.Organizacao;
+import org.exemplo.bellory.model.entity.questionario.Questionario;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -25,7 +26,8 @@ import java.util.UUID;
         @Index(name = "idx_servico_categoria_id", columnList = "categoria_id"),
         @Index(name = "idx_servico_org_ativo", columnList = "organizacao_id, isDeletado, ativo"),
         @Index(name = "idx_servico_ativo", columnList = "ativo"),
-        @Index(name = "idx_servico_deletado", columnList = "isDeletado")
+        @Index(name = "idx_servico_deletado", columnList = "isDeletado"),
+        @Index(name = "idx_servico_anamnese_id", columnList = "anamnese_id")
 })
 @Getter
 @Setter
@@ -49,6 +51,10 @@ public class Servico {
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "categoria_id", nullable = false)
     private Categoria categoria;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "anamnese_id")
+    private Questionario anamnese;
 
     @Column(nullable = false)
     private String genero;

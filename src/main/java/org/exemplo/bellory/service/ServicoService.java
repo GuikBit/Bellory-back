@@ -5,11 +5,15 @@ import org.exemplo.bellory.model.dto.ServicoAgendamento;
 import org.exemplo.bellory.model.dto.ServicoCreateDTO;
 import org.exemplo.bellory.model.dto.ServicoDTO;
 import org.exemplo.bellory.model.entity.organizacao.Organizacao;
+import org.exemplo.bellory.model.entity.questionario.Questionario;
 import org.exemplo.bellory.model.entity.servico.Categoria;
 import org.exemplo.bellory.model.entity.servico.Servico;
 import org.exemplo.bellory.model.repository.categoria.CategoriaRepository;
 import org.exemplo.bellory.model.repository.organizacao.OrganizacaoRepository;
+import org.exemplo.bellory.model.repository.questionario.QuestionarioRepository;
 import org.exemplo.bellory.model.repository.servico.ServicoRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -26,15 +30,19 @@ import java.util.stream.Collectors;
 @Service
 public class ServicoService {
 
+    private static final Logger log = LoggerFactory.getLogger(ServicoService.class);
+
     private final ServicoRepository servicoRepository;
     private final OrganizacaoRepository organizacaoRepository;
     private final CategoriaRepository categoriaRepository; // Adicionado
+    private final QuestionarioRepository questionarioRepository;
     private final FileStorageService fileStorageService;
 
-    public ServicoService(ServicoRepository servicoRepository, OrganizacaoRepository organizacaoRepository, CategoriaRepository categoriaRepository,FileStorageService fileStorageService) {
+    public ServicoService(ServicoRepository servicoRepository, OrganizacaoRepository organizacaoRepository, CategoriaRepository categoriaRepository, QuestionarioRepository questionarioRepository, FileStorageService fileStorageService) {
         this.servicoRepository = servicoRepository;
         this.organizacaoRepository = organizacaoRepository;
         this.categoriaRepository = categoriaRepository; // Adicionado
+        this.questionarioRepository = questionarioRepository;
         this.fileStorageService = fileStorageService;
     }
 
@@ -61,6 +69,8 @@ public class ServicoService {
     @Transactional
     public Servico createServico(ServicoCreateDTO dto) {
         Long organizacaoId = getOrganizacaoIdFromContext();
+        log.info("[createServico] payload recebido -> nome={}, produtos={}, questionarioId={}",
+                dto.getNome(), dto.getProdutos(), dto.getQuestionarioId());
 
         // Validação de campos obrigatórios
 //        if (dto.getOrganizacaoId() == null) {
@@ -115,9 +125,20 @@ public class ServicoService {
 
         BigDecimal precoFinal = dto.getPreco().subtract(valorDesconto);
         novoServico.setPrecoFinal(precoFinal);
-        novoServico.setProdutos(dto.getProdutos());
+        // Cópia defensiva: a lista que veio do Jackson pode ter peculiaridades; usar uma
+        // ArrayList nova garante que o Hibernate gerencie a coleção @ElementCollection.
+        if (dto.getProdutos() != null) {
+            novoServico.setProdutos(new ArrayList<>(dto.getProdutos()));
+        }
         novoServico.setAtivo(true);
         novoServico.setDtCriacao(LocalDateTime.now());
+
+        if (dto.getQuestionarioId() != null) {
+            Questionario anamnese = questionarioRepository
+                    .findByIdAndOrganizacao_IdAndIsDeletadoFalse(dto.getQuestionarioId(), organizacaoId)
+                    .orElseThrow(() -> new IllegalArgumentException("Questionário com ID " + dto.getQuestionarioId() + " não encontrado."));
+            novoServico.setAnamnese(anamnese);
+        }
 
         Servico servicoSalvo = servicoRepository.save(novoServico);
 
@@ -219,6 +240,8 @@ public class ServicoService {
 
     @Transactional
     public Servico updateServico(Long id, ServicoCreateDTO dto) {
+        log.info("[updateServico] id={}, payload -> produtos={}, questionarioId={}",
+                id, dto.getProdutos(), dto.getQuestionarioId());
         Servico servicoExistente = getServicoById(id);
         Long organizacaoId = servicoExistente.getOrganizacao().getId();
 
@@ -258,7 +281,16 @@ public class ServicoService {
             servicoExistente.setPrecoFinal(precoFinal);
         }
 
-        servicoExistente.setProdutos(dto.getProdutos());
+        // Atualiza a coleção @ElementCollection in-place (clear + addAll), pois trocar a
+        // referência da coleção gerenciada pelo Hibernate não dispara o sync da tabela
+        // app.servico_produtos.
+        if (servicoExistente.getProdutos() == null) {
+            servicoExistente.setProdutos(new ArrayList<>());
+        }
+        servicoExistente.getProdutos().clear();
+        if (dto.getProdutos() != null) {
+            servicoExistente.getProdutos().addAll(dto.getProdutos());
+        }
 
         // Processar imagens
         if (dto.getUrlsImagens() != null) {
@@ -298,6 +330,13 @@ public class ServicoService {
 
                 servicoExistente.setUrlsImagens(urlsFinais);
             }
+        }
+
+        if (dto.getQuestionarioId() != null) {
+            Questionario anamnese = questionarioRepository
+                    .findByIdAndOrganizacao_IdAndIsDeletadoFalse(dto.getQuestionarioId(), organizacaoId)
+                    .orElseThrow(() -> new IllegalArgumentException("Questionário com ID " + dto.getQuestionarioId() + " não encontrado."));
+            servicoExistente.setAnamnese(anamnese);
         }
 
         servicoExistente.setAtivo(dto.isAtivo());

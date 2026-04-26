@@ -4,7 +4,9 @@ import jakarta.transaction.Transactional;
 import org.exemplo.bellory.context.TenantContext;
 import org.exemplo.bellory.model.dto.*;
 import org.exemplo.bellory.model.entity.agendamento.Agendamento;
+import org.exemplo.bellory.model.entity.agendamento.AgendamentoQuestionario;
 import org.exemplo.bellory.model.entity.agendamento.Status;
+import org.exemplo.bellory.model.entity.agendamento.StatusQuestionarioAgendamento;
 import org.exemplo.bellory.model.entity.cobranca.Cobranca;
 import org.exemplo.bellory.model.entity.config.ConfigSistema;
 import org.exemplo.bellory.model.entity.funcionario.*;
@@ -29,8 +31,13 @@ import org.exemplo.bellory.model.repository.organizacao.BloqueioOrganizacaoRepos
 import org.exemplo.bellory.model.repository.organizacao.OrganizacaoRepository;
 import org.exemplo.bellory.model.repository.servico.ServicoRepository;
 import org.exemplo.bellory.model.repository.users.ClienteRepository;
+import org.exemplo.bellory.model.dto.AgendamentoQuestionarioDetalheDTO;
+import org.exemplo.bellory.model.dto.questionario.RespostaQuestionarioDTO;
+import org.exemplo.bellory.model.repository.agendamento.AgendamentoQuestionarioRepository;
+import org.exemplo.bellory.service.anamnese.AnamneseWhatsAppService;
 import org.exemplo.bellory.service.plano.LimiteValidatorService;
 import org.exemplo.bellory.service.plano.LimiteValidatorService.TipoLimite;
+import org.exemplo.bellory.service.questionario.RespostaQuestionarioService;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
@@ -62,6 +69,9 @@ public class AgendamentoService {
     private final TransacaoService transacaoService;
     private final ApplicationEventPublisher eventPublisher;
     private final LimiteValidatorService limiteValidator;
+    private final RespostaQuestionarioService respostaQuestionarioService;
+    private final AgendamentoQuestionarioRepository agendamentoQuestionarioRepository;
+    private final AnamneseWhatsAppService anamneseWhatsAppService;
 
 
     //private static final int TOLERANCIA_MINUTOS = 10;
@@ -94,7 +104,10 @@ public class AgendamentoService {
                               ConfigNotificacaoRepository configNotificacaoRepository,
                               TransacaoService transacaoService,
                               ApplicationEventPublisher eventPublisher,
-                              LimiteValidatorService limiteValidator) {
+                              LimiteValidatorService limiteValidator,
+                              RespostaQuestionarioService respostaQuestionarioService,
+                              AgendamentoQuestionarioRepository agendamentoQuestionarioRepository,
+                              AnamneseWhatsAppService anamneseWhatsAppService) {
         this.agendamentoRepository = agendamentoRepository;
         this.disponibilidadeRepository = disponibilidadeRepository;
         this.jornadaTrabalhoRepository = jornadaTrabalhoRepository;
@@ -109,6 +122,9 @@ public class AgendamentoService {
         this.transacaoService = transacaoService;
         this.eventPublisher = eventPublisher;
         this.limiteValidator = limiteValidator;
+        this.respostaQuestionarioService = respostaQuestionarioService;
+        this.agendamentoQuestionarioRepository = agendamentoQuestionarioRepository;
+        this.anamneseWhatsAppService = anamneseWhatsAppService;
     }
 
 
@@ -198,6 +214,134 @@ public class AgendamentoService {
         }
     }
 
+    /**
+     * Reenvia a mensagem WhatsApp de um questionário específico vinculado ao agendamento.
+     * Usado quando o disparo automático falhou (instância offline na hora do agendamento)
+     * ou quando o admin quer empurrar de novo. Reseta o AQ para PENDENTE e dispara o
+     * fluxo de envio. Como dispararParaAgendamento processa todos os PENDENTE do
+     * agendamento, outros questionários não enviados também serão tentados — comportamento
+     * desejável: 1 click envia tudo que está pendente.
+     */
+    @org.springframework.transaction.annotation.Transactional
+    public AgendamentoQuestionarioDetalheDTO reenviarQuestionario(Long agendamentoId, Long aqId) {
+        AgendamentoQuestionario aq = agendamentoQuestionarioRepository.findById(aqId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Questionário do agendamento (ID " + aqId + ") não encontrado."));
+
+        if (aq.getAgendamento() == null || !aq.getAgendamento().getId().equals(agendamentoId)) {
+            throw new IllegalArgumentException(
+                    "Questionário " + aqId + " não pertence ao agendamento " + agendamentoId + ".");
+        }
+
+        validarOrganizacao(aq.getAgendamento().getOrganizacao().getId());
+
+        if (aq.getStatus() == StatusQuestionarioAgendamento.RESPONDIDO) {
+            throw new IllegalStateException(
+                    "Este questionário já foi respondido pelo cliente — reenvio não permitido.");
+        }
+
+        // Reseta para PENDENTE e limpa marca de envio anterior. O dispararParaAgendamento
+        // processa todos os AQs em PENDENTE do agendamento.
+        aq.setStatus(StatusQuestionarioAgendamento.PENDENTE);
+        aq.setDtEnvio(null);
+        agendamentoQuestionarioRepository.save(aq);
+
+        // Chamada SÍNCRONA — queremos retornar o status atualizado pro front saber
+        // imediatamente se o envio funcionou (ENVIADO) ou continuou falhando (FALHOU
+        // se houve exceção; PENDENTE se a instância está offline).
+        anamneseWhatsAppService.dispararParaAgendamento(agendamentoId);
+
+        // Recarrega para pegar o status final (modificado pelo dispararParaAgendamento)
+        AgendamentoQuestionario atualizado = agendamentoQuestionarioRepository.findById(aqId)
+                .orElseThrow(() -> new IllegalStateException("Questionário desapareceu durante o reenvio."));
+
+        RespostaQuestionarioDTO resposta = null;
+        if (atualizado.getRespostaQuestionarioId() != null) {
+            try {
+                resposta = respostaQuestionarioService.buscarPorId(atualizado.getRespostaQuestionarioId());
+            } catch (IllegalArgumentException ignored) {
+                // resposta já existia mas foi removida — segue sem ela
+            }
+        }
+        return AgendamentoQuestionarioDetalheDTO.of(atualizado, resposta);
+    }
+
+    /**
+     * Lista os questionários (anamneses) vinculados a um agendamento, incluindo a
+     * resposta completa quando já preenchida. Pensado para a tela de detalhes do
+     * agendamento — 1 chamada do front renderiza tudo (status + perguntas + respostas).
+     *
+     * Para AQs em status RESPONDIDO, faz fetch da RespostaQuestionario completa via
+     * RespostaQuestionarioService.buscarPorId (que enriquece com nomes de cliente/colaborador
+     * e devolve as perguntas/opções).
+     */
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public List<AgendamentoQuestionarioDetalheDTO> getQuestionariosDoAgendamento(Long agendamentoId) {
+        Agendamento agendamento = agendamentoRepository.findById(agendamentoId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Agendamento com ID " + agendamentoId + " não encontrado."));
+
+        validarOrganizacao(agendamento.getOrganizacao().getId());
+
+        if (agendamento.getQuestionarios() == null || agendamento.getQuestionarios().isEmpty()) {
+            return List.of();
+        }
+
+        return agendamento.getQuestionarios().stream()
+                .map(aq -> {
+                    RespostaQuestionarioDTO resposta = null;
+                    if (aq.getRespostaQuestionarioId() != null) {
+                        try {
+                            resposta = respostaQuestionarioService.buscarPorId(aq.getRespostaQuestionarioId());
+                        } catch (IllegalArgumentException e) {
+                            // Resposta foi deletada manualmente — segue sem ela em vez de quebrar.
+                            resposta = null;
+                        }
+                    }
+                    return AgendamentoQuestionarioDetalheDTO.of(aq, resposta);
+                })
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Coleta os questionários (anamneses) configurados nos serviços do agendamento e
+     * vincula-os ao agendamento como AgendamentoQuestionario(status=PENDENTE).
+     * Deduplicado: se múltiplos serviços apontarem para o mesmo questionário, o cliente
+     * responde apenas uma vez. Serviços sem anamnese são ignorados.
+     *
+     * Estratégia incremental: NÃO apaga AgendamentoQuestionario já existentes (que podem
+     * estar ENVIADO ou RESPONDIDO). Apenas adiciona vínculos para questionários que
+     * ainda não estavam ligados ao agendamento.
+     */
+    private void vincularQuestionariosDosServicos(Agendamento agendamento) {
+        if (agendamento.getQuestionarios() == null) {
+            agendamento.setQuestionarios(new ArrayList<>());
+        }
+        if (agendamento.getServicos() == null || agendamento.getServicos().isEmpty()) {
+            return;
+        }
+
+        Set<Long> jaVinculados = agendamento.getQuestionarios().stream()
+                .map(aq -> aq.getQuestionario().getId())
+                .collect(Collectors.toSet());
+
+        agendamento.getServicos().stream()
+                .map(Servico::getAnamnese)
+                .filter(Objects::nonNull)
+                .distinct()
+                .filter(q -> !jaVinculados.contains(q.getId()))
+                .forEach(q -> {
+                    AgendamentoQuestionario aq = AgendamentoQuestionario.builder()
+                            .agendamento(agendamento)
+                            .questionario(q)
+                            .status(StatusQuestionarioAgendamento.PENDENTE)
+                            .dtCriacao(LocalDateTime.now())
+                            .build();
+                    agendamento.getQuestionarios().add(aq);
+                    jaVinculados.add(q.getId());
+                });
+    }
+
     private Long getOrganizacaoIdFromContext() {
         Long organizacaoId = TenantContext.getCurrentOrganizacaoId();
 
@@ -217,6 +361,10 @@ public class AgendamentoService {
     public Agendamento processarAgendamento(Agendamento agendamento) {
         // 1. Validar e salvar agendamento + criar bloqueios de agenda
         Agendamento agendamentoSalvo = criarAgendamento(agendamento);
+
+        // 1.1. Vincular questionários (anamneses) derivados dos serviços do agendamento.
+        // O save final logo abaixo persiste a join table app.agendamento_questionario.
+        vincularQuestionariosDosServicos(agendamentoSalvo);
 
         // 2. Criar cobrança através do TransactionService
         Cobranca cobranca = transacaoService.criarCobrancaParaAgendamento(agendamentoSalvo);
@@ -402,6 +550,8 @@ public class AgendamentoService {
             if (!agendamentoExistente.getServicos().equals(novosServicos)) {
                 precisaValidar = true;
                 agendamentoExistente.setServicos(novosServicos);
+                // Re-derivar questionários a partir dos novos serviços para manter consistência.
+                vincularQuestionariosDosServicos(agendamentoExistente);
             }
         }
 

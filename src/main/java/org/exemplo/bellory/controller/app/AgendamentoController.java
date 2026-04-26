@@ -142,6 +142,75 @@ public class AgendamentoController {
         }
     }
 
+    @Operation(summary = "Reenviar mensagem WhatsApp de um questionário (anamnese) específico do agendamento")
+    @PostMapping("/{id}/questionarios/{aqId}/reenviar")
+    public ResponseEntity<ResponseAPI<AgendamentoQuestionarioDetalheDTO>> reenviarQuestionarioAgendamento(
+            @PathVariable Long id,
+            @PathVariable Long aqId) {
+        try {
+            AgendamentoQuestionarioDetalheDTO atualizado = agendamentoService.reenviarQuestionario(id, aqId);
+            String message = switch (atualizado.getStatus()) {
+                case ENVIADO -> "Mensagem reenviada com sucesso.";
+                case PENDENTE -> "Não foi possível enviar agora — instância WhatsApp offline. Tente novamente quando reconectar.";
+                case FALHOU -> "Falha ao reenviar a mensagem. Verifique os logs.";
+                case RESPONDIDO -> "Questionário já foi respondido pelo cliente.";
+            };
+            return ResponseEntity.ok(ResponseAPI.<AgendamentoQuestionarioDetalheDTO>builder()
+                    .success(atualizado.getStatus() == org.exemplo.bellory.model.entity.agendamento.StatusQuestionarioAgendamento.ENVIADO)
+                    .message(message)
+                    .dados(atualizado)
+                    .build());
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(ResponseAPI.<AgendamentoQuestionarioDetalheDTO>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(409)
+                            .build());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ResponseAPI.<AgendamentoQuestionarioDetalheDTO>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(404)
+                            .build());
+        } catch (SecurityException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ResponseAPI.<AgendamentoQuestionarioDetalheDTO>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(403)
+                            .build());
+        }
+    }
+
+    @Operation(summary = "Listar questionários (anamneses) vinculados ao agendamento, com respostas quando preenchidas")
+    @GetMapping("/{id}/questionarios")
+    public ResponseEntity<ResponseAPI<List<AgendamentoQuestionarioDetalheDTO>>> getQuestionariosDoAgendamento(@PathVariable Long id) {
+        try {
+            List<AgendamentoQuestionarioDetalheDTO> dados = agendamentoService.getQuestionariosDoAgendamento(id);
+            return ResponseEntity.ok(ResponseAPI.<List<AgendamentoQuestionarioDetalheDTO>>builder()
+                    .success(true)
+                    .message("Questionários do agendamento recuperados com sucesso.")
+                    .dados(dados)
+                    .build());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ResponseAPI.<List<AgendamentoQuestionarioDetalheDTO>>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(404)
+                            .build());
+        } catch (SecurityException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ResponseAPI.<List<AgendamentoQuestionarioDetalheDTO>>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(403)
+                            .build());
+        }
+    }
+
     // Endpoint para buscar um agendamento por ID
     @Operation(summary = "Buscar agendamento por ID")
     @GetMapping("/{id}")

@@ -69,6 +69,12 @@ public class Agendamento {
     @JsonIgnore
     private List<Funcionario> funcionarios;
 
+    // Questionários (anamneses) derivados dos serviços do agendamento, com tracking
+    // por questionário (envio WhatsApp + resposta). Populado em
+    // AgendamentoService.processarAgendamento a partir de Servico.anamnese.
+    @OneToMany(mappedBy = "agendamento", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private List<AgendamentoQuestionario> questionarios = new ArrayList<>();
+
     // ALTERADO: Relacionamento OneToMany para suportar múltiplas cobranças (sinal + restante)
     @OneToMany(mappedBy = "agendamento", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @JsonIgnore

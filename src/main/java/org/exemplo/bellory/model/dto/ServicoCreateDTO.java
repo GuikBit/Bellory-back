@@ -24,4 +24,5 @@ public class ServicoCreateDTO {
     private boolean home;
     private boolean avaliacao;
     private boolean ativo;
+    private Long questionarioId;
 }
