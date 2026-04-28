@@ -141,6 +141,8 @@ public class ConfigNotificacaoService {
         List<Integer> permitidos = switch (tipo) {
             case CONFIRMACAO -> List.of(12, 24, 36, 48);
             case LEMBRETE -> List.of(1, 2, 3, 4, 5, 6);
+            case FILA_ESPERA_OFERTA, FILA_ESPERA_PERDEU_VEZ -> throw new IllegalArgumentException(
+                    "Tipo " + tipo + " e disparado por evento, nao pode ser configurado como notificacao agendada.");
         };
         if (!permitidos.contains(horas)) {
             throw new IllegalArgumentException("Horas inválidas para " + tipo + ". Permitido: " + permitidos);

@@ -567,6 +567,11 @@ public class PublicBookingService {
             agendamento.setPercentualSinal(BigDecimal.valueOf(config.getPorcentSinal()));
         }
 
+        // Fila de espera — so aceita opt-in se a org tiver a feature habilitada
+        boolean filaHabilitada = config.getUsarFilaEspera() != null && config.getUsarFilaEspera();
+        boolean clienteOptouFila = Boolean.TRUE.equals(dto.getEntrarFilaEspera());
+        agendamento.setEntrouFilaEspera(filaHabilitada && clienteOptouFila);
+
         // Delegar para o AgendamentoService (validação, save, bloqueios, cobrança, evento)
         Agendamento agendamentoSalvo = agendamentoService.processarAgendamento(agendamento);
 

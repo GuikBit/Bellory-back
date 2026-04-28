@@ -21,4 +21,10 @@ public class ConfigAgendamentoDTO {
     private Integer porcentSinal;
     private Boolean cobrarSinalAgente;
     private Integer porcentSinalAgente;
+
+    // ===== Fila de Espera =====
+    private Boolean usarFilaEspera;
+    private Integer filaMaxCascata;
+    private Integer filaTimeoutMinutos;
+    private Integer filaAntecedenciaHoras;
 }

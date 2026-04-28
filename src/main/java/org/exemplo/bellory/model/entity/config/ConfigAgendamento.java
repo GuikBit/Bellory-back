@@ -56,4 +56,17 @@ public class ConfigAgendamento {
     @Column(name= "modo_vizualizacao")
     private String modoVizualizacao = "calendar";
 
+    // ===== Fila de Espera =====
+    @Column(name = "usar_fila_espera")
+    private Boolean usarFilaEspera = false;
+
+    @Column(name = "fila_max_cascata")
+    private Integer filaMaxCascata = 5;
+
+    @Column(name = "fila_timeout_minutos")
+    private Integer filaTimeoutMinutos = 30;
+
+    @Column(name = "fila_antecedencia_horas")
+    private Integer filaAntecedenciaHoras = 3;
+
 }

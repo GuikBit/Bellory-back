@@ -25,6 +25,7 @@ import org.exemplo.bellory.model.repository.agendamento.AgendamentoRepository;
 import org.exemplo.bellory.model.repository.funcionario.DisponibilidadeRepository;
 import org.exemplo.bellory.model.repository.funcionario.FuncionarioRepository;
 import org.exemplo.bellory.model.repository.funcionario.JornadaTrabalhoRepository;
+import org.exemplo.bellory.model.repository.fila.FilaEsperaTentativaRepository;
 import org.exemplo.bellory.model.repository.notificacao.ConfigNotificacaoRepository;
 import org.exemplo.bellory.model.repository.notificacao.NotificacaoEnviadaRepository;
 import org.exemplo.bellory.model.repository.organizacao.BloqueioOrganizacaoRepository;
@@ -65,6 +66,7 @@ public class AgendamentoService {
     private final BloqueioOrganizacaoRepository bloqueioOrganizacaoRepository;
     private final NotificacaoEnviadaRepository notificacaoEnviadaRepository;
     private final ConfigNotificacaoRepository configNotificacaoRepository;
+    private final FilaEsperaTentativaRepository filaEsperaTentativaRepository;
 
     private final TransacaoService transacaoService;
     private final ApplicationEventPublisher eventPublisher;
@@ -102,6 +104,7 @@ public class AgendamentoService {
                               BloqueioOrganizacaoRepository bloqueioOrganizacaoRepository,
                               NotificacaoEnviadaRepository notificacaoEnviadaRepository,
                               ConfigNotificacaoRepository configNotificacaoRepository,
+                              FilaEsperaTentativaRepository filaEsperaTentativaRepository,
                               TransacaoService transacaoService,
                               ApplicationEventPublisher eventPublisher,
                               LimiteValidatorService limiteValidator,
@@ -119,6 +122,7 @@ public class AgendamentoService {
         this.bloqueioOrganizacaoRepository = bloqueioOrganizacaoRepository;
         this.notificacaoEnviadaRepository = notificacaoEnviadaRepository;
         this.configNotificacaoRepository = configNotificacaoRepository;
+        this.filaEsperaTentativaRepository = filaEsperaTentativaRepository;
         this.transacaoService = transacaoService;
         this.eventPublisher = eventPublisher;
         this.limiteValidator = limiteValidator;
@@ -439,6 +443,8 @@ public class AgendamentoService {
         agendamento.setObservacao(dto.getObservacao());
         agendamento.setStatus(Status.PENDENTE);
         agendamento.setDtCriacao(LocalDateTime.now());
+        // Opt-in da fila de espera vindo do site externo (default false)
+        agendamento.setEntrouFilaEspera(Boolean.TRUE.equals(dto.getEntrarFilaEspera()));
 
         // 3. Processar agendamento completo (validação, cobrança, evento)
         Agendamento agendamentoSalvo = processarAgendamento(agendamento);
@@ -1174,6 +1180,18 @@ public class AgendamentoService {
                             " já possui um bloqueio na agenda neste período."
             );
         }
+
+        // 5. Verificar conflitos com tentativas ativas da fila de espera
+        // (slot ja reservado para outro cliente que aguarda resposta)
+        boolean reservadoFila = !filaEsperaTentativaRepository
+                .findAtivasNoIntervalo(funcionario.getId(), inicioAgendamento, fimAgendamento)
+                .isEmpty();
+        if (reservadoFila) {
+            throw new IllegalArgumentException(
+                    "Funcionário " + funcionario.getNomeCompleto() +
+                            " possui um horario reservado para a fila de espera neste periodo."
+            );
+        }
     }
 
     @Transactional
@@ -1226,6 +1244,20 @@ public class AgendamentoService {
 
         // INCLUIR TODOS os bloqueios (incluindo AGENDAMENTO)
         List<BloqueioAgenda> bloqueiosValidos = new ArrayList<>(bloqueios);
+
+        // Bloqueia slots reservados para tentativas ativas da fila de espera
+        // (PENDENTE/ENVIADO/AGUARDANDO_RESPOSTA). O slot so volta a aparecer
+        // quando todos da fila recusarem ou expirarem.
+        filaEsperaTentativaRepository
+                .findAtivasNoIntervalo(funcionario.getId(), inicioDoDia, fimDoDia)
+                .forEach(t -> bloqueiosValidos.add(new BloqueioAgenda(
+                        funcionario,
+                        t.getSlotInicio(),
+                        t.getSlotFim(),
+                        "Reservado pela fila de espera",
+                        TipoBloqueio.AGENDAMENTO,
+                        null
+                )));
 
         // ✅ NOVO: Adicionar bloqueio para horários no passado se for o dia atual
         LocalDateTime agora = LocalDateTime.now();

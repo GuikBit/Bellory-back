@@ -826,4 +826,42 @@ public interface AgendamentoRepository extends JpaRepository<Agendamento, Long> 
             @Param("fim") LocalDateTime fim
     );
 
+    // ===== Fila de Espera =====
+
+    /**
+     * Candidatos da fila de espera para um slot liberado: clientes que optaram
+     * pela fila, cujo agendamento e posterior ao slot, e cujo funcionario do
+     * agendamento contem o funcionario do slot. Ordenado FIFO por dtCriacao.
+     * <p>O caller filtra adicionalmente por duracao + tolerancia e tentativas ativas.
+     */
+    @Query("""
+            SELECT DISTINCT a FROM Agendamento a
+            JOIN a.funcionarios f
+            WHERE a.organizacao.id = :organizacaoId
+              AND a.entrouFilaEspera = true
+              AND a.status IN :statusElegiveis
+              AND a.dtAgendamento > :slotInicio
+              AND f.id = :funcionarioId
+              AND a.id <> :agendamentoCanceladoId
+            ORDER BY a.dtCriacao ASC
+            """)
+    List<Agendamento> findCandidatosFilaEspera(
+            @Param("organizacaoId") Long organizacaoId,
+            @Param("funcionarioId") Long funcionarioId,
+            @Param("slotInicio") LocalDateTime slotInicio,
+            @Param("agendamentoCanceladoId") Long agendamentoCanceladoId,
+            @Param("statusElegiveis") List<Status> statusElegiveis);
+
+    /**
+     * Cleanup diario: remove a flag entrouFilaEspera de agendamentos cuja data ja chegou.
+     * O caller deve estar dentro de uma @Transactional.
+     */
+    @org.springframework.data.jpa.repository.Modifying(clearAutomatically = true)
+    @Query("""
+            UPDATE Agendamento a SET a.entrouFilaEspera = false
+            WHERE a.entrouFilaEspera = true
+              AND a.dtAgendamento < :limite
+            """)
+    int removerFilaEsperaPorDataChegada(@Param("limite") LocalDateTime limite);
+
 }

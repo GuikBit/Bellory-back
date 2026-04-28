@@ -66,6 +66,9 @@ public class BookingSectionDTO {
         private Integer maxAdvanceDays;
         private Boolean allowMultipleServices;
         private Boolean requiresLogin;
+        /** Fila de espera habilitada para esta organizacao. Frontend usa para mostrar/esconder
+         *  o checkbox "entrar na fila" no fluxo de booking. */
+        private Boolean waitingListEnabled;
     }
 
     @Data

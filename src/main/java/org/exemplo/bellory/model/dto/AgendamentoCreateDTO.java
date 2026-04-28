@@ -35,4 +35,8 @@ public class AgendamentoCreateDTO {
 
     // NOVO: Data de vencimento do pagamento final
     private LocalDate dtVencimentoRestante;
+
+    // NOVO: Cliente optou por entrar na fila de espera para adiantamento
+    // (checkbox no site externo). Default false.
+    private Boolean entrarFilaEspera = false;
 }

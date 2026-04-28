@@ -112,6 +112,22 @@ public class Agendamento {
     @Column(name = "percentual_sinal", precision = 5, scale = 2)
     private BigDecimal percentualSinal;
 
+    // ===== Fila de Espera =====
+    // Cliente optou por entrar na fila ao agendar (checkbox no site externo).
+    // Quando outro agendamento for cancelado e abrir um slot compativel
+    // (mesmo funcionario, duracao suficiente, antes de dtAgendamento),
+    // este agendamento e candidato a adiantamento via fila.
+    @Column(name = "entrou_fila_espera", nullable = false)
+    private boolean entrouFilaEspera = false;
+
+    // Marca quando o agendamento foi adiantado via fila (audit/historico).
+    @Column(name = "reagendado_por_fila", nullable = false)
+    private boolean reagendadoPorFila = false;
+
+    // dtAgendamento original antes do reagendamento via fila (preservado para historico).
+    @Column(name = "dt_original_fila")
+    private LocalDateTime dtOriginalFila;
+
     public Agendamento() {
         this.status = Status.PENDENTE;
         this.requerSinal = true;

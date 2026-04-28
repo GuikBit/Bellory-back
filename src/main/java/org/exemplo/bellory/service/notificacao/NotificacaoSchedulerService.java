@@ -294,6 +294,8 @@ public class NotificacaoSchedulerService {
                 Horario: {{hora_agendamento}}
 
                 Te esperamos!""";
+            case FILA_ESPERA_OFERTA, FILA_ESPERA_PERDEU_VEZ -> throw new IllegalStateException(
+                    "Tipo " + tipo + " nao e processado pelo NotificacaoSchedulerService (event-driven, ver FilaEsperaService).");
         };
     }
 

@@ -12,5 +12,11 @@ public enum StatusEnvio {
     REAGENDADO,            // Cliente reagendou com sucesso
     FALHA,                 // Erro no envio
     CANCELADO,             // Agendamento cancelado antes do envio
-    EXPIRADO               // Tempo de resposta expirou
+    EXPIRADO,              // Tempo de resposta expirou
+
+    // ===== Fila de Espera =====
+    FILA_OFERTA_ENVIADA,   // Oferta de adiantamento enviada via fila de espera
+    FILA_ACEITO,           // Cliente aceitou adiantamento - agendamento foi atualizado
+    FILA_RECUSADO,         // Cliente recusou adiantamento (mantem na fila)
+    FILA_PERDEU_VEZ        // Cliente respondeu apos timeout/outro ja aceitou
 }

@@ -49,6 +49,14 @@ public class AgendamentoDTO {
     // Histórico de notificações enviadas ao cliente (somente leitura)
     private List<NotificacaoEnviadaResumoDTO> notificacoes;
 
+    // ===== Fila de Espera =====
+    // Cliente optou pela fila no momento do agendamento (checkbox no site).
+    private Boolean entrouFilaEspera;
+    // Agendamento foi adiantado via fila (UI deve destacar e mostrar dtOriginalFila).
+    private Boolean reagendadoPorFila;
+    // dtAgendamento original antes do 1º adiantamento via fila (audit/historico).
+    private LocalDateTime dtOriginalFila;
+
     public AgendamentoDTO(Agendamento agendamento) {
         this.id = agendamento.getId();
         this.organizacaoId = agendamento.getOrganizacao().getId();
@@ -113,6 +121,11 @@ public class AgendamentoDTO {
 
         // Resumo consolidado das cobranças
         this.resumoCobranca = construirResumoCobranca(agendamento);
+
+        // Fila de espera
+        this.entrouFilaEspera = agendamento.isEntrouFilaEspera();
+        this.reagendadoPorFila = agendamento.isReagendadoPorFila();
+        this.dtOriginalFila = agendamento.getDtOriginalFila();
     }
 
     private CobrancaResumoDTO construirResumoCobranca(Agendamento agendamento) {

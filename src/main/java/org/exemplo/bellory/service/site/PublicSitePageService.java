@@ -846,6 +846,8 @@ public class PublicSitePageService {
         Boolean cobrarSinal = configAgendamento != null && configAgendamento.getCobrarSinal() != null
                 ? configAgendamento.getCobrarSinal() : false;
         Integer porcentSinal = configAgendamento != null ? configAgendamento.getPorcentSinal() : null;
+        Boolean waitingListEnabled = configAgendamento != null && configAgendamento.getUsarFilaEspera() != null
+                ? configAgendamento.getUsarFilaEspera() : false;
 
         BookingSectionDTO.BookingConfigDTO bookingConfig = BookingSectionDTO.BookingConfigDTO.builder()
                 .requiresDeposit(cobrarSinal)
@@ -855,6 +857,7 @@ public class PublicSitePageService {
                 .maxAdvanceDays(maxDias)
                 .allowMultipleServices(true)
                 .requiresLogin(false)
+                .waitingListEnabled(waitingListEnabled)
                 .build();
 
         // Bloqueios ativos no período de agendamento (de hoje até maxDias)

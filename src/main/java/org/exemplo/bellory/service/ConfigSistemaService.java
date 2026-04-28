@@ -306,6 +306,20 @@ public class ConfigSistemaService {
         if (dto.getPorcentSinalAgente() != null && !Boolean.FALSE.equals(dto.getCobrarSinalAgente())) {
             configAgend.setPorcentSinalAgente(dto.getPorcentSinalAgente());
         }
+
+        // ===== Fila de Espera =====
+        if (dto.getUsarFilaEspera() != null) {
+            configAgend.setUsarFilaEspera(dto.getUsarFilaEspera());
+        }
+        if (dto.getFilaMaxCascata() != null) {
+            configAgend.setFilaMaxCascata(dto.getFilaMaxCascata());
+        }
+        if (dto.getFilaTimeoutMinutos() != null) {
+            configAgend.setFilaTimeoutMinutos(dto.getFilaTimeoutMinutos());
+        }
+        if (dto.getFilaAntecedenciaHoras() != null) {
+            configAgend.setFilaAntecedenciaHoras(dto.getFilaAntecedenciaHoras());
+        }
     }
 
     private ConfigSistemaDTO convertToDTO(ConfigSistema config) {
@@ -385,6 +399,10 @@ public class ConfigSistemaService {
                 .porcentSinal(config.getPorcentSinal())
                 .cobrarSinalAgente(config.getCobrarSinalAgente())
                 .porcentSinalAgente(config.getPorcentSinalAgente())
+                .usarFilaEspera(config.getUsarFilaEspera())
+                .filaMaxCascata(config.getFilaMaxCascata())
+                .filaTimeoutMinutos(config.getFilaTimeoutMinutos())
+                .filaAntecedenciaHoras(config.getFilaAntecedenciaHoras())
                 .build();
     }
 }

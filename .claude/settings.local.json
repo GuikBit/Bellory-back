@@ -21,7 +21,10 @@
       "Bash(./mvnw -q compile)",
       "Bash(mvn -q -o compile)",
       "Bash(./mvnw -q compile -DskipTests)",
-      "Bash(mvn -q compile -DskipTests)"
+      "Bash(mvn -q compile -DskipTests)",
+      "Bash(command -v mvn)",
+      "Bash(command -v javac)",
+      "Bash(java -version)"
     ]
   }
 }

@@ -159,6 +159,58 @@ public class NotificacaoPushEventListener {
         }
     }
 
+    // ==================== AGENDAMENTO ADIANTADO POR FILA ====================
+
+    @Async
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onAgendamentoAdiantadoFila(AgendamentoAdiantadoFilaEvent event) {
+        log.info("[Fila] Push: agendamento #{} adiantado de {} para {}",
+                event.getAgendamentoId(), event.getDtAgendamentoOriginal(), event.getDtAgendamentoNova());
+
+        String dtOriginal = event.getDtAgendamentoOriginal() != null
+                ? event.getDtAgendamentoOriginal().format(FMT_DATA) + " " + event.getDtAgendamentoOriginal().format(FMT_HORA)
+                : "data nao registrada";
+        String dtNova = event.getDtAgendamentoNova().format(FMT_DATA) + " " + event.getDtAgendamentoNova().format(FMT_HORA);
+
+        String titulo = "Agendamento adiantado pela fila";
+        String descricao = "Agendamento de " + event.getNomeCliente()
+                + " foi adiantado de " + dtOriginal + " para " + dtNova;
+        String detalhe = "Cliente: " + event.getNomeCliente()
+                + "\nNova data: " + dtNova
+                + "\nData original: " + dtOriginal
+                + "\nServicos: " + event.getServicos()
+                + "\nProfissional: " + event.getProfissional();
+
+        Map<String, Object> meta = new LinkedHashMap<>();
+        meta.put("agendamentoId", event.getAgendamentoId());
+        meta.put("clienteId", event.getClienteId());
+        meta.put("nomeCliente", event.getNomeCliente());
+        meta.put("dtAgendamentoOriginal", event.getDtAgendamentoOriginal() != null ? event.getDtAgendamentoOriginal().toString() : null);
+        meta.put("dtAgendamentoNova", event.getDtAgendamentoNova().toString());
+        meta.put("origem", "FILA_ESPERA");
+
+        String metadataJson = toJson(meta);
+        String urlAcao = "/agendamentos/" + event.getAgendamentoId();
+
+        for (Long funcionarioId : event.getFuncionarioIds()) {
+            notificacaoPushService.criarEEnviar(
+                    funcionarioId, "ROLE_FUNCIONARIO", event.getOrganizacaoId(),
+                    titulo, descricao, "AGENDAMENTO",
+                    CategoriaNotificacao.AGENDAMENTO, PrioridadeNotificacao.ALTA,
+                    null, urlAcao, detalhe, metadataJson
+            );
+        }
+
+        for (String adminRole : new String[]{"ROLE_SUPERADMIN", "ROLE_ADMIN", "ROLE_GERENTE", "ROLE_RECEPCAO"}) {
+            notificacaoPushService.criarEEnviarParaRole(
+                    adminRole, event.getOrganizacaoId(),
+                    titulo, descricao, "AGENDAMENTO",
+                    CategoriaNotificacao.AGENDAMENTO, PrioridadeNotificacao.ALTA,
+                    null, urlAcao, detalhe, metadataJson
+            );
+        }
+    }
+
     // ==================== PAGAMENTO RECEBIDO ====================
 
     @Async
