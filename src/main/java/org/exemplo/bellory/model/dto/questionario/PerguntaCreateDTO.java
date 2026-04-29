@@ -5,7 +5,9 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.*;
+import org.exemplo.bellory.model.entity.questionario.enums.FormatoAssinatura;
 import org.exemplo.bellory.model.entity.questionario.enums.TipoPergunta;
+import org.exemplo.bellory.model.entity.questionario.enums.TipoTemplateTermo;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -45,4 +47,21 @@ public class PerguntaCreateDTO {
     private Integer maxCaracteres;
     private BigDecimal minValor;
     private BigDecimal maxValor;
+
+    // Campos para tipo TERMO_CONSENTIMENTO
+    @Size(min = 10, max = 10000, message = "Texto do termo deve ter entre 10 e 10000 caracteres")
+    private String textoTermo;
+
+    private TipoTemplateTermo templateTermoId;
+
+    private Boolean requerAceiteExplicito;
+
+    // Campos para tipo ASSINATURA
+    private FormatoAssinatura formatoAssinatura;
+
+    private Integer larguraAssinatura;
+
+    private Integer alturaAssinatura;
+
+    private Boolean exigirAssinaturaProfissional;
 }

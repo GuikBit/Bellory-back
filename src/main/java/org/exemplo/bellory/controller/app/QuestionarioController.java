@@ -119,10 +119,16 @@ public class QuestionarioController {
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "Buscar questionário por ID")
-    public ResponseEntity<ResponseAPI<QuestionarioDTO>> buscarPorId(@PathVariable Long id) {
+    @Operation(summary = "Buscar questionário por ID",
+            description = "Quando informados, os parâmetros clienteId/agendamentoId/funcionarioId fazem o "
+                    + "servidor resolver os placeholders {{var}} dos termos de consentimento.")
+    public ResponseEntity<ResponseAPI<QuestionarioDTO>> buscarPorId(
+            @PathVariable Long id,
+            @RequestParam(required = false) Long clienteId,
+            @RequestParam(required = false) Long agendamentoId,
+            @RequestParam(required = false) Long funcionarioId) {
         try {
-            QuestionarioDTO dto = questionarioService.buscarPorId(id);
+            QuestionarioDTO dto = questionarioService.buscarPorId(id, clienteId, agendamentoId, funcionarioId);
 
             return ResponseEntity.ok(ResponseAPI.<QuestionarioDTO>builder()
                     .success(true)

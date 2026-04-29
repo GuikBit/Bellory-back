@@ -26,4 +26,23 @@ public class RespostaPerguntaCreateDTO {
     private LocalDate respostaData;
 
     private LocalTime respostaHora;
+
+    // ===== Termo de consentimento =====
+
+    /** Marcado true quando o cliente aceita o termo (checkbox "Li e concordo"). */
+    private Boolean aceitouTermo;
+
+    /**
+     * Texto do termo com placeholders ja substituidos pelo front (snapshot do que o cliente viu).
+     * O servidor calcula o hash e congela.
+     */
+    private String textoTermoRenderizado;
+
+    // ===== Assinatura digital =====
+
+    /** Data URL no formato {@code data:image/png;base64,...} ou {@code data:image/svg+xml;base64,...}. */
+    private String assinaturaClienteBase64;
+
+    /** Idem, quando a pergunta exige assinatura do profissional responsavel. */
+    private String assinaturaProfissionalBase64;
 }

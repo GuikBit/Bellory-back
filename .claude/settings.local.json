@@ -24,7 +24,9 @@
       "Bash(mvn -q compile -DskipTests)",
       "Bash(command -v mvn)",
       "Bash(command -v javac)",
-      "Bash(java -version)"
+      "Bash(java -version)",
+      "Bash(where mvn *)",
+      "PowerShell(Get-Command *)"
     ]
   }
 }

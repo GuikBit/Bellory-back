@@ -52,11 +52,18 @@ public class PublicQuestionarioController {
         this.rateLimiter = rateLimiter;
     }
 
-    @Operation(summary = "Buscar questionário público por ID")
+    @Operation(summary = "Buscar questionário público por ID",
+            description = "Quando informados, os parâmetros clienteId/agendamentoId/funcionarioId fazem o "
+                    + "servidor resolver os placeholders {{var}} dos termos de consentimento e devolver "
+                    + "PerguntaDTO.textoTermoRenderizado pronto. Sem os parâmetros, retorna texto cru com "
+                    + "placeholders.")
     @GetMapping("/{slug}/questionarios/{id}")
     public ResponseEntity<ResponseAPI<QuestionarioDTO>> buscar(
             @PathVariable String slug,
             @PathVariable Long id,
+            @RequestParam(required = false) Long clienteId,
+            @RequestParam(required = false) Long agendamentoId,
+            @RequestParam(required = false) Long funcionarioId,
             HttpServletRequest request) {
         try {
             String normalizedSlug = normalizeSlug(slug);
@@ -71,11 +78,19 @@ public class PublicQuestionarioController {
                 return notFound("Organização não encontrada ou site indisponível.");
             }
 
-            QuestionarioDTO dto = questionarioService.buscarPublicoPorSlug(id, access.getOrganizacaoId());
+            QuestionarioDTO dto = questionarioService.buscarPublicoPorSlug(
+                    id, access.getOrganizacaoId(), clienteId, agendamentoId, funcionarioId);
             return ResponseEntity.ok(ResponseAPI.<QuestionarioDTO>builder()
                     .success(true)
                     .dados(dto)
                     .build());
+        } catch (SecurityException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ResponseAPI.<QuestionarioDTO>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(403)
+                            .build());
         } catch (IllegalArgumentException e) {
             return notFound(e.getMessage());
         } catch (Exception e) {

@@ -1,19 +1,27 @@
 package org.exemplo.bellory.service.questionario;
 
+import org.exemplo.bellory.context.TenantContext;
 import org.exemplo.bellory.model.dto.questionario.*;
+import org.exemplo.bellory.model.entity.agendamento.AgendamentoQuestionario;
+import org.exemplo.bellory.model.entity.agendamento.StatusAssinatura;
 import org.exemplo.bellory.model.entity.agendamento.StatusQuestionarioAgendamento;
+import org.exemplo.bellory.model.entity.arquivo.Arquivo;
 import org.exemplo.bellory.model.entity.questionario.*;
 import org.exemplo.bellory.model.entity.questionario.enums.TipoPergunta;
 import org.exemplo.bellory.model.repository.agendamento.AgendamentoQuestionarioRepository;
 import org.exemplo.bellory.model.repository.funcionario.FuncionarioRepository;
 import org.exemplo.bellory.model.repository.questionario.*;
 import org.exemplo.bellory.model.repository.users.ClienteRepository;
+import org.exemplo.bellory.service.ArquivoStorageService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.function.Function;
@@ -41,19 +49,22 @@ public class RespostaQuestionarioService {
     private final ClienteRepository clienteRepository;
     private final FuncionarioRepository funcionarioRepository;
     private final AgendamentoQuestionarioRepository agendamentoQuestionarioRepository;
+    private final ArquivoStorageService arquivoStorageService;
 
     public RespostaQuestionarioService(QuestionarioRepository questionarioRepository,
                                        RespostaQuestionarioRepository respostaQuestionarioRepository,
                                        RespostaPerguntaRepository respostaPerguntaRepository,
                                        ClienteRepository clienteRepository,
                                        FuncionarioRepository funcionarioRepository,
-                                       AgendamentoQuestionarioRepository agendamentoQuestionarioRepository) {
+                                       AgendamentoQuestionarioRepository agendamentoQuestionarioRepository,
+                                       ArquivoStorageService arquivoStorageService) {
         this.questionarioRepository = questionarioRepository;
         this.respostaQuestionarioRepository = respostaQuestionarioRepository;
         this.respostaPerguntaRepository = respostaPerguntaRepository;
         this.clienteRepository = clienteRepository;
         this.funcionarioRepository = funcionarioRepository;
         this.agendamentoQuestionarioRepository = agendamentoQuestionarioRepository;
+        this.arquivoStorageService = arquivoStorageService;
     }
 
     @Transactional
@@ -89,6 +100,10 @@ public class RespostaQuestionarioService {
         // Validar respostas
         validarRespostas(dto, questionario);
 
+        Long organizacaoId = questionario.getOrganizacao() != null
+                ? questionario.getOrganizacao().getId() : null;
+        Long criadoPor = TenantContext.getCurrentUserId(); // pode ser null no fluxo publico
+
         // Criar entidade
         RespostaQuestionario respostaQuestionario = new RespostaQuestionario();
         respostaQuestionario.setQuestionario(questionario);
@@ -101,11 +116,14 @@ public class RespostaQuestionarioService {
         respostaQuestionario.setUserAgent(dto.getUserAgent());
         respostaQuestionario.setDtResposta(LocalDateTime.now());
 
-        // Mapear perguntas
+        // Mapear perguntas e DTOs por id de pergunta
         Map<Long, Pergunta> perguntasMap = questionario.getPerguntas().stream()
                 .collect(Collectors.toMap(Pergunta::getId, Function.identity()));
+        Map<Long, RespostaPerguntaCreateDTO> dtoPorPerguntaId = dto.getRespostas().stream()
+                .collect(Collectors.toMap(RespostaPerguntaCreateDTO::getPerguntaId, Function.identity()));
 
-        // Processar respostas
+        // Processar respostas (campos basicos + termo; assinatura e gravada apos primeiro flush)
+        LocalDateTime agora = LocalDateTime.now();
         for (RespostaPerguntaCreateDTO respostaDTO : dto.getRespostas()) {
             Pergunta pergunta = perguntasMap.get(respostaDTO.getPerguntaId());
 
@@ -119,20 +137,103 @@ public class RespostaQuestionarioService {
             respostaPergunta.setRespostaData(respostaDTO.getRespostaData());
             respostaPergunta.setRespostaHora(respostaDTO.getRespostaHora());
 
+            // Termo de consentimento: dataAceite e hash sao SEMPRE gerados pelo servidor
+            if (pergunta.getTipo() == TipoPergunta.TERMO_CONSENTIMENTO) {
+                respostaPergunta.setAceitouTermo(respostaDTO.getAceitouTermo());
+                if (respostaDTO.getTextoTermoRenderizado() != null
+                        && !respostaDTO.getTextoTermoRenderizado().isBlank()) {
+                    respostaPergunta.setTextoTermoRenderizado(respostaDTO.getTextoTermoRenderizado());
+                    respostaPergunta.setHashTermo(sha256Hex(respostaDTO.getTextoTermoRenderizado()));
+                }
+                if (Boolean.TRUE.equals(respostaDTO.getAceitouTermo())) {
+                    respostaPergunta.setDataAceite(agora);
+                }
+            }
+
             respostaQuestionario.addResposta(respostaPergunta);
         }
 
-        RespostaQuestionario saved = respostaQuestionarioRepository.save(respostaQuestionario);
+        // Primeiro save: gera IDs das RespostaPergunta para usar como sub-pasta da assinatura
+        RespostaQuestionario saved = respostaQuestionarioRepository.saveAndFlush(respostaQuestionario);
 
-        // Tracking: se a resposta veio para um agendamento específico, marca o
-        // AgendamentoQuestionario correspondente como RESPONDIDO.
+        // Processar assinaturas (precisa do ID gerado de cada RespostaPergunta)
+        boolean temPerguntaAssinatura = false;
+        boolean todasObrigatoriasCapturadas = true;
+        boolean algumaAssinaturaCapturada = false;
+
+        for (RespostaPergunta rp : saved.getRespostas()) {
+            Pergunta p = rp.getPergunta();
+            if (p.getTipo() != TipoPergunta.ASSINATURA) continue;
+
+            temPerguntaAssinatura = true;
+            RespostaPerguntaCreateDTO respostaDTO = dtoPorPerguntaId.get(p.getId());
+            if (respostaDTO == null) {
+                if (Boolean.TRUE.equals(p.getObrigatoria())) todasObrigatoriasCapturadas = false;
+                continue;
+            }
+
+            String b64Cliente = respostaDTO.getAssinaturaClienteBase64();
+            if (b64Cliente != null && !b64Cliente.isBlank()) {
+                AssinaturaImagemValidator.Resultado res = AssinaturaImagemValidator.decodificarEValidar(b64Cliente);
+                Arquivo arquivo = arquivoStorageService.salvarAssinatura(
+                        res.getBytes(),
+                        res.getFormato().getExtensao(),
+                        res.getFormato().getContentType(),
+                        organizacaoId,
+                        rp.getId(),
+                        false,
+                        criadoPor);
+                rp.setArquivoAssinaturaClienteId(arquivo.getId());
+                algumaAssinaturaCapturada = true;
+            } else if (Boolean.TRUE.equals(p.getObrigatoria())) {
+                todasObrigatoriasCapturadas = false;
+            }
+
+            if (Boolean.TRUE.equals(p.getExigirAssinaturaProfissional())) {
+                String b64Prof = respostaDTO.getAssinaturaProfissionalBase64();
+                if (b64Prof != null && !b64Prof.isBlank()) {
+                    AssinaturaImagemValidator.Resultado res = AssinaturaImagemValidator.decodificarEValidar(b64Prof);
+                    Arquivo arquivo = arquivoStorageService.salvarAssinatura(
+                            res.getBytes(),
+                            res.getFormato().getExtensao(),
+                            res.getFormato().getContentType(),
+                            organizacaoId,
+                            rp.getId(),
+                            true,
+                            criadoPor);
+                    rp.setArquivoAssinaturaProfissionalId(arquivo.getId());
+                    algumaAssinaturaCapturada = true;
+                } else {
+                    todasObrigatoriasCapturadas = false;
+                }
+            }
+        }
+
+        if (temPerguntaAssinatura) {
+            saved = respostaQuestionarioRepository.save(saved);
+        }
+
+        // Tracking: status duplo no AgendamentoQuestionario
         if (saved.getAgendamentoId() != null) {
+            StatusAssinatura statusAssinatura = !temPerguntaAssinatura
+                    ? StatusAssinatura.NAO_REQUERIDA
+                    : (algumaAssinaturaCapturada && todasObrigatoriasCapturadas
+                        ? StatusAssinatura.ASSINADA
+                        : StatusAssinatura.PENDENTE);
+
+            final RespostaQuestionario savedFinal = saved;
+            final boolean assinou = statusAssinatura == StatusAssinatura.ASSINADA;
+            final StatusAssinatura statusFinal = statusAssinatura;
             agendamentoQuestionarioRepository
-                    .findByAgendamentoIdAndQuestionarioId(saved.getAgendamentoId(), questionario.getId())
+                    .findByAgendamentoIdAndQuestionarioId(savedFinal.getAgendamentoId(), questionario.getId())
                     .ifPresent(aq -> {
                         aq.setStatus(StatusQuestionarioAgendamento.RESPONDIDO);
                         aq.setDtResposta(LocalDateTime.now());
-                        aq.setRespostaQuestionarioId(saved.getId());
+                        aq.setRespostaQuestionarioId(savedFinal.getId());
+                        aq.setStatusAssinatura(statusFinal);
+                        if (assinou) {
+                            aq.setDtAssinatura(LocalDateTime.now());
+                        }
                         agendamentoQuestionarioRepository.save(aq);
                     });
         }
@@ -140,11 +241,162 @@ public class RespostaQuestionarioService {
         return enriquecerComNomes(new RespostaQuestionarioDTO(saved));
     }
 
+    /**
+     * Calcula SHA-256 hex do conteudo. Usado para congelar o termo aceito e detectar
+     * adulteracao posterior (via endpoint de auditoria).
+     */
+    private static String sha256Hex(String input) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            byte[] hash = md.digest(input.getBytes(StandardCharsets.UTF_8));
+            StringBuilder hex = new StringBuilder(hash.length * 2);
+            for (byte b : hash) {
+                hex.append(String.format("%02x", b));
+            }
+            return hex.toString();
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 indisponivel na JVM", e);
+        }
+    }
+
     @Transactional(readOnly = true)
     public RespostaQuestionarioDTO buscarPorId(Long id) {
         RespostaQuestionario resposta = respostaQuestionarioRepository.findByIdWithRespostas(id)
                 .orElseThrow(() -> new IllegalArgumentException("Resposta não encontrada."));
         return enriquecerComNomes(new RespostaQuestionarioDTO(resposta));
+    }
+
+    /**
+     * Monta o relatorio de auditoria de termos/assinaturas de uma resposta.
+     * Recalcula o SHA-256 do {@code textoTermoRenderizado} e compara com {@code hashTermo}
+     * armazenado para detectar adulteracao.
+     *
+     * Retorna respostas mesmo quando soft-deleted (uso legal).
+     */
+    @Transactional(readOnly = true)
+    public AuditoriaTermoDTO obterAuditoria(Long respostaQuestionarioId) {
+        RespostaQuestionario resposta = respostaQuestionarioRepository.findByIdWithRespostas(respostaQuestionarioId)
+                .orElseThrow(() -> new IllegalArgumentException("Resposta não encontrada."));
+
+        List<AuditoriaTermoDTO.TermoAceito> termos = new ArrayList<>();
+        List<AuditoriaTermoDTO.AssinaturaCapturada> assinaturas = new ArrayList<>();
+
+        for (RespostaPergunta rp : resposta.getRespostas()) {
+            Pergunta p = rp.getPergunta();
+            if (p == null) continue;
+            TipoPergunta tipo = p.getTipo();
+
+            if (tipo == TipoPergunta.TERMO_CONSENTIMENTO) {
+                String hashRecalculado = rp.getTextoTermoRenderizado() != null
+                        ? sha256Hex(rp.getTextoTermoRenderizado()) : null;
+                boolean integridadeOk = hashRecalculado != null
+                        && hashRecalculado.equals(rp.getHashTermo());
+                termos.add(AuditoriaTermoDTO.TermoAceito.builder()
+                        .respostaPerguntaId(rp.getId())
+                        .perguntaId(p.getId())
+                        .perguntaTexto(p.getTexto())
+                        .aceitouTermo(rp.getAceitouTermo())
+                        .dataAceite(rp.getDataAceite())
+                        .textoTermoRenderizado(rp.getTextoTermoRenderizado())
+                        .hashTermoEsperado(rp.getHashTermo())
+                        .hashTermoCalculado(hashRecalculado)
+                        .integridadeOk(integridadeOk)
+                        .build());
+            }
+
+            if (tipo == TipoPergunta.ASSINATURA) {
+                String urlBase = "/api/v1/resposta-questionario/" + resposta.getId() + "/assinatura/";
+                String urlCliente = rp.getArquivoAssinaturaClienteId() != null
+                        ? urlBase + "cliente?perguntaId=" + p.getId() : null;
+                String urlProf = rp.getArquivoAssinaturaProfissionalId() != null
+                        ? urlBase + "profissional?perguntaId=" + p.getId() : null;
+                assinaturas.add(AuditoriaTermoDTO.AssinaturaCapturada.builder()
+                        .respostaPerguntaId(rp.getId())
+                        .perguntaId(p.getId())
+                        .perguntaTexto(p.getTexto())
+                        .arquivoAssinaturaClienteId(rp.getArquivoAssinaturaClienteId())
+                        .arquivoAssinaturaProfissionalId(rp.getArquivoAssinaturaProfissionalId())
+                        .urlAssinaturaCliente(urlCliente)
+                        .urlAssinaturaProfissional(urlProf)
+                        .build());
+            }
+        }
+
+        return AuditoriaTermoDTO.builder()
+                .respostaQuestionarioId(resposta.getId())
+                .questionarioId(resposta.getQuestionario() != null ? resposta.getQuestionario().getId() : null)
+                .questionarioTitulo(resposta.getQuestionario() != null ? resposta.getQuestionario().getTitulo() : null)
+                .clienteId(resposta.getClienteId())
+                .agendamentoId(resposta.getAgendamentoId())
+                .dtResposta(resposta.getDtResposta())
+                .ipOrigem(resposta.getIpOrigem())
+                .userAgent(resposta.getUserAgent())
+                .dispositivo(resposta.getDispositivo())
+                .deletado(resposta.isDeletado())
+                .dtDeletado(resposta.getDtDeletado())
+                .termos(termos)
+                .assinaturas(assinaturas)
+                .build();
+    }
+
+    /**
+     * Recupera os bytes da assinatura associada a uma pergunta dentro de uma resposta,
+     * validando que a pergunta pertence a essa resposta e que o arquivo eh de sistema.
+     *
+     * @param respostaQuestionarioId id da resposta
+     * @param perguntaId id da pergunta tipo ASSINATURA
+     * @param profissional true para devolver a assinatura do profissional, false para cliente
+     * @return bytes brutos da imagem (PNG/SVG)
+     */
+    @Transactional(readOnly = true)
+    public AssinaturaDownload buscarBytesAssinatura(Long respostaQuestionarioId, Long perguntaId, boolean profissional) {
+        RespostaQuestionario resposta = respostaQuestionarioRepository.findByIdWithRespostas(respostaQuestionarioId)
+                .orElseThrow(() -> new IllegalArgumentException("Resposta não encontrada."));
+
+        RespostaPergunta rp = resposta.getRespostas().stream()
+                .filter(r -> r.getPergunta() != null && perguntaId.equals(r.getPergunta().getId()))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Pergunta não pertence a esta resposta."));
+
+        if (rp.getPergunta().getTipo() != TipoPergunta.ASSINATURA) {
+            throw new IllegalArgumentException("Pergunta não é do tipo ASSINATURA.");
+        }
+
+        Long arquivoId = profissional
+                ? rp.getArquivoAssinaturaProfissionalId()
+                : rp.getArquivoAssinaturaClienteId();
+        if (arquivoId == null) {
+            throw new IllegalArgumentException("Assinatura não encontrada para este registro.");
+        }
+
+        Long organizacaoId = resposta.getQuestionario() != null && resposta.getQuestionario().getOrganizacao() != null
+                ? resposta.getQuestionario().getOrganizacao().getId() : null;
+        if (organizacaoId == null) {
+            throw new IllegalArgumentException("Organização da resposta não identificada.");
+        }
+
+        byte[] bytes = arquivoStorageService.lerAssinatura(arquivoId, organizacaoId);
+        return new AssinaturaDownload(bytes, resposta.getClienteId(), organizacaoId);
+    }
+
+    /**
+     * Tupla simples para devolver bytes + ownership a quem chama (para o controller validar tenant/cliente).
+     */
+    public record AssinaturaDownload(byte[] bytes, Long clienteId, Long organizacaoId) {}
+
+    /**
+     * Carrega a resposta com perguntas/organizacao para o gerador de PDF.
+     * Inclui respostas soft-deleted (auditoria/comprovante eh acessivel mesmo apos delete).
+     */
+    @Transactional(readOnly = true)
+    public RespostaQuestionario buscarParaComprovante(Long id) {
+        RespostaQuestionario resposta = respostaQuestionarioRepository.findByIdWithRespostas(id)
+                .orElseThrow(() -> new IllegalArgumentException("Resposta não encontrada."));
+        // toca os campos LAZY que o PDF vai consumir (organizacao do questionario)
+        if (resposta.getQuestionario() != null && resposta.getQuestionario().getOrganizacao() != null) {
+            resposta.getQuestionario().getOrganizacao().getNomeFantasia();
+        }
+        return resposta;
     }
 
     @Transactional(readOnly = true)
@@ -158,10 +410,41 @@ public class RespostaQuestionarioService {
 
     @Transactional
     public void deletar(Long id) {
-        if (!respostaQuestionarioRepository.existsById(id)) {
-            throw new IllegalArgumentException("Resposta não encontrada.");
+        deletar(id, TenantContext.getCurrentUsername());
+    }
+
+    /**
+     * Deleta uma resposta de questionario.
+     *
+     * Quando a resposta contem ao menos uma {@code RespostaPergunta} com termo de
+     * consentimento aceito ou assinatura digital, aplica-se SOFT-DELETE para preservar
+     * o registro (LGPD Art. 16, II — retencao para cumprimento de obrigacao legal).
+     *
+     * Caso contrario, mantem-se o hard-delete original (comportamento back-compat).
+     */
+    @Transactional
+    public void deletar(Long id, String usuarioDeletado) {
+        RespostaQuestionario resposta = respostaQuestionarioRepository.findByIdWithRespostas(id)
+                .orElseThrow(() -> new IllegalArgumentException("Resposta não encontrada."));
+
+        if (resposta.isDeletado()) {
+            return; // idempotente — ja foi soft-deleted
         }
-        respostaQuestionarioRepository.deleteById(id);
+
+        boolean temProvaLegal = resposta.getRespostas() != null
+                && resposta.getRespostas().stream().anyMatch(rp ->
+                        Boolean.TRUE.equals(rp.getAceitouTermo())
+                                || rp.getArquivoAssinaturaClienteId() != null
+                                || rp.getArquivoAssinaturaProfissionalId() != null);
+
+        if (temProvaLegal) {
+            resposta.setDeletado(true);
+            resposta.setUsuarioDeletado(usuarioDeletado);
+            resposta.setDtDeletado(LocalDateTime.now());
+            respostaQuestionarioRepository.save(resposta);
+        } else {
+            respostaQuestionarioRepository.delete(resposta);
+        }
     }
 
     @Transactional(readOnly = true)
@@ -450,6 +733,42 @@ public class RespostaQuestionarioService {
                                 resposta.getRespostaTexto().equalsIgnoreCase("Não"));
                 if (resposta.getRespostaTexto() != null && !temResposta) {
                     throw new IllegalArgumentException("Resposta deve ser 'Sim' ou 'Não'.");
+                }
+                break;
+
+            case TERMO_CONSENTIMENTO:
+                temResposta = Boolean.TRUE.equals(resposta.getAceitouTermo())
+                        && resposta.getTextoTermoRenderizado() != null
+                        && !resposta.getTextoTermoRenderizado().isBlank();
+
+                if (Boolean.TRUE.equals(pergunta.getRequerAceiteExplicito())
+                        && !Boolean.TRUE.equals(resposta.getAceitouTermo())) {
+                    throw new IllegalArgumentException(
+                            "Aceite obrigatório do termo: '" + pergunta.getTexto() + "'.");
+                }
+                if (Boolean.TRUE.equals(resposta.getAceitouTermo())
+                        && (resposta.getTextoTermoRenderizado() == null
+                            || resposta.getTextoTermoRenderizado().isBlank())) {
+                    throw new IllegalArgumentException(
+                            "textoTermoRenderizado é obrigatório quando o termo for aceito ('"
+                                    + pergunta.getTexto() + "').");
+                }
+                break;
+
+            case ASSINATURA:
+                boolean temAssinaturaCliente = resposta.getAssinaturaClienteBase64() != null
+                        && !resposta.getAssinaturaClienteBase64().isBlank();
+                boolean temAssinaturaProfissional = resposta.getAssinaturaProfissionalBase64() != null
+                        && !resposta.getAssinaturaProfissionalBase64().isBlank();
+                temResposta = temAssinaturaCliente;
+
+                if (Boolean.TRUE.equals(pergunta.getExigirAssinaturaProfissional())
+                        && !temAssinaturaProfissional) {
+                    if (Boolean.TRUE.equals(pergunta.getObrigatoria()) || temAssinaturaCliente) {
+                        throw new IllegalArgumentException(
+                                "Assinatura do profissional é obrigatória para '"
+                                        + pergunta.getTexto() + "'.");
+                    }
                 }
                 break;
         }

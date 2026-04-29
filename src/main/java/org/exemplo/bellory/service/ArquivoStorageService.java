@@ -28,6 +28,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -53,6 +54,20 @@ public class ArquivoStorageService {
 
     private static final String ARQUIVOS_DIR = "arquivos";
     private static final long MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
+
+    /**
+     * Pasta de sistema fora da cota onde sao gravadas assinaturas digitais
+     * de termos de consentimento. Nao aparece no file explorer e nao conta
+     * no calculo de uso do plano.
+     */
+    static final String PASTA_SISTEMA_TERMOS_ASSINATURAS = "_termos_assinaturas";
+
+    /**
+     * Subdiretorios sob {orgId}/ que devem ser ignorados pelo calculo de uso e contagem.
+     */
+    private static final Set<String> SUBDIRETORIOS_FORA_COTA = Set.of(
+            "clientes", PASTA_SISTEMA_TERMOS_ASSINATURAS
+    );
 
     /**
      * Pastas do sistema que aparecem na raiz do file explorer.
@@ -129,7 +144,7 @@ public class ArquivoStorageService {
                     .orElseThrow(() -> new IllegalArgumentException("Pasta não encontrada."));
             arquivos = arquivoRepository.findAllByOrganizacao_IdAndPasta_IdOrderByDtCriacaoDesc(organizacaoId, pastaId);
         } else {
-            arquivos = arquivoRepository.findAllByOrganizacao_IdAndPastaIsNullOrderByDtCriacaoDesc(organizacaoId);
+            arquivos = arquivoRepository.findAllByOrganizacao_IdAndPastaIsNullAndIsSistemaFalseOrderByDtCriacaoDesc(organizacaoId);
         }
 
         return arquivos.stream().map(this::toArquivoDTO).toList();
@@ -137,7 +152,7 @@ public class ArquivoStorageService {
 
     public List<ArquivoDTO> listarTodosArquivos() {
         Long organizacaoId = getOrganizacaoId();
-        List<Arquivo> arquivos = arquivoRepository.findAllByOrganizacao(organizacaoId);
+        List<Arquivo> arquivos = arquivoRepository.findAllByOrganizacaoNaoSistema(organizacaoId);
         return arquivos.stream().map(this::toArquivoDTO).toList();
     }
 
@@ -147,6 +162,7 @@ public class ArquivoStorageService {
 
         Arquivo arquivo = arquivoRepository.findByIdAndOrganizacao_Id(arquivoId, organizacaoId)
                 .orElseThrow(() -> new IllegalArgumentException("Arquivo não encontrado."));
+        garantirNaoSistema(arquivo);
 
         deletarArquivoFisico(arquivo.getCaminhoRelativo());
         arquivoRepository.delete(arquivo);
@@ -158,6 +174,7 @@ public class ArquivoStorageService {
 
         Arquivo arquivo = arquivoRepository.findByIdAndOrganizacao_Id(arquivoId, organizacaoId)
                 .orElseThrow(() -> new IllegalArgumentException("Arquivo não encontrado."));
+        garantirNaoSistema(arquivo);
 
         PastaArquivo novaPasta = null;
         String novaPastaPath = "";
@@ -197,6 +214,7 @@ public class ArquivoStorageService {
 
         Arquivo arquivo = arquivoRepository.findByIdAndOrganizacao_Id(arquivoId, organizacaoId)
                 .orElseThrow(() -> new IllegalArgumentException("Arquivo não encontrado."));
+        garantirNaoSistema(arquivo);
 
         String extensao = arquivo.getExtensao();
         String nomeBase = novoNome.contains(".") ? novoNome.substring(0, novoNome.lastIndexOf(".")) : novoNome;
@@ -346,6 +364,105 @@ public class ArquivoStorageService {
         pastaArquivoRepository.delete(pasta);
     }
 
+    // ==================== ASSINATURAS DE TERMO ====================
+
+    /**
+     * Persiste uma assinatura de termo de consentimento em pasta de sistema fora da cota
+     * do plano. NAO valida o limite de armazenamento (assinaturas legais nao podem ser
+     * bloqueadas por cota) e NAO conta na contagem visivel ao tenant.
+     *
+     * O arquivo persistido fica marcado com {@code is_sistema = true} e {@code pasta = null}
+     * — ele nao aparece na listagem normal do file explorer, mas pode ser recuperado por ID
+     * via {@link #lerAssinatura(Long, Long)}.
+     *
+     * @param bytes               conteudo binario ja descodificado e validado
+     * @param extensao            extensao do arquivo (ex.: "png", "svg") sem ponto
+     * @param contentType         content-type a registrar (ex.: "image/png")
+     * @param organizacaoId       organizacao dona do tenant que gerou a assinatura
+     * @param respostaPerguntaId  id da resposta_pergunta que esta sendo assinada (vira sub-pasta)
+     * @param profissional        true para gravar como assinatura do profissional, false para cliente
+     * @param criadoPor           id do usuario que executou (pode ser null em fluxo publico)
+     * @return registro {@link Arquivo} ja persistido
+     */
+    @Transactional
+    public Arquivo salvarAssinatura(byte[] bytes,
+                                    String extensao,
+                                    String contentType,
+                                    Long organizacaoId,
+                                    Long respostaPerguntaId,
+                                    boolean profissional,
+                                    Long criadoPor) {
+        if (bytes == null || bytes.length == 0) {
+            throw new IllegalArgumentException("Conteudo da assinatura está vazio.");
+        }
+        if (organizacaoId == null) {
+            throw new IllegalArgumentException("organizacaoId é obrigatorio.");
+        }
+        if (respostaPerguntaId == null) {
+            throw new IllegalArgumentException("respostaPerguntaId é obrigatorio.");
+        }
+
+        Organizacao organizacao = organizacaoRepository.findById(organizacaoId)
+                .orElseThrow(() -> new IllegalArgumentException("Organização não encontrada."));
+
+        String ext = (extensao == null || extensao.isBlank()) ? "png" : extensao.toLowerCase();
+        String nomeArmazenado = (profissional ? "profissional" : "cliente") + "." + ext;
+        String subPath = PASTA_SISTEMA_TERMOS_ASSINATURAS + "/" + respostaPerguntaId;
+        String caminhoRelativo = organizacaoId + "/" + subPath + "/" + nomeArmazenado;
+
+        Path diretorio = Paths.get(uploadDir, organizacaoId.toString(), subPath);
+        try {
+            Files.createDirectories(diretorio);
+            Path destino = diretorio.resolve(nomeArmazenado);
+            Files.write(destino, bytes, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+        } catch (IOException e) {
+            throw new RuntimeException("Erro ao gravar assinatura no disco: " + e.getMessage(), e);
+        }
+
+        Arquivo arquivo = Arquivo.builder()
+                .organizacao(organizacao)
+                .pasta(null)
+                .nomeOriginal(nomeArmazenado)
+                .nomeArmazenado(nomeArmazenado)
+                .caminhoRelativo(caminhoRelativo)
+                .extensao(ext)
+                .contentType(contentType != null ? contentType : detectContentType(ext))
+                .tamanho((long) bytes.length)
+                .criadoPor(criadoPor)
+                .isSistema(true)
+                .build();
+
+        return arquivoRepository.save(arquivo);
+    }
+
+    /**
+     * Le os bytes de uma assinatura previamente gravada via {@link #salvarAssinatura}.
+     * Garante que o registro pertence a {@code organizacaoId} e que esta marcado como
+     * {@code is_sistema = true} (impede que a rota de leitura sirva arquivos comuns).
+     */
+    public byte[] lerAssinatura(Long arquivoId, Long organizacaoId) {
+        if (arquivoId == null) {
+            throw new IllegalArgumentException("arquivoId é obrigatorio.");
+        }
+        if (organizacaoId == null) {
+            throw new IllegalArgumentException("organizacaoId é obrigatorio.");
+        }
+
+        Arquivo arquivo = arquivoRepository.findByIdAndOrganizacao_Id(arquivoId, organizacaoId)
+                .orElseThrow(() -> new IllegalArgumentException("Assinatura não encontrada."));
+
+        if (!arquivo.isSistema()) {
+            throw new IllegalArgumentException("Arquivo solicitado não é uma assinatura de sistema.");
+        }
+
+        Path caminho = Paths.get(uploadDir, arquivo.getCaminhoRelativo()).normalize();
+        try {
+            return Files.readAllBytes(caminho);
+        } catch (IOException e) {
+            throw new RuntimeException("Erro ao ler assinatura do disco: " + e.getMessage(), e);
+        }
+    }
+
     // ==================== STORAGE (calcula TODOS os arquivos no disco) ====================
 
     public StorageUsageDTO obterUsoStorage() {
@@ -476,7 +593,7 @@ public class ArquivoStorageService {
 
             // Pasta "arquivos" conta subpastas do DB + arquivos do DB
             if (ARQUIVOS_DIR.equals(nomeDisco)) {
-                Integer totalArquivosDB = arquivoRepository.contarArquivos(organizacaoId);
+                Integer totalArquivosDB = arquivoRepository.contarArquivosNaoSistema(organizacaoId);
                 pastasRaiz.add(PastaArquivoDTO.builder()
                         .id(null)
                         .nome(nomeExibicao)
@@ -524,7 +641,7 @@ public class ArquivoStorageService {
         List<PastaArquivo> pastasDB = pastaArquivoRepository
                 .findAllByOrganizacao_IdAndPastaPaiIsNullOrderByNomeAsc(organizacaoId);
         List<Arquivo> arquivosDB = arquivoRepository
-                .findAllByOrganizacao_IdAndPastaIsNullOrderByDtCriacaoDesc(organizacaoId);
+                .findAllByOrganizacao_IdAndPastaIsNullAndIsSistemaFalseOrderByDtCriacaoDesc(organizacaoId);
 
         Path pastaFisica = Paths.get(uploadDir, organizacaoId.toString(), ARQUIVOS_DIR);
         long tamanhoTotal = calcularTamanhoDiretorio(pastaFisica);
@@ -798,7 +915,7 @@ public class ArquivoStorageService {
 
     /**
      * Calcula o tamanho total de um diretorio recursivamente.
-     * Exclui a pasta "clientes" do calculo.
+     * Exclui subdiretorios fora da cota (clientes, _termos_assinaturas).
      */
     private long calcularTamanhoDiretorio(Path directory) {
         if (!Files.exists(directory) || !Files.isDirectory(directory)) {
@@ -806,11 +923,7 @@ public class ArquivoStorageService {
         }
         try (Stream<Path> paths = Files.walk(directory)) {
             return paths
-                    .filter(p -> {
-                        // Excluir pasta "clientes" do calculo
-                        String rel = directory.relativize(p).toString().replace("\\", "/");
-                        return !rel.startsWith("clientes/") && !rel.equals("clientes");
-                    })
+                    .filter(p -> !subdiretorioForaCota(directory, p))
                     .filter(Files::isRegularFile)
                     .mapToLong(p -> {
                         try { return Files.size(p); }
@@ -824,7 +937,7 @@ public class ArquivoStorageService {
 
     /**
      * Conta total de arquivos em um diretorio recursivamente.
-     * Exclui a pasta "clientes".
+     * Exclui subdiretorios fora da cota (clientes, _termos_assinaturas).
      */
     private int contarArquivosDiretorio(Path directory) {
         if (!Files.exists(directory) || !Files.isDirectory(directory)) {
@@ -832,15 +945,22 @@ public class ArquivoStorageService {
         }
         try (Stream<Path> paths = Files.walk(directory)) {
             return (int) paths
-                    .filter(p -> {
-                        String rel = directory.relativize(p).toString().replace("\\", "/");
-                        return !rel.startsWith("clientes/") && !rel.equals("clientes");
-                    })
+                    .filter(p -> !subdiretorioForaCota(directory, p))
                     .filter(Files::isRegularFile)
                     .count();
         } catch (IOException e) {
             return 0;
         }
+    }
+
+    private boolean subdiretorioForaCota(Path base, Path candidato) {
+        String rel = base.relativize(candidato).toString().replace("\\", "/");
+        for (String subdir : SUBDIRETORIOS_FORA_COTA) {
+            if (rel.startsWith(subdir + "/") || rel.equals(subdir)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void atualizarCaminhosRecursivamente(PastaArquivo pasta, String caminhoAntigo, String caminhoNovo, Long organizacaoId) {
@@ -943,6 +1063,18 @@ public class ArquivoStorageService {
             throw new SecurityException("Organização não identificada no contexto.");
         }
         return organizacaoId;
+    }
+
+    /**
+     * Bloqueia operacoes de mutacao (deletar/mover/renomear) em arquivos marcados
+     * como sistema. Assinaturas de termo so podem ser removidas indiretamente
+     * pelo soft-delete da resposta no fluxo do questionario.
+     */
+    private void garantirNaoSistema(Arquivo arquivo) {
+        if (arquivo.isSistema()) {
+            throw new IllegalArgumentException(
+                    "Arquivo de sistema não pode ser modificado por esta operação.");
+        }
     }
 
     private String getFileExtension(String filename) {

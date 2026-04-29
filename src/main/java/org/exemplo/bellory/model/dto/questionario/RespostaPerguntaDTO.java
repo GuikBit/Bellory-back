@@ -7,6 +7,7 @@ import org.exemplo.bellory.model.entity.questionario.enums.TipoPergunta;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -28,6 +29,16 @@ public class RespostaPerguntaDTO {
     private LocalTime respostaHora;
     private String respostaFormatada;
 
+    // Termo de consentimento
+    private Boolean aceitouTermo;
+    private LocalDateTime dataAceite;
+    private String textoTermoRenderizado;
+    private String hashTermo;
+
+    // Assinatura digital (IDs dos arquivos; URL de download chega no PR de auditoria/PDF)
+    private Long arquivoAssinaturaClienteId;
+    private Long arquivoAssinaturaProfissionalId;
+
     public RespostaPerguntaDTO(RespostaPergunta entity) {
         this.id = entity.getId();
         this.perguntaId = entity.getPergunta() != null ? entity.getPergunta().getId() : null;
@@ -37,6 +48,12 @@ public class RespostaPerguntaDTO {
         this.respostaNumero = entity.getRespostaNumero();
         this.respostaData = entity.getRespostaData();
         this.respostaHora = entity.getRespostaHora();
+        this.aceitouTermo = entity.getAceitouTermo();
+        this.dataAceite = entity.getDataAceite();
+        this.textoTermoRenderizado = entity.getTextoTermoRenderizado();
+        this.hashTermo = entity.getHashTermo();
+        this.arquivoAssinaturaClienteId = entity.getArquivoAssinaturaClienteId();
+        this.arquivoAssinaturaProfissionalId = entity.getArquivoAssinaturaProfissionalId();
 
         // Mapear opções selecionadas
         if (entity.getRespostaOpcaoIds() != null && !entity.getRespostaOpcaoIds().isEmpty()
@@ -94,6 +111,20 @@ public class RespostaPerguntaDTO {
             case HORA:
                 return resposta.getRespostaHora() != null ?
                         resposta.getRespostaHora().toString() : null;
+
+            case TERMO_CONSENTIMENTO:
+                if (Boolean.TRUE.equals(resposta.getAceitouTermo()) && resposta.getDataAceite() != null) {
+                    return "Aceito em " + resposta.getDataAceite();
+                }
+                return Boolean.TRUE.equals(resposta.getAceitouTermo()) ? "Aceito" : "Nao aceito";
+
+            case ASSINATURA:
+                boolean temCliente = resposta.getArquivoAssinaturaClienteId() != null;
+                boolean temProfissional = resposta.getArquivoAssinaturaProfissionalId() != null;
+                if (temCliente && temProfissional) return "Assinado (cliente + profissional)";
+                if (temCliente) return "Assinado (cliente)";
+                if (temProfissional) return "Assinado (profissional)";
+                return null;
 
             default:
                 return null;

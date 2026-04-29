@@ -10,7 +10,9 @@ public enum TipoPergunta {
     DATA("Data"),
     HORA("Hora"),
     AVALIACAO_ESTRELAS("Avaliação por Estrelas"),
-    SIM_NAO("Sim/Não");
+    SIM_NAO("Sim/Não"),
+    TERMO_CONSENTIMENTO("Termo de Consentimento"),
+    ASSINATURA("Assinatura Digital");
 
     private final String descricao;
 

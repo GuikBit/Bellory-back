@@ -6,6 +6,7 @@ import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -53,4 +54,42 @@ public class RespostaPergunta {
 
     @Column(name = "resposta_hora")
     private LocalTime respostaHora;
+
+    // ===== Termo de consentimento =====
+
+    @Column(name = "aceitou_termo")
+    private Boolean aceitouTermo;
+
+    /**
+     * Setado pelo servidor no momento do POST. Valor enviado pelo cliente e ignorado.
+     */
+    @Column(name = "data_aceite")
+    private LocalDateTime dataAceite;
+
+    /**
+     * Snapshot do termo (com placeholders ja substituidos pelo front) no momento do aceite.
+     * NUNCA recalculado depois.
+     */
+    @Column(name = "texto_termo_renderizado", columnDefinition = "TEXT")
+    private String textoTermoRenderizado;
+
+    /**
+     * SHA-256 do {@code textoTermoRenderizado} calculado pelo servidor para auditoria.
+     */
+    @Column(name = "hash_termo", length = 64)
+    private String hashTermo;
+
+    // ===== Assinatura digital =====
+
+    /**
+     * FK logico para {@code app.arquivo} (is_sistema=true) com a assinatura do cliente.
+     */
+    @Column(name = "arquivo_assinatura_cliente_id")
+    private Long arquivoAssinaturaClienteId;
+
+    /**
+     * FK logico para {@code app.arquivo} (is_sistema=true) com a assinatura do profissional.
+     */
+    @Column(name = "arquivo_assinatura_profissional_id")
+    private Long arquivoAssinaturaProfissionalId;
 }

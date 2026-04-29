@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import org.exemplo.bellory.context.TenantContext;
 import org.exemplo.bellory.model.dto.questionario.*;
 import org.exemplo.bellory.model.entity.error.ResponseAPI;
 import org.exemplo.bellory.service.questionario.RespostaQuestionarioService;
@@ -81,12 +82,14 @@ public class RespostaQuestionarioController {
     }
 
     @DeleteMapping("/{respostaId}")
-    @Operation(summary = "Deletar resposta")
+    @Operation(summary = "Deletar resposta",
+            description = "Soft-delete preservado quando há termo aceito ou assinatura digital (LGPD). "
+                    + "Hard-delete em outros casos.")
     public ResponseEntity<ResponseAPI<Void>> deletar(
             @PathVariable Long questionarioId,
             @PathVariable Long respostaId) {
         try {
-            respostaService.deletar(respostaId);
+            respostaService.deletar(respostaId, TenantContext.getCurrentUsername());
 
             return ResponseEntity.ok(ResponseAPI.<Void>builder()
                     .success(true)

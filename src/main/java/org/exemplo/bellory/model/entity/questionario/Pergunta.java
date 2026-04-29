@@ -3,7 +3,9 @@ package org.exemplo.bellory.model.entity.questionario;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
+import org.exemplo.bellory.model.entity.questionario.enums.FormatoAssinatura;
 import org.exemplo.bellory.model.entity.questionario.enums.TipoPergunta;
+import org.exemplo.bellory.model.entity.questionario.enums.TipoTemplateTermo;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -75,6 +77,33 @@ public class Pergunta {
 
     @Column(name = "max_valor", precision = 15, scale = 4)
     private BigDecimal maxValor;
+
+    // Campos para tipo TERMO_CONSENTIMENTO
+    @Column(name = "texto_termo", columnDefinition = "TEXT")
+    private String textoTermo;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "template_termo_id", length = 50)
+    private TipoTemplateTermo templateTermoId;
+
+    @Column(name = "requer_aceite_explicito")
+    @Builder.Default
+    private Boolean requerAceiteExplicito = false;
+
+    // Campos para tipo ASSINATURA
+    @Enumerated(EnumType.STRING)
+    @Column(name = "formato_assinatura", length = 20)
+    private FormatoAssinatura formatoAssinatura;
+
+    @Column(name = "largura_assinatura")
+    private Integer larguraAssinatura;
+
+    @Column(name = "altura_assinatura")
+    private Integer alturaAssinatura;
+
+    @Column(name = "exigir_assinatura_profissional")
+    @Builder.Default
+    private Boolean exigirAssinaturaProfissional = false;
 
     public void addOpcao(OpcaoResposta opcao) {
         if (opcoes == null) {

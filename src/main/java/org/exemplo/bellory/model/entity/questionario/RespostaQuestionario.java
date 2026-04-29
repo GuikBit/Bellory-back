@@ -54,6 +54,16 @@ public class RespostaQuestionario {
     @Column(name = "user_agent", length = 500)
     private String userAgent;
 
+    @Column(name = "is_deletado", nullable = false)
+    @Builder.Default
+    private boolean isDeletado = false;
+
+    @Column(name = "usuario_deletado", length = 255)
+    private String usuarioDeletado;
+
+    @Column(name = "dt_deletado")
+    private LocalDateTime dtDeletado;
+
     @PrePersist
     public void prePersist() {
         if (dtResposta == null) {

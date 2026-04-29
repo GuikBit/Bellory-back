@@ -55,6 +55,10 @@ public class Arquivo {
     @Column(name = "criado_por")
     private Long criadoPor;
 
+    @Column(name = "is_sistema", nullable = false)
+    @Builder.Default
+    private boolean isSistema = false;
+
     @PrePersist
     protected void onCreate() {
         this.dtCriacao = LocalDateTime.now();

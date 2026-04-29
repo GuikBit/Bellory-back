@@ -4,6 +4,8 @@ import org.exemplo.bellory.context.TenantContext;
 import org.exemplo.bellory.model.dto.questionario.*;
 import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 import org.exemplo.bellory.model.entity.questionario.*;
+import org.exemplo.bellory.model.entity.questionario.enums.FormatoAssinatura;
+import org.exemplo.bellory.model.entity.questionario.enums.TipoPergunta;
 import org.exemplo.bellory.model.entity.questionario.enums.TipoQuestionario;
 import org.exemplo.bellory.model.repository.organizacao.OrganizacaoRepository;
 import org.exemplo.bellory.model.repository.questionario.QuestionarioRepository;
@@ -14,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -21,11 +24,14 @@ public class QuestionarioService {
 
     private final QuestionarioRepository questionarioRepository;
     private final OrganizacaoRepository organizacaoRepository;
+    private final TemplateContextoBuilder templateContextoBuilder;
 
     public QuestionarioService(QuestionarioRepository questionarioRepository,
-                               OrganizacaoRepository organizacaoRepository) {
+                               OrganizacaoRepository organizacaoRepository,
+                               TemplateContextoBuilder templateContextoBuilder) {
         this.questionarioRepository = questionarioRepository;
         this.organizacaoRepository = organizacaoRepository;
+        this.templateContextoBuilder = templateContextoBuilder;
     }
 
     @Transactional
@@ -46,6 +52,8 @@ public class QuestionarioService {
         questionario.setUrlImagem(dto.getUrlImagem());
         questionario.setCorTema(dto.getCorTema());
         questionario.setDtCriacao(LocalDateTime.now());
+
+        validarPerguntasTermoAssinatura(questionario.getAnonimo(), dto.getPerguntas());
 
         // Adicionar perguntas
         if (dto.getPerguntas() != null && !dto.getPerguntas().isEmpty()) {
@@ -81,6 +89,8 @@ public class QuestionarioService {
         questionario.setDtAtualizacao(LocalDateTime.now());
         questionario.setUsuarioAtualizacao(getUserIdFromContext().toString());
 
+        validarPerguntasTermoAssinatura(questionario.getAnonimo(), dto.getPerguntas());
+
         // Limpar perguntas antigas e adicionar novas
         questionario.clearPerguntas();
 
@@ -115,6 +125,16 @@ public class QuestionarioService {
 
     @Transactional(readOnly = true)
     public QuestionarioDTO buscarPorId(Long id) {
+        return buscarPorId(id, null, null, null);
+    }
+
+    /**
+     * Busca questionario autenticado, opcionalmente resolvendo placeholders dos termos
+     * de consentimento usando os IDs informados. Quando todos os IDs sao null, comportamento
+     * permanece identico ao {@link #buscarPorId(Long)} original.
+     */
+    @Transactional(readOnly = true)
+    public QuestionarioDTO buscarPorId(Long id, Long clienteId, Long agendamentoId, Long funcionarioId) {
         Long organizacaoId = getOrganizacaoIdFromContext();
 
         Questionario questionario = questionarioRepository
@@ -126,6 +146,8 @@ public class QuestionarioService {
 
         QuestionarioDTO dto = new QuestionarioDTO(questionario);
         dto.setTotalRespostas(questionarioRepository.countRespostasByQuestionarioId(id));
+
+        aplicarRenderizacaoTermo(dto, organizacaoId, clienteId, agendamentoId, funcionarioId);
 
         return dto;
     }
@@ -140,6 +162,17 @@ public class QuestionarioService {
 
     @Transactional(readOnly = true)
     public QuestionarioDTO buscarPublicoPorSlug(Long id, Long organizacaoId) {
+        return buscarPublicoPorSlug(id, organizacaoId, null, null, null);
+    }
+
+    /**
+     * Versao publica do GET de questionario com resolucao opcional de placeholders.
+     * Quando os IDs sao informados, valida que cliente/agendamento/funcionario pertencem
+     * ao tenant do slug e popula {@code PerguntaDTO.textoTermoRenderizado}.
+     */
+    @Transactional(readOnly = true)
+    public QuestionarioDTO buscarPublicoPorSlug(Long id, Long organizacaoId,
+                                                Long clienteId, Long agendamentoId, Long funcionarioId) {
         Questionario questionario = questionarioRepository
                 .findByIdAndOrganizacaoIdWithPerguntas(id, organizacaoId)
                 .orElseThrow(() -> new IllegalArgumentException("Questionário não encontrado."));
@@ -151,7 +184,37 @@ public class QuestionarioService {
 
         QuestionarioDTO dto = new QuestionarioDTO(questionario);
         dto.setTotalRespostas(questionarioRepository.countRespostasByQuestionarioId(id));
+
+        aplicarRenderizacaoTermo(dto, organizacaoId, clienteId, agendamentoId, funcionarioId);
+
         return dto;
+    }
+
+    /**
+     * Resolve placeholders {@code {{var}}} em todas as perguntas tipo TERMO_CONSENTIMENTO
+     * do DTO, populando {@code textoTermoRenderizado}. No-op quando todos os IDs sao null.
+     */
+    private void aplicarRenderizacaoTermo(QuestionarioDTO dto, Long organizacaoId,
+                                          Long clienteId, Long agendamentoId, Long funcionarioId) {
+        if (clienteId == null && agendamentoId == null && funcionarioId == null) {
+            return;
+        }
+        if (dto.getPerguntas() == null || dto.getPerguntas().isEmpty()) {
+            return;
+        }
+        boolean temTermo = dto.getPerguntas().stream().anyMatch(p ->
+                p.getTipo() == org.exemplo.bellory.model.entity.questionario.enums.TipoPergunta.TERMO_CONSENTIMENTO);
+        if (!temTermo) return;
+
+        Map<String, String> contexto = templateContextoBuilder.construir(
+                organizacaoId, clienteId, agendamentoId, funcionarioId);
+
+        for (PerguntaDTO p : dto.getPerguntas()) {
+            if (p.getTipo() == org.exemplo.bellory.model.entity.questionario.enums.TipoPergunta.TERMO_CONSENTIMENTO
+                    && p.getTextoTermo() != null) {
+                p.setTextoTermoRenderizado(templateContextoBuilder.renderizar(p.getTextoTermo(), contexto));
+            }
+        }
     }
 
     @Transactional(readOnly = true)
@@ -219,6 +282,63 @@ public class QuestionarioService {
 
     // Métodos auxiliares
 
+    private static final int LARGURA_ASSINATURA_MIN = 200;
+    private static final int LARGURA_ASSINATURA_MAX = 1200;
+    private static final int LARGURA_ASSINATURA_DEFAULT = 600;
+    private static final int ALTURA_ASSINATURA_MIN = 100;
+    private static final int ALTURA_ASSINATURA_MAX = 600;
+    private static final int ALTURA_ASSINATURA_DEFAULT = 200;
+
+    /**
+     * Valida regras de negocio para perguntas tipo TERMO_CONSENTIMENTO e ASSINATURA
+     * que dependem do contexto do questionario (ex.: anonimato).
+     */
+    private void validarPerguntasTermoAssinatura(Boolean anonimo, List<PerguntaCreateDTO> perguntas) {
+        if (perguntas == null || perguntas.isEmpty()) {
+            return;
+        }
+        boolean isAnonimo = Boolean.TRUE.equals(anonimo);
+        for (PerguntaCreateDTO p : perguntas) {
+            TipoPergunta tipo = p.getTipo();
+            if (tipo == null) continue;
+
+            boolean ehTermoOuAssinatura = tipo == TipoPergunta.TERMO_CONSENTIMENTO
+                    || tipo == TipoPergunta.ASSINATURA;
+
+            if (ehTermoOuAssinatura && isAnonimo) {
+                throw new IllegalArgumentException(
+                        "Questionário anônimo não pode conter perguntas do tipo TERMO_CONSENTIMENTO ou ASSINATURA.");
+            }
+
+            if (ehTermoOuAssinatura && p.getOpcoes() != null && !p.getOpcoes().isEmpty()) {
+                throw new IllegalArgumentException(
+                        "Perguntas do tipo TERMO_CONSENTIMENTO ou ASSINATURA não aceitam opções de resposta.");
+            }
+
+            if (tipo == TipoPergunta.TERMO_CONSENTIMENTO) {
+                if (p.getTextoTermo() == null || p.getTextoTermo().trim().isEmpty()) {
+                    throw new IllegalArgumentException(
+                            "O campo 'textoTermo' é obrigatório para perguntas do tipo TERMO_CONSENTIMENTO.");
+                }
+            }
+
+            if (tipo == TipoPergunta.ASSINATURA) {
+                Integer largura = p.getLarguraAssinatura();
+                if (largura != null && (largura < LARGURA_ASSINATURA_MIN || largura > LARGURA_ASSINATURA_MAX)) {
+                    throw new IllegalArgumentException(
+                            "Largura da assinatura deve estar entre " + LARGURA_ASSINATURA_MIN
+                                    + " e " + LARGURA_ASSINATURA_MAX + " pixels.");
+                }
+                Integer altura = p.getAlturaAssinatura();
+                if (altura != null && (altura < ALTURA_ASSINATURA_MIN || altura > ALTURA_ASSINATURA_MAX)) {
+                    throw new IllegalArgumentException(
+                            "Altura da assinatura deve estar entre " + ALTURA_ASSINATURA_MIN
+                                    + " e " + ALTURA_ASSINATURA_MAX + " pixels.");
+                }
+            }
+        }
+    }
+
     private Pergunta criarPergunta(PerguntaCreateDTO dto, int ordemPadrao) {
         Pergunta pergunta = new Pergunta();
         pergunta.setTexto(dto.getTexto());
@@ -235,7 +355,27 @@ public class QuestionarioService {
         pergunta.setMinValor(dto.getMinValor());
         pergunta.setMaxValor(dto.getMaxValor());
 
-        // Adicionar opções
+        // Termo de consentimento
+        if (dto.getTipo() == TipoPergunta.TERMO_CONSENTIMENTO) {
+            pergunta.setTextoTermo(dto.getTextoTermo());
+            pergunta.setTemplateTermoId(dto.getTemplateTermoId());
+            pergunta.setRequerAceiteExplicito(
+                    dto.getRequerAceiteExplicito() != null ? dto.getRequerAceiteExplicito() : false);
+        }
+
+        // Assinatura digital
+        if (dto.getTipo() == TipoPergunta.ASSINATURA) {
+            pergunta.setFormatoAssinatura(
+                    dto.getFormatoAssinatura() != null ? dto.getFormatoAssinatura() : FormatoAssinatura.PNG_BASE64);
+            pergunta.setLarguraAssinatura(
+                    dto.getLarguraAssinatura() != null ? dto.getLarguraAssinatura() : LARGURA_ASSINATURA_DEFAULT);
+            pergunta.setAlturaAssinatura(
+                    dto.getAlturaAssinatura() != null ? dto.getAlturaAssinatura() : ALTURA_ASSINATURA_DEFAULT);
+            pergunta.setExigirAssinaturaProfissional(
+                    dto.getExigirAssinaturaProfissional() != null ? dto.getExigirAssinaturaProfissional() : false);
+        }
+
+        // Adicionar opções (somente para tipos que aceitam — validação ja garante isso)
         if (dto.getOpcoes() != null && !dto.getOpcoes().isEmpty()) {
             for (int j = 0; j < dto.getOpcoes().size(); j++) {
                 OpcaoRespostaCreateDTO opcaoDTO = dto.getOpcoes().get(j);

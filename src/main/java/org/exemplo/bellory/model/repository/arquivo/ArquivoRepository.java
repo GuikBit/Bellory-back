@@ -16,6 +16,12 @@ public interface ArquivoRepository extends JpaRepository<Arquivo, Long> {
 
     List<Arquivo> findAllByOrganizacao_IdAndPastaIsNullOrderByDtCriacaoDesc(Long organizacaoId);
 
+    /**
+     * Lista arquivos do tenant excluindo os marcados como is_sistema (ex.: assinaturas de termo).
+     * Usar nas listagens visiveis no file explorer.
+     */
+    List<Arquivo> findAllByOrganizacao_IdAndPastaIsNullAndIsSistemaFalseOrderByDtCriacaoDesc(Long organizacaoId);
+
     Optional<Arquivo> findByIdAndOrganizacao_Id(Long id, Long organizacaoId);
 
     @Query("SELECT COALESCE(SUM(a.tamanho), 0) FROM Arquivo a WHERE a.organizacao.id = :orgId")
@@ -23,6 +29,12 @@ public interface ArquivoRepository extends JpaRepository<Arquivo, Long> {
 
     @Query("SELECT COUNT(a) FROM Arquivo a WHERE a.organizacao.id = :orgId")
     Integer contarArquivos(@Param("orgId") Long organizacaoId);
+
+    /**
+     * Conta arquivos do tenant excluindo os marcados como is_sistema.
+     */
+    @Query("SELECT COUNT(a) FROM Arquivo a WHERE a.organizacao.id = :orgId AND a.isSistema = false")
+    Integer contarArquivosNaoSistema(@Param("orgId") Long organizacaoId);
 
     @Query("SELECT COALESCE(SUM(a.tamanho), 0) FROM Arquivo a WHERE a.pasta.id = :pastaId")
     Long calcularTamanhoPasta(@Param("pastaId") Long pastaId);
@@ -34,4 +46,10 @@ public interface ArquivoRepository extends JpaRepository<Arquivo, Long> {
 
     @Query("SELECT a FROM Arquivo a WHERE a.organizacao.id = :orgId ORDER BY a.dtCriacao DESC")
     List<Arquivo> findAllByOrganizacao(@Param("orgId") Long organizacaoId);
+
+    /**
+     * Lista arquivos do tenant excluindo os marcados como is_sistema (uso geral).
+     */
+    @Query("SELECT a FROM Arquivo a WHERE a.organizacao.id = :orgId AND a.isSistema = false ORDER BY a.dtCriacao DESC")
+    List<Arquivo> findAllByOrganizacaoNaoSistema(@Param("orgId") Long organizacaoId);
 }

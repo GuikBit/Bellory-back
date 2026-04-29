@@ -2,7 +2,9 @@ package org.exemplo.bellory.model.dto.questionario;
 
 import lombok.*;
 import org.exemplo.bellory.model.entity.questionario.Pergunta;
+import org.exemplo.bellory.model.entity.questionario.enums.FormatoAssinatura;
 import org.exemplo.bellory.model.entity.questionario.enums.TipoPergunta;
+import org.exemplo.bellory.model.entity.questionario.enums.TipoTemplateTermo;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -34,6 +36,25 @@ public class PerguntaDTO {
     private BigDecimal minValor;
     private BigDecimal maxValor;
 
+    // Campos para tipo TERMO_CONSENTIMENTO
+    private String textoTermo;
+    private TipoTemplateTermo templateTermoId;
+    private Boolean requerAceiteExplicito;
+
+    /**
+     * Texto do termo com placeholders ja substituidos pelo servidor.
+     * Populado APENAS quando o GET de questionario recebe os IDs de cliente/
+     * agendamento/funcionario na query string. Caso contrario, fica null e o
+     * front recebe somente {@code textoTermo} cru.
+     */
+    private String textoTermoRenderizado;
+
+    // Campos para tipo ASSINATURA
+    private FormatoAssinatura formatoAssinatura;
+    private Integer larguraAssinatura;
+    private Integer alturaAssinatura;
+    private Boolean exigirAssinaturaProfissional;
+
     public PerguntaDTO(Pergunta entity) {
         this.id = entity.getId();
         this.texto = entity.getTexto();
@@ -49,6 +70,13 @@ public class PerguntaDTO {
         this.maxCaracteres = entity.getMaxCaracteres();
         this.minValor = entity.getMinValor();
         this.maxValor = entity.getMaxValor();
+        this.textoTermo = entity.getTextoTermo();
+        this.templateTermoId = entity.getTemplateTermoId();
+        this.requerAceiteExplicito = entity.getRequerAceiteExplicito();
+        this.formatoAssinatura = entity.getFormatoAssinatura();
+        this.larguraAssinatura = entity.getLarguraAssinatura();
+        this.alturaAssinatura = entity.getAlturaAssinatura();
+        this.exigirAssinaturaProfissional = entity.getExigirAssinaturaProfissional();
 
         if (entity.getOpcoes() != null && !entity.getOpcoes().isEmpty()) {
             this.opcoes = entity.getOpcoes().stream()
