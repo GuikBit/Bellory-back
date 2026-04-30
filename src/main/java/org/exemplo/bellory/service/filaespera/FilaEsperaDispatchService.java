@@ -106,7 +106,6 @@ public class FilaEsperaDispatchService {
 
         Long orgId = tentativa.getOrganizacao().getId();
         Optional<Instance> instanceOpt = instanceRepository.findByOrganizacaoIdAndDeletadoFalse(orgId).stream()
-                .filter(Instance::isAtivo)
                 .filter(i -> i.getStatus() == InstanceStatus.CONNECTED || i.getStatus() == InstanceStatus.OPEN)
                 .findFirst();
 
