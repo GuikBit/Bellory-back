@@ -441,7 +441,7 @@ public class AgendamentoService {
         agendamento.setFuncionarios(funcionarios);
         agendamento.setDtAgendamento(dto.getDtAgendamento());
         agendamento.setObservacao(dto.getObservacao());
-        agendamento.setStatus(Status.PENDENTE);
+        agendamento.setStatus(Status.AGENDADO);
         agendamento.setDtCriacao(LocalDateTime.now());
         // Opt-in da fila de espera vindo do site externo (default false)
         agendamento.setEntrouFilaEspera(Boolean.TRUE.equals(dto.getEntrarFilaEspera()));

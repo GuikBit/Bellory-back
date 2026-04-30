@@ -114,7 +114,6 @@ public class AnamneseWhatsAppService {
 
         Long orgId = ag.getOrganizacao().getId();
         Optional<Instance> instanceOpt = instanceRepository.findByOrganizacaoIdAndDeletadoFalse(orgId).stream()
-                .filter(Instance::isAtivo)
                 .filter(i -> i.getStatus() == InstanceStatus.CONNECTED || i.getStatus() == InstanceStatus.OPEN)
                 .findFirst();
 
