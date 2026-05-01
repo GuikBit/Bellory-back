@@ -64,6 +64,17 @@ public class PublicSiteGuard {
         return PublicSiteAccess.active(org.getId(), modo);
     }
 
+    /**
+     * Resolve a organização pelo slug, ignorando o status do {@code SitePublicoConfig}.
+     * Para fluxos públicos que NÃO são parte do site institucional (anamnese, resposta
+     * de questionário, etc.) — esses precisam funcionar mesmo se o admin não ativou o site.
+     */
+    @Transactional(readOnly = true)
+    public Optional<Long> resolveOrganizacaoId(String slug) {
+        return organizacaoRepository.findBySlugAndAtivoTrue(slug)
+                .map(Organizacao::getId);
+    }
+
     public static class PublicSiteAccess {
         private final Status status;
         private final ModoSite modo;

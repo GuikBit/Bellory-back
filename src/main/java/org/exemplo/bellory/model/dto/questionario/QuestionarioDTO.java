@@ -28,6 +28,8 @@ public class QuestionarioDTO {
     private LocalDateTime dtCriacao;
     private LocalDateTime dtAtualizacao;
     private Long totalRespostas;
+    private boolean isSistema;
+    private String chaveSistema;
 
     public QuestionarioDTO(Questionario entity) {
         this.id = entity.getId();
@@ -43,6 +45,8 @@ public class QuestionarioDTO {
         this.dtCriacao = entity.getDtCriacao();
         this.dtAtualizacao = entity.getDtAtualizacao();
         this.totalRespostas = entity.getTotalRespostas();
+        this.isSistema = entity.isSistema();
+        this.chaveSistema = entity.getChaveSistema();
 
         if (entity.getPerguntas() != null && !entity.getPerguntas().isEmpty()) {
             this.perguntas = entity.getPerguntas().stream()

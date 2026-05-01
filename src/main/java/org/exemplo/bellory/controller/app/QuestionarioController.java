@@ -74,6 +74,13 @@ public class QuestionarioController {
                     .message("Questionário atualizado com sucesso!")
                     .dados(responseDTO)
                     .build());
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
+                    .body(ResponseAPI.<QuestionarioDTO>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(422)
+                            .build());
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(ResponseAPI.<QuestionarioDTO>builder()
@@ -101,6 +108,13 @@ public class QuestionarioController {
                     .success(true)
                     .message("Questionário deletado com sucesso!")
                     .build());
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
+                    .body(ResponseAPI.<Void>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(422)
+                            .build());
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(ResponseAPI.<Void>builder()

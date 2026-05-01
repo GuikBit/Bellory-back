@@ -19,4 +19,14 @@ public interface HorarioFuncionamentoRepository extends JpaRepository<HorarioFun
     List<HorarioFuncionamento> findByOrganizacaoId(Long organizacaoId);
 
     Optional<HorarioFuncionamento> findByOrganizacaoIdAndDiaSemana(Long organizacaoId, DiaSemana diaSemana);
+
+    /**
+     * Conta dias ativos que possuem pelo menos um período configurado.
+     * Usado pelo onboarding: 7 placeholders inativos (criados por listar() em HorarioFuncionamentoService)
+     * NÃO contam como horário definido.
+     */
+    @Query("SELECT COUNT(DISTINCT h) FROM HorarioFuncionamento h " +
+            "JOIN h.periodos p " +
+            "WHERE h.organizacao.id = :orgId AND h.ativo = true")
+    long countDiasAtivosComPeriodo(@Param("orgId") Long organizacaoId);
 }

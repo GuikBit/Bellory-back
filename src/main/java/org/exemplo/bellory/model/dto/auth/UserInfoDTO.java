@@ -30,6 +30,13 @@ public class UserInfoDTO {
     private String userType; // "CLIENTE" ou "FUNCIONARIO"
     private boolean isPrimeiroAcesso;
 
+    /**
+     * true quando todas as etapas obrigatórias do onboarding da organização estão concluídas.
+     * Populado apenas para Funcionario com ROLE_ADMIN (única role que vê o wizard de setup).
+     * Detalhes via GET /api/v1/organizacao/checklist-onboarding.
+     */
+    private Boolean setupCompleto;
+
     @JsonFormat(pattern = "dd/MM/yyyy HH:mm:ss")
     private LocalDateTime dataCriacao;
 

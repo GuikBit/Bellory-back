@@ -78,14 +78,22 @@ public class QuestionarioService {
 
         validarOrganizacao(questionario.getOrganizacao().getId());
 
-        questionario.setTitulo(dto.getTitulo());
-        questionario.setDescricao(dto.getDescricao());
-        questionario.setTipo(dto.getTipo());
-        questionario.setAtivo(dto.getAtivo() != null ? dto.getAtivo() : questionario.getAtivo());
-        questionario.setObrigatorio(dto.getObrigatorio() != null ? dto.getObrigatorio() : questionario.getObrigatorio());
-        questionario.setAnonimo(dto.getAnonimo() != null ? dto.getAnonimo() : questionario.getAnonimo());
-        questionario.setUrlImagem(dto.getUrlImagem());
-        questionario.setCorTema(dto.getCorTema());
+        if (questionario.isSistema()) {
+            // Em registros sistemicos so e permitido alterar perguntas (e suas configs
+            // de termo/assinatura). Campos top-level sao preservados — qualquer divergencia
+            // proveniente do payload e rejeitada.
+            validarCamposImutaveisSistema(questionario, dto);
+        } else {
+            questionario.setTitulo(dto.getTitulo());
+            questionario.setDescricao(dto.getDescricao());
+            questionario.setTipo(dto.getTipo());
+            questionario.setAtivo(dto.getAtivo() != null ? dto.getAtivo() : questionario.getAtivo());
+            questionario.setObrigatorio(dto.getObrigatorio() != null ? dto.getObrigatorio() : questionario.getObrigatorio());
+            questionario.setAnonimo(dto.getAnonimo() != null ? dto.getAnonimo() : questionario.getAnonimo());
+            questionario.setUrlImagem(dto.getUrlImagem());
+            questionario.setCorTema(dto.getCorTema());
+        }
+
         questionario.setDtAtualizacao(LocalDateTime.now());
         questionario.setUsuarioAtualizacao(getUserIdFromContext().toString());
 
@@ -115,12 +123,36 @@ public class QuestionarioService {
 
         validarOrganizacao(questionario.getOrganizacao().getId());
 
+        if (questionario.isSistema()) {
+            throw new IllegalStateException(
+                    "Este questionário é mantido pelo sistema e não pode ser excluído. "
+                            + "Você pode editar as perguntas, mas o registro precisa permanecer ativo.");
+        }
+
         // Soft delete
         questionario.setDeletado(true);
         questionario.setUsuarioDeletado(getUserIdFromContext().toString());
         questionario.setDtDeletado(LocalDateTime.now());
 
         questionarioRepository.save(questionario);
+    }
+
+    private void validarCamposImutaveisSistema(Questionario atual, QuestionarioCreateDTO dto) {
+        if (dto.getTitulo() != null && !dto.getTitulo().equals(atual.getTitulo())) {
+            throw new IllegalStateException("Não é permitido alterar o título de um questionário do sistema.");
+        }
+        if (dto.getTipo() != null && dto.getTipo() != atual.getTipo()) {
+            throw new IllegalStateException("Não é permitido alterar o tipo de um questionário do sistema.");
+        }
+        if (dto.getAtivo() != null && !dto.getAtivo().equals(atual.getAtivo())) {
+            throw new IllegalStateException("Não é permitido desativar um questionário do sistema.");
+        }
+        if (dto.getObrigatorio() != null && !dto.getObrigatorio().equals(atual.getObrigatorio())) {
+            throw new IllegalStateException("Não é permitido alterar a obrigatoriedade de um questionário do sistema.");
+        }
+        if (dto.getAnonimo() != null && !dto.getAnonimo().equals(atual.getAnonimo())) {
+            throw new IllegalStateException("Não é permitido alterar o modo anônimo de um questionário do sistema.");
+        }
     }
 
     @Transactional(readOnly = true)

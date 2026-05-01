@@ -32,6 +32,7 @@ import org.exemplo.bellory.model.repository.funcionario.FuncionarioRepository;
 import org.exemplo.bellory.model.repository.organizacao.OrganizacaoRepository;
 import org.exemplo.bellory.model.repository.users.AdminRepository;
 import org.exemplo.bellory.service.assinatura.PaymentApiCompensationService;
+import org.exemplo.bellory.service.questionario.QuestionarioSistemaService;
 import org.exemplo.bellory.util.CNPJUtil;
 import org.exemplo.bellory.util.SlugUtil;
 import org.slf4j.Logger;
@@ -64,13 +65,14 @@ public class OrganizacaoService {
     private AssinaturaRepository assinaturaRepository;
     private PaymentApiClient paymentApiClient;
     private PaymentApiCompensationService paymentApiCompensationService;
+    private QuestionarioSistemaService questionarioSistemaService;
 
     private static final int MAX_TENTATIVAS_SLUG = 10;
 
     @Value("${app.url}")
     private String appUrl;
 
-    public OrganizacaoService(OrganizacaoRepository organizacaoRepository, OrganizacaoMapper organizacaoMapper, PasswordEncoder passwordEncoder, AdminRepository adminRepository, EmailService emailService, FileStorageService fileStorageService, FuncionarioRepository funcionarioRepository, CargoRepository cargoRepository, InstanceService instanceService, ApiKeyService apiKeyService, TemplateBelloryRepository templateBelloryRepository, AssinaturaRepository assinaturaRepository, PaymentApiClient paymentApiClient, PaymentApiCompensationService paymentApiCompensationService) {
+    public OrganizacaoService(OrganizacaoRepository organizacaoRepository, OrganizacaoMapper organizacaoMapper, PasswordEncoder passwordEncoder, AdminRepository adminRepository, EmailService emailService, FileStorageService fileStorageService, FuncionarioRepository funcionarioRepository, CargoRepository cargoRepository, InstanceService instanceService, ApiKeyService apiKeyService, TemplateBelloryRepository templateBelloryRepository, AssinaturaRepository assinaturaRepository, PaymentApiClient paymentApiClient, PaymentApiCompensationService paymentApiCompensationService, QuestionarioSistemaService questionarioSistemaService) {
         this.organizacaoRepository = organizacaoRepository;
         this.organizacaoMapper = organizacaoMapper;
         this.passwordEncoder = passwordEncoder;
@@ -85,6 +87,7 @@ public class OrganizacaoService {
         this.assinaturaRepository = assinaturaRepository;
         this.paymentApiClient = paymentApiClient;
         this.paymentApiCompensationService = paymentApiCompensationService;
+        this.questionarioSistemaService = questionarioSistemaService;
     }
 
     public Organizacao getOrganizacaoPadrao() {
@@ -294,6 +297,8 @@ public class OrganizacaoService {
         Map<String, Object> apiKey = apiKeyService.generateApiKey(
                 adminSuporte.getId(), ApiKey.UserType.SISTEMA,
                 "API_KEY_DEFAULT", "API Key para execução de automações internas do sistema", null);
+
+        questionarioSistemaService.materializarPadroes(savedOrganizacao);
 
         enviarEmailBoasVindas(savedOrganizacao, funcionario);
 

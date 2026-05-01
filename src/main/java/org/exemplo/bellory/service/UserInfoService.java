@@ -1,6 +1,7 @@
 package org.exemplo.bellory.service;
 
 
+import lombok.extern.slf4j.Slf4j;
 import org.exemplo.bellory.model.dto.auth.*;
 import org.exemplo.bellory.model.entity.funcionario.Funcionario;
 import org.exemplo.bellory.model.entity.users.Admin;
@@ -10,6 +11,7 @@ import org.exemplo.bellory.model.repository.funcionario.FuncionarioRepository;
 import org.exemplo.bellory.model.repository.users.AdminRepository;
 import org.exemplo.bellory.model.repository.users.ClienteRepository;
 import org.hibernate.Hibernate;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,18 +20,24 @@ import java.time.LocalDateTime;
 import java.util.stream.Collectors;
 
 @Service
+@Slf4j
 public class UserInfoService {
+
+    private static final String ROLE_ADMIN = "ROLE_ADMIN";
 
     private final FuncionarioRepository funcionarioRepository;
     private final ClienteRepository clienteRepository;
     private final AdminRepository adminRepository;
+    private final OrganizacaoHomeService organizacaoHomeService;
 
     public UserInfoService(FuncionarioRepository funcionarioRepository,
                           ClienteRepository clienteRepository,
-                          AdminRepository adminRepository) {
+                          AdminRepository adminRepository,
+                          @Lazy OrganizacaoHomeService organizacaoHomeService) {
         this.funcionarioRepository = funcionarioRepository;
         this.clienteRepository = clienteRepository;
         this.adminRepository = adminRepository;
+        this.organizacaoHomeService = organizacaoHomeService;
     }
 
     @Transactional(readOnly = true)
@@ -70,6 +78,10 @@ public class UserInfoService {
                     .dataCriacao(funcionario.getDataCriacao())
                     .isPrimeiroAcesso(funcionario.isPrimeiroAcesso())
                     .funcionarioInfo(buildFuncionarioInfo(funcionario));
+
+            if (ROLE_ADMIN.equals(funcionario.getRole()) && funcionario.getOrganizacao() != null) {
+                userInfoBuilder.setupCompleto(resolveSetupCompleto(funcionario.getOrganizacao().getId()));
+            }
             return userInfoBuilder.build();
         }
 
@@ -87,6 +99,15 @@ public class UserInfoService {
                 .userType("USER")
                 .dataCriacao(LocalDateTime.now())
                 .build();
+    }
+
+    private Boolean resolveSetupCompleto(Long organizacaoId) {
+        try {
+            return organizacaoHomeService.isSetupCompleto(organizacaoId);
+        } catch (Exception e) {
+            log.warn("Falha ao avaliar setupCompleto para org={}: {}", organizacaoId, e.getMessage());
+            return null;
+        }
     }
 
     private ClienteInfoDTO buildClienteInfo(Cliente cliente) {

@@ -78,6 +78,13 @@ public class Questionario {
     @Column(name = "dt_deletado")
     private LocalDateTime dtDeletado;
 
+    @Column(name = "is_sistema", nullable = false)
+    @Builder.Default
+    private boolean isSistema = false;
+
+    @Column(name = "chave_sistema", length = 50)
+    private String chaveSistema;
+
     @Transient
     private Long totalRespostas;
 

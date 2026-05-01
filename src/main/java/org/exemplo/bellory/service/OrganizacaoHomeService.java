@@ -2,18 +2,24 @@ package org.exemplo.bellory.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.exemplo.bellory.client.payment.dto.CachedCustomerStatus;
 import org.exemplo.bellory.context.TenantContext;
 import org.exemplo.bellory.model.dto.assinatura.AssinaturaStatusDTO;
 import org.exemplo.bellory.model.dto.home.*;
 import org.exemplo.bellory.model.entity.agendamento.Agendamento;
 import org.exemplo.bellory.model.entity.aviso.AvisoDispensado;
 import org.exemplo.bellory.model.entity.cobranca.Cobranca;
+import org.exemplo.bellory.model.entity.enums.TipoCategoria;
 import org.exemplo.bellory.model.entity.organizacao.Organizacao;
+import org.exemplo.bellory.model.entity.organizacao.RedesSociais;
 import org.exemplo.bellory.model.repository.Transacao.CobrancaRepository;
 import org.exemplo.bellory.model.repository.agendamento.AgendamentoRepository;
 import org.exemplo.bellory.model.repository.assinatura.AssinaturaRepository;
 import org.exemplo.bellory.model.repository.aviso.AvisoDispensadoRepository;
+import org.exemplo.bellory.model.repository.categoria.CategoriaRepository;
+import org.exemplo.bellory.model.repository.funcionario.CargoRepository;
 import org.exemplo.bellory.model.repository.funcionario.FuncionarioRepository;
+import org.exemplo.bellory.model.repository.instance.InstanceRepository;
 import org.exemplo.bellory.model.repository.organizacao.HorarioFuncionamentoRepository;
 import org.exemplo.bellory.model.repository.organizacao.OrganizacaoRepository;
 import org.exemplo.bellory.model.repository.servico.ServicoRepository;
@@ -46,6 +52,12 @@ public class OrganizacaoHomeService {
     private final AssinaturaRepository assinaturaRepository;
     private final AssinaturaCacheService assinaturaCacheService;
     private final AvisoDispensadoRepository avisoDispensadoRepository;
+    private final CargoRepository cargoRepository;
+    private final CategoriaRepository categoriaRepository;
+    private final InstanceRepository instanceRepository;
+
+    private static final String CARGO_ADMINISTRADOR = "Administrador";
+    private static final String FEATURE_AGENTE_VIRTUAL = "agente_virtual";
 
     // ==================== 1. RESUMO HOME ====================
 
@@ -301,32 +313,61 @@ public class OrganizacaoHomeService {
                 && org.getEmailPrincipal() != null
                 && org.getTelefone1() != null;
 
-        boolean horariosDefinidos = !horarioFuncionamentoRepository.findByOrganizacaoId(orgId).isEmpty();
+        boolean enderecoPrincipalCadastrado = org != null && org.getEnderecoPrincipal() != null;
+
+        // OBS: HorarioFuncionamentoService.listar() seedha 7 placeholders inativos quando vazio,
+        // então .isEmpty() não funciona. Usa contagem de dias ATIVOS com período cadastrado.
+        boolean horariosDefinidos = horarioFuncionamentoRepository.countDiasAtivosComPeriodo(orgId) > 0;
+
+        boolean redesSociaisCadastradas = org != null && hasRedeSocialPreenchida(org.getRedesSociais());
+
+        boolean logoEnviada = org != null && org.getLogoUrl() != null && !org.getLogoUrl().isBlank();
+
+        boolean bannerEnviado = org != null && org.getBannerUrl() != null && !org.getBannerUrl().isBlank();
+
+        // O cargo "Administrador" é criado automaticamente em OrganizacaoService.create — não conta.
+        boolean cargosCadastrados = cargoRepository.findAllByOrganizacao_IdAndAtivoTrue(orgId).stream()
+                .anyMatch(c -> !CARGO_ADMINISTRADOR.equalsIgnoreCase(c.getNome()));
+
+        boolean categoriasServicoCadastradas = !categoriaRepository
+                .findByOrganizacao_IdAndTipoAndAtivoTrue(orgId, TipoCategoria.SERVICO).isEmpty();
 
         boolean servicosCadastrados = servicoRepository.countByOrganizacao_IdAndIsDeletadoFalse(orgId) > 0;
-
         boolean colaboradoresCadastrados = funcionarioRepository.countByOrganizacao_IdAndIsDeletadoFalse(orgId) > 0;
 
         LocalDateTime inicio = LocalDateTime.of(2000, 1, 1, 0, 0);
         LocalDateTime fim = LocalDateTime.now().plusYears(1);
         boolean primeiroAgendamento = agendamentoRepository.countByOrganizacaoAndPeriodo(orgId, inicio, fim) > 0;
 
-        boolean logoEnviada = org != null && org.getLogoUrl() != null && !org.getLogoUrl().isBlank();
-
         boolean planoEscolhido = assinaturaRepository.findByOrganizacaoId(orgId).isPresent();
 
-        // Calcula percentual
-        int total = 7;
-        int completos = 0;
-        if (empresaConfigurada) completos++;
-        if (horariosDefinidos) completos++;
-        if (servicosCadastrados) completos++;
-        if (colaboradoresCadastrados) completos++;
-        if (primeiroAgendamento) completos++;
-        if (logoEnviada) completos++;
-        if (planoEscolhido) completos++;
+        boolean agenteVirtualHabilitado = isFeatureHabilitada(orgId, FEATURE_AGENTE_VIRTUAL);
+        boolean agenteVirtualConfigurado = instanceRepository.countByOrganizacaoIdAndDeletadoFalse(orgId) > 0;
 
-        int percentual = (int) Math.round((completos * 100.0) / total);
+        List<EtapaOnboardingDTO> etapas = new ArrayList<>();
+        int ordem = 1;
+        etapas.add(EtapaOnboardingDTO.of("ENDERECO_PRINCIPAL", "Endereço principal", enderecoPrincipalCadastrado, true, ordem++));
+        etapas.add(EtapaOnboardingDTO.of("HORARIO_FUNCIONAMENTO", "Horário de funcionamento", horariosDefinidos, true, ordem++));
+        etapas.add(EtapaOnboardingDTO.of("REDES_SOCIAIS", "Redes sociais", redesSociaisCadastradas, true, ordem++));
+        etapas.add(EtapaOnboardingDTO.of("LOGO", "Logo", logoEnviada, true, ordem++));
+        etapas.add(EtapaOnboardingDTO.of("BANNER", "Banner", bannerEnviado, true, ordem++));
+        etapas.add(EtapaOnboardingDTO.of("CARGOS", "Cargos de funcionários", cargosCadastrados, true, ordem++));
+        etapas.add(EtapaOnboardingDTO.of("CATEGORIAS_SERVICO", "Categorias de serviços", categoriasServicoCadastradas, true, ordem++));
+        if (agenteVirtualHabilitado) {
+            etapas.add(EtapaOnboardingDTO.of("AGENTE_VIRTUAL_CONFIG", "Configuração do agente virtual", agenteVirtualConfigurado, true, ordem++));
+        }
+
+        boolean setupCompleto = etapas.stream()
+                .filter(EtapaOnboardingDTO::isObrigatoria)
+                .allMatch(EtapaOnboardingDTO::isConcluida);
+
+        long obrigatorias = etapas.stream().filter(EtapaOnboardingDTO::isObrigatoria).count();
+        long obrigatoriasConcluidas = etapas.stream()
+                .filter(e -> e.isObrigatoria() && e.isConcluida())
+                .count();
+        int percentual = obrigatorias > 0
+                ? (int) Math.round((obrigatoriasConcluidas * 100.0) / obrigatorias)
+                : 100;
 
         return ChecklistOnboardingDTO.builder()
                 .empresaConfigurada(empresaConfigurada)
@@ -337,7 +378,58 @@ public class OrganizacaoHomeService {
                 .logoEnviada(logoEnviada)
                 .planoEscolhido(planoEscolhido)
                 .percentualCompleto(percentual)
+                .setupCompleto(setupCompleto)
+                .etapas(etapas)
                 .build();
+    }
+
+    @Transactional(readOnly = true)
+    public boolean isSetupCompleto(Long organizacaoId) {
+        if (organizacaoId == null) return false;
+        Organizacao org = organizacaoRepository.findByIdWithDetails(organizacaoId).orElse(null);
+        if (org == null) return false;
+
+        if (org.getEnderecoPrincipal() == null) return false;
+        if (horarioFuncionamentoRepository.countDiasAtivosComPeriodo(organizacaoId) == 0) return false;
+        if (!hasRedeSocialPreenchida(org.getRedesSociais())) return false;
+        if (org.getLogoUrl() == null || org.getLogoUrl().isBlank()) return false;
+        if (org.getBannerUrl() == null || org.getBannerUrl().isBlank()) return false;
+        boolean temCargoOperacional = cargoRepository.findAllByOrganizacao_IdAndAtivoTrue(organizacaoId).stream()
+                .anyMatch(c -> !CARGO_ADMINISTRADOR.equalsIgnoreCase(c.getNome()));
+        if (!temCargoOperacional) return false;
+        if (categoriaRepository.findByOrganizacao_IdAndTipoAndAtivoTrue(organizacaoId, TipoCategoria.SERVICO).isEmpty()) return false;
+        if (isFeatureHabilitada(organizacaoId, FEATURE_AGENTE_VIRTUAL)
+                && instanceRepository.countByOrganizacaoIdAndDeletadoFalse(organizacaoId) == 0) {
+            return false;
+        }
+        return true;
+    }
+
+    private boolean hasRedeSocialPreenchida(RedesSociais r) {
+        if (r == null) return false;
+        return isPreenchido(r.getInstagram())
+                || isPreenchido(r.getFacebook())
+                || isPreenchido(r.getWhatsapp())
+                || isPreenchido(r.getLinkedin())
+                || isPreenchido(r.getMessenger())
+                || isPreenchido(r.getSite())
+                || isPreenchido(r.getYoutube());
+    }
+
+    private boolean isPreenchido(String s) {
+        return s != null && !s.isBlank();
+    }
+
+    private boolean isFeatureHabilitada(Long orgId, String key) {
+        try {
+            CachedCustomerStatus status = assinaturaCacheService.getCachedByOrganizacao(orgId);
+            if (status == null || status.getFeatures() == null) return false;
+            return status.getFeatures().stream()
+                    .anyMatch(f -> key.equals(f.getKey()) && Boolean.TRUE.equals(f.getEnabled()));
+        } catch (Exception e) {
+            log.warn("Falha ao consultar feature '{}' do plano org={}: {}", key, orgId, e.getMessage());
+            return false;
+        }
     }
 
     // ==================== 5. ATIVIDADE RECENTE ====================

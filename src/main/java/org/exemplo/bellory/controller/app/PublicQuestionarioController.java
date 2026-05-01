@@ -12,12 +12,12 @@ import org.exemplo.bellory.model.entity.error.ResponseAPI;
 import org.exemplo.bellory.service.questionario.QuestionarioService;
 import org.exemplo.bellory.service.questionario.RespostaQuestionarioService;
 import org.exemplo.bellory.service.site.PublicSiteGuard;
-import org.exemplo.bellory.service.site.PublicSiteGuard.PublicSiteAccess;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Controller público para resposta de questionários sem necessidade de JWT.
@@ -73,13 +73,13 @@ public class PublicQuestionarioController {
                 return tooManyRequests();
             }
 
-            PublicSiteAccess access = siteGuard.check(normalizedSlug);
-            if (!access.isActive()) {
-                return notFound("Organização não encontrada ou site indisponível.");
+            Optional<Long> orgId = siteGuard.resolveOrganizacaoId(normalizedSlug);
+            if (orgId.isEmpty()) {
+                return notFound("Organização não encontrada.");
             }
 
             QuestionarioDTO dto = questionarioService.buscarPublicoPorSlug(
-                    id, access.getOrganizacaoId(), clienteId, agendamentoId, funcionarioId);
+                    id, orgId.get(), clienteId, agendamentoId, funcionarioId);
             return ResponseEntity.ok(ResponseAPI.<QuestionarioDTO>builder()
                     .success(true)
                     .dados(dto)
@@ -114,16 +114,16 @@ public class PublicQuestionarioController {
                 return tooManyRequests();
             }
 
-            PublicSiteAccess access = siteGuard.check(normalizedSlug);
-            if (!access.isActive()) {
-                return notFound("Organização não encontrada ou site indisponível.");
+            Optional<Long> orgId = siteGuard.resolveOrganizacaoId(normalizedSlug);
+            if (orgId.isEmpty()) {
+                return notFound("Organização não encontrada.");
             }
 
             dto.setQuestionarioId(id);
             if (dto.getUserAgent() == null) dto.setUserAgent(request.getHeader("User-Agent"));
 
             RespostaQuestionarioDTO response = respostaService.registrarPublico(
-                    access.getOrganizacaoId(), dto, ip);
+                    orgId.get(), dto, ip);
 
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(ResponseAPI.<RespostaQuestionarioDTO>builder()
@@ -154,13 +154,13 @@ public class PublicQuestionarioController {
                 return tooManyRequests();
             }
 
-            PublicSiteAccess access = siteGuard.check(normalizedSlug);
-            if (!access.isActive()) {
-                return notFound("Organização não encontrada ou site indisponível.");
+            Optional<Long> orgId = siteGuard.resolveOrganizacaoId(normalizedSlug);
+            if (orgId.isEmpty()) {
+                return notFound("Organização não encontrada.");
             }
 
             // Garante que o questionário pertence à org do slug antes de consultar
-            questionarioService.buscarPublicoPorSlug(id, access.getOrganizacaoId());
+            questionarioService.buscarPublicoPorSlug(id, orgId.get());
 
             // Quando agendamentoId é informado (caso anamnese), checamos por agendamento:
             // o cliente pode ter respondido o questionário em outro agendamento e ainda

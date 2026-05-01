@@ -55,4 +55,8 @@ public interface QuestionarioRepository extends JpaRepository<Questionario, Long
             Pageable pageable);
 
     boolean existsByIdAndOrganizacao_IdAndIsDeletadoFalse(Long id, Long organizacaoId);
+
+    boolean existsByOrganizacao_IdAndChaveSistema(Long organizacaoId, String chaveSistema);
+
+    Optional<Questionario> findByOrganizacao_IdAndChaveSistema(Long organizacaoId, String chaveSistema);
 }
