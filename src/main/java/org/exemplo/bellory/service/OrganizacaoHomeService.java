@@ -2,27 +2,27 @@ package org.exemplo.bellory.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.exemplo.bellory.client.payment.dto.CachedCustomerStatus;
 import org.exemplo.bellory.context.TenantContext;
 import org.exemplo.bellory.model.dto.assinatura.AssinaturaStatusDTO;
 import org.exemplo.bellory.model.dto.home.*;
 import org.exemplo.bellory.model.entity.agendamento.Agendamento;
 import org.exemplo.bellory.model.entity.aviso.AvisoDispensado;
 import org.exemplo.bellory.model.entity.cobranca.Cobranca;
-import org.exemplo.bellory.model.entity.enums.TipoCategoria;
+import org.exemplo.bellory.model.entity.notificacao.TipoNotificacao;
 import org.exemplo.bellory.model.entity.organizacao.Organizacao;
 import org.exemplo.bellory.model.entity.organizacao.RedesSociais;
 import org.exemplo.bellory.model.repository.Transacao.CobrancaRepository;
 import org.exemplo.bellory.model.repository.agendamento.AgendamentoRepository;
 import org.exemplo.bellory.model.repository.assinatura.AssinaturaRepository;
 import org.exemplo.bellory.model.repository.aviso.AvisoDispensadoRepository;
-import org.exemplo.bellory.model.repository.categoria.CategoriaRepository;
-import org.exemplo.bellory.model.repository.funcionario.CargoRepository;
 import org.exemplo.bellory.model.repository.funcionario.FuncionarioRepository;
 import org.exemplo.bellory.model.repository.instance.InstanceRepository;
+import org.exemplo.bellory.model.repository.notificacao.ConfigNotificacaoRepository;
+import org.exemplo.bellory.model.repository.organizacao.BloqueioOrganizacaoRepository;
 import org.exemplo.bellory.model.repository.organizacao.HorarioFuncionamentoRepository;
 import org.exemplo.bellory.model.repository.organizacao.OrganizacaoRepository;
 import org.exemplo.bellory.model.repository.servico.ServicoRepository;
+import org.exemplo.bellory.model.repository.site.SitePublicoConfigRepository;
 import org.exemplo.bellory.model.repository.users.ClienteRepository;
 import org.exemplo.bellory.service.assinatura.AssinaturaCacheService;
 import org.springframework.stereotype.Service;
@@ -32,6 +32,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.Year;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -52,12 +53,10 @@ public class OrganizacaoHomeService {
     private final AssinaturaRepository assinaturaRepository;
     private final AssinaturaCacheService assinaturaCacheService;
     private final AvisoDispensadoRepository avisoDispensadoRepository;
-    private final CargoRepository cargoRepository;
-    private final CategoriaRepository categoriaRepository;
     private final InstanceRepository instanceRepository;
-
-    private static final String CARGO_ADMINISTRADOR = "Administrador";
-    private static final String FEATURE_AGENTE_VIRTUAL = "agente_virtual";
+    private final ConfigNotificacaoRepository configNotificacaoRepository;
+    private final BloqueioOrganizacaoRepository bloqueioOrganizacaoRepository;
+    private final SitePublicoConfigRepository sitePublicoConfigRepository;
 
     // ==================== 1. RESUMO HOME ====================
 
@@ -325,12 +324,20 @@ public class OrganizacaoHomeService {
 
         boolean bannerEnviado = org != null && org.getBannerUrl() != null && !org.getBannerUrl().isBlank();
 
-        // O cargo "Administrador" é criado automaticamente em OrganizacaoService.create — não conta.
-        boolean cargosCadastrados = cargoRepository.findAllByOrganizacao_IdAndAtivoTrue(orgId).stream()
-                .anyMatch(c -> !CARGO_ADMINISTRADOR.equalsIgnoreCase(c.getNome()));
+        boolean instanciaConectada = instanceRepository.existsConectadaByOrganizacaoId(orgId);
 
-        boolean categoriasServicoCadastradas = !categoriaRepository
-                .findByOrganizacao_IdAndTipoAndAtivoTrue(orgId, TipoCategoria.SERVICO).isEmpty();
+        boolean notificacaoConfirmacaoAtiva = configNotificacaoRepository
+                .existsByOrganizacaoIdAndTipoAndAtivoTrue(orgId, TipoNotificacao.CONFIRMACAO);
+
+        boolean notificacaoLembreteAtiva = configNotificacaoRepository
+                .existsByOrganizacaoIdAndTipoAndAtivoTrue(orgId, TipoNotificacao.LEMBRETE);
+
+        int anoAtual = Year.now().getValue();
+        boolean feriadosImportados = bloqueioOrganizacaoRepository
+                .existsFeriadoNacionalAtivoNoAno(orgId, anoAtual);
+
+        boolean siteExternoAtivo = sitePublicoConfigRepository
+                .existsByOrganizacaoIdAndActiveTrue(orgId);
 
         boolean servicosCadastrados = servicoRepository.countByOrganizacao_IdAndIsDeletadoFalse(orgId) > 0;
         boolean colaboradoresCadastrados = funcionarioRepository.countByOrganizacao_IdAndIsDeletadoFalse(orgId) > 0;
@@ -341,9 +348,6 @@ public class OrganizacaoHomeService {
 
         boolean planoEscolhido = assinaturaRepository.findByOrganizacaoId(orgId).isPresent();
 
-        boolean agenteVirtualHabilitado = isFeatureHabilitada(orgId, FEATURE_AGENTE_VIRTUAL);
-        boolean agenteVirtualConfigurado = instanceRepository.countByOrganizacaoIdAndDeletadoFalse(orgId) > 0;
-
         List<EtapaOnboardingDTO> etapas = new ArrayList<>();
         int ordem = 1;
         etapas.add(EtapaOnboardingDTO.of("ENDERECO_PRINCIPAL", "Endereço principal", enderecoPrincipalCadastrado, true, ordem++));
@@ -351,11 +355,11 @@ public class OrganizacaoHomeService {
         etapas.add(EtapaOnboardingDTO.of("REDES_SOCIAIS", "Redes sociais", redesSociaisCadastradas, true, ordem++));
         etapas.add(EtapaOnboardingDTO.of("LOGO", "Logo", logoEnviada, true, ordem++));
         etapas.add(EtapaOnboardingDTO.of("BANNER", "Banner", bannerEnviado, true, ordem++));
-        etapas.add(EtapaOnboardingDTO.of("CARGOS", "Cargos de funcionários", cargosCadastrados, true, ordem++));
-        etapas.add(EtapaOnboardingDTO.of("CATEGORIAS_SERVICO", "Categorias de serviços", categoriasServicoCadastradas, true, ordem++));
-        if (agenteVirtualHabilitado) {
-            etapas.add(EtapaOnboardingDTO.of("AGENTE_VIRTUAL_CONFIG", "Configuração do agente virtual", agenteVirtualConfigurado, true, ordem++));
-        }
+        etapas.add(EtapaOnboardingDTO.of("INSTANCIA_CONECTADA", "Conectar WhatsApp (escanear QR Code)", instanciaConectada, true, ordem++));
+        etapas.add(EtapaOnboardingDTO.of("NOTIFICACAO_CONFIRMACAO", "Ativar notificações de confirmação", notificacaoConfirmacaoAtiva, true, ordem++));
+        etapas.add(EtapaOnboardingDTO.of("NOTIFICACAO_LEMBRETE", "Ativar notificações de lembrete", notificacaoLembreteAtiva, true, ordem++));
+        etapas.add(EtapaOnboardingDTO.of("FERIADOS_IMPORTADOS", "Importar feriados de " + anoAtual, feriadosImportados, true, ordem++));
+        etapas.add(EtapaOnboardingDTO.of("SITE_EXTERNO_ATIVO", "Ativar o site externo", siteExternoAtivo, true, ordem++));
 
         boolean setupCompleto = etapas.stream()
                 .filter(EtapaOnboardingDTO::isObrigatoria)
@@ -394,14 +398,11 @@ public class OrganizacaoHomeService {
         if (!hasRedeSocialPreenchida(org.getRedesSociais())) return false;
         if (org.getLogoUrl() == null || org.getLogoUrl().isBlank()) return false;
         if (org.getBannerUrl() == null || org.getBannerUrl().isBlank()) return false;
-        boolean temCargoOperacional = cargoRepository.findAllByOrganizacao_IdAndAtivoTrue(organizacaoId).stream()
-                .anyMatch(c -> !CARGO_ADMINISTRADOR.equalsIgnoreCase(c.getNome()));
-        if (!temCargoOperacional) return false;
-        if (categoriaRepository.findByOrganizacao_IdAndTipoAndAtivoTrue(organizacaoId, TipoCategoria.SERVICO).isEmpty()) return false;
-        if (isFeatureHabilitada(organizacaoId, FEATURE_AGENTE_VIRTUAL)
-                && instanceRepository.countByOrganizacaoIdAndDeletadoFalse(organizacaoId) == 0) {
-            return false;
-        }
+        if (!instanceRepository.existsConectadaByOrganizacaoId(organizacaoId)) return false;
+        if (!configNotificacaoRepository.existsByOrganizacaoIdAndTipoAndAtivoTrue(organizacaoId, TipoNotificacao.CONFIRMACAO)) return false;
+        if (!configNotificacaoRepository.existsByOrganizacaoIdAndTipoAndAtivoTrue(organizacaoId, TipoNotificacao.LEMBRETE)) return false;
+        if (!bloqueioOrganizacaoRepository.existsFeriadoNacionalAtivoNoAno(organizacaoId, Year.now().getValue())) return false;
+        if (!sitePublicoConfigRepository.existsByOrganizacaoIdAndActiveTrue(organizacaoId)) return false;
         return true;
     }
 
@@ -418,18 +419,6 @@ public class OrganizacaoHomeService {
 
     private boolean isPreenchido(String s) {
         return s != null && !s.isBlank();
-    }
-
-    private boolean isFeatureHabilitada(Long orgId, String key) {
-        try {
-            CachedCustomerStatus status = assinaturaCacheService.getCachedByOrganizacao(orgId);
-            if (status == null || status.getFeatures() == null) return false;
-            return status.getFeatures().stream()
-                    .anyMatch(f -> key.equals(f.getKey()) && Boolean.TRUE.equals(f.getEnabled()));
-        } catch (Exception e) {
-            log.warn("Falha ao consultar feature '{}' do plano org={}: {}", key, orgId, e.getMessage());
-            return false;
-        }
     }
 
     // ==================== 5. ATIVIDADE RECENTE ====================

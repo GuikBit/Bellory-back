@@ -52,4 +52,22 @@ public interface BloqueioOrganizacaoRepository extends JpaRepository<BloqueioOrg
      */
     List<BloqueioOrganizacao> findByOrganizacaoIdAndAnoReferenciaOrderByDataInicioAsc(
             Long organizacaoId, Integer anoReferencia);
+
+    /**
+     * True quando há ao menos um feriado nacional ATIVO importado no ano informado.
+     * Usado pelo onboarding para sugerir importação anual de feriados.
+     * Se o admin apagar/desativar todos, a etapa volta a aparecer como pendente.
+     */
+    @Query("""
+        SELECT CASE WHEN COUNT(b) > 0 THEN true ELSE false END
+        FROM BloqueioOrganizacao b
+        WHERE b.organizacao.id = :orgId
+          AND b.tipo = org.exemplo.bellory.model.entity.organizacao.TipoBloqueioOrganizacao.FERIADO
+          AND b.origem = org.exemplo.bellory.model.entity.organizacao.OrigemBloqueio.NACIONAL
+          AND b.anoReferencia = :ano
+          AND b.ativo = true
+        """)
+    boolean existsFeriadoNacionalAtivoNoAno(
+            @Param("orgId") Long organizacaoId,
+            @Param("ano") Integer anoReferencia);
 }

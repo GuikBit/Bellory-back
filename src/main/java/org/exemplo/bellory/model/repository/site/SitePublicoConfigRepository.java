@@ -38,6 +38,12 @@ public interface SitePublicoConfigRepository extends JpaRepository<SitePublicoCo
     boolean existsByOrganizacaoId(Long organizacaoId);
 
     /**
+     * Verifica se a organização tem o site externo ATIVO.
+     * Usado pelo onboarding (etapa SITE_EXTERNO_ATIVO).
+     */
+    boolean existsByOrganizacaoIdAndActiveTrue(Long organizacaoId);
+
+    /**
      * Remove configuração por organização
      */
     void deleteByOrganizacaoId(Long organizacaoId);

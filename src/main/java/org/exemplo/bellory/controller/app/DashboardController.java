@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 
@@ -69,6 +70,34 @@ public class DashboardController {
             return ResponseEntity.ok(ResponseAPI.<DashboardDTO>builder()
                     .success(true)
                     .message("Resumo de hoje recuperado com sucesso.")
+                    .dados(dashboard)
+                    .build());
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseAPI.<DashboardDTO>builder()
+                            .success(false)
+                            .message("Ocorreu um erro interno: " + e.getMessage())
+                            .errorCode(500)
+                            .build());
+        }
+    }
+
+    @Operation(summary = "Obter resumo da semana atual (segunda a domingo)")
+    @GetMapping("/resumo-semana")
+    public ResponseEntity<ResponseAPI<DashboardDTO>> getDashboardSemanaAtual() {
+        try {
+            LocalDate hoje = LocalDate.now();
+            DashboardFiltroDTO filtroSemana = DashboardFiltroDTO.builder()
+                    .dataInicio(hoje.with(DayOfWeek.MONDAY))
+                    .dataFim(hoje.with(DayOfWeek.SUNDAY))
+                    .build();
+
+            DashboardDTO dashboard = dashboardService.getDashboardGeral(filtroSemana);
+
+            return ResponseEntity.ok(ResponseAPI.<DashboardDTO>builder()
+                    .success(true)
+                    .message("Resumo da semana atual recuperado com sucesso.")
                     .dados(dashboard)
                     .build());
 

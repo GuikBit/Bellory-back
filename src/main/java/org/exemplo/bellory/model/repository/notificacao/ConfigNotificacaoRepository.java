@@ -26,6 +26,9 @@ public interface ConfigNotificacaoRepository extends JpaRepository<ConfigNotific
     boolean existsByOrganizacaoIdAndTipoAndHorasAntes(
         Long organizacaoId, TipoNotificacao tipo, Integer horasAntes);
 
+    boolean existsByOrganizacaoIdAndTipoAndAtivoTrue(
+        Long organizacaoId, TipoNotificacao tipo);
+
     @Query("""
         SELECT cn FROM ConfigNotificacao cn
         WHERE cn.organizacao.id = :orgId AND cn.ativo = true

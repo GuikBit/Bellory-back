@@ -26,6 +26,19 @@ public interface InstanceRepository extends JpaRepository<Instance, Long> {
 
     long countByOrganizacaoIdAndDeletadoFalse(Long organizacaoId);
 
+    /**
+     * True quando há ao menos uma instância CONECTADA (QR escaneado) na organização.
+     * Usa CONNECTED ou OPEN — equivalentes na Evolution API.
+     */
+    @Query("""
+        SELECT CASE WHEN COUNT(i) > 0 THEN true ELSE false END
+        FROM Instance i
+        WHERE i.organizacao.id = :orgId
+          AND i.deletado = false
+          AND i.status IN ('CONNECTED', 'OPEN')
+        """)
+    boolean existsConectadaByOrganizacaoId(@Param("orgId") Long organizacaoId);
+
     @Query("SELECT i FROM Instance i " +
             "LEFT JOIN FETCH i.tools " +
             "LEFT JOIN FETCH i.webhookConfig " +
