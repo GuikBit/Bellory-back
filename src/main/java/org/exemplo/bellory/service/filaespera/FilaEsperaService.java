@@ -106,9 +106,15 @@ public class FilaEsperaService {
         long duracaoSlotMin = ChronoUnit.MINUTES.between(slotInicio, slotFim);
         int tolerancia = orDefault(cfg.getToleranciaAgendamento(), 0);
 
+        // O slot vago inclui o buffer pos-atendimento (tolerancia) que existiria depois
+        // do agendamento cancelado. A regra de criacao de agendamento garante esse
+        // intervalo entre dois compromissos consecutivos, entao ele esta de fato livre.
+        // Sem isso, candidato com mesma duracao do servico cancelado seria descartado.
+        long duracaoSlotEfetiva = duracaoSlotMin + tolerancia;
+
         Agendamento candidato = encontrarProximoCandidato(
                 organizacaoId, funcionarioId, slotInicio, agendamentoCanceladoId,
-                duracaoSlotMin, tolerancia);
+                duracaoSlotEfetiva, tolerancia);
 
         if (candidato == null) {
             log.info("[Fila] Sem candidato compativel para slot {}-{} func {} (nivel {})",
