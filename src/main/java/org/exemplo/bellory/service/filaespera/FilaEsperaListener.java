@@ -8,6 +8,8 @@ import org.exemplo.bellory.model.event.AgendamentoCanceladoEvent;
 import org.exemplo.bellory.model.repository.agendamento.AgendamentoRepository;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
@@ -31,6 +33,7 @@ public class FilaEsperaListener {
 
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void onAgendamentoCancelado(AgendamentoCanceladoEvent event) {
         log.info("[Fila] Avaliando slot liberado pelo agendamento {}", event.getAgendamentoId());
 

@@ -1,27 +1,29 @@
 package org.exemplo.bellory.service.anamnese;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.exemplo.bellory.model.entity.agendamento.Agendamento;
 import org.exemplo.bellory.model.entity.agendamento.AgendamentoQuestionario;
 import org.exemplo.bellory.model.entity.agendamento.StatusQuestionarioAgendamento;
 import org.exemplo.bellory.model.entity.instancia.Instance;
 import org.exemplo.bellory.model.entity.instancia.InstanceStatus;
+import org.exemplo.bellory.model.entity.notificacao.TipoNotificacao;
+import org.exemplo.bellory.model.entity.template.CategoriaTemplate;
+import org.exemplo.bellory.model.entity.template.TemplateBellory;
+import org.exemplo.bellory.model.entity.template.TipoTemplate;
 import org.exemplo.bellory.model.event.AgendamentoCriadoEvent;
 import org.exemplo.bellory.model.repository.agendamento.AgendamentoRepository;
 import org.exemplo.bellory.model.repository.instance.InstanceRepository;
+import org.exemplo.bellory.model.repository.notificacao.ConfigNotificacaoRepository;
+import org.exemplo.bellory.model.repository.template.TemplateBelloryRepository;
+import org.exemplo.bellory.service.notificacao.EvolutionApiClient;
+import org.exemplo.bellory.service.notificacao.MessageTemplateRenderer;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
-import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -36,36 +38,46 @@ import java.util.Optional;
  * AgendamentoQuestionario com o resultado do envio (ENVIADO / FALHOU). Se a instância
  * WhatsApp da organização não estiver conectada, mantém o registro como PENDENTE para
  * eventual reenvio manual.
+ *
+ * O texto da mensagem segue o sistema unificado de templates:
+ *   1) tenta {@code app.config_notificacao.mensagem_template} para (orgId, ANAMNESE, 0);
+ *   2) cai no template padrao {@code admin.template_bellory} (WHATSAPP, ANAMNESE);
+ *   3) por fim, fallback hardcoded inline (so para casos extremos onde a V71 nao rodou).
  */
 @Service
 @Slf4j
 public class AnamneseWhatsAppService {
 
-    private static final DateTimeFormatter FMT_DATA_HORA =
-            DateTimeFormatter.ofPattern("dd/MM 'às' HH:mm");
+    private static final DateTimeFormatter FMT_DATA = DateTimeFormatter.ofPattern("dd/MM");
+    private static final DateTimeFormatter FMT_HORA = DateTimeFormatter.ofPattern("HH:mm");
+    /**
+     * Sentinel usado em config_notificacao.horas_antes para tipos event-driven (sem janela
+     * de horas). Mantem a UNIQUE (org, tipo, horas_antes) trabalhando sem alteracao estrutural.
+     */
+    private static final int HORAS_ANTES_EVENT_DRIVEN = 0;
 
     private final AgendamentoRepository agendamentoRepository;
     private final InstanceRepository instanceRepository;
-    private final RestTemplate restTemplate;
-    private final ObjectMapper objectMapper;
-
-    @Value("${evolution.api.url:https://wa.bellory.com.br}")
-    private String evolutionApiUrl;
-
-    @Value("${evolution.api.key:}")
-    private String evolutionApiKey;
+    private final ConfigNotificacaoRepository configNotificacaoRepository;
+    private final TemplateBelloryRepository templateBelloryRepository;
+    private final MessageTemplateRenderer templateRenderer;
+    private final EvolutionApiClient evolutionApiClient;
 
     @Value("${app.url:https://app.bellory.com.br}")
     private String appUrl;
 
     public AnamneseWhatsAppService(AgendamentoRepository agendamentoRepository,
                                    InstanceRepository instanceRepository,
-                                   RestTemplate restTemplate,
-                                   ObjectMapper objectMapper) {
+                                   ConfigNotificacaoRepository configNotificacaoRepository,
+                                   TemplateBelloryRepository templateBelloryRepository,
+                                   MessageTemplateRenderer templateRenderer,
+                                   EvolutionApiClient evolutionApiClient) {
         this.agendamentoRepository = agendamentoRepository;
         this.instanceRepository = instanceRepository;
-        this.restTemplate = restTemplate;
-        this.objectMapper = objectMapper;
+        this.configNotificacaoRepository = configNotificacaoRepository;
+        this.templateBelloryRepository = templateBelloryRepository;
+        this.templateRenderer = templateRenderer;
+        this.evolutionApiClient = evolutionApiClient;
     }
 
     /**
@@ -123,11 +135,14 @@ public class AnamneseWhatsAppService {
             return;
         }
 
+        // Resolve o template uma vez por organizacao (todos os AQs do mesmo agendamento usam o mesmo).
+        String template = resolverTemplate(orgId);
+
         Instance instance = instanceOpt.get();
         for (AgendamentoQuestionario aq : pendentes) {
             try {
-                String mensagem = montarMensagem(ag, aq);
-                enviarTextoEvolution(instance.getInstanceName(), telefone, mensagem);
+                String mensagem = montarMensagem(template, ag, aq);
+                evolutionApiClient.sendText(instance.getInstanceName(), telefone, mensagem);
                 aq.setStatus(StatusQuestionarioAgendamento.ENVIADO);
                 aq.setDtEnvio(LocalDateTime.now());
                 log.info("Anamnese WhatsApp enviada: agendamento={}, questionario={}, telefone={}",
@@ -143,23 +158,51 @@ public class AnamneseWhatsAppService {
         agendamentoRepository.save(ag);
     }
 
-    private String montarMensagem(Agendamento ag, AgendamentoQuestionario aq) {
-        String nomeCliente = primeiroNome(ag.getCliente().getNomeCompleto());
+    /**
+     * Resolve o template de mensagem para a organizacao seguindo a cadeia:
+     * tenant override -> template padrao da plataforma -> fallback inline.
+     */
+    private String resolverTemplate(Long orgId) {
+        Optional<String> override = configNotificacaoRepository
+                .findByOrganizacaoIdAndTipoAndHorasAntes(orgId, TipoNotificacao.ANAMNESE, HORAS_ANTES_EVENT_DRIVEN)
+                .filter(c -> Boolean.TRUE.equals(c.getAtivo()))
+                .map(c -> c.getMensagemTemplate())
+                .filter(t -> t != null && !t.isBlank());
+        if (override.isPresent()) {
+            return override.get();
+        }
+
+        return templateBelloryRepository
+                .findByTipoAndCategoriaAndPadraoTrue(TipoTemplate.WHATSAPP, CategoriaTemplate.ANAMNESE)
+                .map(TemplateBellory::getConteudo)
+                .orElseGet(this::fallbackTemplate);
+    }
+
+    private String fallbackTemplate() {
+        return "Olá, {{nome_cliente}}! 💖\n\n"
+                + "Tudo certo com seu agendamento na *{{nome_empresa}}* para *{{data_agendamento}} às {{hora_agendamento}}* — "
+                + "estamos ansiosos para te receber!\n\n"
+                + "Para nossa equipe te atender com toda a segurança e carinho que você merece, "
+                + "preparamos algumas perguntas rápidas: *{{titulo_questionario}}*. Leva pouquinho tempo, prometo. 🙌\n\n"
+                + "👉 {{link_anamnese}}\n\n"
+                + "Suas respostas ficam salvas e nos ajudam a personalizar seu atendimento. "
+                + "Qualquer dúvida, é só responder por aqui!";
+    }
+
+    private String montarMensagem(String template, Agendamento ag, AgendamentoQuestionario aq) {
         String nomeOrg = ag.getOrganizacao().getNomeFantasia() != null
                 ? ag.getOrganizacao().getNomeFantasia()
                 : ag.getOrganizacao().getRazaoSocial();
-        String dataHora = ag.getDtAgendamento().format(FMT_DATA_HORA);
-        String tituloQ = aq.getQuestionario().getTitulo();
-        String link = montarLinkResposta(ag, aq);
 
-        return "Olá, " + nomeCliente + "! 💖\n\n"
-                + "Tudo certo com seu agendamento na *" + nomeOrg + "* para *" + dataHora + "* — "
-                + "estamos ansiosos para te receber!\n\n"
-                + "Para nossa equipe te atender com toda a segurança e carinho que você merece, "
-                + "preparamos algumas perguntas rápidas: *" + tituloQ + "*. Leva pouquinho tempo, prometo. 🙌\n\n"
-                + "👉 " + link + "\n\n"
-                + "Suas respostas ficam salvas e nos ajudam a personalizar seu atendimento. "
-                + "Qualquer dúvida, é só responder por aqui!";
+        Map<String, String> vars = new LinkedHashMap<>();
+        vars.put("nome_cliente", primeiroNome(ag.getCliente().getNomeCompleto()));
+        vars.put("nome_empresa", nomeOrg);
+        vars.put("data_agendamento", ag.getDtAgendamento().format(FMT_DATA));
+        vars.put("hora_agendamento", ag.getDtAgendamento().format(FMT_HORA));
+        vars.put("titulo_questionario", aq.getQuestionario().getTitulo());
+        vars.put("link_anamnese", montarLinkResposta(ag, aq));
+
+        return templateRenderer.render(template, vars);
     }
 
     /**
@@ -186,22 +229,6 @@ public class AnamneseWhatsAppService {
             sb.append("&funcionario=").append(ag.getFuncionarios().get(0).getId());
         }
         return sb.toString();
-    }
-
-    private void enviarTextoEvolution(String instanceName, String telefone, String mensagem) {
-        String url = evolutionApiUrl + "/message/sendText/" + instanceName;
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.set("apikey", evolutionApiKey);
-
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("number", telefone);
-        body.put("text", mensagem);
-
-        HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
-        ResponseEntity<String> response = restTemplate.postForEntity(url, request, String.class);
-        log.debug("Evolution sendText status={} body={}", response.getStatusCode(), response.getBody());
     }
 
     /**

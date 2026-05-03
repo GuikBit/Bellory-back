@@ -9,23 +9,16 @@ import org.exemplo.bellory.model.entity.instancia.InstanceStatus;
 import org.exemplo.bellory.model.event.FilaOfertaCriadaEvent;
 import org.exemplo.bellory.model.repository.fila.FilaEsperaTentativaRepository;
 import org.exemplo.bellory.model.repository.instance.InstanceRepository;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
+import org.exemplo.bellory.service.notificacao.EvolutionApiClient;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
-import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.LinkedHashMap;
-import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -43,20 +36,14 @@ public class FilaEsperaDispatchService {
 
     private final FilaEsperaTentativaRepository tentativaRepository;
     private final InstanceRepository instanceRepository;
-    private final RestTemplate restTemplate;
-
-    @Value("${evolution.api.url:https://wa.bellory.com.br}")
-    private String evolutionApiUrl;
-
-    @Value("${evolution.api.key:}")
-    private String evolutionApiKey;
+    private final EvolutionApiClient evolutionApiClient;
 
     public FilaEsperaDispatchService(FilaEsperaTentativaRepository tentativaRepository,
                                      InstanceRepository instanceRepository,
-                                     RestTemplate restTemplate) {
+                                     EvolutionApiClient evolutionApiClient) {
         this.tentativaRepository = tentativaRepository;
         this.instanceRepository = instanceRepository;
-        this.restTemplate = restTemplate;
+        this.evolutionApiClient = evolutionApiClient;
     }
 
     @Async
@@ -119,7 +106,7 @@ public class FilaEsperaDispatchService {
         String mensagem = montarMensagem(agendamento, tentativa);
 
         try {
-            enviarTextoEvolution(instance.getInstanceName(), telefone, mensagem);
+            evolutionApiClient.sendText(instance.getInstanceName(), telefone, mensagem);
             tentativa.setStatus(StatusFilaTentativa.AGUARDANDO_RESPOSTA);
             tentativa.setDtEnvio(LocalDateTime.now());
             tentativa.setDtAtualizacao(LocalDateTime.now());
@@ -161,26 +148,6 @@ public class FilaEsperaDispatchService {
                 + "*SIM* — quero adiantar\n"
                 + "*NAO* — vou manter o original\n\n"
                 + "Voce tem 30 minutos para responder. Apos esse tempo, a vaga e oferecida ao proximo da fila.";
-    }
-
-    private void enviarTextoEvolution(String instanceName, String telefone, String mensagem) {
-        String url = evolutionApiUrl + "/message/sendText/" + instanceName;
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.set("apikey", evolutionApiKey);
-
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("number", telefone);
-        body.put("text", mensagem);
-
-        HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
-        ResponseEntity<String> response = restTemplate.postForEntity(url, request, String.class);
-
-        if (!response.getStatusCode().is2xxSuccessful()) {
-            throw new RuntimeException("Evolution API retornou " + response.getStatusCode());
-        }
-        log.debug("[Fila] Evolution sendText status={}", response.getStatusCode());
     }
 
     private String normalizarTelefoneBR(String raw) {

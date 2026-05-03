@@ -17,7 +17,7 @@ public class ConfigNotificacaoDTO {
     private TipoNotificacao tipo;
 
     @NotNull(message = "Horas antes e obrigatorio")
-    @Min(value = 1, message = "Minimo 1 hora")
+    @Min(value = 0, message = "Minimo 0 horas")
     @Max(value = 48, message = "Maximo 48 horas")
     private Integer horasAntes;
 

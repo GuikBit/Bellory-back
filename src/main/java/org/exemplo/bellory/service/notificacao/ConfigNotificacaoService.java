@@ -141,6 +141,10 @@ public class ConfigNotificacaoService {
         List<Integer> permitidos = switch (tipo) {
             case CONFIRMACAO -> List.of(12, 24, 36, 48);
             case LEMBRETE -> List.of(1, 2, 3, 4, 5, 6);
+            // Anamnese e event-driven (dispara apos commit do agendamento). Usa horas_antes=0 como
+            // sentinel para preservar a UNIQUE (org, tipo, horas_antes) e permitir uma unica linha
+            // editavel por organizacao na mesma tabela de templates.
+            case ANAMNESE -> List.of(0);
             case FILA_ESPERA_OFERTA, FILA_ESPERA_PERDEU_VEZ -> throw new IllegalArgumentException(
                     "Tipo " + tipo + " e disparado por evento, nao pode ser configurado como notificacao agendada.");
         };

@@ -3,10 +3,6 @@ package org.exemplo.bellory.service.notificacao;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.exemplo.bellory.model.dto.notificacao.NotificacaoPendenteDTO;
-import org.exemplo.bellory.model.entity.agendamento.Agendamento;
-import org.exemplo.bellory.model.entity.agendamento.Status;
-import org.exemplo.bellory.model.entity.notificacao.NotificacaoEnviada;
-import org.exemplo.bellory.model.entity.notificacao.StatusEnvio;
 import org.exemplo.bellory.model.entity.notificacao.TipoNotificacao;
 import org.exemplo.bellory.model.entity.template.CategoriaTemplate;
 import org.exemplo.bellory.model.entity.template.TemplateBellory;
@@ -14,31 +10,17 @@ import org.exemplo.bellory.model.entity.template.TipoTemplate;
 import org.exemplo.bellory.model.repository.agendamento.AgendamentoRepository;
 import org.exemplo.bellory.model.repository.notificacao.NotificacaoEnviadaRepository;
 import org.exemplo.bellory.model.repository.template.TemplateBelloryRepository;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.client.RestTemplate;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.persistence.EntityNotFoundException;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -48,10 +30,10 @@ public class NotificacaoSchedulerService {
     private final AgendamentoRepository agendamentoRepository;
     private final NotificacaoEnviadaRepository notificacaoEnviadaRepository;
     private final NotificacaoAlertService alertService;
-    private final RestTemplate restTemplate;
     private final NotificacaoTransactionalService transactionalService;
-    private final ObjectMapper objectMapper;
     private final TemplateBelloryRepository templateBelloryRepository;
+    private final MessageTemplateRenderer templateRenderer;
+    private final EvolutionApiClient evolutionApiClient;
 
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
@@ -157,7 +139,8 @@ public class NotificacaoSchedulerService {
 
                 // 4. Envia mensagem (sem transação, operação externa)
                 try {
-                    WhatsAppSendResult resultado = enviarMensagemWhatsApp(notif.getInstanceName(), telefone, mensagem);
+                    EvolutionApiClient.SendResult resultado =
+                            evolutionApiClient.sendText(notif.getInstanceName(), telefone, mensagem);
 
                     // 5. Registra sucesso em transação separada (commit imediato)
                     transactionalService.registrarEnvioSucesso(notif, telefone, resultado.remoteJid(), resultado.messageId());
@@ -195,51 +178,6 @@ public class NotificacaoSchedulerService {
         }
     }
 
-    /**
-     * Record para encapsular o resultado do envio WhatsApp
-     */
-    private record WhatsAppSendResult(String remoteJid, String messageId) {}
-
-    private WhatsAppSendResult enviarMensagemWhatsApp(String instanceName, String telefone, String mensagem) {
-        String url = "https://wa.bellory.com.br/message/sendText/" + instanceName;
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("apikey", "0626f19f09bd356cc21037164c7c3ca51752fef8");
-        headers.setContentType(MediaType.APPLICATION_JSON);
-
-        Map<String, String> body = Map.of(
-                "number", telefone,
-                "text", mensagem
-        );
-
-        HttpEntity<Map<String, String>> request = new HttpEntity<>(body, headers);
-
-        ResponseEntity<String> response = restTemplate.postForEntity(url, request, String.class);
-
-        if (!response.getStatusCode().is2xxSuccessful()) {
-            throw new RuntimeException("Falha ao enviar mensagem. Status: " + response.getStatusCode());
-        }
-
-        // Extrair remoteJid e messageId da resposta do Evolution API
-        String remoteJid = null;
-        String messageId = null;
-        try {
-            JsonNode responseJson = objectMapper.readTree(response.getBody());
-            JsonNode keyNode = responseJson.path("key");
-            if (!keyNode.isMissingNode()) {
-                remoteJid = keyNode.path("remoteJid").asText(null);
-                messageId = keyNode.path("id").asText(null);
-            }
-        } catch (Exception e) {
-            log.warn("Não foi possível extrair remoteJid/messageId da resposta: {}", e.getMessage());
-        }
-
-        log.debug("Mensagem enviada para {} via instancia {} | remoteJid={}, messageId={}",
-                telefone, instanceName, remoteJid, messageId);
-
-        return new WhatsAppSendResult(remoteJid, messageId);
-    }
-
     private boolean jaFoiEnviada(NotificacaoPendenteDTO notif) {
         return notificacaoEnviadaRepository.existsByAgendamentoIdAndTipoAndHorasAntes(
                 notif.getAgendamentoId(), notif.getTipo(), notif.getHorasAntes());
@@ -250,17 +188,20 @@ public class NotificacaoSchedulerService {
         if (template == null || template.isBlank()) {
             template = getTemplatePadrao(notif.getTipo());
         }
-        return template
-                .replace("{{nome_cliente}}", notif.getNomeCliente() != null ? notif.getNomeCliente() : "Cliente")
-                .replace("{{data_agendamento}}", notif.getDataAgendamento().format(DATE_FMT))
-                .replace("{{hora_agendamento}}", notif.getDataAgendamento().format(TIME_FMT))
-                .replace("{{servico}}", notif.getNomeServico() != null ? notif.getNomeServico() : "Servico")
-                .replace("{{profissional}}", notif.getNomeFuncionario() != null ? notif.getNomeFuncionario() : "Funcionario")
-                .replace("{{local}}", notif.getEndereco() != null ? notif.getEndereco() : "Endereco")
-                .replace("{{valor}}", notif.getValor() != null
-                        ? String.format("R$ %,.2f", notif.getValor())
-                        : "R$ 0,00")
-                .replace("{{nome_empresa}}", notif.getNomeOrganizacao() != null ? notif.getNomeOrganizacao() : "Organizacao");
+
+        Map<String, String> vars = new LinkedHashMap<>();
+        vars.put("nome_cliente", notif.getNomeCliente() != null ? notif.getNomeCliente() : "Cliente");
+        vars.put("data_agendamento", notif.getDataAgendamento().format(DATE_FMT));
+        vars.put("hora_agendamento", notif.getDataAgendamento().format(TIME_FMT));
+        vars.put("servico", notif.getNomeServico() != null ? notif.getNomeServico() : "Servico");
+        vars.put("profissional", notif.getNomeFuncionario() != null ? notif.getNomeFuncionario() : "Funcionario");
+        vars.put("local", notif.getEndereco() != null ? notif.getEndereco() : "Endereco");
+        vars.put("valor", notif.getValor() != null
+                ? String.format("R$ %,.2f", notif.getValor())
+                : "R$ 0,00");
+        vars.put("nome_empresa", notif.getNomeOrganizacao() != null ? notif.getNomeOrganizacao() : "Organizacao");
+
+        return templateRenderer.render(template, vars);
     }
 
     private String getTemplatePadrao(TipoNotificacao tipo) {
@@ -294,8 +235,8 @@ public class NotificacaoSchedulerService {
                 Horario: {{hora_agendamento}}
 
                 Te esperamos!""";
-            case FILA_ESPERA_OFERTA, FILA_ESPERA_PERDEU_VEZ -> throw new IllegalStateException(
-                    "Tipo " + tipo + " nao e processado pelo NotificacaoSchedulerService (event-driven, ver FilaEsperaService).");
+            case ANAMNESE, FILA_ESPERA_OFERTA, FILA_ESPERA_PERDEU_VEZ -> throw new IllegalStateException(
+                    "Tipo " + tipo + " nao e processado pelo NotificacaoSchedulerService (event-driven, ver AnamneseWhatsAppService / FilaEsperaService).");
         };
     }
 
