@@ -10,10 +10,15 @@ import org.exemplo.bellory.model.dto.compra.CompraFiltroDTO;
 import org.exemplo.bellory.model.dto.compra.PagamentoDTO;
 import org.exemplo.bellory.model.entity.error.ResponseAPI;
 import org.exemplo.bellory.service.ClienteService;
+import org.exemplo.bellory.service.cliente.ClienteImportacaoService;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
@@ -26,9 +31,12 @@ import java.util.Map;
 public class ClienteController {
 
     private final ClienteService clienteService;
+    private final ClienteImportacaoService clienteImportacaoService;
 
-    public ClienteController(ClienteService clienteService) {
+    public ClienteController(ClienteService clienteService,
+                             ClienteImportacaoService clienteImportacaoService) {
         this.clienteService = clienteService;
+        this.clienteImportacaoService = clienteImportacaoService;
     }
 
     // =============== CRUD BÁSICO ===============
@@ -138,6 +146,86 @@ public class ClienteController {
                             .errorCode(500)
                             .build());
         }
+    }
+
+    // =============== IMPORTACAO EM MASSA VIA CSV ===============
+
+    /**
+     * Inicia uma importacao de clientes em massa via CSV.
+     * Retorna imediatamente com o {@code importId}; o processamento corre em background.
+     * Acompanhe via {@code GET /importar-csv/{id}} ate {@code status = CONCLUIDO|FALHA}.
+     */
+    @Operation(summary = "Importar clientes em massa via CSV (assincrono)")
+    @PostMapping(value = "/importar-csv", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ResponseAPI<ImportacaoStatusDTO>> importarCsv(
+            @RequestParam("file") MultipartFile file) {
+        try {
+            ImportacaoStatusDTO status = clienteImportacaoService.iniciar(file);
+            return ResponseEntity.accepted()
+                    .body(ResponseAPI.<ImportacaoStatusDTO>builder()
+                            .success(true)
+                            .message("Importacao iniciada. Acompanhe pelo importId.")
+                            .dados(status)
+                            .build());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest()
+                    .body(ResponseAPI.<ImportacaoStatusDTO>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(400)
+                            .build());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseAPI.<ImportacaoStatusDTO>builder()
+                            .success(false)
+                            .message("Erro interno ao iniciar importacao: " + e.getMessage())
+                            .errorCode(500)
+                            .build());
+        }
+    }
+
+    /**
+     * Retorna status atual de uma importacao (progresso e, ao final, lista de erros).
+     */
+    @Operation(summary = "Consultar status da importacao de clientes")
+    @GetMapping("/importar-csv/{id}")
+    public ResponseEntity<ResponseAPI<ImportacaoStatusDTO>> getStatusImportacao(@PathVariable Long id) {
+        try {
+            ImportacaoStatusDTO status = clienteImportacaoService.getStatus(id);
+            return ResponseEntity.ok(ResponseAPI.<ImportacaoStatusDTO>builder()
+                    .success(true)
+                    .message("Status da importacao recuperado.")
+                    .dados(status)
+                    .build());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ResponseAPI.<ImportacaoStatusDTO>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .errorCode(404)
+                            .build());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseAPI.<ImportacaoStatusDTO>builder()
+                            .success(false)
+                            .message("Erro interno ao consultar importacao: " + e.getMessage())
+                            .errorCode(500)
+                            .build());
+        }
+    }
+
+    /**
+     * Download do template CSV oficial (header + linhas de exemplo).
+     */
+    @Operation(summary = "Baixar template CSV de importacao de clientes")
+    @GetMapping(value = "/importar-csv/template", produces = "text/csv")
+    public ResponseEntity<ByteArrayResource> baixarTemplateCsv() {
+        byte[] conteudo = clienteImportacaoService.gerarTemplateCsv();
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"template_clientes.csv\"")
+                .contentType(MediaType.parseMediaType("text/csv; charset=UTF-8"))
+                .contentLength(conteudo.length)
+                .body(new ByteArrayResource(conteudo));
     }
 
     @Operation(summary = "Validar disponibilidade de username")

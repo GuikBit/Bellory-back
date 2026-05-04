@@ -287,6 +287,49 @@ public class NotificacaoPushEventListener {
         }
     }
 
+    // ==================== CLIENTES IMPORTADOS EM MASSA ====================
+
+    @Async
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
+    public void onClientesImportados(ClientesImportadosEvent event) {
+        log.info("[Importacao] Push: importacao {} concluida - {} importados, {} ignorados de {} linhas",
+                event.getImportacaoId(), event.getImportados(), event.getIgnorados(), event.getTotalLinhas());
+
+        String titulo = "Importacao de clientes concluida";
+        String descricao = event.getImportados() + " cliente(s) importado(s)"
+                + (event.getIgnorados() > 0 ? ", " + event.getIgnorados() + " ignorado(s)" : "")
+                + (event.getNomeArquivo() != null ? " (" + event.getNomeArquivo() + ")" : "");
+
+        StringBuilder detalhe = new StringBuilder();
+        detalhe.append("Total de linhas: ").append(event.getTotalLinhas())
+                .append("\nImportados com sucesso: ").append(event.getImportados())
+                .append("\nIgnorados (com erro): ").append(event.getIgnorados());
+        if (event.getNomeArquivo() != null) {
+            detalhe.append("\nArquivo: ").append(event.getNomeArquivo());
+        }
+
+        Map<String, Object> meta = new LinkedHashMap<>();
+        meta.put("importacaoId", event.getImportacaoId());
+        meta.put("totalLinhas", event.getTotalLinhas());
+        meta.put("importados", event.getImportados());
+        meta.put("ignorados", event.getIgnorados());
+        if (event.getNomeArquivo() != null) {
+            meta.put("nomeArquivo", event.getNomeArquivo());
+        }
+
+        String metadataJson = toJson(meta);
+        String urlAcao = "/clientes/importacoes/" + event.getImportacaoId();
+
+        for (String role : new String[]{"ROLE_SUPERADMIN", "ROLE_ADMIN", "ROLE_GERENTE"}) {
+            notificacaoPushService.criarEEnviarParaRole(
+                    role, event.getOrganizacaoId(),
+                    titulo, descricao, "CLIENTE",
+                    CategoriaNotificacao.CLIENTE, PrioridadeNotificacao.MEDIA,
+                    null, urlAcao, detalhe.toString(), metadataJson
+            );
+        }
+    }
+
     // ==================== ESTOQUE BAIXO ====================
 
     @Async
