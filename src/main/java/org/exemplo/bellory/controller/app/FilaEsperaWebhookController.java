@@ -2,6 +2,7 @@ package org.exemplo.bellory.controller.app;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.extern.slf4j.Slf4j;
 import org.exemplo.bellory.model.dto.AgendamentoDTO;
 import org.exemplo.bellory.model.dto.filaespera.FilaEsperaTentativaDTO;
 import org.exemplo.bellory.model.entity.agendamento.Agendamento;
@@ -27,6 +28,7 @@ import java.util.List;
  */
 @RestController
 @RequestMapping("/api/v1/webhook/fila-espera")
+@Slf4j
 @Tag(name = "Webhooks da Fila de Espera",
         description = "Endpoints para integracao com N8N - aceitar/recusar/consultar oferta de adiantamento")
 public class FilaEsperaWebhookController {
@@ -62,6 +64,7 @@ public class FilaEsperaWebhookController {
                             .errorCode(409)
                             .build());
         } catch (Exception e) {
+            log.error("[Fila] Erro ao aceitar tentativa {}: {}", id, e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ResponseAPI.<AgendamentoDTO>builder()
                             .success(false)
@@ -95,6 +98,7 @@ public class FilaEsperaWebhookController {
                             .errorCode(409)
                             .build());
         } catch (Exception e) {
+            log.error("[Fila] Erro ao recusar tentativa {}: {}", id, e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ResponseAPI.<Void>builder()
                             .success(false)

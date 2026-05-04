@@ -141,7 +141,10 @@ public class SecurityConfig {
 
                                 // Webhooks (publico, validado por token proprio)
                                 "/api/v1/webhook/assas",
-                                "/api/v1/webhook/payment"
+                                "/api/v1/webhook/payment",
+
+                                // Webhooks da Fila de Espera (acionados pelo N8N apos resposta SIM/NAO do cliente)
+                                "/api/v1/webhook/fila-espera/**"
                         ).permitAll()
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/v1/admin/**").hasAnyRole("PLATFORM_ADMIN", "SUPERADMIN", "ADMIN")

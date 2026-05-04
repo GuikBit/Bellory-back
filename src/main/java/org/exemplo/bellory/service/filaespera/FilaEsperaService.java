@@ -227,10 +227,21 @@ public class FilaEsperaService {
                 tentativaId, tentativa.getCascataNivel(), agendamento.getId(), dtSlotVago, slotInicio);
 
         // Push admin + funcionario via NotificacaoPushEventListener
-        eventPublisher.publishEvent(buildAdiantadoEvent(agendamento));
+        try {
+            eventPublisher.publishEvent(buildAdiantadoEvent(agendamento));
+        } catch (Exception e) {
+            log.error("[Fila] Falha ao publicar evento de adiantamento para tentativa {}: {}",
+                    tentativaId, e.getMessage(), e);
+        }
 
         // CASCATA: o slot vago (dtSlotVago) pode ser oferecido ao proximo da fila.
-        dispararCascataParaSlotVago(agendamento, dtSlotVago, tentativa);
+        // Best-effort: falha aqui nao deve invalidar o aceite ja persistido.
+        try {
+            dispararCascataParaSlotVago(agendamento, dtSlotVago, tentativa);
+        } catch (Exception e) {
+            log.error("[Fila] Falha na cascata apos aceitar tentativa {}: {}",
+                    tentativaId, e.getMessage(), e);
+        }
 
         return agendamento;
     }
@@ -264,9 +275,16 @@ public class FilaEsperaService {
             return;
         }
 
+        // Defensivo: tempoEstimadoMinutos e Integer e pode ser null em servicos legados.
+        // mapToInt(Servico::getTempoEstimadoMinutos) faria unboxing e estouraria NPE.
         int duracao = agendamentoMovido.getServicos().stream()
-                .mapToInt(Servico::getTempoEstimadoMinutos)
+                .mapToInt(s -> s.getTempoEstimadoMinutos() == null ? 0 : s.getTempoEstimadoMinutos())
                 .sum();
+        if (duracao <= 0) {
+            log.warn("[Fila] Cascata abortada: agendamento {} com duracao calculada zero (servicos sem tempo estimado)",
+                    agendamentoMovido.getId());
+            return;
+        }
         LocalDateTime slotFimVago = dtSlotVago.plusMinutes(duracao);
         Long rootCanceladoId = tentativaAceita.getAgendamentoCanceladoId();
         Long origemId = tentativaAceita.getId();
@@ -438,7 +456,7 @@ public class FilaEsperaService {
 
         for (Agendamento a : candidatos) {
             int duracao = a.getServicos().stream()
-                    .mapToInt(Servico::getTempoEstimadoMinutos)
+                    .mapToInt(s -> s.getTempoEstimadoMinutos() == null ? 0 : s.getTempoEstimadoMinutos())
                     .sum();
             if (duracao + tolerancia > duracaoSlotMin) {
                 continue;
