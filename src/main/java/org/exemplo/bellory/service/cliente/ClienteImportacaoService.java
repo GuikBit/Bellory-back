@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.exemplo.bellory.context.TenantContext;
 import org.exemplo.bellory.model.dto.clienteDTO.ImportacaoErroDTO;
+import org.exemplo.bellory.model.dto.clienteDTO.ImportacaoResumoDTO;
 import org.exemplo.bellory.model.dto.clienteDTO.ImportacaoStatusDTO;
 import org.exemplo.bellory.model.entity.importacao.ClienteImportacao;
 import org.exemplo.bellory.model.entity.importacao.StatusImportacao;
@@ -106,6 +107,20 @@ public class ClienteImportacaoService {
         return toStatusDTO(salvo);
     }
 
+    /**
+     * Lista todas as importacoes da organizacao logada, mais recentes primeiro.
+     * Retorna um resumo (sem o array de erros, que pode crescer muito) — quando
+     * o frontend clicar em uma importacao, faz polling em {@link #getStatus(Long)}
+     * para ver os detalhes completos.
+     */
+    @Transactional(readOnly = true)
+    public List<ImportacaoResumoDTO> listarImportacoes() {
+        Long organizacaoId = getOrganizacaoIdFromContext();
+        return importacaoRepository.findByOrganizacaoIdOrderByDtInicioDesc(organizacaoId).stream()
+                .map(this::toResumoDTO)
+                .toList();
+    }
+
     @Transactional(readOnly = true)
     public ImportacaoStatusDTO getStatus(Long importacaoId) {
         ClienteImportacao registro = importacaoRepository.findById(importacaoId)
@@ -118,6 +133,26 @@ public class ClienteImportacaoService {
                     "Importacao " + importacaoId + " nao pertence a esta organizacao");
         }
         return toStatusDTO(registro);
+    }
+
+    private ImportacaoResumoDTO toResumoDTO(ClienteImportacao registro) {
+        int total = registro.getTotalLinhas() != null ? registro.getTotalLinhas() : 0;
+        int processadas = registro.getProcessadas() != null ? registro.getProcessadas() : 0;
+        int percentual = total > 0 ? (int) Math.round(processadas * 100.0 / total) : 0;
+
+        return ImportacaoResumoDTO.builder()
+                .id(registro.getId())
+                .status(registro.getStatus())
+                .nomeArquivo(registro.getNomeArquivo())
+                .totalLinhas(total)
+                .processadas(processadas)
+                .importados(registro.getImportados())
+                .ignorados(registro.getIgnorados())
+                .percentual(percentual)
+                .mensagemFalha(registro.getMensagemFalha())
+                .dtInicio(registro.getDtInicio())
+                .dtFim(registro.getDtFim())
+                .build();
     }
 
     private ImportacaoStatusDTO toStatusDTO(ClienteImportacao registro) {

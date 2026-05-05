@@ -185,6 +185,31 @@ public class ClienteController {
     }
 
     /**
+     * Lista todas as importacoes da organizacao logada (mais recentes primeiro).
+     * Usada na tela de historico — quando o usuario clica em uma importacao, o
+     * frontend faz polling em {@code GET /importar-csv/{id}} para ver detalhes.
+     */
+    @Operation(summary = "Listar importacoes de clientes da organizacao")
+    @GetMapping("/importar-csv")
+    public ResponseEntity<ResponseAPI<List<ImportacaoResumoDTO>>> listarImportacoes() {
+        try {
+            List<ImportacaoResumoDTO> importacoes = clienteImportacaoService.listarImportacoes();
+            return ResponseEntity.ok(ResponseAPI.<List<ImportacaoResumoDTO>>builder()
+                    .success(true)
+                    .message("Importacoes recuperadas.")
+                    .dados(importacoes)
+                    .build());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseAPI.<List<ImportacaoResumoDTO>>builder()
+                            .success(false)
+                            .message("Erro interno ao listar importacoes: " + e.getMessage())
+                            .errorCode(500)
+                            .build());
+        }
+    }
+
+    /**
      * Retorna status atual de uma importacao (progresso e, ao final, lista de erros).
      */
     @Operation(summary = "Consultar status da importacao de clientes")

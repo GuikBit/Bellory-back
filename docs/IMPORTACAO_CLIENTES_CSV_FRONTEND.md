@@ -10,16 +10,26 @@ Funcionalidade para cadastrar clientes em massa atraves de upload de um arquivo 
 
 ### Fluxo resumido (UX)
 
-1. Usuario abre o modal "Importar clientes".
-2. Baixa o template CSV oficial (`GET /importar-csv/template`).
-3. Preenche o arquivo no Excel/Sheets/editor de texto e arrasta de volta no modal.
-4. Frontend chama `POST /importar-csv` (multipart) → recebe `importId` e status `PENDENTE`.
-5. Frontend faz polling a cada 2s em `GET /importar-csv/{importId}`, atualizando barra de progresso.
-6. Quando `status = CONCLUIDO` ou `FALHA`, mostra resumo:
-   - Linhas importadas / ignoradas / total.
-   - Tabela com `linha` e `motivo` para cada erro.
-   - Em caso de `FALHA`, mostrar `mensagemFalha`.
-7. Refresh da listagem de clientes.
+A tela tem duas areas: **historico de importacoes** (lista) e **modal de nova importacao** (upload + acompanhamento). O polling do status acontece **somente quando o usuario abre uma importacao individual**, nao na listagem.
+
+1. Tela de historico:
+   - `GET /importar-csv` → lista as importacoes da organizacao (mais recentes primeiro).
+   - Mostra status, nome do arquivo, percentual e contadores de cada uma.
+   - Botao "Nova importacao" abre o modal.
+   - Click em uma linha abre o detalhe (item 4).
+2. No modal de nova importacao:
+   - Baixa o template CSV oficial (`GET /importar-csv/template`).
+   - Preenche o arquivo no Excel/Sheets/editor de texto e arrasta de volta no modal.
+   - Frontend chama `POST /importar-csv` (multipart) → recebe `importId` e status `PENDENTE`.
+   - Inicia polling no detalhe (item 4) e ja atualiza a tela de historico ao concluir.
+3. Detalhe de uma importacao:
+   - Frontend faz polling a cada 2s em `GET /importar-csv/{importId}`, atualizando barra de progresso.
+   - Quando `status = CONCLUIDO` ou `FALHA`, **para o polling** e mostra resumo:
+     - Linhas importadas / ignoradas / total.
+     - Tabela com `linha` e `motivo` para cada erro.
+     - Em caso de `FALHA`, mostrar `mensagemFalha`.
+   - Para importacoes ja em estado terminal, **nao iniciar polling** — basta exibir o GET inicial.
+4. Refresh da listagem de clientes apos `CONCLUIDO` com `importados > 0`.
 
 ---
 
@@ -129,7 +139,90 @@ async function iniciarImportacao(file: File) {
 
 ---
 
-### 3. Consultar status (polling)
+### 3. Listar importacoes da organizacao
+
+```
+GET /api/v1/cliente/importar-csv
+```
+
+Retorna **resumo** de todas as importacoes da organizacao logada, ordenadas pela mais recente primeiro. **Nao inclui o array `erros`** — pra ver os erros completos, abra a importacao e use o endpoint de status individual (item 4).
+
+**Response 200:**
+
+```json
+{
+  "success": true,
+  "message": "Importacoes recuperadas.",
+  "dados": [
+    {
+      "id": 42,
+      "status": "CONCLUIDO",
+      "nomeArquivo": "clientes-novembro.csv",
+      "totalLinhas": 250,
+      "processadas": 250,
+      "importados": 240,
+      "ignorados": 10,
+      "percentual": 100,
+      "mensagemFalha": null,
+      "dtInicio": "2026-05-04T14:30:00",
+      "dtFim": "2026-05-04T14:32:18"
+    },
+    {
+      "id": 41,
+      "status": "FALHA",
+      "nomeArquivo": "clientes-outubro.csv",
+      "totalLinhas": 0,
+      "processadas": 0,
+      "importados": 0,
+      "ignorados": 0,
+      "percentual": 0,
+      "mensagemFalha": "Header invalido: coluna 'telefone' ausente. Esperado: nomeCompleto,telefone,email,cpf,dataNascimento",
+      "dtInicio": "2026-05-04T13:10:00",
+      "dtFim": "2026-05-04T13:10:01"
+    },
+    {
+      "id": 40,
+      "status": "PROCESSANDO",
+      "nomeArquivo": "clientes-setembro.csv",
+      "totalLinhas": 1000,
+      "processadas": 320,
+      "importados": 300,
+      "ignorados": 20,
+      "percentual": 32,
+      "mensagemFalha": null,
+      "dtInicio": "2026-05-04T15:00:00",
+      "dtFim": null
+    }
+  ]
+}
+```
+
+**Erros possiveis:**
+
+| HTTP | Mensagem | Quando |
+|------|----------|--------|
+| 500 | "Erro interno ao listar importacoes: ..." | Falha inesperada |
+
+> **Nao faca polling neste endpoint.** Ele responde uma snapshot — se quiser ver progresso ao vivo, use o endpoint de status individual (item 4) sobre o `id` que o usuario clicou. Recarregue a listagem manualmente quando voltar para a tela de historico (ou apos o polling de uma importacao terminar).
+
+> A listagem hoje **nao e paginada**. Se a base crescer muito, abrir um issue para paginar (`?page=`/`?size=`). Como referencia, ate a casa de centenas de registros isso esta tranquilo.
+
+**Exemplo:**
+
+```ts
+async function listarImportacoes(): Promise<ImportacaoResumo[]> {
+  const res = await fetch('/api/v1/cliente/importar-csv', {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const json = (await res.json()) as ResponseAPI<ImportacaoResumo[]>;
+  if (!json.success || !json.dados) throw new Error(json.message);
+  return json.dados;
+}
+```
+
+---
+
+### 4. Consultar status (polling)
 
 ```
 GET /api/v1/cliente/importar-csv/{importId}
@@ -242,7 +335,8 @@ export interface ImportacaoErro {
   motivo: string;
 }
 
-export interface ImportacaoStatus {
+// Retornado pela LISTAGEM (sem erros[] pra payload leve).
+export interface ImportacaoResumo {
   id: number;
   status: StatusImportacao;
   nomeArquivo: string | null;
@@ -250,12 +344,19 @@ export interface ImportacaoStatus {
   processadas: number;
   importados: number;
   ignorados: number;
-  percentual: number; // 0-100
-  erros: ImportacaoErro[];
+  percentual: number;     // 0-100
   mensagemFalha: string | null;
-  dtInicio: string;   // ISO LocalDateTime
+  dtInicio: string;       // ISO LocalDateTime
   dtFim: string | null;
 }
+
+// Retornado pelo STATUS individual (inclui erros[] completos).
+export interface ImportacaoStatus extends ImportacaoResumo {
+  erros: ImportacaoErro[];
+}
+
+export const TERMINAL_STATES: StatusImportacao[] = ['CONCLUIDO', 'FALHA'];
+export const isTerminal = (s: StatusImportacao) => TERMINAL_STATES.includes(s);
 
 export interface ResponseAPI<T> {
   success: boolean;
@@ -355,7 +456,50 @@ function ImportacaoModal({ onClose }: { onClose: () => void }) {
 
 ## UI / UX recomendado
 
-### Modal de importacao em 3 estados
+### Tela de historico de importacoes
+
+A tela principal lista as importacoes da organizacao e e o ponto de entrada da feature.
+
+**Layout:**
+
+- Header com botao "Nova importacao" (abre o modal — ver proxima secao).
+- Tabela com colunas: `Arquivo`, `Status`, `Progresso`, `Importados / Ignorados / Total`, `Inicio`, `Fim`.
+- Cada linha e clicavel: abre o detalhe (drawer/modal/rota) que faz polling.
+- Linha com `status = FALHA` deve mostrar tooltip com `mensagemFalha`.
+- Linha com `status = PROCESSANDO` ou `PENDENTE` pode mostrar um spinner discreto na coluna de status — sinaliza que ainda esta rodando.
+
+**Comportamento:**
+
+- Ao montar a tela: chamar `GET /importar-csv` uma vez. Sem polling automatico aqui.
+- Botao "Atualizar" no header pra refazer o GET manualmente (opcional).
+- Quando o usuario terminar uma importacao no modal de nova importacao, **recarregar a listagem** para refletir o novo registro.
+- Quando o usuario fechar o detalhe de uma importacao em andamento, **recarregar a listagem** para que o status mais recente apareca na tabela.
+
+**Renderizacao do status em badges (sugestao):**
+
+| Status | Cor | Icone |
+|--------|-----|-------|
+| `PENDENTE` | cinza | clock |
+| `PROCESSANDO` | azul | spinner |
+| `CONCLUIDO` (sem ignorados) | verde | check |
+| `CONCLUIDO` (com ignorados) | amarelo | alert-triangle |
+| `FALHA` | vermelho | x-circle |
+
+### Detalhe de uma importacao (com polling)
+
+Aberto ao clicar em uma linha da listagem ou logo apos iniciar uma nova importacao.
+
+**Comportamento:**
+
+- Chama `GET /importar-csv/{id}` na montagem.
+- Se `isTerminal(status)`, **nao inicia polling** — apenas renderiza.
+- Senao, inicia o polling (`pollImportacao`) ate cair em estado terminal.
+- Ao desmontar (fechar drawer/sair da rota), **cancela o polling** com a funcao retornada por `pollImportacao`.
+- Ao terminar:
+  - `CONCLUIDO`: dispara refresh da listagem de clientes (se aberta) e da listagem de importacoes.
+  - `FALHA`: mantem o `mensagemFalha` em destaque.
+
+### Modal de nova importacao em 3 estados
 
 **1) Estado inicial (sem upload):**
 - Botao "Baixar template CSV" (chama o endpoint do template).
@@ -426,6 +570,13 @@ A importacao herda as mesmas regras do CRUD de clientes (`POST /api/v1/cliente`)
 - [ ] Status `CONCLUIDO` com 100% de erros — UI nao deve quebrar (importados = 0).
 - [ ] Polling em CSV grande (>500 linhas) — verificar UX da barra de progresso e crescimento da lista de erros.
 - [ ] Refresh da listagem de clientes apos `CONCLUIDO` com `importados > 0`.
+- [ ] Tela de historico mostra todas as importacoes da organizacao em ordem decrescente.
+- [ ] Tela de historico nao faz polling automatico (sem requests repetidos no Network).
+- [ ] Click em importacao `PROCESSANDO` abre detalhe e inicia polling; ao terminar, polling para.
+- [ ] Click em importacao em estado terminal abre detalhe sem iniciar polling.
+- [ ] Fechar o detalhe enquanto polling ativo cancela o polling (sem leaks no Network).
+- [ ] Apos concluir uma nova importacao, voltar para historico mostra o novo registro.
+- [ ] Importacao de outro tenant nao aparece na listagem (multitenancy).
 
 ---
 
@@ -436,6 +587,6 @@ A importacao herda as mesmas regras do CRUD de clientes (`POST /api/v1/cliente`)
 - Worker async: `service/cliente/ClienteImportacaoWorker.java`
 - Entity: `model/entity/importacao/ClienteImportacao.java`
 - Enum: `model/entity/importacao/StatusImportacao.java`
-- DTOs: `model/dto/clienteDTO/ImportacaoStatusDTO.java`, `ImportacaoErroDTO.java`
+- DTOs: `model/dto/clienteDTO/ImportacaoStatusDTO.java`, `ImportacaoResumoDTO.java`, `ImportacaoErroDTO.java`
 - Migration: `db/migration/V72__cliente_importacao.sql`
 - Evento de auditoria pos-importacao: `model/event/ClientesImportadosEvent.java`
