@@ -23,6 +23,9 @@ public class SubscriptionResponse {
     private LocalDateTime currentPeriodEnd;
     private LocalDate nextDueDate;
     private PaymentSubscriptionStatus status;
+    private LocalDateTime trialEndDate;
+    private Integer trialDaysAtCreation;
+    private Boolean inTrial;
     private String couponCode;
     private BigDecimal couponDiscountAmount;
     private Integer couponUsesRemaining;

@@ -38,6 +38,9 @@ public class CachedCustomerStatus {
     private LocalDate nextDueDate;
     private BigDecimal effectivePrice;
 
+    private Boolean inTrial;
+    private LocalDateTime trialEndDate;
+
     private Long planId;
     private String planCodigo;
     private String planName;

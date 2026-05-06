@@ -138,6 +138,8 @@ public class AssinaturaCacheService {
                 .billingType(active != null ? active.getBillingType() : null)
                 .nextDueDate(active != null ? active.getNextDueDate() : null)
                 .effectivePrice(active != null ? active.getEffectivePrice() : null)
+                .inTrial(active != null ? active.getInTrial() : null)
+                .trialEndDate(active != null ? active.getTrialEndDate() : null)
                 .planId(planId)
                 .planCodigo(plan != null ? plan.getCodigo() : null)
                 .planName(plan != null ? plan.getName() : null)
@@ -185,7 +187,8 @@ public class AssinaturaCacheService {
     private SubscriptionResponse pickActiveOrLatest(List<SubscriptionResponse> subs) {
         if (subs == null || subs.isEmpty()) return null;
         return subs.stream()
-                .filter(s -> s.getStatus() == PaymentSubscriptionStatus.ACTIVE)
+                .filter(s -> s.getStatus() == PaymentSubscriptionStatus.ACTIVE
+                        || s.getStatus() == PaymentSubscriptionStatus.TRIALING)
                 .findFirst()
                 .orElse(subs.get(0));
     }
@@ -318,6 +321,13 @@ public class AssinaturaCacheService {
                 ? s.getCobrancasPendentes().stream().map(this::toCobrancaPendenteDTO).toList()
                 : Collections.emptyList();
 
+        LocalDate dtFimTrial = s.getTrialEndDate() != null ? s.getTrialEndDate().toLocalDate() : null;
+        Integer diasRestantesTrial = null;
+        if (Boolean.TRUE.equals(s.getInTrial()) && dtFimTrial != null) {
+            long dias = java.time.temporal.ChronoUnit.DAYS.between(LocalDate.now(), dtFimTrial);
+            diasRestantesTrial = (int) Math.max(0, dias);
+        }
+
         return AssinaturaStatusDTO.builder()
                 .bloqueado(bloqueado)
                 .statusAssinatura(s.getSubscriptionStatus() != null ? s.getSubscriptionStatus().name() : "UNKNOWN")
@@ -328,6 +338,8 @@ public class AssinaturaCacheService {
                 .planoGratuito(s.isPlanIsFree())
                 .planoLimites(s.getLimits())
                 .planoFeatures(s.getFeatures())
+                .diasRestantesTrial(diasRestantesTrial)
+                .dtFimTrial(dtFimTrial)
                 .cicloCobranca(s.getCycle() != null ? s.getCycle().name() : null)
                 .dtProximoVencimento(s.getNextDueDate())
                 .temCobrancaPendente(!cobrancas.isEmpty())
@@ -355,6 +367,9 @@ public class AssinaturaCacheService {
 
     private String determinarSituacao(CachedCustomerStatus s) {
         if (s.getSubscriptionStatus() == null) return "SEM_ASSINATURA";
+        // Trial tem precedencia: a Payment API sinaliza inTrial=true mesmo se status virar ACTIVE
+        // durante a janela de trial. Usar o flag dedicado (mais robusto que o status).
+        if (Boolean.TRUE.equals(s.getInTrial())) return "TRIAL_ATIVO";
         if (s.isPlanIsFree()) return "PLANO_GRATUITO";
         if (!s.isAllowed()) {
             if (s.getSummary() != null && s.getSummary().getOverdueCharges() != null && s.getSummary().getOverdueCharges() > 0) {
@@ -364,6 +379,7 @@ public class AssinaturaCacheService {
         }
         return switch (s.getSubscriptionStatus()) {
             case ACTIVE -> "ATIVA";
+            case TRIALING -> "TRIAL_ATIVO";
             case PAUSED, SUSPENDED -> "SUSPENSA";
             case CANCELED -> "CANCELADA_SEM_ACESSO";
             case EXPIRED -> "VENCIDA";
