@@ -8,7 +8,6 @@ import org.exemplo.bellory.model.entity.config.ConfigSistema;
 import org.exemplo.bellory.model.entity.endereco.Endereco;
 import org.exemplo.bellory.model.entity.organizacao.RedesSociais;
 import org.exemplo.bellory.model.entity.organizacao.Responsavel;
-import org.exemplo.bellory.model.entity.tema.Tema;
 
 import java.time.LocalDateTime;
 
@@ -27,11 +26,13 @@ public class OrganizacaoResponseDTO {
     private String telefone2;
     private String whatsapp;
     private String slug;
+    private String publicoAlvo;
+    private String segmento;
 
     private Responsavel responsavel;
     private Integer acessoAdm;
     private RedesSociais redesSociais;
-    private Tema tema;
+    private String tema;
 
     private ConfigSistema configSistema;
     private Endereco enderecoPrincipal;

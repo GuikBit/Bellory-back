@@ -15,4 +15,5 @@ public class PlanoDTO {
     private Double valor;
     private String formaPagamento;
     private DadosCartaoDTO dadosCartao;
+    private CupomDTO cupom;
 }

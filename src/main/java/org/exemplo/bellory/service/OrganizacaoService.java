@@ -1,6 +1,7 @@
 package org.exemplo.bellory.service;
 
 import org.exemplo.bellory.client.payment.PaymentApiClient;
+import org.exemplo.bellory.client.payment.dto.CouponValidationResponse;
 import org.exemplo.bellory.client.payment.dto.CreateCustomerRequest;
 import org.exemplo.bellory.client.payment.dto.CreateSubscriptionRequest;
 import org.exemplo.bellory.client.payment.dto.CustomerResponse;
@@ -8,6 +9,7 @@ import org.exemplo.bellory.client.payment.dto.PaymentBillingType;
 import org.exemplo.bellory.client.payment.dto.PaymentSubscriptionCycle;
 import org.exemplo.bellory.client.payment.dto.PlanResponse;
 import org.exemplo.bellory.client.payment.dto.SubscriptionResponse;
+import org.exemplo.bellory.client.payment.dto.ValidateCouponRequest;
 import org.exemplo.bellory.context.TenantContext;
 import org.exemplo.bellory.exception.PaymentApiException;
 import org.exemplo.bellory.model.dto.instancia.InstanceCreateDTO;
@@ -190,6 +192,33 @@ public class OrganizacaoService {
             throw new IllegalArgumentException("Plano '" + planoCodigo + "' esta inativo na Payment API");
         }
 
+        // Revalida cupom (se informado) antes de criar customer/subscription, para falhar cedo com mensagem clara
+        String couponCode = (createDTO.getPlano().getCupom() != null
+                && createDTO.getPlano().getCupom().getCodigo() != null
+                && !createDTO.getPlano().getCupom().getCodigo().isBlank())
+                ? createDTO.getPlano().getCupom().getCodigo().trim()
+                : null;
+        if (couponCode != null) {
+            PaymentSubscriptionCycle cycle = toPaymentCycle(createDTO.getPlano().getPeriodicidade());
+            ValidateCouponRequest validateReq = ValidateCouponRequest.builder()
+                    .couponCode(couponCode)
+                    .scope("SUBSCRIPTION")
+                    .planCode(planoCodigo)
+                    .cycle(cycle.name())
+                    .build();
+            try {
+                CouponValidationResponse validation = paymentApiClient.validateCouponPublic(validateReq);
+                if (validation == null || !validation.isValid()) {
+                    String msg = validation != null && validation.getMessage() != null
+                            ? validation.getMessage()
+                            : "cupom invalido";
+                    throw new IllegalArgumentException("Cupom '" + couponCode + "' invalido: " + msg);
+                }
+            } catch (PaymentApiException e) {
+                throw new IllegalArgumentException("Falha ao validar cupom '" + couponCode + "': " + e.getMessage(), e);
+            }
+        }
+
         // Converte DTO para Entity
         Organizacao organizacao = organizacaoMapper.toEntity(createDTO);
         organizacao.setCnpj(cnpjLimpo); // Salva CNPJ sem formatação
@@ -235,6 +264,7 @@ public class OrganizacaoService {
                     .cycle(toPaymentCycle(createDTO.getPlano().getPeriodicidade()))
                     .externalReference("org-" + savedOrganizacao.getId())
                     .description("Assinatura " + planoPayment.getName() + " - " + savedOrganizacao.getNomeFantasia())
+                    .couponCode(couponCode)
                     .build();
             subscription = paymentApiClient.createSubscription(subReq);
         } catch (Exception e) {
@@ -411,7 +441,14 @@ public class OrganizacaoService {
             if (enderecoDTO.getUf() != null) endereco.setUf(enderecoDTO.getUf());
             if (enderecoDTO.getReferencia() != null) endereco.setReferencia(enderecoDTO.getReferencia());
             if (enderecoDTO.getComplemento() != null) endereco.setComplemento(enderecoDTO.getComplemento());
-            if (enderecoDTO.getCoordenadas() != null) endereco.setCoordenadas(enderecoDTO.getCoordenadas());
+
+            var coordsAtualizadas = organizacaoMapper.applyCoordenadas(
+                    endereco.getCoordenadas(),
+                    enderecoDTO.getLatitude(),
+                    enderecoDTO.getLongitude());
+            if (coordsAtualizadas != null) {
+                endereco.setCoordenadas(coordsAtualizadas);
+            }
         }
 
         // Coordenadas diretas (sem precisar enviar endereco inteiro)

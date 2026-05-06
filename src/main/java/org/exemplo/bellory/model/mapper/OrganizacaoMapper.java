@@ -10,6 +10,8 @@ import org.exemplo.bellory.model.entity.organizacao.*;
 import org.exemplo.bellory.model.entity.tema.*;
 import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
+
 /**
  * Mapper manual para conversão entre DTOs e Entities
  * Lida com as diferenças de nomenclatura entre JSON e entidades
@@ -29,12 +31,13 @@ public class OrganizacaoMapper {
         org.setCnpj(dto.getCnpj());
         org.setRazaoSocial(dto.getRazaoSocial());
         org.setNomeFantasia(dto.getNomeFantasia());
-        org.setInscricaoEstadual(dto.getInscricaoEstadual());
+        org.setInscricaoEstadual(normalizarString(dto.getInscricaoEstadual()));
         org.setEmailPrincipal(dto.getEmail());
         org.setTelefone1(dto.getTelefone1());
         org.setTelefone2(dto.getTelefone2());
         org.setWhatsapp(dto.getWhatsapp());
-        org.setPublicoAlvo(dto.getPublicoAlvo());
+        org.setPublicoAlvo(normalizarPublicoAlvo(dto.getPublicoAlvo()));
+        org.setSegmento(normalizarString(dto.getSegmento()));
 
         // Responsavel (Embeddable)
         if (dto.getResponsavel() != null) {
@@ -56,10 +59,13 @@ public class OrganizacaoMapper {
             endereco.setCidade(dto.getEndereco().getCidade());
             endereco.setUf(dto.getEndereco().getUf());
 
-            Coordenadas cood = new Coordenadas();
-            cood.setLatitude(dto.getEndereco().getLatitude().toString());
-            cood.setLongitude(dto.getEndereco().getLongitude().toString());
-            endereco.setCoordenadas(cood);
+            Coordenadas cood = applyCoordenadas(
+                    null,
+                    dto.getEndereco().getLatitude(),
+                    dto.getEndereco().getLongitude());
+            if (cood != null) {
+                endereco.setCoordenadas(cood);
+            }
 
             org.setEnderecoPrincipal(endereco);
 
@@ -75,109 +81,13 @@ public class OrganizacaoMapper {
 //            org.setAcessoAdm(acessoAdm);
         }
 
-        // Tema (Embeddable complexo)
-        if (dto.getTema() != null) {
+        // Tema: hoje recebemos apenas o identificador do tema (string) e gravamos em tema_nome.
+        // Cores/fonts/borderRadius/shadows ficam null no banco — o front aplica o preset pelo nome.
+        // tema_tipo é inferido por convenção do prefixo do nome (masculino*/feminino*/unissex*).
+        if (dto.getTema() != null && !dto.getTema().isBlank()) {
             Tema tema = new Tema();
-            tema.setNome(dto.getTema().getId());
-            tema.setTipo(dto.getTema().getTipo());
-
-            // Cores
-            if (dto.getTema().getCores() != null) {
-                Cores cores = new Cores();
-                var coresDTO = dto.getTema().getCores();
-
-                cores.setPrimary(coresDTO.getPrimary());
-                cores.setSecondary(coresDTO.getSecondary());
-                cores.setAccent(coresDTO.getAccent());
-                cores.setBackground(coresDTO.getBackground());
-                cores.setText(coresDTO.getText());
-                cores.setTextSecondary(coresDTO.getTextSecondary());
-                cores.setCardBackground(coresDTO.getCardBackground());
-                cores.setCardBackgroundSecondary(coresDTO.getCardBackgroundSecondary());
-                cores.setButtonText(coresDTO.getButtonText());
-                cores.setBackgroundLinear(coresDTO.getBackgroundLinear());
-                cores.setSuccess(coresDTO.getSuccess());
-                cores.setWarning(coresDTO.getWarning());
-                cores.setError(coresDTO.getError());
-                cores.setInfo(coresDTO.getInfo());
-                cores.setBorder(coresDTO.getBorder());
-                cores.setBorderLight(coresDTO.getBorderLight());
-                cores.setDivider(coresDTO.getDivider());
-                cores.setOverlay(coresDTO.getOverlay());
-                cores.setModalBackground(coresDTO.getModalBackground());
-                cores.setInputBackground(coresDTO.getInputBackground());
-                cores.setInputBorder(coresDTO.getInputBorder());
-                cores.setInputFocus(coresDTO.getInputFocus());
-                cores.setPlaceholder(coresDTO.getPlaceholder());
-                cores.setNavBackground(coresDTO.getNavBackground());
-                cores.setNavHover(coresDTO.getNavHover());
-                cores.setNavActive(coresDTO.getNavActive());
-                cores.setOnline(coresDTO.getOnline());
-                cores.setOffline(coresDTO.getOffline());
-                cores.setAway(coresDTO.getAway());
-                cores.setBusy(coresDTO.getBusy());
-
-                tema.setCores(cores);
-            }
-
-            // Fonts (com valores padrão)
-            if (dto.getTema().getFonts() != null) {
-                Fonts fonts = new Fonts();
-                fonts.setHeading(dto.getTema().getFonts().getHeading());
-                fonts.setBody(dto.getTema().getFonts().getBody());
-                fonts.setMono(dto.getTema().getFonts().getMono());
-                tema.setFonts(fonts);
-            } else {
-                // Valores padrão se não vier no JSON
-                Fonts fonts = new Fonts();
-                fonts.setHeading("Poppins, sans-serif");
-                fonts.setBody("Inter, sans-serif");
-                fonts.setMono("JetBrains Mono, monospace");
-                tema.setFonts(fonts);
-            }
-
-            // BorderRadius (com valores padrão)
-            if (dto.getTema().getBorderRadius() != null) {
-                BorderRadius br = new BorderRadius();
-                br.setSmall(dto.getTema().getBorderRadius().getSmall());
-                br.setMedium(dto.getTema().getBorderRadius().getMedium());
-                br.setLarge(dto.getTema().getBorderRadius().getLarge());
-                br.setXl(dto.getTema().getBorderRadius().getXl());
-                br.setFull(dto.getTema().getBorderRadius().getFull());
-                tema.setBorderRadius(br);
-            } else {
-                BorderRadius br = new BorderRadius();
-                br.setSmall("4px");
-                br.setMedium("8px");
-                br.setLarge("12px");
-                br.setXl("16px");
-                br.setFull("9999px");
-                tema.setBorderRadius(br);
-            }
-
-            // Shadows (com valores padrão)
-            if (dto.getTema().getShadows() != null) {
-                Shadows shadows = new Shadows();
-                shadows.setBase(dto.getTema().getShadows().getBase());
-                shadows.setMd(dto.getTema().getShadows().getMd());
-                shadows.setLg(dto.getTema().getShadows().getLg());
-                shadows.setPrimaryGlow(dto.getTema().getShadows().getPrimaryGlow());
-                shadows.setAccentGlow(dto.getTema().getShadows().getAccentGlow());
-                tema.setShadows(shadows);
-            } else {
-                Shadows shadows = new Shadows();
-                shadows.setBase("0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24)");
-                shadows.setMd("0 4px 6px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.06)");
-                shadows.setLg("0 10px 15px rgba(0, 0, 0, 0.1), 0 4px 6px rgba(0, 0, 0, 0.05)");
-
-                // Gerar glows baseado nas cores do tema
-                String primaryColor = dto.getTema().getCores() != null ?
-                        dto.getTema().getCores().getPrimary() : "#3B82F6";
-                shadows.setPrimaryGlow("0 0 20px " + primaryColor + "80");
-                shadows.setAccentGlow("0 0 20px " + primaryColor + "60");
-                tema.setShadows(shadows);
-            }
-
+            tema.setNome(dto.getTema().trim());
+            tema.setTipo(inferirTipoTema(dto.getTema()));
             org.setTema(tema);
         }
 
@@ -209,6 +119,8 @@ public class OrganizacaoMapper {
         dto.setTelefone2(org.getTelefone2());
         dto.setWhatsapp(org.getWhatsapp());
         dto.setSlug(org.getSlug());
+        dto.setPublicoAlvo(org.getPublicoAlvo());
+        dto.setSegmento(org.getSegmento());
 
         // Responsavel
         if (org.getResponsavel() != null) {
@@ -250,83 +162,9 @@ public class OrganizacaoMapper {
 //            dto.setAcessoAdm(acessoDTO);
 //        }
 
-        // Tema (mapeamento completo de todos os embeddables)
+        // Tema: devolve só o identificador (tema_nome). Front aplica o preset pelo nome.
         if (org.getTema() != null) {
-            Tema temaDTO = new Tema();
-            temaDTO.setNome(org.getTema().getNome());
-            temaDTO.setTipo(org.getTema().getTipo());
-
-            // Cores
-            if (org.getTema().getCores() != null) {
-                Cores coresDTO = new Cores();
-                var cores = org.getTema().getCores();
-
-                coresDTO.setPrimary(cores.getPrimary());
-                coresDTO.setSecondary(cores.getSecondary());
-                coresDTO.setAccent(cores.getAccent());
-                coresDTO.setBackground(cores.getBackground());
-                coresDTO.setText(cores.getText());
-                coresDTO.setTextSecondary(cores.getTextSecondary());
-                coresDTO.setCardBackground(cores.getCardBackground());
-                coresDTO.setCardBackgroundSecondary(cores.getCardBackgroundSecondary());
-                coresDTO.setButtonText(cores.getButtonText());
-                coresDTO.setBackgroundLinear(cores.getBackgroundLinear());
-                coresDTO.setSuccess(cores.getSuccess());
-                coresDTO.setWarning(cores.getWarning());
-                coresDTO.setError(cores.getError());
-                coresDTO.setInfo(cores.getInfo());
-                coresDTO.setBorder(cores.getBorder());
-                coresDTO.setBorderLight(cores.getBorderLight());
-                coresDTO.setDivider(cores.getDivider());
-                coresDTO.setOverlay(cores.getOverlay());
-                coresDTO.setModalBackground(cores.getModalBackground());
-                coresDTO.setInputBackground(cores.getInputBackground());
-                coresDTO.setInputBorder(cores.getInputBorder());
-                coresDTO.setInputFocus(cores.getInputFocus());
-                coresDTO.setPlaceholder(cores.getPlaceholder());
-                coresDTO.setNavBackground(cores.getNavBackground());
-                coresDTO.setNavHover(cores.getNavHover());
-                coresDTO.setNavActive(cores.getNavActive());
-                coresDTO.setOnline(cores.getOnline());
-                coresDTO.setOffline(cores.getOffline());
-                coresDTO.setAway(cores.getAway());
-                coresDTO.setBusy(cores.getBusy());
-
-                temaDTO.setCores(coresDTO);
-            }
-
-            // Fonts
-            if (org.getTema().getFonts() != null) {
-                Fonts fontsDTO = new Fonts();
-                fontsDTO.setHeading(org.getTema().getFonts().getHeading());
-                fontsDTO.setBody(org.getTema().getFonts().getBody());
-                fontsDTO.setMono(org.getTema().getFonts().getMono());
-                temaDTO.setFonts(fontsDTO);
-            }
-
-            // BorderRadius
-            if (org.getTema().getBorderRadius() != null) {
-                BorderRadius brDTO = new BorderRadius();
-                brDTO.setSmall(org.getTema().getBorderRadius().getSmall());
-                brDTO.setMedium(org.getTema().getBorderRadius().getMedium());
-                brDTO.setLarge(org.getTema().getBorderRadius().getLarge());
-                brDTO.setXl(org.getTema().getBorderRadius().getXl());
-                brDTO.setFull(org.getTema().getBorderRadius().getFull());
-                temaDTO.setBorderRadius(brDTO);
-            }
-
-            // Shadows
-            if (org.getTema().getShadows() != null) {
-                Shadows shadowsDTO = new Shadows();
-                shadowsDTO.setBase(org.getTema().getShadows().getBase());
-                shadowsDTO.setMd(org.getTema().getShadows().getMd());
-                shadowsDTO.setLg(org.getTema().getShadows().getLg());
-                shadowsDTO.setPrimaryGlow(org.getTema().getShadows().getPrimaryGlow());
-                shadowsDTO.setAccentGlow(org.getTema().getShadows().getAccentGlow());
-                temaDTO.setShadows(shadowsDTO);
-            }
-
-            dto.setTema(temaDTO);
+            dto.setTema(org.getTema().getNome());
         }
 
         // Plano/limites agora vem da Payment API (consumido no frontend via /auth/me + /assinatura/refresh-cache).
@@ -342,6 +180,8 @@ public class OrganizacaoMapper {
             endDTO.setBairro(org.getEnderecoPrincipal().getBairro());
             endDTO.setCidade(org.getEnderecoPrincipal().getCidade());
             endDTO.setUf(org.getEnderecoPrincipal().getUf());
+            endDTO.setReferencia(org.getEnderecoPrincipal().getReferencia());
+            endDTO.setCoordenadas(org.getEnderecoPrincipal().getCoordenadas());
             dto.setEnderecoPrincipal(endDTO);
         }
 
@@ -367,5 +207,64 @@ public class OrganizacaoMapper {
         return organizacoes.stream()
                 .map(this::toResponseDTO)
                 .collect(java.util.stream.Collectors.toList());
+    }
+
+    /**
+     * Normaliza string opcional: trim + null se ficar vazia. Útil para campos como
+     * inscricaoEstadual que chegam como "" do front e a gente prefere persistir como NULL.
+     */
+    public String normalizarString(String valor) {
+        if (valor == null) return null;
+        String trimmed = valor.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    /**
+     * Normaliza publicoAlvo aceitando M/F/U ou Masculino/Feminino/Unissex (case-insensitive)
+     * e devolve a forma canônica curta (M/F/U). Retorna null se a entrada for vazia.
+     * O Bean Validation (@Pattern) já barra valores fora do whitelist antes de chegar aqui;
+     * o switch default é defesa em profundidade.
+     */
+    public String normalizarPublicoAlvo(String valor) {
+        if (valor == null || valor.isBlank()) return null;
+        return switch (valor.trim().toUpperCase()) {
+            case "M", "MASCULINO" -> "M";
+            case "F", "FEMININO" -> "F";
+            case "U", "UNISSEX" -> "U";
+            default -> throw new IllegalArgumentException(
+                    "Publico alvo invalido: aceita M, F, U, Masculino, Feminino ou Unissex");
+        };
+    }
+
+    /**
+     * Infere o tipo do tema a partir do prefixo do nome (convenção do front: "masculinoClassico",
+     * "femininoModerno", "unissexPadrao"). Retorna null se nenhum prefixo conhecido casar.
+     */
+    public String inferirTipoTema(String nome) {
+        if (nome == null) return null;
+        String n = nome.trim().toLowerCase();
+        if (n.startsWith("masculino")) return "masculino";
+        if (n.startsWith("feminino")) return "feminino";
+        if (n.startsWith("unissex") || n.startsWith("neutro")) return "unissex";
+        return null;
+    }
+
+    /**
+     * Aplica latitude/longitude (BigDecimal) sobre um {@link Coordenadas}, criando o objeto
+     * se ainda não existir. Mantém o valor previamente persistido se um dos lados for null.
+     * Retorna null somente quando lat e lng são ambos null e não havia coordenadas existentes.
+     */
+    public Coordenadas applyCoordenadas(Coordenadas existente, BigDecimal latitude, BigDecimal longitude) {
+        if (latitude == null && longitude == null) {
+            return existente;
+        }
+        Coordenadas alvo = existente != null ? existente : new Coordenadas();
+        if (latitude != null) {
+            alvo.setLatitude(latitude.toPlainString());
+        }
+        if (longitude != null) {
+            alvo.setLongitude(longitude.toPlainString());
+        }
+        return alvo;
     }
 }

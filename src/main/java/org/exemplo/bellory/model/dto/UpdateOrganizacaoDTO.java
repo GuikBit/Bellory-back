@@ -9,9 +9,9 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.exemplo.bellory.model.dto.organizacao.UpdateEnderecoDTO;
 import org.exemplo.bellory.model.entity.config.ConfigSistema;
 import org.exemplo.bellory.model.entity.endereco.Coordenadas;
-import org.exemplo.bellory.model.entity.endereco.Endereco;
 import org.exemplo.bellory.model.entity.organizacao.AcessoAdm;
 import org.exemplo.bellory.model.entity.organizacao.DiaSemanaFuncionamento;
 import org.exemplo.bellory.model.entity.organizacao.RedesSociais;
@@ -51,7 +51,7 @@ public class UpdateOrganizacaoDTO {
     private Responsavel responsavel;
 
     @Valid
-    private Endereco endereco;
+    private UpdateEnderecoDTO endereco;
 
     @Valid
     private AcessoAdm acessoAdm;

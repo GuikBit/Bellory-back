@@ -6,13 +6,13 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.exemplo.bellory.model.dto.*;
-import org.exemplo.bellory.model.dto.tema.TemaDTO;
 
 /**
  * DTO para criação de uma nova Organização
@@ -50,7 +50,14 @@ public class CreateOrganizacaoDTO {
 
     private String whatsapp;
 
+    @Pattern(
+            regexp = "(?i)^(M|F|U|Masculino|Feminino|Unissex)$",
+            message = "Público alvo deve ser M, F, U, Masculino, Feminino ou Unissex"
+    )
     private String publicoAlvo;
+
+    @Size(max = 50, message = "Segmento deve ter no máximo 50 caracteres")
+    private String segmento;
 
     @Valid
     @NotNull(message = "Responsável é obrigatório")
@@ -66,9 +73,9 @@ public class CreateOrganizacaoDTO {
     @JsonProperty("acesso")
     private AcessoAdmDTO acessoAdm;
 
-    @Valid
-    @NotNull(message = "Tema é obrigatório")
-    private TemaDTO tema;
+    @NotBlank(message = "Tema é obrigatório")
+    @Size(max = 100, message = "Tema deve ter no máximo 100 caracteres")
+    private String tema;
 
     @Valid
     @NotNull(message = "Plano é obrigatório")

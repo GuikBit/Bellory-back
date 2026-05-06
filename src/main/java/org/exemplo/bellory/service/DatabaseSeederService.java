@@ -530,7 +530,8 @@ public class DatabaseSeederService {
             endereco.setLongitude(BigDecimal.valueOf(32.34234));
             dto.setEndereco(endereco);
 
-            dto.setTema(criarTemaDTOPersonalizado(finalI));
+            String[] nomesTemas = {"Tema Elegante", "Tema Moderno", "Tema Clássico"};
+            dto.setTema(nomesTemas[finalI % nomesTemas.length]);
 
             // Cria organização via service (valida CNPJ, cria Funcionário ADMIN, Admin suporte, ConfigSistema, Cargo,
             // e chama Payment API pra criar customer + subscription).
@@ -653,86 +654,6 @@ public class DatabaseSeederService {
 
         // === SHADOWS ===
         Shadows shadows = new Shadows();
-        shadows.setBase("0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24)");
-        shadows.setMd("0 4px 6px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.06)");
-        shadows.setLg("0 10px 15px rgba(0, 0, 0, 0.1), 0 4px 6px rgba(0, 0, 0, 0.05)");
-        shadows.setPrimaryGlow("0 0 20px " + cores.getPrimary() + "80");
-        shadows.setAccentGlow("0 0 20px " + cores.getAccent() + "80");
-        tema.setShadows(shadows);
-
-        return tema;
-    }
-
-    private TemaDTO criarTemaDTOPersonalizado(int indice) {
-        TemaDTO tema = new TemaDTO();
-
-        String[] nomesTemas = {"Tema Elegante", "Tema Moderno", "Tema Clássico"};
-        String[] tiposTemas = {"LIGHT", "DARK", "LIGHT"};
-
-        tema.setNome(nomesTemas[indice % nomesTemas.length]);
-        tema.setTipo(tiposTemas[indice % tiposTemas.length]);
-
-        CoresDTO cores = new CoresDTO();
-
-        if (indice == 0) {
-            cores.setPrimary("#E91E63");
-            cores.setSecondary("#F48FB1");
-            cores.setAccent("#C2185B");
-        } else if (indice == 1) {
-            cores.setPrimary("#2196F3");
-            cores.setSecondary("#64B5F6");
-            cores.setAccent("#1976D2");
-        } else {
-            cores.setPrimary("#9C27B0");
-            cores.setSecondary("#BA68C8");
-            cores.setAccent("#7B1FA2");
-        }
-
-        cores.setBackground("#FFFFFF");
-        cores.setText("#212121");
-        cores.setTextSecondary("#757575");
-        cores.setCardBackground("#FAFAFA");
-        cores.setCardBackgroundSecondary("#F5F5F5");
-        cores.setButtonText("#FFFFFF");
-        cores.setBackgroundLinear("linear-gradient(135deg, " + cores.getPrimary() + " 0%, " + cores.getSecondary() + " 100%)");
-        cores.setSuccess("#4CAF50");
-        cores.setWarning("#FF9800");
-        cores.setError("#F44336");
-        cores.setInfo("#2196F3");
-        cores.setBorder("#E0E0E0");
-        cores.setBorderLight("#F5F5F5");
-        cores.setDivider("#BDBDBD");
-        cores.setOverlay("rgba(0, 0, 0, 0.5)");
-        cores.setModalBackground("#FFFFFF");
-        cores.setInputBackground("#FAFAFA");
-        cores.setInputBorder("#E0E0E0");
-        cores.setInputFocus(cores.getPrimary());
-        cores.setPlaceholder("#9E9E9E");
-        cores.setNavBackground("#FFFFFF");
-        cores.setNavHover("#F5F5F5");
-        cores.setNavActive(cores.getPrimary());
-        cores.setOnline("#4CAF50");
-        cores.setOffline("#9E9E9E");
-        cores.setAway("#FF9800");
-        cores.setBusy("#F44336");
-
-        tema.setCores(cores);
-
-        FontsDTO fonts = new FontsDTO();
-        fonts.setHeading("Poppins, sans-serif");
-        fonts.setBody("Inter, sans-serif");
-        fonts.setMono("JetBrains Mono, monospace");
-        tema.setFonts(fonts);
-
-        BorderRadiusDTO borderRadius = new BorderRadiusDTO();
-        borderRadius.setSmall("4px");
-        borderRadius.setMedium("8px");
-        borderRadius.setLarge("12px");
-        borderRadius.setXl("16px");
-        borderRadius.setFull("9999px");
-        tema.setBorderRadius(borderRadius);
-
-        ShadowsDTO shadows = new ShadowsDTO();
         shadows.setBase("0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24)");
         shadows.setMd("0 4px 6px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.06)");
         shadows.setLg("0 10px 15px rgba(0, 0, 0, 0.1), 0 4px 6px rgba(0, 0, 0, 0.05)");

@@ -50,6 +50,9 @@ public class Organizacao {
 
     private String publicoAlvo;
 
+    @Column(name = "segmento", length = 50)
+    private String segmento;
+
     @Size(max = 50, message = "Inscrição estadual deve ter no máximo 50 caracteres")
     @Column(name = "inscricao_estadual", length = 50)
     private String inscricaoEstadual;
